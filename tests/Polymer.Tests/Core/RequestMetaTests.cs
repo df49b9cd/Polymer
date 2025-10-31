@@ -21,11 +21,11 @@ public class RequestMetaTests
     public void WithHeaders_MergesValues()
     {
         var meta = new RequestMeta(service: "keyvalue")
-            .WithHeaders(new[]
-            {
+            .WithHeaders(
+            [
                 new KeyValuePair<string, string>("a", "1"),
                 new KeyValuePair<string, string>("b", "2")
-            });
+            ]);
 
         Assert.True(meta.TryGetHeader("A", out var a));
         Assert.Equal("1", a);

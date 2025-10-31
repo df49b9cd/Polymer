@@ -6,8 +6,7 @@ Comprehensive backlog to track remaining work required to reach feature parity w
 
 - ~~**HTTP Oneway Completion (Phase 3)**~~ *(completed)*
 
-- **HTTP Streaming & Advanced Features**
-  - (Optional parity) Evaluate support for HTTP long-poll or server-sent events analogous to YARPC raw streaming if required by consumers.
+- ~~**HTTP Streaming & Advanced Features**~~ *(completed: SSE / chunked server streaming support)*
 
 - **gRPC Oneway & Streaming (Phase 4)**
   - Implement unary->oneway adaptation (e.g., map to empty responses) or adopt proper gRPC oneway semantics (which YARPC models via unary with ack).

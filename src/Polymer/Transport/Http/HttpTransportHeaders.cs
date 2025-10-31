@@ -1,6 +1,6 @@
 namespace Polymer.Transport.Http;
 
-internal static class HttpTransportHeaders
+public static class HttpTransportHeaders
 {
     public const string Procedure = "Rpc-Procedure";
     public const string Caller = "Rpc-Caller";

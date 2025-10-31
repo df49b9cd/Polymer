@@ -37,16 +37,16 @@ public sealed class Dispatcher
         }
 
         _serviceName = options.ServiceName;
-        _lifecycleDescriptors = options.ComponentDescriptors.ToImmutableArray();
-        _lifecycleStartOrder = options.UniqueComponents.ToImmutableArray();
+        _lifecycleDescriptors = [.. options.ComponentDescriptors];
+        _lifecycleStartOrder = [.. options.UniqueComponents];
         _outbounds = BuildOutboundCollections(options.OutboundBuilders);
 
-        _inboundUnaryMiddleware = options.UnaryInboundMiddleware.ToImmutableArray();
-        _inboundOnewayMiddleware = options.OnewayInboundMiddleware.ToImmutableArray();
-        _inboundStreamMiddleware = options.StreamInboundMiddleware.ToImmutableArray();
-        _outboundUnaryMiddleware = options.UnaryOutboundMiddleware.ToImmutableArray();
-        _outboundOnewayMiddleware = options.OnewayOutboundMiddleware.ToImmutableArray();
-        _outboundStreamMiddleware = options.StreamOutboundMiddleware.ToImmutableArray();
+        _inboundUnaryMiddleware = [.. options.UnaryInboundMiddleware];
+        _inboundOnewayMiddleware = [.. options.OnewayInboundMiddleware];
+        _inboundStreamMiddleware = [.. options.StreamInboundMiddleware];
+        _outboundUnaryMiddleware = [.. options.UnaryOutboundMiddleware];
+        _outboundOnewayMiddleware = [.. options.OnewayOutboundMiddleware];
+        _outboundStreamMiddleware = [.. options.StreamOutboundMiddleware];
 
         BindDispatcherAwareComponents(_lifecycleDescriptors);
     }
@@ -157,6 +157,32 @@ public sealed class Dispatcher
             _outboundStreamMiddleware);
     }
 
+    public ValueTask<Result<IStreamCall>> InvokeStreamAsync(
+        string procedure,
+        IRequest<ReadOnlyMemory<byte>> request,
+        StreamCallOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(procedure))
+        {
+            return ValueTask.FromResult(Err<IStreamCall>(PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.InvalidArgument,
+                "Procedure name is required for streaming calls.")));
+        }
+
+        if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Stream, out var spec) ||
+            spec is not StreamProcedureSpec streamSpec)
+        {
+            return ValueTask.FromResult(Err<IStreamCall>(PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.Unimplemented,
+                $"Stream procedure '{procedure}' is not registered for service '{_serviceName}'.")));
+        }
+
+        var middleware = CombineMiddleware(_inboundStreamMiddleware, streamSpec.Middleware);
+        var pipeline = MiddlewareComposer.ComposeStreamInbound(middleware, streamSpec.Handler);
+        return pipeline(request, options, cancellationToken);
+    }
+
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         BeginStart();
@@ -254,12 +280,12 @@ public sealed class Dispatcher
             .ToImmutableArray();
 
         var middleware = new MiddlewareSummary(
-            _inboundUnaryMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name).ToImmutableArray(),
-            _inboundOnewayMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name).ToImmutableArray(),
-            _inboundStreamMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name).ToImmutableArray(),
-            _outboundUnaryMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name).ToImmutableArray(),
-            _outboundOnewayMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name).ToImmutableArray(),
-            _outboundStreamMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name).ToImmutableArray());
+            [.. _inboundUnaryMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _inboundOnewayMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _inboundStreamMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundUnaryMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundOnewayMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundStreamMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)]);
 
         return new DispatcherIntrospection(
             _serviceName,

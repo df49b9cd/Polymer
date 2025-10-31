@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Collections.Immutable;
 using System.Net.Mime;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,7 +42,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             throw new ArgumentNullException(nameof(urls));
         }
 
-        _urls = urls.ToArray();
+        _urls = [.. urls];
         if (_urls.Length == 0)
         {
             throw new ArgumentException("At least one URL must be provided for the HTTP inbound.", nameof(urls));
@@ -81,7 +83,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
         _configureApp?.Invoke(app);
 
-        app.MapMethods("/{**_}", new[] { HttpMethods.Post }, HandleUnaryAsync);
+        app.MapMethods("/{**_}", [HttpMethods.Post], HandleUnaryAsync);
+        app.MapMethods("/{**_}", [HttpMethods.Get], HandleServerStreamAsync);
 
         await app.StartAsync(cancellationToken).ConfigureAwait(false);
         _app = app;
@@ -188,6 +191,91 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         }
     }
 
+    private async Task HandleServerStreamAsync(HttpContext context)
+    {
+        var dispatcher = _dispatcher!;
+        var transport = "http";
+
+        if (!HttpMethods.IsGet(context.Request.Method))
+        {
+            context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+            return;
+        }
+
+        if (!context.Request.Headers.TryGetValue(HttpTransportHeaders.Procedure, out var procedureValues) ||
+            StringValues.IsNullOrEmpty(procedureValues))
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+            return;
+        }
+
+        var procedure = procedureValues![0];
+
+        var acceptValues = context.Request.Headers.TryGetValue("Accept", out var acceptRaw)
+            ? acceptRaw
+            : StringValues.Empty;
+
+        if (acceptValues.Count == 0 ||
+            !acceptValues.Any(value => !string.IsNullOrEmpty(value) && value.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
+        {
+            context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
+            await WriteErrorAsync(context, "text/event-stream Accept header required for streaming", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+            return;
+        }
+
+        var meta = BuildRequestMeta(
+            dispatcher.ServiceName,
+            procedure!,
+            encoding: context.Request.Headers.TryGetValue(HttpTransportHeaders.Encoding, out var encodingValues) && !StringValues.IsNullOrEmpty(encodingValues)
+                ? encodingValues![0]
+                : null,
+            headers: context.Request.Headers,
+            transport: transport,
+            cancellationToken: context.RequestAborted);
+
+        var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
+
+        var streamResult = await dispatcher.InvokeStreamAsync(
+            procedure!,
+            request,
+            new StreamCallOptions(StreamDirection.Server),
+            context.RequestAborted).ConfigureAwait(false);
+
+        if (streamResult.IsFailure)
+        {
+            var error = streamResult.Error!;
+            var exception = PolymerErrors.FromError(error, transport);
+            context.Response.StatusCode = HttpStatusMapper.ToStatusCode(exception.StatusCode);
+            await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
+            return;
+        }
+
+        await using var call = streamResult.Value;
+
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.Headers[HttpTransportHeaders.Transport] = transport;
+        context.Response.Headers["Cache-Control"] = "no-cache";
+        context.Response.Headers["Connection"] = "keep-alive";
+        context.Response.Headers["Content-Type"] = "text/event-stream";
+
+        var responseMeta = call.ResponseMeta ?? new ResponseMeta();
+        var responseHeaders = responseMeta.Headers ?? ImmutableDictionary<string, string>.Empty;
+        foreach (var header in responseHeaders)
+        {
+            context.Response.Headers[header.Key] = header.Value;
+        }
+
+        await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
+
+        await foreach (var payload in call.Responses.ReadAllAsync(context.RequestAborted).ConfigureAwait(false))
+        {
+            var frame = EncodeSseFrame(payload, responseMeta.Encoding);
+            await context.Response.BodyWriter.WriteAsync(frame, context.RequestAborted).ConfigureAwait(false);
+            await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
+        }
+    }
+
     private static RequestMeta BuildRequestMeta(
         string service,
         string procedure,
@@ -253,5 +341,21 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         };
 
         await JsonSerializer.SerializeAsync(context.Response.Body, payload, cancellationToken: context.RequestAborted).ConfigureAwait(false);
+    }
+
+    private static ReadOnlyMemory<byte> EncodeSseFrame(ReadOnlyMemory<byte> payload, string? encoding)
+    {
+        if (!string.IsNullOrEmpty(encoding) && encoding.StartsWith("text", StringComparison.OrdinalIgnoreCase))
+        {
+            var text = System.Text.Encoding.UTF8.GetString(payload.Span);
+            var eventFrame = $"data: {text}\n\n";
+            return System.Text.Encoding.UTF8.GetBytes(eventFrame);
+        }
+        else
+        {
+            var base64 = Convert.ToBase64String(payload.Span);
+            var eventFrame = $"data: {base64}\nencoding: base64\n\n";
+            return System.Text.Encoding.UTF8.GetBytes(eventFrame);
+        }
     }
 }

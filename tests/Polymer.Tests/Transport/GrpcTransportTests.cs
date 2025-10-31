@@ -24,7 +24,7 @@ public class GrpcTransportTests
         var address = new Uri($"http://127.0.0.1:{port}");
 
         var options = new DispatcherOptions("echo");
-        var grpcInbound = new GrpcInbound(new[] { address.ToString() });
+        var grpcInbound = new GrpcInbound([address.ToString()]);
         options.AddLifecycle("grpc-inbound", grpcInbound);
 
         var grpcOutbound = new GrpcOutbound(address, "echo");

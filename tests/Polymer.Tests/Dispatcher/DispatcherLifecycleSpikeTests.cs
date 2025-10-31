@@ -35,7 +35,7 @@ public class DispatcherLifecycleSpikeTests
             Assert.Contains($"start:{index}", started));
 
         Assert.Equal(stopSteps.Count, stopped.Count);
-        Assert.Equal(new[] { "stop:0", "stop:1" }, stopped);
+        Assert.Equal(["stop:0", "stop:1"], stopped);
     }
 
     [Fact]
