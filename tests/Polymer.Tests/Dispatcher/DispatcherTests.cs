@@ -46,7 +46,7 @@ public class DispatcherTests
         var options = new DispatcherOptions("payments");
         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
 
-        var spec = CreateUnaryProcedure("payments", "payments::charge");
+        var spec = CreateUnaryProcedure("payments", "charge");
 
         dispatcher.Register(spec);
 
@@ -59,7 +59,7 @@ public class DispatcherTests
         var options = new DispatcherOptions("catalog");
         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
 
-        var spec = CreateUnaryProcedure("inventory", "inventory::list");
+        var spec = CreateUnaryProcedure("inventory", "list");
 
         Assert.Throws<InvalidOperationException>(() => dispatcher.Register(spec));
     }
@@ -105,11 +105,12 @@ public class DispatcherTests
         options.UnaryOutboundMiddleware.Add(unaryOutbound);
 
         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
-        dispatcher.Register(CreateUnaryProcedure("keyvalue", "keyvalue::get"));
+        dispatcher.Register(CreateUnaryProcedure("keyvalue", "get"));
 
         var beforeStart = dispatcher.Introspect();
         Assert.Equal(DispatcherStatus.Created, beforeStart.Status);
         Assert.Single(beforeStart.Procedures);
+        Assert.Equal("get", beforeStart.Procedures[0].Name);
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartAsync(ct);
@@ -128,10 +129,10 @@ public class DispatcherTests
         Assert.Equal(DispatcherStatus.Stopped, afterStop.Status);
     }
 
-    private static UnaryProcedureSpec CreateUnaryProcedure(string service, string name) =>
+    private static UnaryProcedureSpec CreateUnaryProcedure(string service, string procedure) =>
         new(
             service,
-            name,
+            procedure,
             (request, cancellationToken) =>
             {
                 var response = Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty);

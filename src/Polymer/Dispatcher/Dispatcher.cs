@@ -6,8 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Hugo;
 using static Hugo.Go;
+using Polymer.Core;
 using Polymer.Core.Middleware;
 using Polymer.Core.Transport;
+using Polymer.Errors;
 
 namespace Polymer.Dispatcher;
 
@@ -45,6 +47,8 @@ public sealed class Dispatcher
         _outboundUnaryMiddleware = options.UnaryOutboundMiddleware.ToImmutableArray();
         _outboundOnewayMiddleware = options.OnewayOutboundMiddleware.ToImmutableArray();
         _outboundStreamMiddleware = options.StreamOutboundMiddleware.ToImmutableArray();
+
+        BindDispatcherAwareComponents(_lifecycleDescriptors);
     }
 
     public string ServiceName => _serviceName;
@@ -83,7 +87,53 @@ public sealed class Dispatcher
     }
 
     public bool TryGetProcedure(string name, ProcedureKind kind, out ProcedureSpec spec) =>
-        _procedures.TryGet(name, kind, out spec);
+        _procedures.TryGet(_serviceName, name, kind, out spec);
+
+    public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeUnaryAsync(
+        string procedure,
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Unary, out var spec) ||
+            spec is not UnaryProcedureSpec unarySpec)
+        {
+            var error = PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.Unimplemented,
+                $"Unary procedure '{procedure}' is not registered for service '{_serviceName}'.",
+                transport: request.Meta.Transport ?? "unknown");
+
+            return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
+        }
+
+        var pipeline = MiddlewareComposer.ComposeUnaryInbound(
+            CombineMiddleware(_inboundUnaryMiddleware, unarySpec.Middleware),
+            unarySpec.Handler);
+
+        return pipeline(request, cancellationToken);
+    }
+
+    public ValueTask<Result<OnewayAck>> InvokeOnewayAsync(
+        string procedure,
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Oneway, out var spec) ||
+            spec is not OnewayProcedureSpec onewaySpec)
+        {
+            var error = PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.Unimplemented,
+                $"Oneway procedure '{procedure}' is not registered for service '{_serviceName}'.",
+                transport: request.Meta.Transport ?? "unknown");
+
+        return ValueTask.FromResult(Err<OnewayAck>(error));
+        }
+
+        var pipeline = MiddlewareComposer.ComposeOnewayInbound(
+            CombineMiddleware(_inboundOnewayMiddleware, onewaySpec.Middleware),
+            onewaySpec.Handler);
+
+        return pipeline(request, cancellationToken);
+    }
 
     public ClientConfiguration ClientConfig(string service)
     {
@@ -289,5 +339,40 @@ public sealed class Dispatcher
         }
 
         return map.ToImmutable();
+    }
+
+    private void BindDispatcherAwareComponents(ImmutableArray<DispatcherOptions.DispatcherLifecycleComponent> components)
+    {
+        foreach (var component in components)
+        {
+            if (component.Lifecycle is IDispatcherAware aware)
+            {
+                aware.Bind(this);
+            }
+        }
+    }
+
+    private static IReadOnlyList<TMiddleware> CombineMiddleware<TMiddleware>(
+        ImmutableArray<TMiddleware> global,
+        IReadOnlyList<TMiddleware> local)
+    {
+        if (global.Length == 0)
+        {
+            return local;
+        }
+
+        if (local.Count == 0)
+        {
+            return global;
+        }
+
+        var combined = new TMiddleware[global.Length + local.Count];
+        global.AsSpan().CopyTo(combined);
+        for (var index = 0; index < local.Count; index++)
+        {
+            combined[global.Length + index] = local[index];
+        }
+
+        return combined;
     }
 }

@@ -16,7 +16,7 @@ internal sealed class ProcedureRegistry
             throw new ArgumentNullException(nameof(spec));
         }
 
-        var key = CreateKey(spec.Name, spec.Kind);
+        var key = CreateKey(spec.Service, spec.Name, spec.Kind);
 
         lock (_gate)
         {
@@ -29,9 +29,9 @@ internal sealed class ProcedureRegistry
         }
     }
 
-    public bool TryGet(string name, ProcedureKind kind, out ProcedureSpec spec)
+    public bool TryGet(string service, string name, ProcedureKind kind, out ProcedureSpec spec)
     {
-        var key = CreateKey(name, kind);
+        var key = CreateKey(service, name, kind);
 
         lock (_gate)
         {
@@ -47,6 +47,6 @@ internal sealed class ProcedureRegistry
         }
     }
 
-    private static string CreateKey(string name, ProcedureKind kind) =>
-        $"{name}:{kind}";
+    private static string CreateKey(string service, string name, ProcedureKind kind) =>
+        $"{service}::{name}:{kind}";
 }
