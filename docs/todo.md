@@ -4,11 +4,7 @@ Comprehensive backlog to track remaining work required to reach feature parity w
 
 ## 1. Transports
 
-- **HTTP Oneway Completion (Phase 3)**
-  - Implement oneway outbound client surface (`IOnewayOutbound` implementations, dispatcher client helpers).
-  - Add handler registration APIs for oneway procedures; ensure dispatcher enforces procedure type at registration.
-  - Expand integration tests to validate 202 responses, header propagation, cancellation semantics.
-  - Document fire-and-forget behaviour (buffering, retry limitations, error reporting).
+- ~~**HTTP Oneway Completion (Phase 3)**~~ *(completed)*
 
 - **HTTP Streaming & Advanced Features**
   - (Optional parity) Evaluate support for HTTP long-poll or server-sent events analogous to YARPC raw streaming if required by consumers.

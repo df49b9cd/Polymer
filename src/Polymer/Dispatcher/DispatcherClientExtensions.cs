@@ -32,4 +32,29 @@ public static class DispatcherClientExtensions
 
         return new UnaryClient<TRequest, TResponse>(outbound, codec, configuration.UnaryMiddleware);
     }
+
+    public static OnewayClient<TRequest> CreateOnewayClient<TRequest>(
+        this Dispatcher dispatcher,
+        string service,
+        ICodec<TRequest, object> codec,
+        string? outboundKey = null)
+    {
+        if (dispatcher is null)
+        {
+            throw new ArgumentNullException(nameof(dispatcher));
+        }
+
+        if (codec is null)
+        {
+            throw new ArgumentNullException(nameof(codec));
+        }
+
+        var configuration = dispatcher.ClientConfig(service);
+        if (!configuration.TryGetOneway(outboundKey, out var outbound) || outbound is null)
+        {
+            throw new KeyNotFoundException($"No oneway outbound registered for service '{service}' with key '{outboundKey ?? OutboundCollection.DefaultKey}'.");
+        }
+
+        return new OnewayClient<TRequest>(outbound, codec, configuration.OnewayMiddleware);
+    }
 }
