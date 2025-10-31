@@ -1,0 +1,82 @@
+using System;
+using System.Collections.Generic;
+using Polymer.Core.Middleware;
+using Polymer.Core.Transport;
+
+namespace Polymer.Dispatcher;
+
+public abstract record ProcedureSpec
+{
+    protected ProcedureSpec(string service, string name, ProcedureKind kind, string? encoding = null)
+    {
+        Service = service ?? throw new ArgumentNullException(nameof(service));
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Procedure name cannot be null or whitespace.", nameof(name));
+        }
+
+        Name = name;
+        Kind = kind;
+        Encoding = encoding;
+    }
+
+    public string Service { get; }
+    public string Name { get; }
+    public ProcedureKind Kind { get; }
+    public string? Encoding { get; }
+    public string FullName => $"{Service}::{Name}";
+}
+
+public sealed record UnaryProcedureSpec : ProcedureSpec
+{
+    public UnaryProcedureSpec(
+        string service,
+        string name,
+        UnaryInboundDelegate handler,
+        string? encoding = null,
+        IReadOnlyList<IUnaryInboundMiddleware>? middleware = null)
+        : base(service, name, ProcedureKind.Unary, encoding)
+    {
+        Handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        Middleware = middleware ?? Array.Empty<IUnaryInboundMiddleware>();
+    }
+
+    public UnaryInboundDelegate Handler { get; }
+    public IReadOnlyList<IUnaryInboundMiddleware> Middleware { get; }
+}
+
+public sealed record OnewayProcedureSpec : ProcedureSpec
+{
+    public OnewayProcedureSpec(
+        string service,
+        string name,
+        OnewayInboundDelegate handler,
+        string? encoding = null,
+        IReadOnlyList<IOnewayInboundMiddleware>? middleware = null)
+        : base(service, name, ProcedureKind.Oneway, encoding)
+    {
+        Handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        Middleware = middleware ?? Array.Empty<IOnewayInboundMiddleware>();
+    }
+
+    public OnewayInboundDelegate Handler { get; }
+    public IReadOnlyList<IOnewayInboundMiddleware> Middleware { get; }
+}
+
+public sealed record StreamProcedureSpec : ProcedureSpec
+{
+    public StreamProcedureSpec(
+        string service,
+        string name,
+        StreamInboundDelegate handler,
+        string? encoding = null,
+        IReadOnlyList<IStreamInboundMiddleware>? middleware = null)
+        : base(service, name, ProcedureKind.Stream, encoding)
+    {
+        Handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        Middleware = middleware ?? Array.Empty<IStreamInboundMiddleware>();
+    }
+
+    public StreamInboundDelegate Handler { get; }
+    public IReadOnlyList<IStreamInboundMiddleware> Middleware { get; }
+}
