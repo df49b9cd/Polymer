@@ -50,7 +50,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         _configureApp = configureApp;
     }
 
-    public IReadOnlyCollection<string> Urls => _app?.Urls ?? Array.Empty<string>();
+    public IReadOnlyCollection<string> Urls =>
+        _app?.Urls as IReadOnlyCollection<string> ?? Array.Empty<string>();
 
     public void Bind(Dispatcher.Dispatcher dispatcher)
     {
@@ -124,7 +125,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             encoding = context.Request.ContentType;
         }
 
-        var meta = BuildRequestMeta(dispatcher.ServiceName, procedure, encoding, context.Request.Headers, transport, context.RequestAborted);
+        var meta = BuildRequestMeta(dispatcher.ServiceName, procedure!, encoding, context.Request.Headers, transport, context.RequestAborted);
 
         byte[] buffer;
         if (context.Request.ContentLength is > 0)

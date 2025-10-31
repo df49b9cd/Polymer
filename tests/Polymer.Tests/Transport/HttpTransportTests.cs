@@ -29,7 +29,7 @@ public class HttpTransportTests
         var httpOutbound = new HttpOutbound(httpClient, baseAddress, disposeClient: true);
         options.AddUnaryOutbound("echo", null, httpOutbound);
 
-        var dispatcher = new Dispatcher.Dispatcher(options);
+        var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
 
         var codec = new JsonCodec<EchoRequest, EchoResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
@@ -41,18 +41,18 @@ public class HttpTransportTests
                 var decodeResult = codec.DecodeRequest(request.Body, request.Meta);
                 if (decodeResult.IsFailure)
                 {
-                    return Go.Err<Response<ReadOnlyMemory<byte>>>(decodeResult.Error!);
+                    return Err<Response<ReadOnlyMemory<byte>>>(decodeResult.Error!);
                 }
 
                 var responsePayload = new EchoResponse { Message = decodeResult.Value.Message.ToUpperInvariant() };
                 var encodeResult = codec.EncodeResponse(responsePayload, new ResponseMeta(encoding: "application/json"));
                 if (encodeResult.IsFailure)
                 {
-                    return Go.Err<Response<ReadOnlyMemory<byte>>>(encodeResult.Error!);
+                    return Err<Response<ReadOnlyMemory<byte>>>(encodeResult.Error!);
                 }
 
                 var response = Response<ReadOnlyMemory<byte>>.Create(encodeResult.Value, new ResponseMeta(encoding: "application/json"));
-                return Go.Ok(response);
+                return Ok(response);
             }));
 
         var ct = TestContext.Current.CancellationToken;
