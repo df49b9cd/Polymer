@@ -7,8 +7,8 @@ namespace Polymer.Errors;
 
 public static class PolymerErrorAdapter
 {
-    private const string StatusMetadataKey = "polymer.status";
-    private const string TransportMetadataKey = "polymer.transport";
+    internal const string StatusMetadataKey = "polymer.status";
+    internal const string TransportMetadataKey = "polymer.transport";
     private static readonly ImmutableDictionary<PolymerStatusCode, string> StatusCodeNames = new[]
     {
         (PolymerStatusCode.Unknown, "unknown"),
@@ -83,4 +83,6 @@ public static class PolymerErrorAdapter
 
     public static Error WithStatusMetadata(Error error, PolymerStatusCode code) =>
         error.WithCode(StatusCodeNames[code]).WithMetadata(StatusMetadataKey, code.ToString());
+
+    internal static string GetStatusName(PolymerStatusCode code) => StatusCodeNames[code];
 }
