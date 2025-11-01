@@ -1,148 +1,240 @@
 # Polymer Parity TODO
 
-Comprehensive backlog to track remaining work required to reach feature parity with `yarpc-go`. Items are grouped by subsystem and reference corresponding plan phases where possible.
+Comprehensive backlog tracking the remaining work needed to reach feature parity with `yarpc-go`. Every item is broken into actionable sub-tasks so the team can triage and implement incrementally. When a task is marked *completed*, its subtasks are preserved for historical reference.
 
 ## 1. Transports
 
 - ~~**HTTP Oneway Completion (Phase 3)**~~ *(completed)*
 
 - **gRPC Oneway & Streaming (Phase 4)**
-  - ~~Implement unary->oneway adaptation (e.g., map to empty responses) or adopt proper gRPC oneway semantics (which YARPC models via unary with ack).~~
-  - ~~Server streaming: expose dispatcher `InvokeServerStreamAsync`, bridging to `IAsyncStreamReader`/`IServerStreamWriter` via codecs and middleware.~~
-  - Client & bidi streaming support with backpressure propagation and metadata handling.
-  - Expand inbound provider to register streaming methods; update outbound to leverage `AsyncServerStreamingCall`, `AsyncClientStreamingCall`, and `DuplexStreamingCall`.
-  - Add end-to-end tests for each stream type (echo, large payload, cancellation, deadline).
+  - ~~Implement unary→oneway adaptation so gRPC unary handlers can act as oneway calls.~~
+    - ~~Update dispatcher registration for `OnewayProcedureSpec`~~
+    - ~~Teach gRPC inbound to call oneway handlers and surface ack trailers~~
+    - ~~Add client helper (`CreateOnewayClient`) + outbound mapping~~
+    - ~~Add integration tests validating ack + metadata propagation~~
+  - ~~Server streaming (request unary → response stream).~~
+    - ~~Add server-stream call abstraction (channels + completion)~~
+    - ~~Wire dispatcher `InvokeStreamAsync` and HTTP/gRPC providers~~
+    - ~~Implement outbound pipeline for server streaming~~
+    - ~~Add codec integration + SSE example tests~~
+  - **Client streaming (request stream → unary response)**
+    - Extend dispatcher with `InvokeClientStreamAsync` returning a writable request channel and providing a mechanism to deliver the unary response once completed.
+    - Modify gRPC inbound provider to bridge `IAsyncStreamReader<byte[]>` into the dispatcher channel, honoring cancellation, deadlines, and backpressure (await `WaitToReadAsync` before `ReadAsync`).
+    - Enhance `GrpcOutbound` with `AsyncClientStreamingCall`, providing a client-streaming facade that:
+      - Encodes request chunks via the configured codec.
+      - Pushes frames respecting `WriteOptions`/backpressure (await write completions, apply cancellation).
+      - Receives unary response + metadata, decoding into `Response<T>`.
+    - Expand `StreamClient<TReq,TRes>` (or new client type) to expose a high-level API (async writer + awaited response).
+    - Add middleware hooks for outbound/inbound client streams (typed context containing channels).
+    - Tests:
+      - Streaming success (multiple frames, aggregated response).
+      - Cancellation from client before completion.
+      - Deadline expiry, verifying status mapping.
+      - Large payload handling and chunked writes.
+  - **Bidirectional streaming (request stream ↔ response stream)**
+    - Introduce dispatcher duplex stream abstraction (read/write channels with completion signaling and error propagation).
+    - Extend gRPC inbound to pipe client messages into dispatcher channel while writing outbound responses via `IServerStreamWriter<byte[]>`; ensure:
+      - Concurrent read/write with cancellation tokens.
+      - Completed/error states propagate to both sides.
+      - Metadata headers/trailers reflect final status.
+    - Update outbound API to expose duplex stream client:
+      - Provide read/write channels or high-level enumerables.
+      - Encode/decode per-message using codecs.
+      - Manage backpressure (await writes, buffer limits).
+    - Middleware:
+      - Ensure global + per-procedure middleware can observe both inbound/outbound flows.
+      - Provide context objects for stream state (message count, completion reason).
+    - Tests:
+      - Echo-style duplex (client sends N messages, server replies per message).
+      - Flow-control scenario (server slower than client).
+      - Cancellation initiated by server and by client.
+      - Metadata propagation (custom headers/trailers).
+  - **Shared streaming tasks**
+    - Update dispatcher introspection to list available stream procedures and status (unary, client, server, bidi).
+    - Document public APIs (how to build client streaming/bidi handlers).
+    - Expand gRPC outbound/inbound error handling to surface canonical codes for streaming faults.
 
 - **Transport Middleware & Interceptors**
-  - Introduce per-transport middleware hooks (HTTP message handlers, gRPC interceptors) for tracing/metrics logging.
-  - Ensure middleware ordering respects global + per-procedure stacks across RPC types.
+  - Design middleware interfaces for transport-specific hooks:
+    - HTTP message handler chain for outbound requests (pre/post).
+    - gRPC interceptors for unary and streaming calls (client + server).
+  - Integrate transport middleware with dispatcher pipeline ordering (global → per-procedure).
+  - Provide sample middleware (e.g., logging interceptor) to demonstrate usage.
 
 - **Transport Lifecycle & Health**
-  - Implement graceful shutdown hooks signalling draining to peers (HTTP 503 with retry-after, gRPC GOAWAY).
-  - Add readiness/health endpoints aligning with YARPC’s introspection.
+  - Implement graceful shutdown semantics:
+    - HTTP: return 503 with `Retry-After`, drain active requests.
+    - gRPC: send GOAWAY, wait for inflight RPCs to finish.
+  - Health/readiness endpoints:
+    - HTTP `/healthz` & `/readyz` factoring transport + peer state.
+    - gRPC health check service implementation.
+  - Tests covering fast stop (force cancel) vs graceful stop.
 
 ## 2. Encodings & Code Generation (Phase 8)
 
 - **Raw/Binary Encoding**
-  - Provide pass-through codecs for arbitrary byte payloads with metadata mapping.
+  - Create `RawCodec` (byte[] passthrough) with metadata enforcement.
+  - Ensure HTTP/gRPC transports propagate binary content-type headers correctly.
+  - Add tests ensuring raw payloads bypass serialization.
 
 - **Protobuf Support**
-  - Implement `protoc-gen-polymer-csharp` plugin generating dispatcher registrations, client facades, request/response models.
-  - Support both gRPC (native) and HTTP/JSON-over-Protobuf transport combos when enabled via configuration.
-  - Add tests verifying generated code compiles and round-trips through transports.
+  - Author `protoc-gen-polymer-csharp` plugin:
+    - Generate request/response DTOs, codecs, dispatcher registration stubs, client helpers.
+    - Provide MSBuild integration / tooling instructions.
+  - Support Protobuf over gRPC (native) and optional HTTP JSON + Protobuf:
+    - Handle content negotiation & media types.
+  - Write codegen tests (golden outputs) and integration tests round-tripping messages across transports.
 
 - **Thrift Encoding**
-  - Evaluate porting ThriftRW or leveraging existing .NET Thrift libraries.
-  - Generate adapters for Thrift IDL: server stubs, clients, encoding metadata.
-  - Provide integration tests using sample Thrift IDL aligning with yarpc-go fixtures.
+  - Investigate options: port ThriftRW vs using Apache Thrift.
+  - Implement codec translating between Thrift `TProtocol` payloads and `Result<T>`.
+  - Generate server/client wrappers from IDL (with examples).
+  - Add interop tests using YARPC fixtures.
 
 - **JSON Enhancements**
-  - Support configurable `JsonSerializerOptions`, optional source-generated contexts for perf.
-  - Add schema validation hooks (optional).
+  - Allow custom `JsonSerializerOptions` via configuration (per-procedure overrides).
+  - Add source-generated context support for performance.
+  - Optional: schema validation hooks leveraging JSON Schema.
 
 - **Codec Registry**
-  - Dispatcher-level codec registry keyed by procedure to simplify inbound/outbound codec selection instead of manual wiring.
+  - Introduce registry at dispatcher level mapping procedure → codec.
+  - Provide DI integration so transports autoselect codecs without manual wiring.
+  - Update documentation to reflect simplified registration workflow.
 
 ## 3. Dispatcher & Routing (Phase 2)
 
 - **Procedure Catalogue Enhancements**
-  - Support multiple procedures per service with namespace separation (e.g., `service::method`), including alias/aliasing logic.
-  - Add router table supporting wildcard and versioned procedure names similar to YARPC’s procedure spec.
+  - Support hierarchical naming: `service::module::method`, alias resolution.
+  - Implement router table with wildcard/version matching (e.g., `foo::*`, `foo::v2::*`).
+  - Add validation to prevent conflicting registrations.
 
 - **Middleware Composition**
-  - Expand dispatcher to maintain separate middleware stacks per RPC type (unary/oneway/stream) for both inbound and outbound, including ordering guarantees, chaining, and per-procedure overrides.
-  - Provide fluent registration API to attach middleware when registering procedures.
+  - Maintain separate inbound/outbound stacks for unary, oneway, client stream, server stream, bidi stream.
+  - Provide builder APIs to attach middleware during registration (`dispatcher.Register(..., middleware => ...)`).
+  - Ensure middleware ordering is deterministic and documented.
 
 - **Introspection Endpoint**
-  - Implement HTTP introspection endpoint (`/polymer/introspect`) returning JSON snapshot of procedures, transports, middleware, peers (Phase 10).
-  - Ensure data stays in sync with dispatcher state and includes health information.
+  - Implement HTTP endpoint (`/polymer/introspect`) returning:
+    - Registered procedures grouped by RPC type.
+    - Transport inbounds/outbounds, middleware chains, peer choosers.
+    - Streaming procedure metadata (buffer sizes, message counts).
+  - Ensure data updates dynamically as dispatcher state changes.
+  - Include unit/integration tests verifying JSON shape.
 
 - **Shadowing & Tee Support**
-  - Allow registering dual outbounds for traffic mirroring (YARPC “yarpc/transport/http/mediator” equivalent).
+  - Support registering dual outbounds (primary + shadow) for migration scenarios.
+  - Add policy configuration to enable teeing per procedure with percentage sampling.
+  - Provide tests verifying secondary traffic dispatch and optional response suppression.
 
 ## 4. Middleware & Observability (Phase 5)
 
 - **Core Middleware Set**
-  - Logging (structured request/response logging with sampling).
-  - Tracing (OpenTelemetry integration, automatic span creation, propagation between HTTP headers & gRPC metadata).
-  - Metrics (request counts, latencies, error/fault counters, inflight gauge).
-  - Deadline enforcement & timeout mapping.
-  - Panic/exception recovery translating to canonical statuses.
-  - Retry & backoff middleware leveraging Hugo result pipelines.
-  - Rate limiting / circuit breaker middleware for inbound/outbound.
+  - Logging middleware:
+    - Structured logging for inbound/outbound (request id, procedure, duration) with sampling controls.
+  - Tracing middleware:
+    - OpenTelemetry integration with span creation, context propagation (HTTP headers + gRPC metadata).
+  - Metrics middleware:
+    - Expose counters/histograms for requests, latency, retries, payload sizes.
+  - Deadline enforcement:
+    - Ensure requests respect TTL/deadline metadata, convert to canonical errors.
+  - Panic/exception recovery:
+    - Catch unhandled exceptions, translate to `Internal` with stack metadata.
+  - Retry/backoff middleware:
+    - Utilize Hugo result policies; configure per-procedure.
+  - Rate limiting / circuit breaking:
+    - Token bucket, sliding window, or concurrency-based controls; propagate backoff metadata.
 
 - **Middleware SDK**
-  - Provide abstractions to simplify authoring third-party middleware, including context objects, short-circuit support, and metadata access.
+  - Provide context objects exposing metadata, transport info, channel writers (for streaming).
+  - Document best practices, sample custom middleware.
+  - Include analyzers or templates for middleware authors.
 
 ## 5. Peer Management & Load Balancing (Phase 6)
 
 - **Peer Models**
-  - Define `IPeer`, `PeerStatus`, inflight tracking, connection state.
-  - Implement peer lists: single, round-robin, fewest-pending, two-random-choices.
+  - Define `IPeer` with address, connection status, metrics.
+  - Track inflight requests, last success/failure times.
 
-- **Choosers & Outbound Integration**
-  - Wrap outbounds with chooser logic (`AcquirePeer`, `ReleasePeer` hooks) ensuring errors feed health signals.
-  - Support peer updates (add/remove) at runtime with thread-safe state transitions.
+- **Peer Lists & Choosers**
+  - Implement lists: single, round robin, fewest-pending, two-random choices.
+  - Integrate with dispatcher outbounds to acquire/release peers around each call.
+  - Propagate peer state into metrics and retry logic.
 
-- **Health & Backoff**
-  - Implement circuit breaker/backoff policies, success thresholds, retryable error classification.
+- **Health, Backoff & Circuit Breaking**
+  - Add exponential backoff on repeated failures, half-open testing.
+  - Surface retryable vs non-retryable errors to chooser.
+  - Provide configuration knobs for thresholds.
 
 - **Peer Introspection**
-  - Expose peer stats (latency, success rates) via introspection and metrics.
+  - Introspection endpoint to show peer health, latency percentiles.
+  - Add metrics per peer (success/failure counts, inflight gauge).
 
 ## 6. Error Model Parity (Phase 9)
 
 - **Status Mapping**
-  - Expand HTTP and gRPC mappings for all YARPC codes (client/server fault classification, retry hints).
-  - Ensure transport-specific metadata (headers, trailers) include canonical code names, message, cause stack.
+  - Ensure HTTP/gRPC/TChannel (if implemented) map all YARPC codes correctly.
+  - Define retry hints, fault classification metadata.
 
 - **Error Helpers**
-  - Add `IsStatus(error, code)`, `GetFaultType` parity, retryability metadata.
-  - Provide transformation helpers for bridging exceptions ↔ Polymer exceptions (ASP.NET filters, gRPC interceptors).
+  - Add helper APIs: `PolymerErrors.IsStatus`, `GetFaultType`, `GetRetryable`.
+  - Provide ASP.NET + gRPC exception adapters (filters/interceptors).
+  - Document canonical error handling patterns.
 
 ## 7. Configuration System (Phase 7)
 
 - **Declarative Bootstrap**
-  - Implement `Polymer.Configuration` package supporting YAML/JSON config (service name, inbounds, outbounds, transports, peers, middleware).
-  - Provide `TransportSpec` / `PeerListSpec` registration akin to YARPC’s plugin architecture.
-  - Integrate with `HostBuilder` via `AddPolymerDispatcher(configSection)` extension.
-  - Validation + diagnostics (missing service name, duplicate keys, unsupported combinations).
+  - Build `Polymer.Configuration` package:
+    - YAML/JSON schema for services, transports, peers, middleware.
+    - DI integration (`AddPolymerDispatcher(configuration)`).
+    - Validation with detailed error messages.
+
+- **Transport/Peer Specs**
+  - Allow registration of custom `TransportSpec`/`PeerListSpec` via DI so new transports plug into configuration.
 
 - **Environment Overrides**
-  - Support binding from appsettings/environment variables, layered configuration (dev/prod).
+  - Support layered configuration (appsettings + env vars + command line).
+  - Provide sample `appsettings.json` showing multi-environment overrides.
 
 ## 8. Tooling & Introspection
 
 - **CLI Support**
-  - Provide `polymer` CLI for introspection, configuration validation, sending test requests (or adapt `yab` integration).
+  - Develop `polymer` CLI (or adapt `yab`) for issuing test requests, inspecting dispatcher state, validating configuration.
+  - Include scripting/automation examples.
 
 - **Diagnostics**
-  - Expose metrics exporters (Prometheus, OpenTelemetry).
-  - Add logging enrichers with request context metadata.
-  - Support runtime toggles (log level, sampling).
+  - Expose metrics via OpenTelemetry exporters (Prometheus OTLP).
+  - Add logging enrichers (request id, peer info).
+  - Implement runtime toggles (e.g., log level, sampling) via control plane endpoint or config reload.
 
 - **Examples & Samples**
-  - Build sample services (keyvalue, echo) demonstrating HTTP & gRPC, oneway, streaming, middleware usage.
-  - Provide documentation & quickstart guides mirroring YARPC docs.
+  - Provide sample services demonstrating:
+    - HTTP unary + oneway.
+    - gRPC unary + streaming.
+    - Middleware usage, peer chooser configuration.
+  - Add detailed documentation and quickstart tutorials.
 
 ## 9. Interop & Testing (Phase 11)
 
 - **Conformance Suite**
-  - Create integration harness running Polymer server against yarpc-go clients (HTTP/gRPC) verifying metadata, deadlines, errors, streaming.
+  - Build test harness running Polymer server against `yarpc-go` clients (HTTP + gRPC).
+  - Verify metadata propagation, streaming semantics, error codes, deadlines.
   - Mirror YARPC crossdock tests if feasible.
 
 - **Performance Benchmarks**
-  - Provide scripts to run `yab` load tests; collect baseline latency/QPS.
-  - Add benchmarks for codecs, middleware, peer choosers.
+  - Provide scripts/infrastructure (e.g., `yab`, `wrk`, `ghz`) to measure throughput/latency.
+  - Capture baseline metrics for releases and regressions.
 
 - **CI Enhancements**
-  - Multi-target test matrix (Windows/Linux/macOS) and multiple .NET versions.
-  - Static analysis (nullable warnings, analyzers), formatting checks, packaging validation.
+  - Configure matrix builds (Windows, Linux, macOS) and multiple .NET versions.
+  - Add static analysis (nullable warnings, analyzers), formatting, and package validation steps.
 
 ## 10. TChannel & Legacy Support (Optional)
 
-- Evaluate feasibility/priority of TChannel transport parity; if needed, plan similar inbound/outbound integration leveraging existing Go behaviour as reference.
+- Evaluate demand for TChannel parity.
+- If needed, design inbound/outbound using existing Go reference:
+  - Frame encoding/decoding, connection pooling, peer integration.
+  - Ensure compatibility with legacy YARPC clients.
 
 ---
 
-This list should be revisited after each major milestone to break down tasks into implementable issues/PBI stories and to confirm sequencing with the original phase plan. 
+Revisit this backlog after each milestone to break the remaining items into issues/priorities and to ensure alignment with the original project plan.
