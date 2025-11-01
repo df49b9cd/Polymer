@@ -24,3 +24,15 @@ public interface IStreamCall : IAsyncDisposable
     ChannelReader<ReadOnlyMemory<byte>> Responses { get; }
     ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default);
 }
+
+public interface IDuplexStreamCall : IAsyncDisposable
+{
+    RequestMeta RequestMeta { get; }
+    ResponseMeta ResponseMeta { get; }
+    ChannelWriter<ReadOnlyMemory<byte>> RequestWriter { get; }
+    ChannelReader<ReadOnlyMemory<byte>> RequestReader { get; }
+    ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter { get; }
+    ChannelReader<ReadOnlyMemory<byte>> ResponseReader { get; }
+    ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default);
+    ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default);
+}

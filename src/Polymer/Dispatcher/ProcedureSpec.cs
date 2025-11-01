@@ -98,3 +98,21 @@ public sealed record ClientStreamProcedureSpec : ProcedureSpec
     public ClientStreamInboundDelegate Handler { get; }
     public IReadOnlyList<IClientStreamInboundMiddleware> Middleware { get; }
 }
+
+public sealed record DuplexProcedureSpec : ProcedureSpec
+{
+    public DuplexProcedureSpec(
+        string service,
+        string name,
+        DuplexInboundDelegate handler,
+        string? encoding = null,
+        IReadOnlyList<IDuplexInboundMiddleware>? middleware = null)
+        : base(service, name, ProcedureKind.Duplex, encoding)
+    {
+        Handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        Middleware = middleware ?? Array.Empty<IDuplexInboundMiddleware>();
+    }
+
+    public DuplexInboundDelegate Handler { get; }
+    public IReadOnlyList<IDuplexInboundMiddleware> Middleware { get; }
+}

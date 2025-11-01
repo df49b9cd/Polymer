@@ -216,4 +216,56 @@ public static class MiddlewareComposer
 
         return next;
     }
+
+    public static DuplexInboundDelegate ComposeDuplexInbound(
+        IReadOnlyList<IDuplexInboundMiddleware>? middleware,
+        DuplexInboundDelegate terminal)
+    {
+        if (terminal is null)
+        {
+            throw new ArgumentNullException(nameof(terminal));
+        }
+
+        if (middleware is null || middleware.Count == 0)
+        {
+            return terminal;
+        }
+
+        var next = terminal;
+
+        for (var index = middleware.Count - 1; index >= 0; index--)
+        {
+            var middlewareInstance = middleware[index];
+            var capturedNext = next;
+            next = (request, cancellationToken) => middlewareInstance.InvokeAsync(request, cancellationToken, capturedNext);
+        }
+
+        return next;
+    }
+
+    public static DuplexOutboundDelegate ComposeDuplexOutbound(
+        IReadOnlyList<IDuplexOutboundMiddleware>? middleware,
+        DuplexOutboundDelegate terminal)
+    {
+        if (terminal is null)
+        {
+            throw new ArgumentNullException(nameof(terminal));
+        }
+
+        if (middleware is null || middleware.Count == 0)
+        {
+            return terminal;
+        }
+
+        var next = terminal;
+
+        for (var index = middleware.Count - 1; index >= 0; index--)
+        {
+            var middlewareInstance = middleware[index];
+            var capturedNext = next;
+            next = (request, cancellationToken) => middlewareInstance.InvokeAsync(request, cancellationToken, capturedNext);
+        }
+
+        return next;
+    }
 }

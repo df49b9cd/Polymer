@@ -33,6 +33,8 @@ public sealed class DispatcherOptions
     public IList<IUnaryOutboundMiddleware> UnaryOutboundMiddleware { get; } = [];
     public IList<IOnewayOutboundMiddleware> OnewayOutboundMiddleware { get; } = [];
     public IList<IStreamOutboundMiddleware> StreamOutboundMiddleware { get; } = [];
+    public IList<IDuplexInboundMiddleware> DuplexInboundMiddleware { get; } = [];
+    public IList<IDuplexOutboundMiddleware> DuplexOutboundMiddleware { get; } = [];
     public IList<IClientStreamOutboundMiddleware> ClientStreamOutboundMiddleware { get; } = [];
 
     internal IReadOnlyList<DispatcherLifecycleComponent> ComponentDescriptors => _componentDescriptors;
@@ -118,6 +120,18 @@ public sealed class DispatcherOptions
         AddLifecycle(BuildOutboundComponentName(service, key, "client-stream"), outbound);
     }
 
+    public void AddDuplexOutbound(string service, string? key, IDuplexOutbound outbound)
+    {
+        if (outbound is null)
+        {
+            throw new ArgumentNullException(nameof(outbound));
+        }
+
+        var builder = GetOrCreateOutboundBuilder(service);
+        builder.AddDuplex(key, outbound);
+        AddLifecycle(BuildOutboundComponentName(service, key, "duplex-stream"), outbound);
+    }
+
     private OutboundCollectionBuilder GetOrCreateOutboundBuilder(string service)
     {
         if (string.IsNullOrWhiteSpace(service))
@@ -148,6 +162,7 @@ public sealed class DispatcherOptions
         private readonly Dictionary<string, IUnaryOutbound> _unary = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, IOnewayOutbound> _oneway = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, IStreamOutbound> _stream = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, IDuplexOutbound> _duplex = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, IClientStreamOutbound> _clientStream = new(StringComparer.OrdinalIgnoreCase);
 
         public void AddUnary(string? key, IUnaryOutbound outbound)
@@ -198,6 +213,18 @@ public sealed class DispatcherOptions
             _clientStream[normalized] = outbound;
         }
 
+        public void AddDuplex(string? key, IDuplexOutbound outbound)
+        {
+            var normalized = NormalizeKey(key);
+
+            if (_duplex.ContainsKey(normalized))
+            {
+                throw new InvalidOperationException($"Duplex outbound '{normalized}' already registered for service '{_service}'.");
+            }
+
+            _duplex[normalized] = outbound;
+        }
+
         public OutboundCollection Build()
         {
             var unary = _unary.Count == 0
@@ -216,7 +243,11 @@ public sealed class DispatcherOptions
                 ? []
                 : ImmutableDictionary.CreateRange(StringComparer.OrdinalIgnoreCase, _clientStream);
 
-            return new OutboundCollection(_service, unary, oneway, stream, clientStream);
+            var duplex = _duplex.Count == 0
+                ? []
+                : ImmutableDictionary.CreateRange(StringComparer.OrdinalIgnoreCase, _duplex);
+
+            return new OutboundCollection(_service, unary, oneway, stream, clientStream, duplex);
         }
 
         private static string NormalizeKey(string? key) =>

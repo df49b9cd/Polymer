@@ -71,3 +71,19 @@ public interface IClientStreamOutboundMiddleware
         CancellationToken cancellationToken,
         ClientStreamOutboundDelegate next);
 }
+
+public interface IDuplexInboundMiddleware
+{
+    ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken,
+        DuplexInboundDelegate next);
+}
+
+public interface IDuplexOutboundMiddleware
+{
+    ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken,
+        DuplexOutboundDelegate next);
+}

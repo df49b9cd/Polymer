@@ -39,6 +39,14 @@ public delegate ValueTask<Result<IClientStreamTransportCall>> ClientStreamOutbou
     RequestMeta requestMeta,
     CancellationToken cancellationToken);
 
+public delegate ValueTask<Result<IDuplexStreamCall>> DuplexOutboundDelegate(
+    IRequest<ReadOnlyMemory<byte>> request,
+    CancellationToken cancellationToken);
+
+public delegate ValueTask<Result<IDuplexStreamCall>> DuplexInboundDelegate(
+    IRequest<ReadOnlyMemory<byte>> request,
+    CancellationToken cancellationToken);
+
 public interface IClientStreamTransportCall : IAsyncDisposable
 {
     RequestMeta RequestMeta { get; }
@@ -96,5 +104,19 @@ public interface IClientStreamOutbound : ILifecycle
 {
     ValueTask<Result<IClientStreamTransportCall>> CallAsync(
         RequestMeta requestMeta,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IDuplexOutbound : ILifecycle
+{
+    ValueTask<Result<IDuplexStreamCall>> CallAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IDuplexInbound
+{
+    ValueTask<Result<IDuplexStreamCall>> HandleAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default);
 }

@@ -32,7 +32,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
       - ~~Deadline expiry, verifying status mapping.~~
       - ~~Large payload handling and chunked writes.~~
   - **Bidirectional streaming (request stream ↔ response stream)**
-    - Introduce dispatcher duplex stream abstraction (read/write channels with completion signaling and error propagation).
+    - ~~Introduce dispatcher duplex stream abstraction (read/write channels with completion signaling and error propagation).~~ *(completed)*
     - Extend gRPC inbound to pipe client messages into dispatcher channel while writing outbound responses via `IServerStreamWriter<byte[]>`; ensure:
       - Concurrent read/write with cancellation tokens.
       - Completed/error states propagate to both sides.

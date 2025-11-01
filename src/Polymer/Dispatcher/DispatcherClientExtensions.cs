@@ -107,4 +107,29 @@ public static class DispatcherClientExtensions
 
         return new ClientStreamClient<TRequest, TResponse>(outbound, codec, configuration.ClientStreamMiddleware);
     }
+
+    public static DuplexStreamClient<TRequest, TResponse> CreateDuplexStreamClient<TRequest, TResponse>(
+        this Dispatcher dispatcher,
+        string service,
+        ICodec<TRequest, TResponse> codec,
+        string? outboundKey = null)
+    {
+        if (dispatcher is null)
+        {
+            throw new ArgumentNullException(nameof(dispatcher));
+        }
+
+        if (codec is null)
+        {
+            throw new ArgumentNullException(nameof(codec));
+        }
+
+        var configuration = dispatcher.ClientConfig(service);
+        if (!configuration.TryGetDuplex(outboundKey, out var outbound) || outbound is null)
+        {
+            throw new KeyNotFoundException($"No duplex stream outbound registered for service '{service}' with key '{outboundKey ?? OutboundCollection.DefaultKey}'.");
+        }
+
+        return new DuplexStreamClient<TRequest, TResponse>(outbound, codec, configuration.DuplexMiddleware);
+    }
 }

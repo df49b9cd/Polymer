@@ -84,6 +84,10 @@ public class DispatcherTests
         Assert.Same(unaryOutbound, resolved);
         Assert.Contains(unaryOutbound, config.Unary.Values);
         Assert.Contains(unaryMiddleware, config.UnaryMiddleware);
+        Assert.Empty(config.ClientStream);
+        Assert.Empty(config.Duplex);
+        Assert.Empty(config.ClientStreamMiddleware);
+        Assert.Empty(config.DuplexMiddleware);
         Assert.Empty(config.ClientStreamMiddleware);
     }
 
@@ -169,6 +173,8 @@ public class DispatcherTests
         Assert.Equal("get", beforeStart.Procedures[0].Name);
         Assert.Empty(beforeStart.Middleware.InboundClientStream);
         Assert.Empty(beforeStart.Middleware.OutboundClientStream);
+        Assert.Empty(beforeStart.Middleware.InboundDuplex);
+        Assert.Empty(beforeStart.Middleware.OutboundDuplex);
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartAsync(ct);
@@ -182,12 +188,17 @@ public class DispatcherTests
         Assert.Contains(snapshot.Middleware.OutboundUnary, static typeName => typeName.Contains(nameof(PassthroughUnaryOutboundMiddleware), StringComparison.Ordinal));
         Assert.Empty(snapshot.Middleware.InboundClientStream);
         Assert.Empty(snapshot.Middleware.OutboundClientStream);
+        Assert.Empty(snapshot.Middleware.InboundDuplex);
+        Assert.Empty(snapshot.Middleware.OutboundDuplex);
 
         await dispatcher.StopAsync(ct);
 
         var afterStop = dispatcher.Introspect();
         Assert.Equal(DispatcherStatus.Stopped, afterStop.Status);
         Assert.Empty(afterStop.Middleware.InboundClientStream);
+        Assert.Empty(afterStop.Middleware.OutboundClientStream);
+        Assert.Empty(afterStop.Middleware.InboundDuplex);
+        Assert.Empty(afterStop.Middleware.OutboundDuplex);
         Assert.Empty(afterStop.Middleware.OutboundClientStream);
     }
 

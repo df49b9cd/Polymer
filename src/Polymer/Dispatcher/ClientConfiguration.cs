@@ -13,19 +13,22 @@ public sealed class ClientConfiguration
     private readonly ImmutableArray<IOnewayOutboundMiddleware> _onewayMiddleware;
     private readonly ImmutableArray<IStreamOutboundMiddleware> _streamMiddleware;
     private readonly ImmutableArray<IClientStreamOutboundMiddleware> _clientStreamMiddleware;
+    private readonly ImmutableArray<IDuplexOutboundMiddleware> _duplexMiddleware;
 
     internal ClientConfiguration(
         OutboundCollection outbounds,
         ImmutableArray<IUnaryOutboundMiddleware> unaryMiddleware,
         ImmutableArray<IOnewayOutboundMiddleware> onewayMiddleware,
         ImmutableArray<IStreamOutboundMiddleware> streamMiddleware,
-        ImmutableArray<IClientStreamOutboundMiddleware> clientStreamMiddleware)
+        ImmutableArray<IClientStreamOutboundMiddleware> clientStreamMiddleware,
+        ImmutableArray<IDuplexOutboundMiddleware> duplexMiddleware)
     {
         _outbounds = outbounds ?? throw new ArgumentNullException(nameof(outbounds));
         _unaryMiddleware = unaryMiddleware;
         _onewayMiddleware = onewayMiddleware;
         _streamMiddleware = streamMiddleware;
         _clientStreamMiddleware = clientStreamMiddleware;
+        _duplexMiddleware = duplexMiddleware;
     }
 
     public string Service => _outbounds.Service;
@@ -34,11 +37,13 @@ public sealed class ClientConfiguration
     public IReadOnlyDictionary<string, IOnewayOutbound> Oneway => _outbounds.Oneway;
     public IReadOnlyDictionary<string, IStreamOutbound> Stream => _outbounds.Stream;
     public IReadOnlyDictionary<string, IClientStreamOutbound> ClientStream => _outbounds.ClientStream;
+    public IReadOnlyDictionary<string, IDuplexOutbound> Duplex => _outbounds.Duplex;
 
     public IReadOnlyList<IUnaryOutboundMiddleware> UnaryMiddleware => _unaryMiddleware;
     public IReadOnlyList<IOnewayOutboundMiddleware> OnewayMiddleware => _onewayMiddleware;
     public IReadOnlyList<IStreamOutboundMiddleware> StreamMiddleware => _streamMiddleware;
     public IReadOnlyList<IClientStreamOutboundMiddleware> ClientStreamMiddleware => _clientStreamMiddleware;
+    public IReadOnlyList<IDuplexOutboundMiddleware> DuplexMiddleware => _duplexMiddleware;
 
     public IUnaryOutbound? ResolveUnary(string? key = null) => _outbounds.ResolveUnary(key);
 
@@ -47,6 +52,8 @@ public sealed class ClientConfiguration
     public IStreamOutbound? ResolveStream(string? key = null) => _outbounds.ResolveStream(key);
 
     public IClientStreamOutbound? ResolveClientStream(string? key = null) => _outbounds.ResolveClientStream(key);
+
+    public IDuplexOutbound? ResolveDuplex(string? key = null) => _outbounds.ResolveDuplex(key);
 
     public bool TryGetUnary(string? key, out IUnaryOutbound? outbound) =>
         _outbounds.TryGetUnary(key, out outbound);
@@ -59,4 +66,7 @@ public sealed class ClientConfiguration
 
     public bool TryGetClientStream(string? key, out IClientStreamOutbound? outbound) =>
         _outbounds.TryGetClientStream(key, out outbound);
+
+    public bool TryGetDuplex(string? key, out IDuplexOutbound? outbound) =>
+        _outbounds.TryGetDuplex(key, out outbound);
 }

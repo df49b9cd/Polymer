@@ -13,23 +13,27 @@ public sealed class OutboundCollection
     private readonly ImmutableDictionary<string, IOnewayOutbound> _oneway;
     private readonly ImmutableDictionary<string, IStreamOutbound> _stream;
     private readonly ImmutableDictionary<string, IClientStreamOutbound> _clientStream;
+    private readonly ImmutableDictionary<string, IDuplexOutbound> _duplex;
 
     internal OutboundCollection(
         string service,
         ImmutableDictionary<string, IUnaryOutbound> unary,
         ImmutableDictionary<string, IOnewayOutbound> oneway,
         ImmutableDictionary<string, IStreamOutbound> stream,
-        ImmutableDictionary<string, IClientStreamOutbound> clientStream)
+        ImmutableDictionary<string, IClientStreamOutbound> clientStream,
+        ImmutableDictionary<string, IDuplexOutbound> duplex)
     {
         Service = service ?? throw new ArgumentNullException(nameof(service));
         ArgumentNullException.ThrowIfNull(unary);
         ArgumentNullException.ThrowIfNull(oneway);
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(clientStream);
+        ArgumentNullException.ThrowIfNull(duplex);
         _unary = unary!;
         _oneway = oneway!;
         _stream = stream!;
         _clientStream = clientStream!;
+        _duplex = duplex!;
     }
 
     public string Service { get; }
@@ -38,6 +42,7 @@ public sealed class OutboundCollection
     public IReadOnlyDictionary<string, IOnewayOutbound> Oneway => _oneway;
     public IReadOnlyDictionary<string, IStreamOutbound> Stream => _stream;
     public IReadOnlyDictionary<string, IClientStreamOutbound> ClientStream => _clientStream;
+    public IReadOnlyDictionary<string, IDuplexOutbound> Duplex => _duplex;
 
     public bool TryGetUnary(string? key, out IUnaryOutbound? outbound) =>
         _unary.TryGetValue(NormalizeKey(key), out outbound);
@@ -51,6 +56,9 @@ public sealed class OutboundCollection
     public bool TryGetClientStream(string? key, out IClientStreamOutbound? outbound) =>
         _clientStream.TryGetValue(NormalizeKey(key), out outbound);
 
+    public bool TryGetDuplex(string? key, out IDuplexOutbound? outbound) =>
+        _duplex.TryGetValue(NormalizeKey(key), out outbound);
+
     public IUnaryOutbound? ResolveUnary(string? key = null) =>
         _unary.TryGetValue(NormalizeKey(key), out var outbound) ? outbound : null;
 
@@ -62,6 +70,9 @@ public sealed class OutboundCollection
 
     public IClientStreamOutbound? ResolveClientStream(string? key = null) =>
         _clientStream.TryGetValue(NormalizeKey(key), out var outbound) ? outbound : null;
+
+    public IDuplexOutbound? ResolveDuplex(string? key = null) =>
+        _duplex.TryGetValue(NormalizeKey(key), out var outbound) ? outbound : null;
 
     private static string NormalizeKey(string? key) =>
         string.IsNullOrWhiteSpace(key) ? DefaultKey : key!;

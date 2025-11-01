@@ -24,10 +24,12 @@ public sealed class Dispatcher
     private readonly ImmutableArray<IOnewayInboundMiddleware> _inboundOnewayMiddleware;
     private readonly ImmutableArray<IStreamInboundMiddleware> _inboundStreamMiddleware;
     private readonly ImmutableArray<IClientStreamInboundMiddleware> _inboundClientStreamMiddleware;
+    private readonly ImmutableArray<IDuplexInboundMiddleware> _inboundDuplexMiddleware;
     private readonly ImmutableArray<IUnaryOutboundMiddleware> _outboundUnaryMiddleware;
     private readonly ImmutableArray<IOnewayOutboundMiddleware> _outboundOnewayMiddleware;
     private readonly ImmutableArray<IStreamOutboundMiddleware> _outboundStreamMiddleware;
     private readonly ImmutableArray<IClientStreamOutboundMiddleware> _outboundClientStreamMiddleware;
+    private readonly ImmutableArray<IDuplexOutboundMiddleware> _outboundDuplexMiddleware;
     private readonly object _stateLock = new();
     private DispatcherStatus _status = DispatcherStatus.Created;
 
@@ -47,10 +49,12 @@ public sealed class Dispatcher
         _inboundOnewayMiddleware = [.. options.OnewayInboundMiddleware];
         _inboundStreamMiddleware = [.. options.StreamInboundMiddleware];
         _inboundClientStreamMiddleware = [.. options.ClientStreamInboundMiddleware];
+        _inboundDuplexMiddleware = [.. options.DuplexInboundMiddleware];
         _outboundUnaryMiddleware = [.. options.UnaryOutboundMiddleware];
         _outboundOnewayMiddleware = [.. options.OnewayOutboundMiddleware];
         _outboundStreamMiddleware = [.. options.StreamOutboundMiddleware];
         _outboundClientStreamMiddleware = [.. options.ClientStreamOutboundMiddleware];
+        _outboundDuplexMiddleware = [.. options.DuplexOutboundMiddleware];
 
         BindDispatcherAwareComponents(_lifecycleDescriptors);
     }
@@ -72,10 +76,12 @@ public sealed class Dispatcher
     public IReadOnlyList<IOnewayInboundMiddleware> OnewayInboundMiddleware => _inboundOnewayMiddleware;
     public IReadOnlyList<IStreamInboundMiddleware> StreamInboundMiddleware => _inboundStreamMiddleware;
     public IReadOnlyList<IClientStreamInboundMiddleware> ClientStreamInboundMiddleware => _inboundClientStreamMiddleware;
+    public IReadOnlyList<IDuplexInboundMiddleware> DuplexInboundMiddleware => _inboundDuplexMiddleware;
     public IReadOnlyList<IUnaryOutboundMiddleware> UnaryOutboundMiddleware => _outboundUnaryMiddleware;
     public IReadOnlyList<IOnewayOutboundMiddleware> OnewayOutboundMiddleware => _outboundOnewayMiddleware;
     public IReadOnlyList<IStreamOutboundMiddleware> StreamOutboundMiddleware => _outboundStreamMiddleware;
     public IReadOnlyList<IClientStreamOutboundMiddleware> ClientStreamOutboundMiddleware => _outboundClientStreamMiddleware;
+    public IReadOnlyList<IDuplexOutboundMiddleware> DuplexOutboundMiddleware => _outboundDuplexMiddleware;
 
     public void Register(ProcedureSpec spec)
     {
@@ -161,7 +167,8 @@ public sealed class Dispatcher
             _outboundUnaryMiddleware,
             _outboundOnewayMiddleware,
             _outboundStreamMiddleware,
-            _outboundClientStreamMiddleware);
+            _outboundClientStreamMiddleware,
+            _outboundDuplexMiddleware);
     }
 
     public ValueTask<Result<IStreamCall>> InvokeStreamAsync(
@@ -188,6 +195,31 @@ public sealed class Dispatcher
         var middleware = CombineMiddleware(_inboundStreamMiddleware, streamSpec.Middleware);
         var pipeline = MiddlewareComposer.ComposeStreamInbound(middleware, streamSpec.Handler);
         return pipeline(request, options, cancellationToken);
+    }
+
+    public ValueTask<Result<IDuplexStreamCall>> InvokeDuplexAsync(
+        string procedure,
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(procedure))
+        {
+            return ValueTask.FromResult(Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.InvalidArgument,
+                "Procedure name is required for duplex streaming calls.")));
+        }
+
+        if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Duplex, out var spec) ||
+            spec is not DuplexProcedureSpec duplexSpec)
+        {
+            return ValueTask.FromResult(Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.Unimplemented,
+                $"Duplex stream procedure '{procedure}' is not registered for service '{_serviceName}'.")));
+        }
+
+        var middleware = CombineMiddleware(_inboundDuplexMiddleware, duplexSpec.Middleware);
+        var pipeline = MiddlewareComposer.ComposeDuplexInbound(middleware, duplexSpec.Handler);
+        return pipeline(request, cancellationToken);
     }
 
     public ValueTask<Result<ClientStreamCall>> InvokeClientStreamAsync(
@@ -321,7 +353,8 @@ public sealed class Dispatcher
                     collection.Unary.Count,
                     collection.Oneway.Count,
                     collection.Stream.Count,
-                    collection.ClientStream.Count))
+                    collection.ClientStream.Count,
+                    collection.Duplex.Count))
             .ToImmutableArray();
 
         var middleware = new MiddlewareSummary(
@@ -329,10 +362,12 @@ public sealed class Dispatcher
             [.. _inboundOnewayMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
             [.. _inboundStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
             [.. _inboundClientStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _inboundDuplexMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
             [.. _outboundUnaryMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
             [.. _outboundOnewayMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
             [.. _outboundStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
-            [.. _outboundClientStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)]);
+            [.. _outboundClientStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundDuplexMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)]);
 
         return new DispatcherIntrospection(
             _serviceName,

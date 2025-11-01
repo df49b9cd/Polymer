@@ -12,7 +12,7 @@ using static Hugo.Go;
 
 namespace Polymer.Transport.Grpc;
 
-public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound
+public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound
 {
     private readonly Uri _address;
     private readonly string _remoteService;
@@ -22,6 +22,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _unaryMethods = new();
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _serverStreamMethods = new();
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _clientStreamMethods = new();
+    private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _duplexMethods = new();
 
     public GrpcOutbound(Uri address, string remoteService, GrpcChannelOptions? channelOptions = null)
     {
@@ -53,6 +54,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         _unaryMethods.Clear();
         _serverStreamMethods.Clear();
         _clientStreamMethods.Clear();
+        _duplexMethods.Clear();
         return ValueTask.CompletedTask;
     }
 
@@ -241,6 +243,57 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
+    async ValueTask<Result<IDuplexStreamCall>> IDuplexOutbound.CallAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken)
+    {
+        if (_callInvoker is null)
+        {
+            throw new InvalidOperationException("gRPC outbound has not been started.");
+        }
+
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        if (string.IsNullOrEmpty(request.Meta.Procedure))
+        {
+            return Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.InvalidArgument,
+                "Procedure metadata is required for gRPC duplex streaming calls.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        var method = _duplexMethods.GetOrAdd(request.Meta.Procedure, CreateDuplexStreamingMethod);
+        var metadata = GrpcMetadataAdapter.CreateRequestMetadata(request.Meta);
+        var callOptions = new CallOptions(metadata, cancellationToken: cancellationToken);
+
+        try
+        {
+            var call = _callInvoker.AsyncDuplexStreamingCall(method, null, callOptions);
+            var duplexResult = await GrpcDuplexStreamTransportCall.CreateAsync(request.Meta, call, cancellationToken).ConfigureAwait(false);
+            if (duplexResult.IsFailure)
+            {
+                call.Dispose();
+                return Err<IDuplexStreamCall>(duplexResult.Error!);
+            }
+
+            return Ok(duplexResult.Value);
+        }
+        catch (RpcException rpcEx)
+        {
+            var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
+            var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
+            var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+            return Err<IDuplexStreamCall>(error);
+        }
+        catch (Exception ex)
+        {
+            return PolymerErrors.ToResult<IDuplexStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
+        }
+    }
+
     private Method<byte[], byte[]> CreateUnaryMethod(string procedure) =>
         new(
             MethodType.Unary,
@@ -260,6 +313,14 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private Method<byte[], byte[]> CreateClientStreamingMethod(string procedure) =>
         new(
             MethodType.ClientStreaming,
+            _remoteService,
+            procedure,
+            GrpcMarshallerCache.ByteMarshaller,
+            GrpcMarshallerCache.ByteMarshaller);
+
+    private Method<byte[], byte[]> CreateDuplexStreamingMethod(string procedure) =>
+        new(
+            MethodType.DuplexStreaming,
             _remoteService,
             procedure,
             GrpcMarshallerCache.ByteMarshaller,
