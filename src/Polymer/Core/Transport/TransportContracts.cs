@@ -35,6 +35,10 @@ public delegate ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ClientStreamIn
     ClientStreamRequestContext context,
     CancellationToken cancellationToken);
 
+public delegate ValueTask<Result<IClientStreamTransportCall>> ClientStreamOutboundDelegate(
+    RequestMeta requestMeta,
+    CancellationToken cancellationToken);
+
 public interface IClientStreamTransportCall : IAsyncDisposable
 {
     RequestMeta RequestMeta { get; }

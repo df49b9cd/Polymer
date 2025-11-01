@@ -25,7 +25,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
       - ~~Pushes frames respecting `WriteOptions`/backpressure (await write completions, apply cancellation).~~
       - ~~Receives unary response + metadata, decoding into `Response<T>`.~~
     - ~~Expand `StreamClient<TReq,TRes>` (or new client type) to expose a high-level API (async writer + awaited response).~~ *(completed)*
-    - Add middleware hooks for outbound/inbound client streams (typed context containing channels).
+    - ~~Add middleware hooks for outbound/inbound client streams (typed context containing channels).~~ *(completed)*
     - Tests:
       - Streaming success (multiple frames, aggregated response).
       - Cancellation from client before completion.

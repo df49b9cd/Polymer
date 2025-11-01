@@ -23,4 +23,5 @@ public sealed record MiddlewareSummary(
     ImmutableArray<string> InboundClientStream,
     ImmutableArray<string> OutboundUnary,
     ImmutableArray<string> OutboundOneway,
-    ImmutableArray<string> OutboundStream);
+    ImmutableArray<string> OutboundStream,
+    ImmutableArray<string> OutboundClientStream);

@@ -105,6 +105,6 @@ public static class DispatcherClientExtensions
             throw new KeyNotFoundException($"No client stream outbound registered for service '{service}' with key '{outboundKey ?? OutboundCollection.DefaultKey}'.");
         }
 
-        return new ClientStreamClient<TRequest, TResponse>(outbound, codec);
+        return new ClientStreamClient<TRequest, TResponse>(outbound, codec, configuration.ClientStreamMiddleware);
     }
 }

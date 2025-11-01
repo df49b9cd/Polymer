@@ -63,3 +63,11 @@ public interface IClientStreamInboundMiddleware
         CancellationToken cancellationToken,
         ClientStreamInboundDelegate next);
 }
+
+public interface IClientStreamOutboundMiddleware
+{
+    ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
+        RequestMeta requestMeta,
+        CancellationToken cancellationToken,
+        ClientStreamOutboundDelegate next);
+}

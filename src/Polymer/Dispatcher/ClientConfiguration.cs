@@ -12,17 +12,20 @@ public sealed class ClientConfiguration
     private readonly ImmutableArray<IUnaryOutboundMiddleware> _unaryMiddleware;
     private readonly ImmutableArray<IOnewayOutboundMiddleware> _onewayMiddleware;
     private readonly ImmutableArray<IStreamOutboundMiddleware> _streamMiddleware;
+    private readonly ImmutableArray<IClientStreamOutboundMiddleware> _clientStreamMiddleware;
 
     internal ClientConfiguration(
         OutboundCollection outbounds,
         ImmutableArray<IUnaryOutboundMiddleware> unaryMiddleware,
         ImmutableArray<IOnewayOutboundMiddleware> onewayMiddleware,
-        ImmutableArray<IStreamOutboundMiddleware> streamMiddleware)
+        ImmutableArray<IStreamOutboundMiddleware> streamMiddleware,
+        ImmutableArray<IClientStreamOutboundMiddleware> clientStreamMiddleware)
     {
         _outbounds = outbounds ?? throw new ArgumentNullException(nameof(outbounds));
         _unaryMiddleware = unaryMiddleware;
         _onewayMiddleware = onewayMiddleware;
         _streamMiddleware = streamMiddleware;
+        _clientStreamMiddleware = clientStreamMiddleware;
     }
 
     public string Service => _outbounds.Service;
@@ -35,6 +38,7 @@ public sealed class ClientConfiguration
     public IReadOnlyList<IUnaryOutboundMiddleware> UnaryMiddleware => _unaryMiddleware;
     public IReadOnlyList<IOnewayOutboundMiddleware> OnewayMiddleware => _onewayMiddleware;
     public IReadOnlyList<IStreamOutboundMiddleware> StreamMiddleware => _streamMiddleware;
+    public IReadOnlyList<IClientStreamOutboundMiddleware> ClientStreamMiddleware => _clientStreamMiddleware;
 
     public IUnaryOutbound? ResolveUnary(string? key = null) => _outbounds.ResolveUnary(key);
 

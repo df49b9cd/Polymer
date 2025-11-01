@@ -84,6 +84,7 @@ public class DispatcherTests
         Assert.Same(unaryOutbound, resolved);
         Assert.Contains(unaryOutbound, config.Unary.Values);
         Assert.Contains(unaryMiddleware, config.UnaryMiddleware);
+        Assert.Empty(config.ClientStreamMiddleware);
     }
 
     [Fact]
@@ -167,6 +168,7 @@ public class DispatcherTests
         Assert.Single(beforeStart.Procedures);
         Assert.Equal("get", beforeStart.Procedures[0].Name);
         Assert.Empty(beforeStart.Middleware.InboundClientStream);
+        Assert.Empty(beforeStart.Middleware.OutboundClientStream);
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartAsync(ct);
@@ -179,12 +181,14 @@ public class DispatcherTests
         Assert.Contains(snapshot.Middleware.InboundUnary, static typeName => typeName.Contains(nameof(PassthroughUnaryInboundMiddleware), StringComparison.Ordinal));
         Assert.Contains(snapshot.Middleware.OutboundUnary, static typeName => typeName.Contains(nameof(PassthroughUnaryOutboundMiddleware), StringComparison.Ordinal));
         Assert.Empty(snapshot.Middleware.InboundClientStream);
+        Assert.Empty(snapshot.Middleware.OutboundClientStream);
 
         await dispatcher.StopAsync(ct);
 
         var afterStop = dispatcher.Introspect();
         Assert.Equal(DispatcherStatus.Stopped, afterStop.Status);
         Assert.Empty(afterStop.Middleware.InboundClientStream);
+        Assert.Empty(afterStop.Middleware.OutboundClientStream);
     }
 
     private static UnaryProcedureSpec CreateUnaryProcedure(string service, string procedure) =>

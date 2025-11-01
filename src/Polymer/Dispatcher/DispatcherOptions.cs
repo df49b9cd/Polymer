@@ -33,6 +33,7 @@ public sealed class DispatcherOptions
     public IList<IUnaryOutboundMiddleware> UnaryOutboundMiddleware { get; } = [];
     public IList<IOnewayOutboundMiddleware> OnewayOutboundMiddleware { get; } = [];
     public IList<IStreamOutboundMiddleware> StreamOutboundMiddleware { get; } = [];
+    public IList<IClientStreamOutboundMiddleware> ClientStreamOutboundMiddleware { get; } = [];
 
     internal IReadOnlyList<DispatcherLifecycleComponent> ComponentDescriptors => _componentDescriptors;
     internal IReadOnlyList<DispatcherLifecycleComponent> UniqueComponents => _uniqueComponents;

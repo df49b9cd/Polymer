@@ -1,7 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Polymer.Core;
+using Polymer.Core.Middleware;
 using Polymer.Core.Transport;
 using Polymer.Errors;
 using static Hugo.Go;
@@ -10,13 +11,22 @@ namespace Polymer.Core.Clients;
 
 public sealed class ClientStreamClient<TRequest, TResponse>
 {
-    private readonly IClientStreamOutbound _outbound;
+    private readonly ClientStreamOutboundDelegate _pipeline;
     private readonly ICodec<TRequest, TResponse> _codec;
 
-    public ClientStreamClient(IClientStreamOutbound outbound, ICodec<TRequest, TResponse> codec)
+    public ClientStreamClient(
+        IClientStreamOutbound outbound,
+        ICodec<TRequest, TResponse> codec,
+        IReadOnlyList<IClientStreamOutboundMiddleware> middleware)
     {
-        _outbound = outbound ?? throw new ArgumentNullException(nameof(outbound));
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
+        if (outbound is null)
+        {
+            throw new ArgumentNullException(nameof(outbound));
+        }
+
+        var terminal = new ClientStreamOutboundDelegate(outbound.CallAsync);
+        _pipeline = MiddlewareComposer.ComposeClientStreamOutbound(middleware, terminal);
     }
 
     public async ValueTask<ClientStreamSession> StartAsync(RequestMeta meta, CancellationToken cancellationToken = default)
@@ -26,7 +36,7 @@ public sealed class ClientStreamClient<TRequest, TResponse>
             throw new ArgumentNullException(nameof(meta));
         }
 
-        var result = await _outbound.CallAsync(meta, cancellationToken).ConfigureAwait(false);
+        var result = await _pipeline(meta, cancellationToken).ConfigureAwait(false);
         if (result.IsFailure)
         {
             throw PolymerErrors.FromError(result.Error!, meta.Transport ?? "unknown");

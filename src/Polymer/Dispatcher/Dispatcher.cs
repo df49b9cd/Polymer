@@ -27,6 +27,7 @@ public sealed class Dispatcher
     private readonly ImmutableArray<IUnaryOutboundMiddleware> _outboundUnaryMiddleware;
     private readonly ImmutableArray<IOnewayOutboundMiddleware> _outboundOnewayMiddleware;
     private readonly ImmutableArray<IStreamOutboundMiddleware> _outboundStreamMiddleware;
+    private readonly ImmutableArray<IClientStreamOutboundMiddleware> _outboundClientStreamMiddleware;
     private readonly object _stateLock = new();
     private DispatcherStatus _status = DispatcherStatus.Created;
 
@@ -49,6 +50,7 @@ public sealed class Dispatcher
         _outboundUnaryMiddleware = [.. options.UnaryOutboundMiddleware];
         _outboundOnewayMiddleware = [.. options.OnewayOutboundMiddleware];
         _outboundStreamMiddleware = [.. options.StreamOutboundMiddleware];
+        _outboundClientStreamMiddleware = [.. options.ClientStreamOutboundMiddleware];
 
         BindDispatcherAwareComponents(_lifecycleDescriptors);
     }
@@ -73,6 +75,7 @@ public sealed class Dispatcher
     public IReadOnlyList<IUnaryOutboundMiddleware> UnaryOutboundMiddleware => _outboundUnaryMiddleware;
     public IReadOnlyList<IOnewayOutboundMiddleware> OnewayOutboundMiddleware => _outboundOnewayMiddleware;
     public IReadOnlyList<IStreamOutboundMiddleware> StreamOutboundMiddleware => _outboundStreamMiddleware;
+    public IReadOnlyList<IClientStreamOutboundMiddleware> ClientStreamOutboundMiddleware => _outboundClientStreamMiddleware;
 
     public void Register(ProcedureSpec spec)
     {
@@ -157,7 +160,8 @@ public sealed class Dispatcher
             collection,
             _outboundUnaryMiddleware,
             _outboundOnewayMiddleware,
-            _outboundStreamMiddleware);
+            _outboundStreamMiddleware,
+            _outboundClientStreamMiddleware);
     }
 
     public ValueTask<Result<IStreamCall>> InvokeStreamAsync(
@@ -327,7 +331,8 @@ public sealed class Dispatcher
             [.. _inboundClientStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
             [.. _outboundUnaryMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
             [.. _outboundOnewayMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
-            [.. _outboundStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)]);
+            [.. _outboundStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundClientStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)]);
 
         return new DispatcherIntrospection(
             _serviceName,
