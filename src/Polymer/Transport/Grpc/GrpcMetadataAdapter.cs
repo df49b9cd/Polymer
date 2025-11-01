@@ -20,8 +20,8 @@ internal static class GrpcMetadataAdapter
         string? encoding)
     {
         var headers = metadata
-            .Where(entry => !entry.IsBinary)
-            .Select(entry => new KeyValuePair<string, string>(entry.Key, entry.Value));
+            .Where(static entry => !entry.IsBinary)
+            .Select(static entry => new KeyValuePair<string, string>(entry.Key, entry.Value));
 
         var caller = metadata.GetValue(GrpcTransportConstants.CallerHeader);
         var shardKey = metadata.GetValue(GrpcTransportConstants.ShardKeyHeader);
@@ -116,8 +116,8 @@ internal static class GrpcMetadataAdapter
 
         var combined = headers
             .Concat(trailers)
-            .Where(entry => !entry.IsBinary)
-            .Select(entry => new KeyValuePair<string, string>(entry.Key, entry.Value));
+            .Where(static entry => !entry.IsBinary)
+            .Select(static entry => new KeyValuePair<string, string>(entry.Key, entry.Value));
 
         var encoding = headers.GetValue(GrpcTransportConstants.EncodingTrailer)
             ?? trailers.GetValue(GrpcTransportConstants.EncodingTrailer);

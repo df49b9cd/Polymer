@@ -101,7 +101,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                     await callContext.WriteResponseHeadersAsync(headers).ConfigureAwait(false);
                 }
 
-                return Array.Empty<byte>();
+                return [];
             };
 
             context.AddUnaryMethod<byte[], byte[]>(method, [], handler);

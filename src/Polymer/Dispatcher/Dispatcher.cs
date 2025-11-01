@@ -258,20 +258,20 @@ public sealed class Dispatcher
     public DispatcherIntrospection Introspect()
     {
         var procedures = _procedures.Snapshot()
-            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(spec => new ProcedureDescriptor(spec.Name, spec.Kind, spec.Encoding))
+            .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(static spec => new ProcedureDescriptor(spec.Name, spec.Kind, spec.Encoding))
             .ToImmutableArray();
 
         var components = _lifecycleDescriptors
-            .Select(component =>
+            .Select(static component =>
                 new LifecycleComponentDescriptor(
                     component.Name,
                     component.Lifecycle.GetType().FullName ?? component.Lifecycle.GetType().Name))
             .ToImmutableArray();
 
         var outbounds = _outbounds.Values
-            .OrderBy(collection => collection.Service, StringComparer.OrdinalIgnoreCase)
-            .Select(collection =>
+            .OrderBy(static collection => collection.Service, StringComparer.OrdinalIgnoreCase)
+            .Select(static collection =>
                 new OutboundSummary(
                     collection.Service,
                     collection.Unary.Count,
@@ -280,12 +280,12 @@ public sealed class Dispatcher
             .ToImmutableArray();
 
         var middleware = new MiddlewareSummary(
-            [.. _inboundUnaryMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
-            [.. _inboundOnewayMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
-            [.. _inboundStreamMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
-            [.. _outboundUnaryMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
-            [.. _outboundOnewayMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)],
-            [.. _outboundStreamMiddleware.Select(m => m.GetType().FullName ?? m.GetType().Name)]);
+            [.. _inboundUnaryMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _inboundOnewayMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _inboundStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundUnaryMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundOnewayMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)],
+            [.. _outboundStreamMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)]);
 
         return new DispatcherIntrospection(
             _serviceName,
@@ -357,7 +357,7 @@ public sealed class Dispatcher
     {
         if (builders.Count == 0)
         {
-            return ImmutableDictionary<string, OutboundCollection>.Empty;
+            return [];
         }
 
         var map = ImmutableDictionary.CreateBuilder<string, OutboundCollection>(StringComparer.OrdinalIgnoreCase);

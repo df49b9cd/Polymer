@@ -26,7 +26,7 @@ public static class PolymerErrorAdapter
         (PolymerStatusCode.Internal, "internal"),
         (PolymerStatusCode.Unavailable, "unavailable"),
         (PolymerStatusCode.DataLoss, "data-loss")
-    }.ToImmutableDictionary(tuple => tuple.Item1, tuple => tuple.Item2);
+    }.ToImmutableDictionary(static tuple => tuple.Item1, static tuple => tuple.Item2);
 
     public static Error FromStatus(
         PolymerStatusCode code,

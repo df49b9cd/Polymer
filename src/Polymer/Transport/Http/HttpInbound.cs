@@ -217,7 +217,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             : StringValues.Empty;
 
         if (acceptValues.Count == 0 ||
-            !acceptValues.Any(value => !string.IsNullOrEmpty(value) && value.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
+            !acceptValues.Any(static value => !string.IsNullOrEmpty(value) && value.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
         {
             context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
             await WriteErrorAsync(context, "text/event-stream Accept header required for streaming", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
@@ -260,7 +260,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         context.Response.Headers["Content-Type"] = "text/event-stream";
 
         var responseMeta = call.ResponseMeta ?? new ResponseMeta();
-        var responseHeaders = responseMeta.Headers ?? ImmutableDictionary<string, string>.Empty;
+        var responseHeaders = responseMeta.Headers ?? [];
         foreach (var header in responseHeaders)
         {
             context.Response.Headers[header.Key] = header.Value;

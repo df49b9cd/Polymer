@@ -119,9 +119,9 @@ public class DispatcherTests
 
         Assert.Equal("keyvalue", snapshot.Service);
         Assert.Equal(DispatcherStatus.Running, snapshot.Status);
-        Assert.Contains(snapshot.Components, component => component.Name == "test");
-        Assert.Contains(snapshot.Middleware.InboundUnary, typeName => typeName.Contains(nameof(PassthroughUnaryInboundMiddleware), StringComparison.Ordinal));
-        Assert.Contains(snapshot.Middleware.OutboundUnary, typeName => typeName.Contains(nameof(PassthroughUnaryOutboundMiddleware), StringComparison.Ordinal));
+        Assert.Contains(snapshot.Components, static component => component.Name == "test");
+        Assert.Contains(snapshot.Middleware.InboundUnary, static typeName => typeName.Contains(nameof(PassthroughUnaryInboundMiddleware), StringComparison.Ordinal));
+        Assert.Contains(snapshot.Middleware.OutboundUnary, static typeName => typeName.Contains(nameof(PassthroughUnaryOutboundMiddleware), StringComparison.Ordinal));
 
         await dispatcher.StopAsync(ct);
 
@@ -133,7 +133,7 @@ public class DispatcherTests
         new(
             service,
             procedure,
-            (request, cancellationToken) =>
+            static (request, cancellationToken) =>
             {
                 var response = Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty);
                 return ValueTask.FromResult(Ok(response));

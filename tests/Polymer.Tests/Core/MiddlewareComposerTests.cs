@@ -51,7 +51,7 @@ public class MiddlewareComposerTests
     [Fact]
     public void ComposeOnewayOutbound_WithNoMiddlewareReturnsTerminal()
     {
-        OnewayOutboundDelegate terminal = (_, _) => ValueTask.FromResult<Result<OnewayAck>>(Ok(OnewayAck.Ack()));
+        OnewayOutboundDelegate terminal = static (_, _) => ValueTask.FromResult<Result<OnewayAck>>(Ok(OnewayAck.Ack()));
 
         var composed = MiddlewareComposer.ComposeOnewayOutbound(null, terminal);
 

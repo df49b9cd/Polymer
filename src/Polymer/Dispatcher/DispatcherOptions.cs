@@ -174,15 +174,15 @@ public sealed class DispatcherOptions
         public OutboundCollection Build()
         {
             var unary = _unary.Count == 0
-                ? ImmutableDictionary<string, IUnaryOutbound>.Empty
+                ? []
                 : ImmutableDictionary.CreateRange(StringComparer.OrdinalIgnoreCase, _unary);
 
             var oneway = _oneway.Count == 0
-                ? ImmutableDictionary<string, IOnewayOutbound>.Empty
+                ? []
                 : ImmutableDictionary.CreateRange(StringComparer.OrdinalIgnoreCase, _oneway);
 
             var stream = _stream.Count == 0
-                ? ImmutableDictionary<string, IStreamOutbound>.Empty
+                ? []
                 : ImmutableDictionary.CreateRange(StringComparer.OrdinalIgnoreCase, _stream);
 
             return new OutboundCollection(_service, unary, oneway, stream);
