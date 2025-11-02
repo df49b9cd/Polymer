@@ -23,12 +23,14 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware
     private WebApplication? _app;
     private Dispatcher.Dispatcher? _dispatcher;
     private readonly GrpcServerTlsOptions? _serverTlsOptions;
+    private readonly GrpcServerRuntimeOptions? _serverRuntimeOptions;
 
     public GrpcInbound(
         IEnumerable<string> urls,
         Action<IServiceCollection>? configureServices = null,
         Action<WebApplication>? configureApp = null,
-        GrpcServerTlsOptions? serverTlsOptions = null)
+        GrpcServerTlsOptions? serverTlsOptions = null,
+        GrpcServerRuntimeOptions? serverRuntimeOptions = null)
     {
         _urls = urls?.ToArray() ?? throw new ArgumentNullException(nameof(urls));
         if (_urls.Length == 0)
@@ -39,6 +41,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware
         _configureServices = configureServices;
         _configureApp = configureApp;
         _serverTlsOptions = serverTlsOptions;
+        _serverRuntimeOptions = serverRuntimeOptions;
     }
 
     public IReadOnlyCollection<string> Urls =>
@@ -65,6 +68,19 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware
 
         builder.WebHost.UseKestrel(options =>
         {
+            if (_serverRuntimeOptions is { } runtimeOptions)
+            {
+                if (runtimeOptions.KeepAlivePingDelay is { } delay)
+                {
+                    options.Limits.Http2.KeepAlivePingDelay = delay;
+                }
+
+                if (runtimeOptions.KeepAlivePingTimeout is { } timeout)
+                {
+                    options.Limits.Http2.KeepAlivePingTimeout = timeout;
+                }
+            }
+
             foreach (var url in _urls)
             {
                 var uri = new Uri(url, UriKind.Absolute);
@@ -106,7 +122,21 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware
         builder.Services.AddSingleton<IServiceMethodProvider<GrpcDispatcherService>>(
             _ => new GrpcDispatcherServiceMethodProvider(_dispatcher));
         builder.Services.AddSingleton<GrpcDispatcherService>();
-        builder.Services.AddGrpc();
+        builder.Services.AddGrpc(options =>
+        {
+            if (_serverRuntimeOptions is { } runtimeOptions)
+            {
+                if (runtimeOptions.MaxReceiveMessageSize is { } maxReceive)
+                {
+                    options.MaxReceiveMessageSize = maxReceive;
+                }
+
+                if (runtimeOptions.MaxSendMessageSize is { } maxSend)
+                {
+                    options.MaxSendMessageSize = maxSend;
+                }
+            }
+        });
 
         _configureServices?.Invoke(builder.Services);
 

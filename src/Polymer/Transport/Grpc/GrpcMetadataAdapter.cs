@@ -1,9 +1,9 @@
 using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Globalization;
-using System.Linq;
-using System.Collections.Generic;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Hugo;
 using Polymer.Core;
@@ -13,6 +13,8 @@ namespace Polymer.Transport.Grpc;
 
 internal static class GrpcMetadataAdapter
 {
+    private static readonly char[] InvalidHeaderValueCharacters = ['\r', '\n', '\0'];
+
     public static RequestMeta BuildRequestMeta(
         string service,
         string procedure,
@@ -60,30 +62,63 @@ internal static class GrpcMetadataAdapter
 
     public static Metadata CreateRequestMetadata(RequestMeta meta)
     {
-        var metadata = new Metadata
-        {
-            { GrpcTransportConstants.ProcedureHeader, meta.Procedure ?? string.Empty },
-            { GrpcTransportConstants.ServiceNameHeader, meta.Service }
-        };
+        var metadata = new Metadata();
 
-        if (!string.IsNullOrEmpty(meta.Encoding)) metadata.Add(GrpcTransportConstants.EncodingHeader, meta.Encoding);
-        if (!string.IsNullOrEmpty(meta.Caller)) metadata.Add(GrpcTransportConstants.CallerHeader, meta.Caller);
-        if (!string.IsNullOrEmpty(meta.ShardKey)) metadata.Add(GrpcTransportConstants.ShardKeyHeader, meta.ShardKey);
-        if (!string.IsNullOrEmpty(meta.RoutingKey)) metadata.Add(GrpcTransportConstants.RoutingKeyHeader, meta.RoutingKey);
-        if (!string.IsNullOrEmpty(meta.RoutingDelegate)) metadata.Add(GrpcTransportConstants.RoutingDelegateHeader, meta.RoutingDelegate);
+        var procedureValue = meta.Procedure ?? string.Empty;
+        ValidateMetadataValue(GrpcTransportConstants.ProcedureHeader, procedureValue);
+        metadata.Add(GrpcTransportConstants.ProcedureHeader, procedureValue);
+
+        var serviceValue = meta.Service ?? string.Empty;
+        ValidateMetadataValue(GrpcTransportConstants.ServiceNameHeader, serviceValue);
+        metadata.Add(GrpcTransportConstants.ServiceNameHeader, serviceValue);
+
+        if (!string.IsNullOrEmpty(meta.Encoding))
+        {
+            ValidateMetadataValue(GrpcTransportConstants.EncodingHeader, meta.Encoding);
+            metadata.Add(GrpcTransportConstants.EncodingHeader, meta.Encoding);
+        }
+
+        if (!string.IsNullOrEmpty(meta.Caller))
+        {
+            ValidateMetadataValue(GrpcTransportConstants.CallerHeader, meta.Caller);
+            metadata.Add(GrpcTransportConstants.CallerHeader, meta.Caller);
+        }
+
+        if (!string.IsNullOrEmpty(meta.ShardKey))
+        {
+            ValidateMetadataValue(GrpcTransportConstants.ShardKeyHeader, meta.ShardKey);
+            metadata.Add(GrpcTransportConstants.ShardKeyHeader, meta.ShardKey);
+        }
+
+        if (!string.IsNullOrEmpty(meta.RoutingKey))
+        {
+            ValidateMetadataValue(GrpcTransportConstants.RoutingKeyHeader, meta.RoutingKey);
+            metadata.Add(GrpcTransportConstants.RoutingKeyHeader, meta.RoutingKey);
+        }
+
+        if (!string.IsNullOrEmpty(meta.RoutingDelegate))
+        {
+            ValidateMetadataValue(GrpcTransportConstants.RoutingDelegateHeader, meta.RoutingDelegate);
+            metadata.Add(GrpcTransportConstants.RoutingDelegateHeader, meta.RoutingDelegate);
+        }
 
         if (meta.TimeToLive is { } ttl)
         {
-            metadata.Add(GrpcTransportConstants.TtlHeader, ttl.TotalMilliseconds.ToString(CultureInfo.InvariantCulture));
+            var ttlValue = ttl.TotalMilliseconds.ToString(CultureInfo.InvariantCulture);
+            ValidateMetadataValue(GrpcTransportConstants.TtlHeader, ttlValue);
+            metadata.Add(GrpcTransportConstants.TtlHeader, ttlValue);
         }
 
         if (meta.Deadline is { } deadline)
         {
-            metadata.Add(GrpcTransportConstants.DeadlineHeader, deadline.UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
+            var deadlineValue = deadline.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
+            ValidateMetadataValue(GrpcTransportConstants.DeadlineHeader, deadlineValue);
+            metadata.Add(GrpcTransportConstants.DeadlineHeader, deadlineValue);
         }
 
         foreach (var header in meta.Headers)
         {
+            ValidateMetadataValue(header.Key, header.Value);
             metadata.Add(header.Key.ToLowerInvariant(), header.Value);
         }
 
@@ -151,4 +186,19 @@ internal static class GrpcMetadataAdapter
         return trailers;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ValidateMetadataValue(string key, string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        if (value.IndexOfAny(InvalidHeaderValueCharacters) >= 0)
+        {
+            throw new ArgumentException(
+                $"gRPC metadata value for '{key}' contains invalid characters (newline or NUL).",
+                nameof(value));
+        }
+    }
 }

@@ -56,9 +56,16 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
     - **gRPC transport test gaps (parity audit)**
       - Cover duplex/bidirectional streaming happy path, cancellation, and flow-control scenarios.
       - Validate request/response metadata propagation (`rpc-*` headers, custom headers, TTL/deadline) across unary and streaming RPCs.
-      - Assert response trailers carry `polymer-encoding`, status, and error metadata for success & failure cases.
-      - Verify `GrpcStatusMapper` mappings for all canonical codes surfaced by unary and streaming transports.
-      - Exercise streaming edge conditions: server-initiated cancellation/error for server and client streams, partial writes, and mid-stream failures.
+  - Assert response trailers carry `polymer-encoding`, status, and error metadata for success & failure cases.
+  - Verify `GrpcStatusMapper` mappings for all canonical codes surfaced by unary and streaming transports.
+  - Exercise streaming edge conditions: server-initiated cancellation/error for server and client streams, partial writes, and mid-stream failures.
+  - **gRPC transport configuration parity**
+    - ~~Expose TLS options for inbound/outbound to mirror yarpc-go credentials knobs.~~ *(completed via `GrpcServerTlsOptions`/`GrpcClientTlsOptions`)*
+    - ~~Emit OpenTelemetry spans for all client/server RPC shapes.~~ *(completed via `GrpcTransportDiagnostics`)*
+    - ~~Support peer chooser + multi-address outbounds.~~ *(completed via `RoundRobinGrpcPeerChooser` integration)*
+    - ~~Validate metadata values and map TTL/deadlines to native gRPC deadlines.~~ *(completed)*
+    - ~~Provide keepalive and message size knobs for inbound/outbound.~~ *(completed via `GrpcClientRuntimeOptions`/`GrpcServerRuntimeOptions`)*
+    - Add compression negotiation (default compressor, per-call overrides).
 
 - **Transport Middleware & Interceptors**
   - Design middleware interfaces for transport-specific hooks:

@@ -25,6 +25,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private readonly string _remoteService;
     private readonly GrpcChannelOptions _channelOptions;
     private readonly GrpcClientTlsOptions? _clientTlsOptions;
+    private readonly GrpcClientRuntimeOptions? _clientRuntimeOptions;
     private readonly IGrpcPeerChooser _peerChooser;
     private readonly ConcurrentDictionary<Uri, GrpcChannel> _channels = new();
     private readonly ConcurrentDictionary<Uri, CallInvoker> _callInvokers = new();
@@ -38,8 +39,16 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         Uri address,
         string remoteService,
         GrpcChannelOptions? channelOptions = null,
-        GrpcClientTlsOptions? clientTlsOptions = null)
-        : this(new[] { address ?? throw new ArgumentNullException(nameof(address)) }, remoteService, channelOptions, clientTlsOptions)
+        GrpcClientTlsOptions? clientTlsOptions = null,
+        IGrpcPeerChooser? peerChooser = null,
+        GrpcClientRuntimeOptions? clientRuntimeOptions = null)
+        : this(
+            new[] { address ?? throw new ArgumentNullException(nameof(address)) },
+            remoteService,
+            channelOptions,
+            clientTlsOptions,
+            peerChooser,
+            clientRuntimeOptions)
     {
     }
 
@@ -48,7 +57,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         string remoteService,
         GrpcChannelOptions? channelOptions = null,
         GrpcClientTlsOptions? clientTlsOptions = null,
-        IGrpcPeerChooser? peerChooser = null)
+        IGrpcPeerChooser? peerChooser = null,
+        GrpcClientRuntimeOptions? clientRuntimeOptions = null)
     {
         if (addresses is null)
         {
@@ -69,6 +79,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             ? throw new ArgumentException("Remote service name must be provided.", nameof(remoteService))
             : remoteService;
         _clientTlsOptions = clientTlsOptions;
+        _clientRuntimeOptions = clientRuntimeOptions;
         _channelOptions = channelOptions ?? new GrpcChannelOptions
         {
             HttpHandler = new SocketsHttpHandler
@@ -77,6 +88,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             }
         };
         _peerChooser = peerChooser ?? new RoundRobinGrpcPeerChooser();
+
+        if (_clientRuntimeOptions is not null)
+        {
+            ApplyClientRuntimeOptions(_channelOptions, _clientRuntimeOptions);
+        }
 
         if (_clientTlsOptions is not null)
         {
@@ -150,8 +166,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peerAddress, "unary");
 
         var method = _unaryMethods.GetOrAdd(procedure, CreateUnaryMethod);
-        var metadata = GrpcMetadataAdapter.CreateRequestMetadata(request.Meta);
-        var callOptions = new CallOptions(metadata, cancellationToken: cancellationToken);
+        var callOptions = CreateCallOptions(request.Meta, cancellationToken);
 
         try
         {
@@ -200,8 +215,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peerAddress, "oneway");
 
         var method = _unaryMethods.GetOrAdd(procedure, CreateUnaryMethod);
-        var metadata = GrpcMetadataAdapter.CreateRequestMetadata(request.Meta);
-        var callOptions = new CallOptions(metadata, cancellationToken: cancellationToken);
+        var callOptions = CreateCallOptions(request.Meta, cancellationToken);
 
         try
         {
@@ -259,8 +273,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peerAddress, "server_stream");
 
         var method = _serverStreamMethods.GetOrAdd(procedure, CreateServerStreamingMethod);
-        var metadata = GrpcMetadataAdapter.CreateRequestMetadata(request.Meta);
-        var callOptions = new CallOptions(metadata, cancellationToken: cancellationToken);
+        var callOptions = CreateCallOptions(request.Meta, cancellationToken);
 
         try
         {
@@ -321,8 +334,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peerAddress, "client_stream");
 
         var method = _clientStreamMethods.GetOrAdd(procedure, CreateClientStreamingMethod);
-        var metadata = GrpcMetadataAdapter.CreateRequestMetadata(requestMeta);
-        var callOptions = new CallOptions(metadata, cancellationToken: cancellationToken);
+        var callOptions = CreateCallOptions(requestMeta, cancellationToken);
 
         try
         {
@@ -373,8 +385,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peerAddress, "bidi_stream");
 
         var method = _duplexMethods.GetOrAdd(procedure, CreateDuplexStreamingMethod);
-        var metadata = GrpcMetadataAdapter.CreateRequestMetadata(request.Meta);
-        var callOptions = new CallOptions(metadata, cancellationToken: cancellationToken);
+        var callOptions = CreateCallOptions(request.Meta, cancellationToken);
 
         try
         {
@@ -458,6 +469,43 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         return (address, callInvoker);
     }
 
+    private CallOptions CreateCallOptions(RequestMeta meta, CancellationToken cancellationToken)
+    {
+        var metadata = GrpcMetadataAdapter.CreateRequestMetadata(meta);
+        var deadline = ResolveDeadline(meta);
+        return deadline.HasValue
+            ? new CallOptions(metadata, deadline.Value, cancellationToken)
+            : new CallOptions(metadata, cancellationToken: cancellationToken);
+    }
+
+    private static DateTime? ResolveDeadline(RequestMeta meta)
+    {
+        if (meta is null)
+        {
+            throw new ArgumentNullException(nameof(meta));
+        }
+
+        DateTime? resolved = null;
+
+        if (meta.Deadline is { } absoluteDeadline)
+        {
+            var utcDeadline = absoluteDeadline.ToUniversalTime().UtcDateTime;
+            resolved = utcDeadline.Kind == DateTimeKind.Utc
+                ? utcDeadline
+                : DateTime.SpecifyKind(utcDeadline, DateTimeKind.Utc);
+        }
+
+        if (meta.TimeToLive is { } ttl && ttl > TimeSpan.Zero)
+        {
+            var ttlDeadline = DateTime.UtcNow.Add(ttl);
+            resolved = resolved.HasValue
+                ? (resolved.Value <= ttlDeadline ? resolved.Value : ttlDeadline)
+                : ttlDeadline;
+        }
+
+        return resolved;
+    }
+
     private static void ApplyClientTlsOptions(GrpcChannelOptions channelOptions, GrpcClientTlsOptions tlsOptions)
     {
         if (channelOptions.HttpClient is not null)
@@ -465,24 +513,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             throw new InvalidOperationException("Cannot apply gRPC client TLS options when a custom HttpClient is provided.");
         }
 
-        SocketsHttpHandler handler;
-        if (channelOptions.HttpHandler is null)
-        {
-            handler = new SocketsHttpHandler
-            {
-                EnableMultipleHttp2Connections = true
-            };
-            channelOptions.HttpHandler = handler;
-        }
-        else if (channelOptions.HttpHandler is SocketsHttpHandler socketsHandler)
-        {
-            handler = socketsHandler;
-        }
-        else
-        {
-            throw new InvalidOperationException("gRPC client TLS options require a SocketsHttpHandler.");
-        }
-
+        var handler = GetOrCreateSocketsHandler(channelOptions);
         var sslOptions = handler.SslOptions;
 
         if (tlsOptions.EnabledProtocols is { } protocols)
@@ -511,5 +542,72 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         {
             sslOptions.ClientCertificates = tlsOptions.ClientCertificates;
         }
+    }
+
+    private static void ApplyClientRuntimeOptions(GrpcChannelOptions channelOptions, GrpcClientRuntimeOptions runtimeOptions)
+    {
+        if (runtimeOptions is null)
+        {
+            return;
+        }
+
+        if (runtimeOptions.MaxReceiveMessageSize is { } maxReceive)
+        {
+            channelOptions.MaxReceiveMessageSize = maxReceive;
+        }
+
+        if (runtimeOptions.MaxSendMessageSize is { } maxSend)
+        {
+            channelOptions.MaxSendMessageSize = maxSend;
+        }
+
+        if (runtimeOptions.KeepAlivePingDelay is null &&
+            runtimeOptions.KeepAlivePingTimeout is null &&
+            runtimeOptions.KeepAlivePingPolicy is null)
+        {
+            return;
+        }
+
+        if (channelOptions.HttpClient is not null)
+        {
+            throw new InvalidOperationException("Cannot apply gRPC client runtime options when a custom HttpClient is provided.");
+        }
+
+        var handler = GetOrCreateSocketsHandler(channelOptions);
+
+        if (runtimeOptions.KeepAlivePingDelay is { } delay)
+        {
+            handler.KeepAlivePingDelay = delay;
+        }
+
+        if (runtimeOptions.KeepAlivePingTimeout is { } timeout)
+        {
+            handler.KeepAlivePingTimeout = timeout;
+        }
+
+        if (runtimeOptions.KeepAlivePingPolicy is { } policy)
+        {
+            handler.KeepAlivePingPolicy = policy;
+        }
+    }
+
+    private static SocketsHttpHandler GetOrCreateSocketsHandler(GrpcChannelOptions channelOptions)
+    {
+        if (channelOptions.HttpHandler is null)
+        {
+            var handler = new SocketsHttpHandler
+            {
+                EnableMultipleHttp2Connections = true
+            };
+            channelOptions.HttpHandler = handler;
+            return handler;
+        }
+
+        if (channelOptions.HttpHandler is SocketsHttpHandler socketsHandler)
+        {
+            return socketsHandler;
+        }
+
+        throw new InvalidOperationException("gRPC client configuration requires a SocketsHttpHandler.");
     }
 }
