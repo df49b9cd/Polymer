@@ -125,7 +125,7 @@ C# Port: Scope & Milestones
 
 | Phase | Focus | Key Deliverables | Acceptance Criteria | Notes |
 | --- | --- | --- | --- | --- |
-| 0. Foundation | Shared primitives | `YarpcDotNet.Core` abstractions layered on Hugo `Result`, `Error`, and middleware contracts | Unit tests cover request/response envelopes, adapter helpers, codec interface | Confirms Hugo primitives satisfy YARPC semantics without duplication |
+| 0. Foundation | Shared primitives | `Polymer.Core` abstractions layered on Hugo `Result`, `Error`, and middleware contracts | Unit tests cover request/response envelopes, adapter helpers, codec interface | Confirms Hugo primitives satisfy YARPC semantics without duplication |
 | 1. MVP Transports | HTTP & gRPC pipelines | Dispatcher hosted on Generic Host, HTTP unary/oneway, gRPC unary/streaming, JSON & Protobuf codecs | Sample echo + key-value services run locally over both transports | Grpc.Net.Client requires .NET 6+; reuse HttpClientFactory; surface responses as Hugo `Result<T>` |
 | 2. Platform Features | Operational parity | Peer chooser library using Hugo channels/task queues, declarative configuration builder, OpenTelemetry middleware via `GoDiagnostics`, error mapping, introspection endpoints | Config-driven app spins up with round-robin peers; telemetry captured in OTLP exporter | Align metrics/events with Uber conventions while reusing Hugo instrumentation |
 | 3. Tooling & Interop | Developer productivity | `protoc-gen-yarpc-csharp`, integration tests vs `yarpc-go`, `yab` scenarios, benchmarking harness | Generated code passes interop suite; latency regression baseline documented | Extend to Thrift once Protobuf path is stable; validate Hugo adapters against Go parity |
@@ -144,16 +144,16 @@ Project Layout (Namespaces & Packages)
 
 | Directory | Assembly / Namespace | Purpose |
 | --- | --- | --- |
-| `src/YarpcDotNet.Core` | `YarpcDotNet.Core` | Core abstractions: dispatcher, request/response envelopes, codecs, middleware contracts, error model, peer primitives. |
-| `src/YarpcDotNet.Transport.Http` | `YarpcDotNet.Transport.Http` | ASP.NET Core inbound adapter, HttpClient-based outbound, oneway helpers, HTTP-specific middleware defaults. |
-| `src/YarpcDotNet.Transport.Grpc` | `YarpcDotNet.Transport.Grpc` | gRPC server bridge, channel/outbound wrappers, metadata translators, streaming utilities. |
-| `src/YarpcDotNet.Configuration` | `YarpcDotNet.Configuration` | Declarative config loader, DI extensions, transport/peer registries, validation logic. |
-| `src/YarpcDotNet.Codegen.Protobuf` | `protoc-gen-yarpc-csharp` | Protobuf plugin emitting service adapters, client facades, and codec glue code. |
+| `src/Polymer/Core` | `Polymer.Core` (namespace) | Core abstractions within the consolidated `Polymer` project: dispatcher, metadata envelopes, codecs, middleware contracts, transport contracts. |
+| `src/Polymer/Transport/Http` | `Polymer.Transport.Http` | ASP.NET Core inbound adapter, HttpClient-based outbound, oneway helpers, HTTP-specific middleware defaults. |
+| `src/Polymer/Transport/Grpc` | `Polymer.Transport.Grpc` | gRPC inbound/outbound, metadata translators, streaming utilities, logging/metrics interceptors. |
+| `src/Polymer/Configuration` | `Polymer.Configuration` | (Planned) Declarative config loader, DI extensions, transport/peer registries, validation logic. |
+| `src/Polymer/Codegen/Protobuf` | `protoc-gen-polymer-csharp` | (Planned) Protobuf plugin emitting service adapters, client facades, and codec glue code. |
 | `samples/KeyValueService` | `KeyValueService` | Demonstrates multi-transport dispatcher, config-driven wiring, OpenTelemetry integration. |
 | `samples/PingClient` | `PingClient` | Console client exercising unary, oneway, and streaming calls for manual verification. |
 | `tests/<ProjectName>.Tests` | Mirrors each library | xUnit-based unit tests, transport/interop harnesses, property tests for peer choosers. |
 
-**Solution structure:** `YarpcDotNet.sln` at repo root; use `Directory.Build.props`/`Directory.Build.targets` to centralize analyzers, nullable context, and packaging metadata. Favor `InternalsVisibleTo` only for associated test assemblies.
+**Solution structure:** `Polymer.sln` at repo root; use `Directory.Build.props`/`Directory.Build.targets` to centralize analyzers, nullable context, and packaging metadata. Favor `InternalsVisibleTo` only for associated test assemblies.
 
 **Dependencies:** treat Hugo packages (`Hugo`, `Hugo.Diagnostics.OpenTelemetry`, `Hugo.Go`) as external NuGet dependencies the core project references for result pipelines, diagnostics, and concurrency primitives.
 
@@ -168,9 +168,9 @@ API Mapping (Go → C#)
 | `transport.UnaryOutbound/OnewayOutbound/StreamOutbound` | `IUnaryOutbound` / `IOnewayOutbound` / `IStreamOutbound` |
 | `transport.Inbound` + handler specs | `IUnaryInbound` / `IOnewayInbound` / `IStreamInbound` |
 | `peer.Chooser` + lists (round‑robin, pending‑heap) | `IPeerChooser` + `RoundRobinPeerList`, `PendingHeapPeerList` |
-| `yarpcconfig` | `YarpcConfiguration` (YAML/JSON → Dispatcher) |
+| `yarpcconfig` | `PolymerConfiguration` (YAML/JSON → Dispatcher) |
 | `encoding/json`, `/thrift`, `/protobuf` | `JsonCodec`, `ProtobufCodec` (Thrift later) |
-| `yarpcerrors` | `YarpcException` + `YarpcStatusCode` enum |
+| `yarpcerrors` | `PolymerException` + `PolymerStatusCode` enum |
 | Middleware packages | Inbound/Outbound interfaces + ordered pipeline combinators |
 | Hugo `Error`/`Result<T>` | Backing transport error/result semantics; adapters attach YARPC status metadata to Hugo errors |
 
@@ -187,7 +187,7 @@ Wire‑Up & Lifecycle
 
 * Router maps procedures (encoding-specific names) to handlers; `Introspect()` surfaces registered procedures, middleware chains, peer chooser state, and transport health snapshots.
 
-* Provide helper extensions (`AddYarpcDispatcher`, `UseYarpc`) so ASP.NET Core or worker services can register dispatcher components declaratively in `Program.cs`.
+* Provide helper extensions (`AddPolymerDispatcher`, `UsePolymer`) so ASP.NET Core or worker services can register dispatcher components declaratively in `Program.cs`.
 
 * Bootstrap Hugo diagnostics (`GoDiagnostics.Configure(...)`) as part of dispatcher startup so transport/middleware metrics flow into the shared telemetry backends without bespoke instrumentation.
 
@@ -218,7 +218,7 @@ Transport Specifics
 
 * **Outbounds:**`GrpcChannel` + client interceptors wrapping `IUnaryOutbound`&`IStreamOutbound`.
 
-* **Status Mapping:** gRPC `StatusCode` ↔ `YarpcStatusCode`.
+* **Status Mapping:** gRPC `StatusCode` ↔ `PolymerStatusCode`.
 
 * **Streaming support:** expose async enumerable APIs for server/client/bidi streams; ensure back-pressure ties into YARPC middleware.
 
@@ -271,13 +271,13 @@ Peer & Load‑Balancing
 Error Model
 -----------
 
-* `YarpcStatusCode` enum and `YarpcException` type.
+* `PolymerStatusCode` enum and `PolymerException` type.
 
 * Helpers: `FromException`, `IsStatus`, `GetFaultType` (client/server).
 
 * Mapping: gRPC codes ↔ YARPC codes; HTTP status/headers → YARPC codes.
 
-* **.NET integration:** provide exception filters/middleware so ASP.NET Core controllers can translate thrown exceptions into `YarpcException` consistently.
+* **.NET integration:** provide exception filters/middleware so ASP.NET Core controllers can translate thrown exceptions into `PolymerException` consistently.
 
 * **Retry semantics:** publish guidance on which status codes are retryable and ensure middleware respects them.
 
@@ -290,7 +290,7 @@ Middleware & Observability
 
 * Middleware interfaces for unary/oneway/stream (inbound & outbound) + combinators to build ordered pipelines.
 
-* **Stock middleware:** logging, tracing (OpenTelemetry), metrics, deadline enforcement, panic/exception recovery (convert to `YarpcException`).
+* **Stock middleware:** logging, tracing (OpenTelemetry), metrics, deadline enforcement, panic/exception recovery (convert to `PolymerException`).
 
 * **Extensibility:** support per-procedure middleware overrides and attribute-based registration for generated clients.
 
@@ -364,6 +364,8 @@ Step‑by‑Step Codex Prompts
 
 Each step includes _Done when…_ acceptance criteria.
 
+> **Status:** Steps 1‑3 are implemented in the consolidated `Polymer` project; the prompts remain for historical traceability and future enhancements.
+
 **Workflow guidance:**
 
 - Target one library per pull request to keep diffs reviewable; wire minimal samples/tests alongside the feature.
@@ -372,7 +374,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 1) Core Primitives
 
-**Prompt:** Create `YarpcDotNet.Core` (wrapping Hugo building blocks) with:
+**Prompt:** Create `Polymer.Core` (wrapping Hugo building blocks) with:
 
 * `RequestMeta`, `ResponseMeta`, `IRequest<T>`, `IResponse<T>`.
 
@@ -380,13 +382,13 @@ Each step includes _Done when…_ acceptance criteria.
 
 * `ICodec<TReq,TRes>`, `JsonCodec<TReq,TRes>`.
 
-* Errors: `YarpcStatusCode`, `YarpcException`, helpers `FromException`, `IsStatus`, `GetFaultType`.
+* Errors: `PolymerStatusCode`, `PolymerException`, helpers `FromException`, `IsStatus`, `GetFaultType`.
 
 * Middleware interfaces and `Compose(...)` combinators.
 
-* Hugo adapters translating `Hugo.Error`/`Result<T>` into the YARPC-specific surface (status codes, headers, metadata).
+* Hugo adapters translating `Hugo.Error`/`Result<T>` into the Polymer-specific surface (status codes, headers, metadata).
 
-**Done when:** Library builds; can throw/catch `YarpcException` with a code and convert to/from Hugo `Error`.
+**Done when:** Library builds; can throw/catch `PolymerException` with a code and convert to/from Hugo `Error`.
 
 * * *
 
@@ -408,7 +410,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 3) HTTP Transport (Unary + Oneway)
 
-**Prompt:** Build `YarpcDotNet.Transport.Http`:
+**Prompt:** Build `Polymer.Transport.Http`:
 
 * **Inbound:** ASP.NET Core middleware → `IRequest<byte[]>` → handler; 200 for unary, **202** for oneway.
 
@@ -424,7 +426,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 4) gRPC Transport (Unary + Streaming)
 
-**Prompt:** Build `YarpcDotNet.Transport.Grpc`:
+**Prompt:** Build `Polymer.Transport.Grpc`:
 
 * **Inbound:** generic gRPC service delegating to YARPC handlers; header/trailer normalization.
 
@@ -452,7 +454,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 6) Peer Chooser & Load Balancing
 
-**Prompt:** Add `YarpcDotNet.Core.Peer`:
+**Prompt:** Add `Polymer.Core.Peer`:
 
 * `IPeer`, `IPeerChooser`, `PeerStatus`, inflight accounting.
 
@@ -468,7 +470,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 7) Configuration System
 
-**Prompt:** Create `YarpcDotNet.Configuration`:
+**Prompt:** Create `Polymer.Configuration`:
 
 * Models for `Inbounds`, `Outbounds`, `Transports`, `Logging`, `Peers`.
 
@@ -496,7 +498,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 **Prompt:** Provide bi‑directional mappings:
 
-* gRPC `StatusCode` ↔ `YarpcStatusCode`; HTTP status classes → YARPC codes.
+* gRPC `StatusCode` ↔ `PolymerStatusCode`; HTTP status classes → YARPC codes.
 
 * Verify `FromException`, `IsStatus`, `GetFaultType` behavior in middleware.
 
@@ -551,13 +553,13 @@ Lightweight Usage Sketch (C#)
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using YarpcDotNet.Core;
-using YarpcDotNet.Transport.Http;
+using Polymer.Core;
+using Polymer.Transport.Http;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddLogging();
-builder.Services.AddYarpcDispatcher(dispatcher =>
+builder.Services.AddPolymerDispatcher(dispatcher =>
 {
     dispatcher.SetServiceName("keyvalue");
     dispatcher.AddInbound(HttpInbound.Create("http://0.0.0.0:8080"));
@@ -589,7 +591,7 @@ var response = await client.CallAsync(new GetRequest { Key = "foo" }, cancellati
 Console.WriteLine($"value = {response.Value}");
 ```
 
-The sketch assumes helper extensions (`AddYarpcDispatcher`, `RegisterJsonUnary`, `CreateJsonClient`) introduced in the plan’s earlier steps. Replace with equivalent wiring if naming changes.
+The sketch assumes helper extensions (`AddPolymerDispatcher`, `RegisterJsonUnary`, `CreateJsonClient`) introduced in the plan’s earlier steps. Replace with equivalent wiring if naming changes.
 
 * * *
 
