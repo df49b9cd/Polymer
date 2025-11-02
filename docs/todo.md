@@ -64,7 +64,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
     - Peer management & load balancing: GrpcOutbound binds to a single _address and opens one GrpcChannel with no peer chooser, retention, or backoff logic (src/Polymer/Transport/Grpc/GrpcOutbound.cs (lines 17-45)). YARPC-Go’s gRPC transport fronts multiple peers with choosers, dial-time backoff, and per-peer lifecycle management, so we currently lack parity on resiliency and multi-host routing.
 
-    - Observability & middleware: We now expose client interceptors (runtime options) and server interceptors (via `GrpcServerRuntimeOptions.Interceptors`), but still need built-in logging/metrics middleware to match YARPC-Go defaults.
+    - Observability & middleware: Added built-in logging/metrics interceptors (`GrpcClientLoggingInterceptor`, `GrpcServerLoggingInterceptor`) and runtime hooks; still need richer metrics coverage across streaming RPCs and integration with central telemetry config.
 
     - ~~Security & connection tuning: The inbound config only forces HTTP/2 listeners and never exposes TLS, keepalive, or max message size knobs (src/Polymer/Transport/Grpc/GrpcInbound.cs (lines 60-71)); the outbound constructor similarly only tweaks the HTTP handler (src/Polymer/Transport/Grpc/GrpcOutbound.cs (lines 27-39)). YARPC-Go ships options for server/client TLS credentials, keepalive params, compressors, and header size limits, so our transport is missing that flexibility.~~ *(completed via `GrpcServerTlsOptions`, `GrpcClientTlsOptions`, runtime keepalive/message-size options, and `GrpcCompressionOptions`; request/response compression pipeline remains to be validated.)*
     
