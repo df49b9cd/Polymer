@@ -53,6 +53,12 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
     - ~~Update dispatcher introspection to list available stream procedures and status (unary, client, server, bidi).~~ *(completed)*
     - Document public APIs (how to build client streaming/bidi handlers).
     - ~~Expand gRPC outbound/inbound error handling to surface canonical codes for streaming faults.~~ *(completed)*
+    - **gRPC transport test gaps (parity audit)**
+      - Cover duplex/bidirectional streaming happy path, cancellation, and flow-control scenarios.
+      - Validate request/response metadata propagation (`rpc-*` headers, custom headers, TTL/deadline) across unary and streaming RPCs.
+      - Assert response trailers carry `polymer-encoding`, status, and error metadata for success & failure cases.
+      - Verify `GrpcStatusMapper` mappings for all canonical codes surfaced by unary and streaming transports.
+      - Exercise streaming edge conditions: server-initiated cancellation/error for server and client streams, partial writes, and mid-stream failures.
 
 - **Transport Middleware & Interceptors**
   - Design middleware interfaces for transport-specific hooks:
