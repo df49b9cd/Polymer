@@ -99,7 +99,8 @@ Use the `polymer` CLI for quick validation, introspection, and smoke testing:
 dotnet run --project src/Polymer.Cli -- config validate --config appsettings.json
 dotnet run --project src/Polymer.Cli -- introspect --url http://127.0.0.1:8080/polymer/introspect
 dotnet run --project src/Polymer.Cli -- request --transport http --url http://127.0.0.1:8080/yarpc/v1 --service echo --procedure echo::ping --body '{"message":"cli"}'
+dotnet run --project src/Polymer.Cli -- request --url http://127.0.0.1:8080/yarpc/v1 --service echo --procedure echo::ping --profile json:pretty --body '{"message":"profiles"}'
 dotnet run --project src/Polymer.Cli -- script run --file docs/reference/cli-scripts/echo-harness.json
 ```
 
-See `docs/reference/cli.md` for installation notes and automation examples.
+See `docs/reference/cli.md` for profiles, protobuf automation, and installing `polymer` as a .NET global tool.

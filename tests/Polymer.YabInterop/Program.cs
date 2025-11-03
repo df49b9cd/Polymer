@@ -1,5 +1,7 @@
+using System.IO;
 using System.Text.Json;
 using Google.Protobuf;
+using Google.Protobuf.Reflection;
 using Hugo;
 using Polymer.Core;
 using Polymer.Core.Transport;
@@ -14,6 +16,7 @@ var httpPort = 8080;
 int? grpcPort = null;
 var enableHttp = true;
 var durationSeconds = 0;
+string? descriptorOutput = null;
 
 for (var index = 0; index < args.Length; index++)
 {
@@ -35,7 +38,17 @@ for (var index = 0; index < args.Length; index++)
             durationSeconds = parsedDuration;
             index++;
             break;
+        case "--dump-descriptor" when index + 1 < args.Length:
+            descriptorOutput = args[index + 1];
+            index++;
+            break;
     }
+}
+
+if (!string.IsNullOrEmpty(descriptorOutput))
+{
+    await WriteDescriptorAsync(descriptorOutput!).ConfigureAwait(false);
+    return;
 }
 
 if (!enableHttp && grpcPort is null)
@@ -131,6 +144,23 @@ catch (OperationCanceledException)
 finally
 {
     await dispatcher.StopAsync(CancellationToken.None).ConfigureAwait(false);
+}
+
+static async Task WriteDescriptorAsync(string outputPath)
+{
+    var directory = Path.GetDirectoryName(outputPath);
+    if (!string.IsNullOrEmpty(directory))
+    {
+        Directory.CreateDirectory(directory);
+    }
+
+    var descriptorSet = new FileDescriptorSet();
+    descriptorSet.File.Add(EchoReflection.Descriptor.ToProto());
+
+    await using var stream = File.Create(outputPath);
+    descriptorSet.WriteTo(stream);
+    await stream.FlushAsync().ConfigureAwait(false);
+    Console.WriteLine($"Wrote protobuf descriptor to {outputPath}");
 }
 
 static ValueTask<Result<Response<ReadOnlyMemory<byte>>>> HandleHttpEchoAsync(

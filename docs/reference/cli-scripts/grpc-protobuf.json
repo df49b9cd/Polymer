@@ -1,0 +1,23 @@
+{
+  "steps": [
+    {
+      "type": "request",
+      "description": "gRPC echo call encoded from protobuf descriptor",
+      "transport": "grpc",
+      "service": "echo",
+      "procedure": "Ping",
+      "caller": "cli-profiles",
+      "profiles": [ "protobuf:echo.EchoRequest" ],
+      "protoFiles": [ "docs/reference/cli-scripts/echo.protoset" ],
+      "addresses": [ "http://127.0.0.1:9090" ],
+      "timeout": "5s",
+      "body": "{ \"message\": \"hello from protobuf profile\" }"
+    },
+    {
+      "type": "introspect",
+      "description": "Inspect gRPC dispatcher",
+      "url": "http://127.0.0.1:8080/polymer/introspect",
+      "format": "text"
+    }
+  ]
+}

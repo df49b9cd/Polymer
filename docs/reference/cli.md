@@ -65,7 +65,16 @@ polymer request \
   --caller cli-demo \
   --encoding application/json \
   --body '{"message":"hello from polymer"}'
+
+polymer request \
+  --url http://localhost:8080/yarpc/v1 \
+  --service echo \
+  --procedure echo::ping \
+  --profile json:pretty \
+  --body '{"message":"profile aware"}'
 ```
+
+The second variant applies the `json:pretty` profile, which auto-populates `Content-Type`, `Accept`, and the request encoding before reformatting the inline JSON.
 
 Binary gRPC example (payload encoded as base64):
 
@@ -80,6 +89,30 @@ polymer request \
 ```
 
 Use `--body-file` to stream large payloads directly off disk and `--header key=value` to attach transport headers.
+
+## Codec-aware profiles
+
+Profiles shortcut common encoding concerns:
+
+- `--profile json[:pretty]` sets `Content-Type`/`Accept` to `application/json`, updates the request encoding, and (for `pretty`) reflows inline JSON prior to dispatch.
+- `--profile protobuf:<message>` converts JSON input into protobuf bytes. Supply one or more `--proto-file` values that point to descriptor sets (e.g. `.protoset` files) and, if the profile omits a message name, provide `--proto-message package.Type`.
+
+Example end-to-end flow using the bundled echo descriptor:
+
+```bash
+dotnet run --project tests/Polymer.YabInterop/Polymer.YabInterop.csproj -- --dump-descriptor docs/reference/cli-scripts/echo.protoset
+
+polymer request \
+  --transport grpc \
+  --address http://127.0.0.1:9090 \
+  --service echo \
+  --procedure Ping \
+  --profile protobuf:echo.EchoRequest \
+  --proto-file docs/reference/cli-scripts/echo.protoset \
+  --body '{"message":"hello from protobuf"}'
+```
+
+If the body was supplied via `--body-base64`, the CLI assumes you already encoded the payload and skips profile transforms.
 
 ## Scripted automation
 
@@ -128,6 +161,14 @@ Each step is typed (`request`, `introspect`, or `delay`) and matches the options
 
 This mirrors common `yab` automation flows, while keeping the payload format aligned with Polymer's transport metadata. Mix HTTP and gRPC requests in one file, adjust headers per call, and share the scripts with CI for reproducible diagnostics.
 
+The companion script `docs/reference/cli-scripts/grpc-protobuf.json` exercises the protobuf profile against the gRPC listener. Generate the descriptor once (see above), start the harness in dual mode (`MODE=both bash tests/Polymer.YabInterop/run-yab.sh`), and replay the script:
+
+```bash
+polymer script run --file docs/reference/cli-scripts/grpc-protobuf.json
+```
+
+Stop the harness when you are done (`Ctrl+C`).
+
 ## Automation recipe
 
 The CLI is designed to slot into shell scripts and CI workflows. The following helper waits for a dispatcher to become ready, validates configuration, and executes a smoke test call:
@@ -162,7 +203,22 @@ polymer request \
 
 Drop this script into `scripts/polymer-smoke.sh`, mark it executable, and point CI to it after publishing a build. Non-zero exits indicate the dispatcher failed validation or the smoke test RPC.
 
+## Install as a .NET tool
+
+`Polymer.Cli` now packs as a .NET global tool. Publish a local package and install it from the generated feed:
+
+```bash
+dotnet pack src/Polymer.Cli/Polymer.Cli.csproj -c Release -o artifacts/cli
+dotnet tool install --global Polymer.Cli.Tool --add-source artifacts/cli
+
+# Available everywhere as `polymer`
+polymer --help
+```
+
+Push the resulting `.nupkg` to your package registry of choice once the version is finalised and trim the `--add-source` flag.
+
 ## Next steps
 
-- Extend the CLI with presets for common payload codecs (JSON profiles, protobuf descriptors).
-- Package the CLI as a global tool once the command surface stabilises.
+- Surface profile discovery (`polymer request --profile list`) and user-defined profile files.
+- Add protobuf descriptor caching to avoid rebuilding sets on every invocation.
+- Publish pre-built descriptor packs for popular demos to simplify quickstarts.

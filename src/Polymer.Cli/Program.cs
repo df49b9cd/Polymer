@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -13,6 +14,10 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
 using Hugo;
+using System.Reflection;
+using Google.Protobuf;
+using Google.Protobuf.Reflection;
+using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -30,6 +35,25 @@ public static class Program
 {
     private const string DefaultConfigSection = "polymer";
     private const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/polymer/introspect";
+    private static readonly JsonSerializerOptions PrettyJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true
+    };
+    private static readonly IReadOnlyDictionary<string, FileDescriptor> WellKnownFileDescriptors = new Dictionary<string, FileDescriptor>(StringComparer.Ordinal)
+    {
+        ["google/protobuf/any.proto"] = AnyReflection.Descriptor,
+        ["google/protobuf/api.proto"] = ApiReflection.Descriptor,
+        ["google/protobuf/duration.proto"] = DurationReflection.Descriptor,
+        ["google/protobuf/empty.proto"] = EmptyReflection.Descriptor,
+        ["google/protobuf/field_mask.proto"] = FieldMaskReflection.Descriptor,
+        ["google/protobuf/source_context.proto"] = SourceContextReflection.Descriptor,
+        ["google/protobuf/struct.proto"] = StructReflection.Descriptor,
+        ["google/protobuf/timestamp.proto"] = TimestampReflection.Descriptor,
+        ["google/protobuf/type.proto"] = TypeReflection.Descriptor,
+        ["google/protobuf/wrappers.proto"] = WrappersReflection.Descriptor
+    };
+    private static MethodInfo? fileDescriptorBuildFrom;
+    private static readonly ConcurrentDictionary<string, DescriptorCacheEntry> DescriptorCache = new(StringComparer.Ordinal);
 
     public static async Task<int> Main(string[] args)
     {
@@ -218,6 +242,13 @@ public static class Program
             DefaultValueFactory = _ => Array.Empty<string>()
         };
 
+        var profileOption = new Option<string[]>("--profile")
+        {
+            Description = "Apply request presets (e.g. json:default, protobuf:package.Message).",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => Array.Empty<string>()
+        };
+
         var shardKeyOption = new Option<string?>("--shard-key")
         {
             Description = "Shard key metadata."
@@ -231,6 +262,18 @@ public static class Program
         var routingDelegateOption = new Option<string?>("--routing-delegate")
         {
             Description = "Routing delegate metadata."
+        };
+
+        var protoFileOption = new Option<string[]>("--proto-file")
+        {
+            Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding.",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => Array.Empty<string>()
+        };
+
+        var protoMessageOption = new Option<string?>("--proto-message")
+        {
+            Description = "Fully-qualified protobuf message name when using protobuf profiles."
         };
 
         var ttlOption = new Option<string?>("--ttl")
@@ -281,9 +324,12 @@ public static class Program
         command.Add(callerOption);
         command.Add(encodingOption);
         command.Add(headerOption);
+        command.Add(profileOption);
         command.Add(shardKeyOption);
         command.Add(routingKeyOption);
         command.Add(routingDelegateOption);
+        command.Add(protoFileOption);
+        command.Add(protoMessageOption);
         command.Add(ttlOption);
         command.Add(deadlineOption);
         command.Add(timeoutOption);
@@ -301,9 +347,12 @@ public static class Program
             var caller = parseResult.GetValue(callerOption);
             var encoding = parseResult.GetValue(encodingOption);
             var headers = parseResult.GetValue(headerOption) ?? Array.Empty<string>();
+            var profiles = parseResult.GetValue(profileOption) ?? Array.Empty<string>();
             var shardKey = parseResult.GetValue(shardKeyOption);
             var routingKey = parseResult.GetValue(routingKeyOption);
             var routingDelegate = parseResult.GetValue(routingDelegateOption);
+            var protoFiles = parseResult.GetValue(protoFileOption) ?? Array.Empty<string>();
+            var protoMessage = parseResult.GetValue(protoMessageOption);
             var ttl = parseResult.GetValue(ttlOption);
             var deadline = parseResult.GetValue(deadlineOption);
             var timeout = parseResult.GetValue(timeoutOption);
@@ -320,9 +369,12 @@ public static class Program
                     caller,
                     encoding,
                     headers,
+                    profiles,
                     shardKey,
                     routingKey,
                     routingDelegate,
+                    protoFiles,
+                    protoMessage,
                     ttl,
                     deadline,
                     timeout,
@@ -539,9 +591,12 @@ public static class Program
         string? caller,
         string? encoding,
         string[] headerValues,
+        string[] profileValues,
         string? shardKey,
         string? routingKey,
         string? routingDelegate,
+        string[] protoFiles,
+        string? protoMessage,
         string? ttlOption,
         string? deadlineOption,
         string? timeoutOption,
@@ -553,6 +608,8 @@ public static class Program
     {
         transport = string.IsNullOrWhiteSpace(transport) ? "http" : transport.ToLowerInvariant();
         var headers = headerValues ?? Array.Empty<string>();
+        var profiles = profileValues ?? Array.Empty<string>();
+        var protoDescriptorFiles = protoFiles ?? Array.Empty<string>();
 
         if (transport is not ("http" or "grpc"))
         {
@@ -601,9 +658,35 @@ public static class Program
             return 1;
         }
 
-        if (!TryResolvePayload(body, bodyFile, bodyBase64, out var payload, out var payloadError))
+        if (!TryPrepareProfiles(
+                transport,
+                profiles,
+                protoDescriptorFiles,
+                protoMessage,
+                headerPairs,
+                ref encoding,
+                out var profileState,
+                out var profileError))
+        {
+            Console.Error.WriteLine(profileError ?? "Failed to process profiles.");
+            return 1;
+        }
+
+        if (!TryResolvePayload(body, bodyFile, bodyBase64, out var payload, out var payloadSource, out var payloadError))
         {
             Console.Error.WriteLine(payloadError ?? "Failed to resolve payload.");
+            return 1;
+        }
+
+        if (!TryFinalizeProfiles(
+                profileState,
+                body,
+                bodyFile,
+                payloadSource,
+                ref payload,
+                out var finalizeError))
+        {
+            Console.Error.WriteLine(finalizeError ?? "Failed to apply profile transforms.");
             return 1;
         }
 
@@ -786,6 +869,7 @@ public static class Program
                     }
 
                     var headerPairs = step.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? Array.Empty<string>();
+                    var profiles = step.Profiles ?? Array.Empty<string>();
                     var addresses = step.Addresses ?? Array.Empty<string>();
                     if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(step.Address))
                     {
@@ -810,9 +894,12 @@ public static class Program
                         step.Caller,
                         step.Encoding,
                         headerPairs,
+                        profiles,
                         step.ShardKey,
                         step.RoutingKey,
                         step.RoutingDelegate,
+                        step.ProtoFiles ?? Array.Empty<string>(),
+                        step.ProtoMessage,
                         step.Ttl,
                         step.Deadline,
                         step.Timeout,
@@ -928,9 +1015,12 @@ public static class Program
         public string? Caller { get; init; }
         public string? Encoding { get; init; }
         public Dictionary<string, string>? Headers { get; init; }
+        public string[]? Profiles { get; init; }
         public string? ShardKey { get; init; }
         public string? RoutingKey { get; init; }
         public string? RoutingDelegate { get; init; }
+        public string[]? ProtoFiles { get; init; }
+        public string? ProtoMessage { get; init; }
         public string? Ttl { get; init; }
         public string? Deadline { get; init; }
         public string? Timeout { get; init; }
@@ -1095,9 +1185,1035 @@ public static class Program
         return true;
     }
 
-    private static bool TryResolvePayload(string? body, string? bodyFile, string? bodyBase64, out ReadOnlyMemory<byte> payload, out string? error)
+    private static bool TryPrepareProfiles(
+        string transport,
+        string[] profiles,
+        string[] protoFiles,
+        string? protoMessageOption,
+        List<KeyValuePair<string, string>> headers,
+        ref string? encoding,
+        out ProfileProcessingState state,
+        out string? error)
+    {
+        state = new ProfileProcessingState();
+        error = null;
+
+        if (profiles.Length == 0)
+        {
+            return true;
+        }
+
+        foreach (var profile in profiles)
+        {
+            if (string.IsNullOrWhiteSpace(profile))
+            {
+                continue;
+            }
+
+            var trimmed = profile.Trim();
+            var separatorIndex = trimmed.IndexOf(':');
+            var kind = separatorIndex >= 0 ? trimmed[..separatorIndex] : trimmed;
+            var qualifier = separatorIndex >= 0 ? trimmed[(separatorIndex + 1)..] : string.Empty;
+            var normalizedKind = kind.ToLowerInvariant();
+
+            switch (normalizedKind)
+            {
+                case "json":
+                    ApplyJsonProfile(qualifier, headers, ref encoding, state);
+                    break;
+
+                case "protobuf":
+                case "proto":
+                    if (state.Proto is not null)
+                    {
+                        error = "Multiple protobuf profiles specified. Provide a single protobuf profile per request.";
+                        return false;
+                    }
+
+                    var messageName = string.IsNullOrWhiteSpace(qualifier) ? protoMessageOption : qualifier;
+                    if (string.IsNullOrWhiteSpace(messageName))
+                    {
+                        error = "Protobuf profiles require a message name (e.g. protobuf:package.Message or --proto-message).";
+                        return false;
+                    }
+
+                    if (protoFiles.Length == 0)
+                    {
+                        error = "Protobuf profiles require at least one --proto-file pointing to a FileDescriptorSet.";
+                        return false;
+                    }
+
+                    state.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
+                    encoding ??= transport == "grpc" ? "application/grpc" : "application/x-protobuf";
+
+                    if (transport == "http")
+                    {
+                        EnsureHeader(headers, "Content-Type", encoding ?? "application/x-protobuf");
+                    }
+
+                    break;
+
+                default:
+                    error = $"Unknown profile '{profile}'.";
+                    return false;
+            }
+        }
+
+        if (encoding is not null)
+        {
+            EnsureHeader(headers, "Rpc-Encoding", encoding);
+        }
+
+        return true;
+    }
+
+    private static bool TryFinalizeProfiles(
+        ProfileProcessingState state,
+        string? inlineBody,
+        string? bodyFile,
+        PayloadSource payloadSource,
+        ref ReadOnlyMemory<byte> payload,
+        out string? error)
+    {
+        error = null;
+
+        if (state.Proto is not null)
+        {
+            if (!TryEncodeProtobufPayload(state.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
+            {
+                return false;
+            }
+        }
+
+        if (state.PrettyPrintJson)
+        {
+            FormatJsonPayload(inlineBody, bodyFile, payloadSource, ref payload);
+        }
+
+        return true;
+    }
+
+    private static void ApplyJsonProfile(
+        string qualifier,
+        List<KeyValuePair<string, string>> headers,
+        ref string? encoding,
+        ProfileProcessingState state)
+    {
+        var normalized = string.IsNullOrWhiteSpace(qualifier) ? "default" : qualifier.Trim().ToLowerInvariant();
+
+        switch (normalized)
+        {
+            case "default":
+                break;
+            case "pretty":
+                state.PrettyPrintJson = true;
+                break;
+            default:
+                Console.Error.WriteLine($"Warning: unknown json profile '{qualifier}'. Falling back to default settings.");
+                break;
+        }
+
+        encoding ??= "application/json";
+        EnsureHeader(headers, "Content-Type", encoding ?? "application/json");
+        EnsureHeader(headers, "Accept", "application/json");
+    }
+
+    private static void FormatJsonPayload(
+        string? inlineBody,
+        string? bodyFile,
+        PayloadSource payloadSource,
+        ref ReadOnlyMemory<byte> payload)
+    {
+        if (payloadSource == PayloadSource.Base64)
+        {
+            Console.Error.WriteLine("Warning: cannot pretty-print JSON when payload is provided via --body-base64.");
+            return;
+        }
+
+        string? jsonText = inlineBody;
+
+        if (string.IsNullOrEmpty(jsonText) && !string.IsNullOrEmpty(bodyFile) && File.Exists(bodyFile))
+        {
+            try
+            {
+                jsonText = File.ReadAllText(bodyFile);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Warning: failed to read JSON payload file '{bodyFile}': {ex.Message}");
+                return;
+            }
+        }
+
+        if (string.IsNullOrEmpty(jsonText))
+        {
+            if (payload.IsEmpty)
+            {
+                return;
+            }
+
+            if (!TryDecodeUtf8(payload.Span, out var decoded))
+            {
+                Console.Error.WriteLine("Warning: payload is not UTF-8; skipping JSON formatting.");
+                return;
+            }
+
+            jsonText = decoded;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(jsonText);
+            var formatted = JsonSerializer.Serialize(document.RootElement, PrettyJsonOptions);
+            payload = Encoding.UTF8.GetBytes(formatted);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Warning: could not format JSON payload: {ex.Message}");
+        }
+    }
+
+    private static bool TryEncodeProtobufPayload(
+        ProtoProcessingState protoState,
+        string? inlineBody,
+        string? bodyFile,
+        PayloadSource payloadSource,
+        ref ReadOnlyMemory<byte> payload,
+        out string? error)
+    {
+        error = null;
+
+        if (payloadSource == PayloadSource.Base64)
+        {
+            // Caller supplied the binary payload directly.
+            return true;
+        }
+
+        if (!TryLoadMessageDescriptor(protoState.DescriptorPaths, protoState.MessageName, out var descriptor, out error))
+        {
+            return false;
+        }
+
+        string? json = inlineBody;
+
+        if (string.IsNullOrEmpty(json) && payloadSource == PayloadSource.File && !string.IsNullOrEmpty(bodyFile))
+        {
+            try
+            {
+                json = File.ReadAllText(bodyFile);
+            }
+            catch (Exception ex)
+            {
+                error = $"Failed to read payload file '{bodyFile}' as JSON: {ex.Message}";
+                return false;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            json = "{}";
+        }
+
+        try
+        {
+            var parserSettings = JsonParser.Settings.Default
+                .WithIgnoreUnknownFields(true)
+                .WithTypeRegistry(TypeRegistry.FromFiles(descriptor.File));
+            var parser = new JsonParser(parserSettings);
+            var message = parser.Parse(json, descriptor);
+            payload = message.ToByteArray();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Fall back to a manual serializer if the runtime lacks dynamic parsing support.
+            if (TrySerializeMessage(descriptor, json, out var manualPayload, out var manualError))
+            {
+                payload = manualPayload;
+                return true;
+            }
+
+            error = manualError ?? $"Failed to encode protobuf payload: {ex.Message}";
+            return false;
+        }
+    }
+
+    private static bool TrySerializeMessage(MessageDescriptor descriptor, string json, out ReadOnlyMemory<byte> payload, out string? error)
     {
         payload = ReadOnlyMemory<byte>.Empty;
+        error = null;
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
+        }
+        catch (Exception ex)
+        {
+            error = $"JSON payload could not be parsed: {ex.Message}";
+            return false;
+        }
+
+        if (!TrySerializeMessage(descriptor, document.RootElement, out var buffer, out error))
+        {
+            return false;
+        }
+
+        payload = buffer;
+        return true;
+    }
+
+    private static bool TrySerializeMessage(MessageDescriptor descriptor, JsonElement element, out ReadOnlyMemory<byte> payload, out string? error)
+    {
+        payload = ReadOnlyMemory<byte>.Empty;
+        error = null;
+
+        if (element.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            error = $"Expected JSON object for message '{descriptor.FullName}'.";
+            return false;
+        }
+
+        using var stream = new MemoryStream();
+        var output = new CodedOutputStream(stream);
+
+        foreach (var property in element.EnumerateObject())
+        {
+            var field = FindField(descriptor, property.Name);
+            if (field is null)
+            {
+                continue;
+            }
+
+            if (!TryWriteField(field, property.Value, output, out error))
+            {
+                return false;
+            }
+        }
+
+        output.Flush();
+        payload = stream.ToArray();
+        return true;
+    }
+
+    private static FieldDescriptor? FindField(MessageDescriptor descriptor, string name)
+    {
+        var field = descriptor.FindFieldByName(name);
+        if (field is not null)
+        {
+            return field;
+        }
+
+        foreach (var candidate in descriptor.Fields.InDeclarationOrder())
+        {
+            if (string.Equals(candidate.JsonName, name, StringComparison.Ordinal) || string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryWriteField(FieldDescriptor field, JsonElement element, CodedOutputStream output, out string? error)
+    {
+        error = null;
+
+        if (element.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (field.IsMap)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                error = $"Map field '{field.FullName}' expects a JSON object.";
+                return false;
+            }
+
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!TrySerializeMapEntry(field, property.Name, property.Value, out var entryBytes, out error))
+                {
+                    return false;
+                }
+
+                output.WriteTag(field.FieldNumber, WireFormat.WireType.LengthDelimited);
+                output.WriteBytes(ByteString.CopyFrom(entryBytes));
+            }
+
+            return true;
+        }
+
+        if (field.IsRepeated)
+        {
+            if (element.ValueKind != JsonValueKind.Array)
+            {
+                error = $"Repeated field '{field.FullName}' expects a JSON array.";
+                return false;
+            }
+
+            if (field.IsPacked && IsPackable(field.FieldType))
+            {
+                using var packedStream = new MemoryStream();
+                var packedOutput = new CodedOutputStream(packedStream);
+
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (!TryWriteValue(field, item, packedOutput, writeTag: false, out error))
+                    {
+                        return false;
+                    }
+                }
+
+                packedOutput.Flush();
+                output.WriteTag(field.FieldNumber, WireFormat.WireType.LengthDelimited);
+                var packedBytes = packedStream.ToArray();
+                output.WriteBytes(ByteString.CopyFrom(packedBytes));
+                return true;
+            }
+
+            foreach (var item in element.EnumerateArray())
+            {
+                if (!TryWriteValue(field, item, output, writeTag: true, out error))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return TryWriteValue(field, element, output, writeTag: true, out error);
+    }
+
+    private static bool TryWriteValue(FieldDescriptor field, JsonElement element, CodedOutputStream output, bool writeTag, out string? error)
+    {
+        error = null;
+
+        if (element.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (writeTag)
+        {
+            output.WriteTag(field.FieldNumber, GetWireType(field));
+        }
+
+        switch (field.FieldType)
+        {
+            case FieldType.String:
+                output.WriteString(element.GetString() ?? string.Empty);
+                return true;
+            case FieldType.Bool:
+                output.WriteBool(ReadBoolean(element));
+                return true;
+            case FieldType.Int32:
+                output.WriteInt32(ReadInt32(element, field.FullName));
+                return true;
+            case FieldType.Int64:
+                output.WriteInt64(ReadInt64(element, field.FullName));
+                return true;
+            case FieldType.SInt32:
+                output.WriteSInt32(ReadInt32(element, field.FullName));
+                return true;
+            case FieldType.SInt64:
+                output.WriteSInt64(ReadInt64(element, field.FullName));
+                return true;
+            case FieldType.UInt32:
+                output.WriteUInt32(ReadUInt32(element, field.FullName));
+                return true;
+            case FieldType.UInt64:
+                output.WriteUInt64(ReadUInt64(element, field.FullName));
+                return true;
+            case FieldType.Fixed32:
+                output.WriteFixed32(ReadUInt32(element, field.FullName));
+                return true;
+            case FieldType.Fixed64:
+                output.WriteFixed64(ReadUInt64(element, field.FullName));
+                return true;
+            case FieldType.SFixed32:
+                output.WriteSFixed32(ReadInt32(element, field.FullName));
+                return true;
+            case FieldType.SFixed64:
+                output.WriteSFixed64(ReadInt64(element, field.FullName));
+                return true;
+            case FieldType.Float:
+                output.WriteFloat((float)ReadDouble(element, field.FullName));
+                return true;
+            case FieldType.Double:
+                output.WriteDouble(ReadDouble(element, field.FullName));
+                return true;
+            case FieldType.Bytes:
+                output.WriteBytes(ByteString.CopyFrom(ReadBytes(element, field.FullName)));
+                return true;
+            case FieldType.Enum:
+                var enumValue = ReadEnum(field.EnumType, element, field.FullName);
+                output.WriteEnum(enumValue.Number);
+                return true;
+            case FieldType.Message:
+                if (!TrySerializeMessage(field.MessageType, element, out var nestedPayload, out error))
+                {
+                    return false;
+                }
+
+                output.WriteBytes(ByteString.CopyFrom(nestedPayload.ToArray()));
+                return true;
+            default:
+                error = $"Unsupported protobuf field type '{field.FieldType}' for '{field.FullName}'.";
+                return false;
+        }
+    }
+
+    private static bool TrySerializeMapEntry(FieldDescriptor mapField, string keyText, JsonElement valueElement, out byte[] payload, out string? error)
+    {
+        payload = Array.Empty<byte>();
+        error = null;
+
+        var entryDescriptor = mapField.MessageType;
+        var keyDescriptor = entryDescriptor.Fields.InDeclarationOrder()[0];
+        var valueDescriptor = entryDescriptor.Fields.InDeclarationOrder()[1];
+
+        using var stream = new MemoryStream();
+        var output = new CodedOutputStream(stream);
+
+        if (!TryWriteMapKey(keyDescriptor, keyText, output, out error))
+        {
+            return false;
+        }
+
+        if (!TryWriteValue(valueDescriptor, valueElement, output, writeTag: true, out error))
+        {
+            return false;
+        }
+
+        output.Flush();
+        payload = stream.ToArray();
+        return true;
+    }
+
+    private static bool TryWriteMapKey(FieldDescriptor keyDescriptor, string keyText, CodedOutputStream output, out string? error)
+    {
+        error = null;
+
+        output.WriteTag(keyDescriptor.FieldNumber, GetWireType(keyDescriptor));
+
+        try
+        {
+            switch (keyDescriptor.FieldType)
+            {
+                case FieldType.String:
+                    output.WriteString(keyText);
+                    return true;
+                case FieldType.Bool:
+                    output.WriteBool(bool.Parse(keyText));
+                    return true;
+                case FieldType.Int32:
+                case FieldType.SInt32:
+                case FieldType.SFixed32:
+                    output.WriteInt32(int.Parse(keyText, CultureInfo.InvariantCulture));
+                    return true;
+                case FieldType.Int64:
+                case FieldType.SInt64:
+                case FieldType.SFixed64:
+                    output.WriteInt64(long.Parse(keyText, CultureInfo.InvariantCulture));
+                    return true;
+                case FieldType.UInt32:
+                case FieldType.Fixed32:
+                    output.WriteUInt32(uint.Parse(keyText, CultureInfo.InvariantCulture));
+                    return true;
+                case FieldType.UInt64:
+                case FieldType.Fixed64:
+                    output.WriteUInt64(ulong.Parse(keyText, CultureInfo.InvariantCulture));
+                    return true;
+                default:
+                    error = $"Unsupported map key type '{keyDescriptor.FieldType}'.";
+                    return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Could not parse map key '{keyText}' for '{keyDescriptor.FullName}': {ex.Message}";
+            return false;
+        }
+    }
+
+    private static WireFormat.WireType GetWireType(FieldDescriptor field) => field.FieldType switch
+    {
+        FieldType.Double => WireFormat.WireType.Fixed64,
+        FieldType.Float => WireFormat.WireType.Fixed32,
+        FieldType.Int64 => WireFormat.WireType.Varint,
+        FieldType.UInt64 => WireFormat.WireType.Varint,
+        FieldType.Int32 => WireFormat.WireType.Varint,
+        FieldType.Fixed64 => WireFormat.WireType.Fixed64,
+        FieldType.Fixed32 => WireFormat.WireType.Fixed32,
+        FieldType.Bool => WireFormat.WireType.Varint,
+        FieldType.String => WireFormat.WireType.LengthDelimited,
+        FieldType.Group => WireFormat.WireType.StartGroup,
+        FieldType.Message => WireFormat.WireType.LengthDelimited,
+        FieldType.Bytes => WireFormat.WireType.LengthDelimited,
+        FieldType.UInt32 => WireFormat.WireType.Varint,
+        FieldType.SFixed32 => WireFormat.WireType.Fixed32,
+        FieldType.SFixed64 => WireFormat.WireType.Fixed64,
+        FieldType.SInt32 => WireFormat.WireType.Varint,
+        FieldType.SInt64 => WireFormat.WireType.Varint,
+        FieldType.Enum => WireFormat.WireType.Varint,
+        _ => WireFormat.WireType.Varint
+    };
+
+    private static bool IsPackable(FieldType fieldType) => fieldType switch
+    {
+        FieldType.String or FieldType.Bytes or FieldType.Message or FieldType.Group => false,
+        _ => true
+    };
+
+    private static bool ReadBoolean(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String => bool.Parse(element.GetString() ?? "false"),
+            _ => throw new InvalidOperationException("Expected boolean value."),
+        };
+    }
+
+    private static int ReadInt32(JsonElement element, string fieldName)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var value))
+        {
+            return value;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Could not parse int32 value for '{fieldName}'.");
+    }
+
+    private static long ReadInt64(JsonElement element, string fieldName)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var value))
+        {
+            return value;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && long.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Could not parse int64 value for '{fieldName}'.");
+    }
+
+    private static uint ReadUInt32(JsonElement element, string fieldName)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetUInt32(out var value))
+        {
+            return value;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && uint.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Could not parse uint32 value for '{fieldName}'.");
+    }
+
+    private static ulong ReadUInt64(JsonElement element, string fieldName)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetUInt64(out var value))
+        {
+            return value;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && ulong.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Could not parse uint64 value for '{fieldName}'.");
+    }
+
+    private static double ReadDouble(JsonElement element, string fieldName)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out var value))
+        {
+            return value;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && double.TryParse(element.GetString(), NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Could not parse floating point value for '{fieldName}'.");
+    }
+
+    private static byte[] ReadBytes(JsonElement element, string fieldName)
+    {
+        var text = element.GetString();
+        if (string.IsNullOrEmpty(text))
+        {
+            return Array.Empty<byte>();
+        }
+
+        try
+        {
+            return Convert.FromBase64String(text);
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidOperationException($"Could not parse base64 payload for '{fieldName}': {ex.Message}");
+        }
+    }
+
+    private static EnumValueDescriptor ReadEnum(EnumDescriptor enumDescriptor, JsonElement element, string fieldName)
+    {
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var name = element.GetString() ?? string.Empty;
+            var match = enumDescriptor.FindValueByName(name) ?? enumDescriptor.Values.FirstOrDefault(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (match is null)
+            {
+                throw new InvalidOperationException($"Enum value '{name}' is not defined for '{fieldName}'.");
+            }
+
+            return match;
+        }
+
+        int numericValue;
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out numericValue))
+        {
+            return enumDescriptor.FindValueByNumber(numericValue) ?? throw new InvalidOperationException($"Enum numeric value '{numericValue}' is not defined for '{fieldName}'.");
+        }
+
+        if (element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out numericValue))
+        {
+            return enumDescriptor.FindValueByNumber(numericValue) ?? throw new InvalidOperationException($"Enum numeric value '{numericValue}' is not defined for '{fieldName}'.");
+        }
+
+        throw new InvalidOperationException($"Could not parse enum value for '{fieldName}'.");
+    }
+
+    private static bool TryLoadMessageDescriptor(
+        string[] descriptorInputs,
+        string messageName,
+        out MessageDescriptor descriptor,
+        out string? error)
+    {
+        descriptor = default!;
+        error = null;
+
+        if (descriptorInputs.Length == 0)
+        {
+            error = "No protobuf descriptor files supplied.";
+            return false;
+        }
+
+        var resolvedFiles = ResolveDescriptorFiles(descriptorInputs);
+        if (resolvedFiles.Count == 0)
+        {
+            error = "No descriptor files found at the supplied --proto-file paths.";
+            return false;
+        }
+
+        var fileDescriptors = new List<FileDescriptorProto>();
+        foreach (var path in resolvedFiles)
+        {
+            try
+            {
+                using var stream = File.OpenRead(path);
+                var set = FileDescriptorSet.Parser.ParseFrom(stream);
+                fileDescriptors.AddRange(set.File);
+            }
+            catch (Exception ex)
+            {
+                error = $"Failed to read descriptor '{path}': {ex.Message}";
+                return false;
+            }
+        }
+
+        if (!TryBuildFileDescriptors(fileDescriptors, out var descriptorMap, out error))
+        {
+            return false;
+        }
+
+        var normalizedMessage = NormalizeProtoMessageName(messageName);
+        var match = FindMessageDescriptor(descriptorMap.Values, normalizedMessage);
+        if (match is null)
+        {
+            error = $"Could not find protobuf message '{messageName}' in provided descriptors.";
+            return false;
+        }
+
+        descriptor = match;
+        return true;
+    }
+
+    private static bool TryBuildFileDescriptors(
+        IEnumerable<FileDescriptorProto> protos,
+        out Dictionary<string, FileDescriptor> descriptors,
+        out string? error)
+    {
+        descriptors = new Dictionary<string, FileDescriptor>(StringComparer.Ordinal);
+        error = null;
+
+        foreach (var kvp in WellKnownFileDescriptors)
+        {
+            descriptors[kvp.Key] = kvp.Value;
+        }
+
+        var pending = new Dictionary<string, FileDescriptorProto>(StringComparer.Ordinal);
+        foreach (var proto in protos)
+        {
+            // Avoid rebuilding well-known descriptors if they are embedded in the set.
+            if (!descriptors.ContainsKey(proto.Name))
+            {
+                pending[proto.Name] = proto;
+            }
+        }
+
+        var progress = true;
+        while (pending.Count > 0 && progress)
+        {
+            progress = false;
+            foreach (var (name, proto) in pending.ToList())
+            {
+                var dependencies = new List<FileDescriptor>(proto.Dependency.Count);
+                var unresolved = false;
+
+                foreach (var dependencyName in proto.Dependency)
+                {
+                    if (descriptors.TryGetValue(dependencyName, out var dependencyDescriptor))
+                    {
+                        dependencies.Add(dependencyDescriptor);
+                    }
+                    else if (!pending.ContainsKey(dependencyName))
+                    {
+                        error = $"Descriptor dependency '{dependencyName}' not found for '{name}'.";
+                        return false;
+                    }
+                    else
+                    {
+                        unresolved = true;
+                        break;
+                    }
+                }
+
+                if (unresolved)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var descriptor = BuildFileDescriptor(proto, dependencies.ToArray());
+                    descriptors[name] = descriptor;
+                    pending.Remove(name);
+                    progress = true;
+                }
+                catch (Exception ex)
+                {
+                    error = $"Failed to materialize descriptor for '{name}': {ex.Message}";
+                    return false;
+                }
+            }
+        }
+
+        if (pending.Count > 0)
+        {
+            error = $"Could not resolve descriptor dependencies for: {string.Join(", ", pending.Keys)}.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static MessageDescriptor? FindMessageDescriptor(IEnumerable<FileDescriptor> descriptors, string normalizedMessageName)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            foreach (var message in EnumerateMessages(descriptor.MessageTypes))
+            {
+                if (string.Equals(message.FullName, normalizedMessageName, StringComparison.Ordinal))
+                {
+                    return message;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<MessageDescriptor> EnumerateMessages(IEnumerable<MessageDescriptor> rootMessages)
+    {
+        foreach (var message in rootMessages)
+        {
+            yield return message;
+
+            foreach (var nested in EnumerateMessages(message.NestedTypes))
+            {
+                yield return nested;
+            }
+        }
+    }
+
+    private static string NormalizeProtoMessageName(string messageName)
+    {
+        var trimmed = messageName.Trim();
+        return trimmed.StartsWith(".", StringComparison.Ordinal) ? trimmed[1..] : trimmed;
+    }
+
+    private static List<string> ResolveDescriptorFiles(IEnumerable<string> inputs)
+    {
+        var files = new List<string>();
+        foreach (var input in inputs)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                continue;
+            }
+
+            if (Directory.Exists(input))
+            {
+                files.AddRange(Directory.EnumerateFiles(input, "*.pb", SearchOption.AllDirectories));
+                files.AddRange(Directory.EnumerateFiles(input, "*.desc", SearchOption.AllDirectories));
+                files.AddRange(Directory.EnumerateFiles(input, "*.protoset", SearchOption.AllDirectories));
+                files.AddRange(Directory.EnumerateFiles(input, "*.fds", SearchOption.AllDirectories));
+                files.AddRange(Directory.EnumerateFiles(input, "*.bin", SearchOption.AllDirectories));
+                continue;
+            }
+
+            if (File.Exists(input))
+            {
+                files.Add(input);
+            }
+        }
+
+        return files;
+    }
+
+    private static FileDescriptor BuildFileDescriptor(FileDescriptorProto proto, FileDescriptor[] dependencies)
+    {
+        if (fileDescriptorBuildFrom is not null)
+        {
+            return InvokeBuildFrom(fileDescriptorBuildFrom, proto, dependencies);
+        }
+
+        var candidates = typeof(FileDescriptor)
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Where(static method => string.Equals(method.Name, "BuildFrom", StringComparison.Ordinal))
+            .ToArray();
+
+        foreach (var candidate in candidates)
+        {
+            var arguments = TryCreateBuildFromArguments(candidate.GetParameters(), proto, dependencies);
+            if (arguments is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                var result = candidate.Invoke(null, arguments);
+                if (result is FileDescriptor descriptor)
+                {
+                    fileDescriptorBuildFrom = candidate;
+                    return descriptor;
+                }
+            }
+            catch
+            {
+                // try the next candidate
+            }
+        }
+
+        throw new InvalidOperationException("Google.Protobuf internal API 'FileDescriptor.BuildFrom' is not available in this runtime.");
+    }
+
+    private static FileDescriptor InvokeBuildFrom(MethodInfo method, FileDescriptorProto proto, FileDescriptor[] dependencies)
+    {
+        var arguments = TryCreateBuildFromArguments(method.GetParameters(), proto, dependencies)
+            ?? throw new InvalidOperationException("Cached FileDescriptor.BuildFrom signature is no longer supported.");
+
+        var result = method.Invoke(null, arguments)
+            ?? throw new InvalidOperationException("Failed to build descriptor.");
+
+        return (FileDescriptor)result;
+    }
+
+    private static object[]? TryCreateBuildFromArguments(ParameterInfo[] parameters, FileDescriptorProto proto, FileDescriptor[] dependencies)
+    {
+        if (parameters.Length == 0)
+        {
+            return null;
+        }
+
+        var arguments = new object[parameters.Length];
+
+        for (var index = 0; index < parameters.Length; index++)
+        {
+            var parameterType = parameters[index].ParameterType;
+            if (parameterType == typeof(FileDescriptorProto))
+            {
+                arguments[index] = proto;
+            }
+            else if (parameterType == typeof(FileDescriptor[]))
+            {
+                arguments[index] = dependencies;
+            }
+            else if (typeof(IEnumerable<FileDescriptor>).IsAssignableFrom(parameterType))
+            {
+                arguments[index] = dependencies;
+            }
+            else if (parameterType == typeof(bool))
+            {
+                arguments[index] = true;
+            }
+            else if (parameterType == typeof(string))
+            {
+                arguments[index] = string.Empty;
+            }
+            else
+            {
+                arguments[index] = parameterType.IsValueType
+                    ? Activator.CreateInstance(parameterType)!
+                    : default!;
+            }
+        }
+
+        return arguments;
+    }
+
+    private static void EnsureHeader(List<KeyValuePair<string, string>> headers, string key, string value)
+    {
+        for (var index = 0; index < headers.Count; index++)
+        {
+            if (string.Equals(headers[index].Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                headers[index] = new KeyValuePair<string, string>(key, value);
+                return;
+            }
+        }
+
+        headers.Add(new KeyValuePair<string, string>(key, value));
+    }
+
+    private static bool TryResolvePayload(string? body, string? bodyFile, string? bodyBase64, out ReadOnlyMemory<byte> payload, out PayloadSource source, out string? error)
+    {
+        payload = ReadOnlyMemory<byte>.Empty;
+        source = PayloadSource.None;
         error = null;
 
         var sources = new[]
@@ -1119,6 +2235,7 @@ public static class Program
             try
             {
                 payload = Convert.FromBase64String(bodyBase64);
+                source = PayloadSource.Base64;
                 return true;
             }
             catch (FormatException ex)
@@ -1137,17 +2254,36 @@ public static class Program
             }
 
             payload = File.ReadAllBytes(bodyFile);
+            source = PayloadSource.File;
             return true;
         }
 
         if (!string.IsNullOrEmpty(body))
         {
             payload = Encoding.UTF8.GetBytes(body);
+            source = PayloadSource.Inline;
             return true;
         }
 
         payload = ReadOnlyMemory<byte>.Empty;
+        source = PayloadSource.None;
         return true;
+    }
+
+    private sealed class ProfileProcessingState
+    {
+        public bool PrettyPrintJson { get; set; }
+        public ProtoProcessingState? Proto { get; set; }
+    }
+
+    private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName);
+
+    private enum PayloadSource
+    {
+        None,
+        Inline,
+        File,
+        Base64
     }
 
     private static bool TryDecodeUtf8(ReadOnlySpan<byte> data, out string text)
