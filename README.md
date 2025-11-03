@@ -90,3 +90,15 @@ await app.RunAsync();
 ### Extending Configuration
 
 Register custom transports or peer choosers by adding DI implementations of `ICustomInboundSpec`, `ICustomOutboundSpec`, or `ICustomPeerChooserSpec`. Configuration entries under `inbounds:custom`, `outbounds:<service>:<rpcKind>:custom`, or `peer` reference the spec by name and supply additional settings. See `PolymerConfigurationTests` for working examples, and review the layered samples in `docs/reference/configuration` for multi-environment `appsettings*.json` layouts.
+
+## CLI
+
+Use the `polymer` CLI for quick validation, introspection, and smoke testing:
+
+```bash
+dotnet run --project src/Polymer.Cli -- config validate --config appsettings.json
+dotnet run --project src/Polymer.Cli -- introspect --url http://127.0.0.1:8080/polymer/introspect
+dotnet run --project src/Polymer.Cli -- request --transport http --url http://127.0.0.1:8080/yarpc/v1 --service echo --procedure echo::ping --body '{"message":"cli"}'
+```
+
+See `docs/reference/cli.md` for installation notes and automation examples.

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Polymer.Cli/Polymer.Cli.csproj" />
     <Project Path="src/Polymer.Codegen.Protobuf.Core/Polymer.Codegen.Protobuf.Core.csproj" />
     <Project Path="src/Polymer.Codegen.Protobuf.Generator/Polymer.Codegen.Protobuf.Generator.csproj" />
     <Project Path="src/Polymer.Codegen.Protobuf/Polymer.Codegen.Protobuf.csproj" />

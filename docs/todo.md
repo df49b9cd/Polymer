@@ -192,8 +192,9 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 ## 8. Tooling & Introspection
 
 - **CLI Support**
-  - Develop `polymer` CLI (or adapt `yab`) for issuing test requests, inspecting dispatcher state, validating configuration. *(Initial `yab` harness available under `tests/Polymer.YabInterop`; expand to richer CLI and automation.)*
-  - Include scripting/automation examples.
+  - ~~Develop `polymer` CLI (or adapt `yab`) for issuing test requests, inspecting dispatcher state, validating configuration. *(Initial `yab` harness available under `tests/Polymer.YabInterop`; expand to richer CLI and automation.)*~~ *(shipped via `src/Polymer.Cli` with docs/reference/cli.md)*
+  - Add codec-aware presets (json/protobuf helpers) and package the CLI as a dotnet global tool once the surface area settles.
+  - ~~Include scripting/automation examples.~~ *(Documented in `docs/reference/cli.md` with `polymer-smoke.sh` helper.)*
 
 - **Diagnostics**
   - Expose metrics via OpenTelemetry exporters (Prometheus OTLP).
