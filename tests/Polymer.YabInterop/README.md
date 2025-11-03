@@ -21,30 +21,38 @@ bash tests/Polymer.YabInterop/run-yab.sh
 The script will:
 
 1. Build the Polymer solution.
-2. Launch a simple `echo::ping` Polymer service listening on `http://127.0.0.1:8080`.
-3. Invoke the service with `yab` using JSON encoding.
+2. Launch a simple Polymer echo service.
+3. Invoke the service with `yab`.
 4. Print the response and shut the server down.
 
 You can customise the run via environment variables:
 
+- `MODE` – `http`, `grpc`, or `both` (default `http`).
 - `PORT` – HTTP port to bind (default `8080`).
+- `GRPC_PORT` – gRPC port to bind (default `9090`).
 - `DURATION` – Seconds to keep the server alive (default `10`).
 - `REQUEST_PAYLOAD` – JSON payload sent via `yab` (default `{"message":"hello from yab"}`).
 - `CALLER` – Caller name advertised to the server (default `yab-demo`).
 
-Example:
+Examples:
 
 ```bash
-PORT=9090 REQUEST_PAYLOAD='{"message":"test"}' bash tests/Polymer.YabInterop/run-yab.sh
+# HTTP request only
+PORT=9090 bash tests/Polymer.YabInterop/run-yab.sh
+
+# gRPC request using the bundled proto
+MODE=grpc GRPC_PORT=7070 bash tests/Polymer.YabInterop/run-yab.sh
+
+# Exercise both in a single run
+MODE=both REQUEST_PAYLOAD='{"message":"multimode"}' bash tests/Polymer.YabInterop/run-yab.sh
 ```
 
-Expected output resembles:
+Expected output for the gRPC path resembles:
 
 ```
-Polymer echo server listening on http://127.0.0.1:8080
-Issuing yab request...
-{"message":"hello from yab"}
-"hello from yab"
+Polymer gRPC echo server listening on 127.0.0.1:7070
+Issuing yab request (grpc)...
+... (yab response payload)
 yab invocation complete
 ```
 
@@ -53,4 +61,4 @@ yab invocation complete
 - `tests/Polymer.YabInterop/Program.cs` – Minimal Polymer HTTP echo service.
 - `tests/Polymer.YabInterop/run-yab.sh` – Helper script to launch the server and issue a `yab` request.
 
-Use this harness as a starting point for richer interop tests or integration into CI.
+Use this harness as a starting point for richer interop tests or integration into CI. The gRPC mode emits protobuf messages defined in `Protos/echo.proto`.
