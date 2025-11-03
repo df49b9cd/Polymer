@@ -1,0 +1,71 @@
+name: Publish Polymer Protobuf Generator
+
+on:
+  push:
+    tags:
+      - 'generator-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.2.0)'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  pack-and-publish:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore src/Polymer.Codegen.Protobuf.Generator/Polymer.Codegen.Protobuf.Generator.csproj
+
+      - name: Determine package version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            version="${tag#generator-v}"
+          else
+            version="${{ github.event.inputs.version }}"
+          fi
+
+          if [[ -z "${version}" ]]; then
+            echo "Version could not be determined." >&2
+            exit 1
+          fi
+
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: dotnet test --configuration Release
+
+      - name: Pack analyzer
+        run: |
+          mkdir -p artifacts/packages
+          dotnet pack src/Polymer.Codegen.Protobuf.Generator/Polymer.Codegen.Protobuf.Generator.csproj \
+            --configuration Release \
+            --output artifacts/packages \
+            /p:Version=${{ steps.version.outputs.value }} \
+            /p:ContinuousIntegrationBuild=true
+
+      - name: Push to GitHub Packages
+        run: |
+          for pkg in artifacts/packages/*.nupkg; do
+            dotnet nuget push "$pkg" \
+              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+              --api-key "${{ secrets.GITHUB_TOKEN }}" \
+              --skip-duplicate;
+          done

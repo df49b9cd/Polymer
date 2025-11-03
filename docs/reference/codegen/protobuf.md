@@ -90,6 +90,18 @@ The repository contains a working sample wired this way: `tests/Polymer.Tests/Pr
 
 Pre-release builds use the `0.x.y` version band. When Polymer reaches a stable release, align the generator's `VersionPrefix` with the Polymer runtime version in CI before pushing to NuGet (the project file is ready for `dotnet pack` in a release pipeline).
 
+### CI/CD
+
+`.github/workflows/publish-generator.yml` publishes the analyzer to GitHub Packages. It runs on:
+
+- pushes of tags that match `generator-v*` (e.g., `generator-v0.2.0`)
+- manual `workflow_dispatch` runs where you supply a `version` input.
+
+The job restores dependencies, runs the full test suite, packs the analyzer with `/p:ContinuousIntegrationBuild=true`, and pushes the resulting `.nupkg` to `https://nuget.pkg.github.com/${repository_owner}/index.json` using the built-in `GITHUB_TOKEN` (which needs `packages: write` permissions). To publish:
+
+1. Create and push a tag with the naming scheme above (or trigger the workflow manually and provide the desired semantic version).
+2. Verify the GitHub Actions run succeeds; the package will appear under the repository's Packages tab and can be consumed with the `PackageReference` shown earlier.
+
 ## Runtime integration
 
 Generated code exposes two entry points:
