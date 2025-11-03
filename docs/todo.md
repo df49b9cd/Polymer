@@ -151,8 +151,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - ~~Metrics middleware:~~ *(completed via `RpcMetricsMiddleware` + `RpcMetricsOptions` recording request counters and latency histograms across inbound/outbound/stream pipelines; payload sizing remains future work.)*
   - ~~Deadline enforcement:~~ *(completed via `DeadlineMiddleware`/`DeadlineOptions` enforcing TTL/absolute deadlines with canonical `DeadlineExceeded` errors.)*
   - ~~Panic/exception recovery:~~ *(completed via `PanicRecoveryMiddleware` converting unhandled exceptions into `Internal` errors with logging/metadata.)*
-  - Retry/backoff middleware:
-    - Utilize Hugo result policies; configure per-procedure.
+  - ~~Retry/backoff middleware:~~ *(completed via `RetryMiddleware`/`RetryOptions` leveraging Hugo retry policies with per-request selectors.)*
   - Rate limiting / circuit breaking:
     - Token bucket, sliding window, or concurrency-based controls; propagate backoff metadata.
 
