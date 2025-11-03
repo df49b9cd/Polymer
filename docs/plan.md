@@ -267,7 +267,7 @@ Peer & Load‑Balancing
 
 * **Discovery hooks:** design `IPeerTransport`/`IPeerDirectory` to plug static lists, DNS SRV, or future service discovery without altering core choosers.
 
-* **Metrics:** expose peer-level counters (success/failure rates, connection state) for dashboards and alerting.
+* **Metrics:** `PeerMetrics` now emits success/failure counters and inflight gauges per peer, enabling dashboards and alerting.
 
 * **Implementation note:** build chooser internals atop Hugo channel builders, wait groups, and result orchestration helpers to align concurrency behavior with existing libraries.
 

@@ -177,7 +177,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 - **Peer Introspection**
   - Introspection endpoint to show peer health, latency percentiles.
-  - Add metrics per peer (success/failure counts, inflight gauge).
+  - ~~Add metrics per peer (success/failure counts, inflight gauge).~~ *(covered by `PeerMetrics` counters/UpDownCounters tagged with peer identifiers during lease acquisition and release.)*
 
 ## 6. Error Model Parity (Phase 9)
 
