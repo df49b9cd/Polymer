@@ -171,7 +171,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - Propagate peer state into metrics and retry logic.
 
 - **Health, Backoff & Circuit Breaking**
-  - Add exponential backoff on repeated failures, half-open testing.
+  - ~~Add exponential backoff on repeated failures, half-open testing.~~ *(initial circuit-breaker via `PeerCircuitBreaker` + gRPC peer integration; expand half-open sampling in future iteration.)*
   - Surface retryable vs non-retryable errors to chooser.
   - Provide configuration knobs for thresholds.
 

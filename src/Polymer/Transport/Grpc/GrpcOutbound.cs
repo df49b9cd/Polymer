@@ -31,6 +31,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private readonly GrpcClientTlsOptions? _clientTlsOptions;
     private readonly GrpcClientRuntimeOptions? _clientRuntimeOptions;
     private readonly GrpcCompressionOptions? _compressionOptions;
+    private readonly PeerCircuitBreakerOptions _peerBreakerOptions;
     private readonly Func<IReadOnlyList<IPeer>, IPeerChooser> _peerChooserFactory;
     private ImmutableArray<GrpcPeer> _peers = ImmutableArray<GrpcPeer>.Empty;
     private IPeerChooser? _peerChooser;
@@ -48,7 +49,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         GrpcClientTlsOptions? clientTlsOptions = null,
         Func<IReadOnlyList<IPeer>, IPeerChooser>? peerChooser = null,
         GrpcClientRuntimeOptions? clientRuntimeOptions = null,
-        GrpcCompressionOptions? compressionOptions = null)
+        GrpcCompressionOptions? compressionOptions = null,
+        PeerCircuitBreakerOptions? peerCircuitBreakerOptions = null)
         : this(
             new[] { address ?? throw new ArgumentNullException(nameof(address)) },
             remoteService,
@@ -56,7 +58,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             clientTlsOptions,
             peerChooser,
             clientRuntimeOptions,
-            compressionOptions)
+            compressionOptions,
+            peerCircuitBreakerOptions)
     {
     }
 
@@ -67,7 +70,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         GrpcClientTlsOptions? clientTlsOptions = null,
         Func<IReadOnlyList<IPeer>, IPeerChooser>? peerChooser = null,
         GrpcClientRuntimeOptions? clientRuntimeOptions = null,
-        GrpcCompressionOptions? compressionOptions = null)
+        GrpcCompressionOptions? compressionOptions = null,
+        PeerCircuitBreakerOptions? peerCircuitBreakerOptions = null)
     {
         if (addresses is null)
         {
@@ -90,6 +94,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         _clientTlsOptions = clientTlsOptions;
         _clientRuntimeOptions = clientRuntimeOptions;
         _compressionOptions = compressionOptions;
+        _peerBreakerOptions = peerCircuitBreakerOptions ?? new PeerCircuitBreakerOptions();
         _channelOptions = channelOptions ?? new GrpcChannelOptions
         {
             HttpHandler = new SocketsHttpHandler
@@ -137,7 +142,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         var builder = ImmutableArray.CreateBuilder<GrpcPeer>(_addresses.Count);
         foreach (var address in _addresses)
         {
-            var peer = new GrpcPeer(address, this);
+            var peer = new GrpcPeer(address, this, _peerBreakerOptions);
             peer.Start();
             builder.Add(peer);
         }
@@ -638,6 +643,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         private readonly GrpcOutbound _owner;
         private readonly Uri _address;
+        private readonly PeerCircuitBreaker _breaker;
         private GrpcChannel? _channel;
         private CallInvoker? _callInvoker;
         private int _inflight;
@@ -645,17 +651,26 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         private DateTimeOffset? _lastSuccess;
         private DateTimeOffset? _lastFailure;
 
-        public GrpcPeer(Uri address, GrpcOutbound owner)
+        public GrpcPeer(Uri address, GrpcOutbound owner, PeerCircuitBreakerOptions breakerOptions)
         {
             _address = address ?? throw new ArgumentNullException(nameof(address));
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            _breaker = new PeerCircuitBreaker(breakerOptions);
         }
 
         public Uri Address => _address;
 
         public string Identifier => _address.ToString();
 
-        public PeerStatus Status => new(_state, Volatile.Read(ref _inflight), _lastSuccess, _lastFailure);
+        public PeerStatus Status
+        {
+            get
+            {
+                var inflight = Volatile.Read(ref _inflight);
+                var state = _breaker.IsSuspended ? PeerState.Unavailable : _state;
+                return new PeerStatus(state, inflight, _lastSuccess, _lastFailure);
+            }
+        }
 
         public CallInvoker CallInvoker => _callInvoker ?? throw new InvalidOperationException("Peer has not been started.");
 
@@ -672,11 +687,18 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             _callInvoker = invoker;
             _state = PeerState.Available;
+            _breaker.OnSuccess();
         }
 
         public bool TryAcquire(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (!_breaker.TryEnter())
+            {
+                return false;
+            }
+
             Interlocked.Increment(ref _inflight);
             return true;
         }
@@ -687,13 +709,15 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (success)
             {
+                _breaker.OnSuccess();
                 _lastSuccess = DateTimeOffset.UtcNow;
                 _state = PeerState.Available;
             }
             else
             {
+                _breaker.OnFailure();
                 _lastFailure = DateTimeOffset.UtcNow;
-                _state = PeerState.Available;
+                _state = _breaker.IsSuspended ? PeerState.Unavailable : PeerState.Available;
             }
         }
 

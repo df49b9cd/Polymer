@@ -258,7 +258,7 @@ Peer & Load‑Balancing
 
   * `PendingHeapPeerList` (fewest in-flight; tie-break RR/random). *(Fewest-pending implemented via `FewestPendingPeerChooser`; add heap-based chooser for large peer sets.)*
 
-* **Health:** per‑peer inflight counters, error backoff, basic circuit‑breaking hooks.
+* **Health:** per-peer inflight counters, error backoff, basic circuit-breaking hooks. *(Initial backoff implemented via `PeerCircuitBreaker`; expand to half-open probing.)*
 
 * **Discovery hooks:** design `IPeerTransport`/`IPeerDirectory` to plug static lists, DNS SRV, or future service discovery without altering core choosers.
 
