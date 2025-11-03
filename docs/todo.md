@@ -166,7 +166,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - ~~Track inflight requests, last success/failure times.~~ *(maintained by `GrpcPeer` status reporting.)*
 
 - **Peer Lists & Choosers**
-  - ~~Implement lists: single, round robin, fewest-pending, two-random choices.~~ *(round robin available via `RoundRobinPeerChooser`; additional choosers to follow).*
+  - ~~Implement lists: single, round robin, fewest-pending, two-random choices.~~ *(round robin + fewest-pending available via `RoundRobinPeerChooser` and `FewestPendingPeerChooser`; additional randomness variants to follow).*
   - ~~Integrate with dispatcher outbounds to acquire/release peers around each call.~~ *(gRPC outbound now acquires/leases `GrpcPeer` instances.)*
   - Propagate peer state into metrics and retry logic.
 
