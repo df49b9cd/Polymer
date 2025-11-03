@@ -222,6 +222,8 @@ Transport Specifics
 
 * **Streaming support:** expose async enumerable APIs for server/client/bidi streams; ensure back-pressure ties into YARPC middleware.
 * **Docs:** `docs/reference/streaming.md` captures handler registration patterns, client helpers, and completion semantics across server, client, and duplex streaming.
+* **Peer management:** `GrpcOutbound` accepts multiple peers, composes configurable `IPeerChooser` implementations, and applies `PeerCircuitBreaker` safeguards; diagnostics surface per-peer health via `GrpcOutboundSnapshot`.
+* **Deadlines:** TTL/absolute deadlines on `RequestMeta` translate into gRPC `CallOptions` deadlines, with tests asserting `DeadlineExceeded` mapping.
 
 * **Metadata bridging:** serialize YARPC headers into gRPC metadata (binary-safe) and convert trailers back into response metadata.
 
