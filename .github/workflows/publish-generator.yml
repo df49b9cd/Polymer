@@ -49,6 +49,9 @@ jobs:
 
           echo "value=${version}" >> "$GITHUB_OUTPUT"
 
+      - name: Build protoc plug-in
+        run: dotnet build src/Polymer.Codegen.Protobuf/Polymer.Codegen.Protobuf.csproj --configuration Release
+
       - name: Run tests
         run: dotnet test --configuration Release
 
