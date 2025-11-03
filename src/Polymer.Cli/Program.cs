@@ -110,9 +110,9 @@ public static class Program
         {
             Description = "Configuration file(s) to load.",
             AllowMultipleArgumentsPerToken = true,
-            Arity = new ArgumentArity(1, int.MaxValue),
             Required = true
         };
+        configOption.Arity = ArgumentArity.OneOrMore;
         configOption.Aliases.Add("-c");
 
         var sectionOption = new Option<string>("--section")
