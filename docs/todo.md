@@ -156,7 +156,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 - **Middleware SDK**
   - ~~Provide context objects exposing metadata, transport info, channel writers (for streaming).~~ *(completed via `StreamCallContext` / `DuplexStreamCallContext` now returned on `IStreamCall`/`IDuplexStreamCall`; follow-up documentation/examples still required.)*
-  - Document best practices, sample custom middleware.
+  - ~~Document best practices, sample custom middleware.~~ *(See `docs/reference/middleware.md` for guidance covering unary/outbound examples, streaming tips, and ordering rules.)*
   - Include analyzers or templates for middleware authors.
 
 ## 5. Peer Management & Load Balancing (Phase 6)

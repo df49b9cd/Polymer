@@ -86,3 +86,87 @@ dispatcher.RegisterUnary(
 ```
 
 This ordering mirrors yarpc-go’s inbound pipeline semantics, ensuring middleware written for Go can be ported to .NET with minimal behavioural drift.
+
+## Authoring custom middleware
+
+### Unary inbound example
+
+```csharp
+public sealed class AuditUnaryMiddleware : IUnaryInboundMiddleware
+{
+    private readonly IAuditSink _sink;
+
+    public AuditUnaryMiddleware(IAuditSink sink) => _sink = sink;
+
+    public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken,
+        UnaryInboundDelegate next)
+    {
+        var start = TimeProvider.System.GetUtcNow();
+        var result = await next(request, cancellationToken).ConfigureAwait(false);
+
+        _sink.Record(new AuditEntry(
+            request.Meta.Procedure ?? "unknown",
+            success: result.IsSuccess,
+            duration: TimeProvider.System.GetUtcNow() - start,
+            status: result.IsFailure ? PolymerErrorAdapter.ToStatus(result.Error!) : PolymerStatusCode.OK));
+
+        return result;
+    }
+}
+```
+
+- Always forward the call (`await next(...)`) to avoid breaking the pipeline.
+- Preserve `CancellationToken` and propagate failures by returning the `Result` from downstream middleware.
+- Use metadata from `request.Meta` to enrich logs (procedure, caller, transport).
+
+### Unary outbound example
+
+```csharp
+public sealed class RetryBudgetMiddleware : IUnaryOutboundMiddleware
+{
+    private readonly RetryBudget _budget;
+
+    public RetryBudgetMiddleware(RetryBudget budget) => _budget = budget;
+
+    public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken,
+        UnaryOutboundDelegate next)
+    {
+        if (!_budget.TryConsume())
+        {
+            return Go.Err<Response<ReadOnlyMemory<byte>>>(
+                PolymerErrorAdapter.FromStatus(PolymerStatusCode.ResourceExhausted, "Retry budget depleted."));
+        }
+
+        var result = await next(request, cancellationToken).ConfigureAwait(false);
+
+        if (result.IsSuccess || !PolymerErrors.IsRetryable(result.Error!))
+        {
+            _budget.ReturnToken();
+        }
+
+        return result;
+    }
+}
+```
+
+- Outbound middleware has access to `IRequest<ReadOnlyMemory<byte>>` and can inspect or mutate headers before invoking `next`.
+- Use `PolymerErrors.IsRetryable` to decide whether to refund budgets or alter retry policies.
+
+### Streaming best practices
+
+Streaming middleware receives `StreamCallOptions` (direction, server/client) and access to `StreamCallContext` or `ClientStreamRequestContext`:
+
+- Increment counters by hooking into channel operations (e.g., `await foreach` on `context.Requests.ReadAllAsync(...)`).
+- Use `StreamCallContext.CompletedAtUtc` and `CompletionStatus` to tag metrics or logs once the stream finishes.
+- Honor `StreamCallOptions.Direction` to avoid applying server-specific logic to client-initiated streams.
+
+### General guidance
+
+- Prefer stateless middleware and inject dependencies through constructors for testability.
+- Surface critical metadata via headers or `ResponseMeta.WithHeader(...)`; the dispatcher merges metadata into transport responses.
+- When working with channels, ensure writers/readers are completed to prevent leaking tasks—middleware should call `CompleteAsync`/`CompleteRequestsAsync` when short-circuiting.
+- Keep middleware resilient: catch and translate unexpected exceptions with `PolymerErrors.FromException` so transports can emit canonical codes.
