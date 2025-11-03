@@ -198,7 +198,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 - **Environment Overrides**
   - ~~Support layered configuration (appsettings + env vars + command line).~~ *(Binder operates on `IConfiguration`, so configuration layering works out of the box; follow-up task is documenting best practices.)*
-  - Provide sample `appsettings.json` showing multi-environment overrides.
+  - ~~Provide sample `appsettings.json` showing multi-environment overrides.~~ *(See `docs/reference/configuration` for base/development/production examples and README links.)*
 
 ## 8. Tooling & Introspection
 

@@ -89,4 +89,4 @@ await app.RunAsync();
 
 ### Extending Configuration
 
-Register custom transports or peer choosers by adding DI implementations of `ICustomInboundSpec`, `ICustomOutboundSpec`, or `ICustomPeerChooserSpec`. Configuration entries under `inbounds:custom`, `outbounds:<service>:<rpcKind>:custom`, or `peer` reference the spec by name and supply additional settings. See `PolymerConfigurationTests` for working examples.
+Register custom transports or peer choosers by adding DI implementations of `ICustomInboundSpec`, `ICustomOutboundSpec`, or `ICustomPeerChooserSpec`. Configuration entries under `inbounds:custom`, `outbounds:<service>:<rpcKind>:custom`, or `peer` reference the spec by name and supply additional settings. See `PolymerConfigurationTests` for working examples, and review the layered samples in `docs/reference/configuration` for multi-environment `appsettings*.json` layouts.
