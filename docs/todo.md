@@ -166,12 +166,12 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - ~~Track inflight requests, last success/failure times.~~ *(maintained by `GrpcPeer` status reporting.)*
 
 - **Peer Lists & Choosers**
-  - ~~Implement lists: single, round robin, fewest-pending, two-random choices.~~ *(round robin + fewest-pending available via `RoundRobinPeerChooser` and `FewestPendingPeerChooser`; additional randomness variants to follow).*
+  - ~~Implement lists: single, round robin, fewest-pending, two-random choices.~~ *(Round robin, fewest-pending, and two-random choice choosers available via `Polymer.Core.Peers`.)*
   - ~~Integrate with dispatcher outbounds to acquire/release peers around each call.~~ *(gRPC outbound now acquires/leases `GrpcPeer` instances.)*
   - Propagate peer state into metrics and retry logic.
 
 - **Health, Backoff & Circuit Breaking**
-  - ~~Add exponential backoff on repeated failures, half-open testing.~~ *(initial circuit-breaker via `PeerCircuitBreaker` + gRPC peer integration; expand half-open sampling in future iteration.)*
+  - ~~Add exponential backoff on repeated failures, half-open testing.~~ *(Initial circuit-breaker via `PeerCircuitBreaker` + gRPC peer integration; add half-open probe sampling in later iteration.)*
   - Surface retryable vs non-retryable errors to chooser.
   - Provide configuration knobs for thresholds.
 

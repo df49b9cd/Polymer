@@ -256,9 +256,11 @@ Peer & Load‑Balancing
 
   * `RoundRobinPeerList` (cycle over healthy peers). *(Implemented via `Polymer.Core.Peers.RoundRobinPeerChooser`; gRPC outbound now leases peers with inflight accounting.)*
 
-  * `PendingHeapPeerList` (fewest in-flight; tie-break RR/random). *(Fewest-pending implemented via `FewestPendingPeerChooser`; add heap-based chooser for large peer sets.)*
+  * `PendingHeapPeerList` (fewest in-flight; tie-break RR/random). *(Covered by `FewestPendingPeerChooser`; extend to heap-based implementation for large peer sets.)*
 
-* **Health:** per-peer inflight counters, error backoff, basic circuit-breaking hooks. *(Initial backoff implemented via `PeerCircuitBreaker`; expand to half-open probing.)*
+  * `TwoRandomChoices` (power-of-two). *(Implemented via `TwoRandomPeerChooser`.)*
+
+* **Health:** per-peer inflight counters, error backoff, basic circuit-breaking hooks. *(Initial backoff implemented via `PeerCircuitBreaker`; plan to add half-open probing.)*
 
 * **Discovery hooks:** design `IPeerTransport`/`IPeerDirectory` to plug static lists, DNS SRV, or future service discovery without altering core choosers.
 

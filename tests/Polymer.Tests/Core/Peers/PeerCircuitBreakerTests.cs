@@ -14,8 +14,8 @@ public sealed class PeerCircuitBreakerTests
         var provider = new TestTimeProvider(DateTimeOffset.UtcNow);
         var options = new PeerCircuitBreakerOptions
         {
-            BaseDelay = TimeSpan.FromMilliseconds(200),
-            MaxDelay = TimeSpan.FromSeconds(1),
+            BaseDelay = TimeSpan.FromMilliseconds(100),
+            MaxDelay = TimeSpan.FromMilliseconds(200),
             FailureThreshold = 1,
             TimeProvider = provider
         };
@@ -23,11 +23,9 @@ public sealed class PeerCircuitBreakerTests
 
         Assert.True(breaker.TryEnter());
         breaker.OnFailure();
-        Assert.True(breaker.IsSuspended);
         Assert.False(breaker.TryEnter());
 
-        provider.Advance(TimeSpan.FromMilliseconds(200));
-        Assert.False(breaker.IsSuspended);
+        provider.Advance(TimeSpan.FromMilliseconds(150));
         Assert.True(breaker.TryEnter());
     }
 
@@ -35,15 +33,17 @@ public sealed class PeerCircuitBreakerTests
     public void Success_ResetsFailures()
     {
         var provider = new TestTimeProvider(DateTimeOffset.UtcNow);
-        var breaker = new PeerCircuitBreaker(new PeerCircuitBreakerOptions { TimeProvider = provider, FailureThreshold = 1 });
+        var breaker = new PeerCircuitBreaker(new PeerCircuitBreakerOptions
+        {
+            BaseDelay = TimeSpan.FromMilliseconds(100),
+            FailureThreshold = 1,
+            TimeProvider = provider
+        });
 
         breaker.OnFailure();
-        Assert.True(breaker.IsSuspended);
+        Assert.False(breaker.TryEnter());
 
-        provider.Advance(TimeSpan.FromSeconds(1));
         breaker.OnSuccess();
-
-        Assert.False(breaker.IsSuspended);
         Assert.True(breaker.TryEnter());
     }
 
@@ -51,17 +51,14 @@ public sealed class PeerCircuitBreakerTests
     {
         private DateTimeOffset _now;
 
-        public TestTimeProvider(DateTimeOffset initial)
+        public TestTimeProvider(DateTimeOffset start)
         {
-            _now = initial;
+            _now = start;
         }
 
         public override DateTimeOffset GetUtcNow() => _now;
 
-        public void Advance(TimeSpan delta)
-        {
-            _now = _now.Add(delta);
-        }
+        public void Advance(TimeSpan delta) => _now = _now.Add(delta);
 
         public override long GetTimestamp() => throw new NotImplementedException();
     }
