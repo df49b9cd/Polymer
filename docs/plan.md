@@ -249,7 +249,7 @@ Encodings (JSON, Protobuf, Thrift)
 
 * **Versioning:** document approach for payload evolution (backward compatibility, optional fields) and surface validation helpers for JSON schema drift.
 
-* **Compression:** expose opt-in content encoding (gzip) consistent with YARPC-Go behaviour for larger payloads.
+* **Compression:** expose opt-in content encoding (gzip) consistent with YARPC-Go behaviour for larger payloads. **Status:** `GrpcCompressionOptions` validates configured providers, gRPC inbound/outbound wire up `ResponseCompressionAlgorithm`/`grpc-accept-encoding`, and tests cover negotiation metadata. Wire transport compression remains optional elsewhere.
 
 * * *
 
