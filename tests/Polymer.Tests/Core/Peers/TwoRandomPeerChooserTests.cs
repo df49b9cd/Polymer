@@ -37,19 +37,12 @@ public sealed class TwoRandomPeerChooserTests
         await lease.Value.DisposeAsync();
     }
 
-    private sealed class TestPeer : IPeer
+    private sealed class TestPeer(string id, int inflight = 0, int maxConcurrency = int.MaxValue) : IPeer
     {
-        private readonly int _maxConcurrency;
-        private int _inflight;
+        private readonly int _maxConcurrency = maxConcurrency;
+        private int _inflight = inflight;
 
-        public TestPeer(string id, int inflight = 0, int maxConcurrency = int.MaxValue)
-        {
-            Identifier = id;
-            _inflight = inflight;
-            _maxConcurrency = maxConcurrency;
-        }
-
-        public string Identifier { get; }
+        public string Identifier { get; } = id;
 
         public PeerStatus Status => new(PeerState.Available, _inflight, null, null);
 
@@ -78,15 +71,10 @@ public sealed class TwoRandomPeerChooserTests
         }
     }
 
-    private sealed class DeterministicRandom : System.Random
+    private sealed class DeterministicRandom(params int[] sequence) : System.Random
     {
-        private readonly int[] _sequence;
+        private readonly int[] _sequence = sequence.Length == 0 ? new[] { 0 } : sequence;
         private int _index;
-
-        public DeterministicRandom(params int[] sequence)
-        {
-            _sequence = sequence.Length == 0 ? new[] { 0 } : sequence;
-        }
 
         public override int Next(int maxValue) => _sequence[_index++ % _sequence.Length] % maxValue;
     }

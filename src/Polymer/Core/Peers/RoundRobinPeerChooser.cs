@@ -16,10 +16,7 @@ public sealed class RoundRobinPeerChooser : IPeerChooser
 
     public RoundRobinPeerChooser(params IPeer[] peers)
     {
-        if (peers is null)
-        {
-            throw new ArgumentNullException(nameof(peers));
-        }
+        ArgumentNullException.ThrowIfNull(peers);
 
         _peers = ImmutableArray.Create(peers);
     }

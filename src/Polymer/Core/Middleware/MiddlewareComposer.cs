@@ -13,10 +13,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IUnaryOutboundMiddleware>? middleware,
         UnaryOutboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -39,10 +36,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IUnaryInboundMiddleware>? middleware,
         UnaryInboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -65,10 +59,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IOnewayOutboundMiddleware>? middleware,
         OnewayOutboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -91,10 +82,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IOnewayInboundMiddleware>? middleware,
         OnewayInboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -117,10 +105,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IStreamOutboundMiddleware>? middleware,
         StreamOutboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -143,10 +128,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IStreamInboundMiddleware>? middleware,
         StreamInboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -169,10 +151,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IClientStreamInboundMiddleware>? middleware,
         ClientStreamInboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -195,10 +174,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IClientStreamOutboundMiddleware>? middleware,
         ClientStreamOutboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -221,10 +197,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IDuplexInboundMiddleware>? middleware,
         DuplexInboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {
@@ -247,10 +220,7 @@ public static class MiddlewareComposer
         IReadOnlyList<IDuplexOutboundMiddleware>? middleware,
         DuplexOutboundDelegate terminal)
     {
-        if (terminal is null)
-        {
-            throw new ArgumentNullException(nameof(terminal));
-        }
+        ArgumentNullException.ThrowIfNull(terminal);
 
         if (middleware is null || middleware.Count == 0)
         {

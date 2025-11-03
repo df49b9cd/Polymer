@@ -9,14 +9,11 @@ internal sealed class ProcedureRegistry
     private readonly Dictionary<string, ProcedureSpec> _procedures = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _aliases = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<WildcardAlias> _wildcardAliases = new();
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     public void Register(ProcedureSpec spec)
     {
-        if (spec is null)
-        {
-            throw new ArgumentNullException(nameof(spec));
-        }
+        ArgumentNullException.ThrowIfNull(spec);
 
         var key = CreateKey(spec.Service, spec.Name, spec.Kind);
         var aliasInfos = spec.Aliases.Select(alias => new AliasInfo(alias, IsWildcard(alias))).ToArray();

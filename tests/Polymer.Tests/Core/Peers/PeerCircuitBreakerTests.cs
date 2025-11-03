@@ -120,14 +120,9 @@ public sealed class PeerCircuitBreakerTests
         Assert.True(breaker.TryEnter());
     }
 
-    private sealed class TestTimeProvider : TimeProvider
+    private sealed class TestTimeProvider(DateTimeOffset start) : TimeProvider
     {
-        private DateTimeOffset _now;
-
-        public TestTimeProvider(DateTimeOffset start)
-        {
-            _now = start;
-        }
+        private DateTimeOffset _now = start;
 
         public override DateTimeOffset GetUtcNow() => _now;
 

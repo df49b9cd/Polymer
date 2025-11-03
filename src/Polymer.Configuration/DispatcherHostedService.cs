@@ -7,16 +7,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Polymer.Configuration;
 
-internal sealed class DispatcherHostedService : IHostedService
+internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, ILogger<DispatcherHostedService>? logger = null) : IHostedService
 {
-    private readonly Dispatcher.Dispatcher _dispatcher;
-    private readonly ILogger<DispatcherHostedService> _logger;
-
-    public DispatcherHostedService(Dispatcher.Dispatcher dispatcher, ILogger<DispatcherHostedService>? logger = null)
-    {
-        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
-        _logger = logger ?? NullLogger<DispatcherHostedService>.Instance;
-    }
+    private readonly Dispatcher.Dispatcher _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+    private readonly ILogger<DispatcherHostedService> _logger = logger ?? NullLogger<DispatcherHostedService>.Instance;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {

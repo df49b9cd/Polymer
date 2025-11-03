@@ -40,7 +40,7 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
                 procedure: meta.Procedure);
         }
 
-        return Ok(value ?? Array.Empty<byte>());
+        return Ok(value ?? []);
     }
 
     public Result<byte[]> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta)
@@ -68,7 +68,7 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
                 actual: meta.Encoding);
         }
 
-        return Ok(value ?? Array.Empty<byte>());
+        return Ok(value ?? []);
     }
 
     public Result<byte[]> DecodeResponse(ReadOnlyMemory<byte> payload, ResponseMeta meta)
@@ -128,7 +128,7 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
     {
         if (payload.IsEmpty)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         if (MemoryMarshal.TryGetArray(payload, out var segment) &&

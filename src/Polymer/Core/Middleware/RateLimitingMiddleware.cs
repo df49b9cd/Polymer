@@ -227,16 +227,10 @@ public sealed class RateLimitingMiddleware :
         return PolymerErrorAdapter.FromStatus(PolymerStatusCode.ResourceExhausted, message, transport: meta.Transport ?? "unknown");
     }
 
-    private sealed class RateLimitedStreamCall : IStreamCall
+    private sealed class RateLimitedStreamCall(IStreamCall inner, RateLimitLease lease) : IStreamCall
     {
-        private readonly IStreamCall _inner;
-        private readonly RateLimitLease _lease;
-
-        public RateLimitedStreamCall(IStreamCall inner, RateLimitLease lease)
-        {
-            _inner = inner;
-            _lease = lease;
-        }
+        private readonly IStreamCall _inner = inner;
+        private readonly RateLimitLease _lease = lease;
 
         public StreamDirection Direction => _inner.Direction;
         public RequestMeta RequestMeta => _inner.RequestMeta;
@@ -261,16 +255,10 @@ public sealed class RateLimitingMiddleware :
         }
     }
 
-    private sealed class RateLimitedClientStreamCall : IClientStreamTransportCall
+    private sealed class RateLimitedClientStreamCall(IClientStreamTransportCall inner, RateLimitLease lease) : IClientStreamTransportCall
     {
-        private readonly IClientStreamTransportCall _inner;
-        private readonly RateLimitLease _lease;
-
-        public RateLimitedClientStreamCall(IClientStreamTransportCall inner, RateLimitLease lease)
-        {
-            _inner = inner;
-            _lease = lease;
-        }
+        private readonly IClientStreamTransportCall _inner = inner;
+        private readonly RateLimitLease _lease = lease;
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;
@@ -295,16 +283,10 @@ public sealed class RateLimitingMiddleware :
         }
     }
 
-    private sealed class RateLimitedDuplexStreamCall : IDuplexStreamCall
+    private sealed class RateLimitedDuplexStreamCall(IDuplexStreamCall inner, RateLimitLease lease) : IDuplexStreamCall
     {
-        private readonly IDuplexStreamCall _inner;
-        private readonly RateLimitLease _lease;
-
-        public RateLimitedDuplexStreamCall(IDuplexStreamCall inner, RateLimitLease lease)
-        {
-            _inner = inner;
-            _lease = lease;
-        }
+        private readonly IDuplexStreamCall _inner = inner;
+        private readonly RateLimitLease _lease = lease;
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;

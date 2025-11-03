@@ -62,10 +62,7 @@ public abstract class ProcedureBuilderBase<TBuilder, TMiddleware>
     /// </summary>
     public TBuilder AddAliases(IEnumerable<string> aliases)
     {
-        if (aliases is null)
-        {
-            throw new ArgumentNullException(nameof(aliases));
-        }
+        ArgumentNullException.ThrowIfNull(aliases);
 
         foreach (var alias in aliases)
         {

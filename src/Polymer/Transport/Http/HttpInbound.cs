@@ -40,10 +40,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         Action<IServiceCollection>? configureServices = null,
         Action<WebApplication>? configureApp = null)
     {
-        if (urls is null)
-        {
-            throw new ArgumentNullException(nameof(urls));
-        }
+        ArgumentNullException.ThrowIfNull(urls);
 
         _urls = [.. urls];
         if (_urls.Length == 0)

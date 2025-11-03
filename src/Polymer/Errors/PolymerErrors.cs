@@ -9,10 +9,7 @@ public static class PolymerErrors
 {
     public static PolymerException FromError(Error error, string? transport = null)
     {
-        if (error is null)
-        {
-            throw new ArgumentNullException(nameof(error));
-        }
+        ArgumentNullException.ThrowIfNull(error);
 
         var status = PolymerErrorAdapter.ToStatus(error);
         var normalized = PolymerErrorAdapter.WithStatusMetadata(error, status);
@@ -27,10 +24,7 @@ public static class PolymerErrors
 
     public static PolymerException FromException(Exception exception, string? transport = null)
     {
-        if (exception is null)
-        {
-            throw new ArgumentNullException(nameof(exception));
-        }
+        ArgumentNullException.ThrowIfNull(exception);
 
         if (exception is PolymerException polymerException)
         {
@@ -122,10 +116,7 @@ public static class PolymerErrors
 
     public static PolymerFaultType GetFaultType(Exception exception)
     {
-        if (exception is null)
-        {
-            throw new ArgumentNullException(nameof(exception));
-        }
+        ArgumentNullException.ThrowIfNull(exception);
 
         if (exception is PolymerException polymerException)
         {
@@ -147,10 +138,7 @@ public static class PolymerErrors
 
     public static PolymerFaultType GetFaultType(Error error)
     {
-        if (error is null)
-        {
-            throw new ArgumentNullException(nameof(error));
-        }
+        ArgumentNullException.ThrowIfNull(error);
 
         if (error.TryGetMetadata(PolymerErrorAdapter.FaultMetadataKey, out string? faultName) &&
             Enum.TryParse<PolymerFaultType>(faultName, ignoreCase: true, out var parsed))
@@ -163,10 +151,7 @@ public static class PolymerErrors
 
     public static bool IsRetryable(Exception exception)
     {
-        if (exception is null)
-        {
-            throw new ArgumentNullException(nameof(exception));
-        }
+        ArgumentNullException.ThrowIfNull(exception);
 
         return exception switch
         {
@@ -181,10 +166,7 @@ public static class PolymerErrors
 
     public static bool IsRetryable(Error error)
     {
-        if (error is null)
-        {
-            throw new ArgumentNullException(nameof(error));
-        }
+        ArgumentNullException.ThrowIfNull(error);
 
         if (error.TryGetMetadata(PolymerErrorAdapter.RetryableMetadataKey, out bool retryable))
         {

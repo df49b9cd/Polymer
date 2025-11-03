@@ -13,10 +13,7 @@ public static class DispatcherShadowingExtensions
         IUnaryOutbound shadow,
         TeeOptions? teeOptions = null)
     {
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        ArgumentNullException.ThrowIfNull(options);
 
         var outbound = new TeeUnaryOutbound(primary, shadow, teeOptions);
         options.AddUnaryOutbound(service, key, outbound);
@@ -30,10 +27,7 @@ public static class DispatcherShadowingExtensions
         IOnewayOutbound shadow,
         TeeOptions? teeOptions = null)
     {
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        ArgumentNullException.ThrowIfNull(options);
 
         var outbound = new TeeOnewayOutbound(primary, shadow, teeOptions);
         options.AddOnewayOutbound(service, key, outbound);

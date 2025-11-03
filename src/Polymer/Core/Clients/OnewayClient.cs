@@ -22,10 +22,7 @@ public sealed class OnewayClient<TRequest>
     {
         _codec = codec ?? throw new System.ArgumentNullException(nameof(codec));
 
-        if (outbound is null)
-        {
-            throw new System.ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var terminal = new OnewayOutboundDelegate(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeOnewayOutbound(middleware, terminal);

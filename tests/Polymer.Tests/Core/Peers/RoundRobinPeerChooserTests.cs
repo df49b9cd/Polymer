@@ -46,18 +46,12 @@ public sealed class RoundRobinPeerChooserTests
         await first.Value.DisposeAsync();
     }
 
-    private sealed class TestPeer : IPeer
+    private sealed class TestPeer(string identifier, int maxConcurrency = int.MaxValue) : IPeer
     {
-        private readonly int _maxConcurrency;
+        private readonly int _maxConcurrency = maxConcurrency;
         private int _inflight;
 
-        public TestPeer(string identifier, int maxConcurrency = int.MaxValue)
-        {
-            Identifier = identifier;
-            _maxConcurrency = maxConcurrency;
-        }
-
-        public string Identifier { get; }
+        public string Identifier { get; } = identifier;
 
         public PeerStatus Status => new(PeerState.Available, _inflight, null, null);
 

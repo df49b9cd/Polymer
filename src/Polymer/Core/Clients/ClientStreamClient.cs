@@ -20,10 +20,7 @@ public sealed class ClientStreamClient<TRequest, TResponse>
         IReadOnlyList<IClientStreamOutboundMiddleware> middleware)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var terminal = new ClientStreamOutboundDelegate(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeClientStreamOutbound(middleware, terminal);
@@ -31,10 +28,7 @@ public sealed class ClientStreamClient<TRequest, TResponse>
 
     public async ValueTask<ClientStreamSession> StartAsync(RequestMeta meta, CancellationToken cancellationToken = default)
     {
-        if (meta is null)
-        {
-            throw new ArgumentNullException(nameof(meta));
-        }
+        ArgumentNullException.ThrowIfNull(meta);
 
         var result = await _pipeline(meta, cancellationToken).ConfigureAwait(false);
         if (result.IsFailure)

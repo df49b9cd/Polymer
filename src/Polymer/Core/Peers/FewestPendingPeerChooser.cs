@@ -17,10 +17,7 @@ public sealed class FewestPendingPeerChooser : IPeerChooser
 
     public FewestPendingPeerChooser(params IPeer[] peers)
     {
-        if (peers is null)
-        {
-            throw new ArgumentNullException(nameof(peers));
-        }
+        ArgumentNullException.ThrowIfNull(peers);
 
         if (peers.Length == 0)
         {

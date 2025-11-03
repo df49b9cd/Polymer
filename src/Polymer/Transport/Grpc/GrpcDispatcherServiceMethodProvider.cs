@@ -14,14 +14,9 @@ using Polymer.Errors;
 
 namespace Polymer.Transport.Grpc;
 
-internal sealed class GrpcDispatcherServiceMethodProvider : IServiceMethodProvider<GrpcDispatcherService>
+internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher dispatcher) : IServiceMethodProvider<GrpcDispatcherService>
 {
-    private readonly Dispatcher.Dispatcher _dispatcher;
-
-    public GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher dispatcher)
-    {
-        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
-    }
+    private readonly Dispatcher.Dispatcher _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
     public void OnServiceMethodDiscovery(ServiceMethodProviderContext<GrpcDispatcherService> context)
     {
@@ -609,10 +604,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider : IServiceMethodProvid
 
     private static void ApplySuccessTrailers(ServerCallContext callContext, ResponseMeta responseMeta)
     {
-        if (callContext is null)
-        {
-            throw new ArgumentNullException(nameof(callContext));
-        }
+        ArgumentNullException.ThrowIfNull(callContext);
 
         if (responseMeta is null)
         {

@@ -10,7 +10,7 @@ using static Hugo.Go;
 
 namespace Polymer.Core.Middleware;
 
-public sealed class PanicRecoveryMiddleware :
+public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? logger = null) :
     IUnaryInboundMiddleware,
     IUnaryOutboundMiddleware,
     IOnewayInboundMiddleware,
@@ -22,12 +22,7 @@ public sealed class PanicRecoveryMiddleware :
     IDuplexInboundMiddleware,
     IDuplexOutboundMiddleware
 {
-    private readonly ILogger? _logger;
-
-    public PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? logger = null)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger? _logger = logger;
 
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,

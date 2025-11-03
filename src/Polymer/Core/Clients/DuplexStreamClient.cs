@@ -23,20 +23,14 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
         IReadOnlyList<IDuplexOutboundMiddleware> middleware)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         _pipeline = MiddlewareComposer.ComposeDuplexOutbound(middleware, outbound.CallAsync);
     }
 
     public async ValueTask<DuplexStreamSession> StartAsync(RequestMeta meta, CancellationToken cancellationToken = default)
     {
-        if (meta is null)
-        {
-            throw new ArgumentNullException(nameof(meta));
-        }
+        ArgumentNullException.ThrowIfNull(meta);
 
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
         var result = await _pipeline(request, cancellationToken).ConfigureAwait(false);

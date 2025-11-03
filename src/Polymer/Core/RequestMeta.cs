@@ -66,10 +66,7 @@ public sealed record RequestMeta
 
     public RequestMeta WithHeaders(IEnumerable<KeyValuePair<string, string>> headers)
     {
-        if (headers is null)
-        {
-            throw new ArgumentNullException(nameof(headers));
-        }
+        ArgumentNullException.ThrowIfNull(headers);
 
         var builder = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.OrdinalIgnoreCase);
         builder.AddRange(Headers);

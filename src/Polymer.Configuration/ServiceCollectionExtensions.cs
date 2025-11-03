@@ -14,15 +14,9 @@ public static class PolymerServiceCollectionExtensions
 {
     public static IServiceCollection AddPolymerDispatcher(this IServiceCollection services, IConfiguration configuration)
     {
-        if (services is null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
+        ArgumentNullException.ThrowIfNull(services);
 
-        if (configuration is null)
-        {
-            throw new ArgumentNullException(nameof(configuration));
-        }
+        ArgumentNullException.ThrowIfNull(configuration);
 
         var snapshot = new PolymerConfigurationOptions();
         configuration.Bind(snapshot);

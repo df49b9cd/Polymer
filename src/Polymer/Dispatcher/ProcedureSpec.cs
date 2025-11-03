@@ -26,7 +26,7 @@ public abstract record ProcedureSpec
         Kind = kind;
         Encoding = encoding;
         Aliases = aliases is null
-            ? ImmutableArray<string>.Empty
+            ? []
             : ImmutableArray.CreateRange(aliases);
 
         if (Aliases.Any(static alias => string.IsNullOrWhiteSpace(alias)))

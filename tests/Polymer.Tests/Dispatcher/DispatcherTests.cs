@@ -388,16 +388,10 @@ public class DispatcherTests
             UnaryInboundDelegate next) => next(request, cancellationToken);
     }
 
-    private sealed class RecordingUnaryInboundMiddleware : IUnaryInboundMiddleware
+    private sealed class RecordingUnaryInboundMiddleware(string name, IList<string> order) : IUnaryInboundMiddleware
     {
-        private readonly string _name;
-        private readonly IList<string> _order;
-
-        public RecordingUnaryInboundMiddleware(string name, IList<string> order)
-        {
-            _name = name;
-            _order = order ?? throw new ArgumentNullException(nameof(order));
-        }
+        private readonly string _name = name;
+        private readonly IList<string> _order = order ?? throw new ArgumentNullException(nameof(order));
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,

@@ -10,21 +10,13 @@ namespace Polymer.Transport.Http;
 /// <summary>
 /// ASP.NET Core exception filter that normalizes thrown exceptions into Polymer error responses.
 /// </summary>
-public sealed class PolymerExceptionFilter : IAsyncExceptionFilter
+public sealed class PolymerExceptionFilter(string transport = "http") : IAsyncExceptionFilter
 {
-    private readonly string _transport;
-
-    public PolymerExceptionFilter(string transport = "http")
-    {
-        _transport = string.IsNullOrWhiteSpace(transport) ? "http" : transport;
-    }
+    private readonly string _transport = string.IsNullOrWhiteSpace(transport) ? "http" : transport;
 
     public Task OnExceptionAsync(ExceptionContext context)
     {
-        if (context is null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
         if (context.ExceptionHandled)
         {
@@ -78,10 +70,7 @@ public static class PolymerMvcOptionsExtensions
     /// </summary>
     public static void AddPolymerExceptionFilter(this MvcOptions options, string transport = "http")
     {
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        ArgumentNullException.ThrowIfNull(options);
 
         options.Filters.Add(new PolymerExceptionFilter(transport));
     }

@@ -205,14 +205,9 @@ public class PolymerConfigurationTests
         }
     }
 
-    private sealed class TestUnaryOutbound : IUnaryOutbound
+    private sealed class TestUnaryOutbound(string address) : IUnaryOutbound
     {
-        public TestUnaryOutbound(string address)
-        {
-            Address = address;
-        }
-
-        public string Address { get; }
+        public string Address { get; } = address;
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
@@ -238,14 +233,9 @@ public class PolymerConfigurationTests
         }
     }
 
-    private sealed class TestPeerChooser : IPeerChooser
+    private sealed class TestPeerChooser(IReadOnlyList<IPeer> peers) : IPeerChooser
     {
-        private readonly IReadOnlyList<IPeer> _peers;
-
-        public TestPeerChooser(IReadOnlyList<IPeer> peers)
-        {
-            _peers = peers;
-        }
+        private readonly IReadOnlyList<IPeer> _peers = peers;
 
         public ValueTask<Result<PeerLease>> AcquireAsync(RequestMeta meta, CancellationToken cancellationToken = default)
         {

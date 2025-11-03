@@ -9,7 +9,7 @@ using static Hugo.Go;
 
 namespace Polymer.Core.Middleware;
 
-public sealed class DeadlineMiddleware :
+public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     IUnaryOutboundMiddleware,
     IOnewayOutboundMiddleware,
     IStreamOutboundMiddleware,
@@ -21,12 +21,7 @@ public sealed class DeadlineMiddleware :
     IClientStreamInboundMiddleware,
     IDuplexInboundMiddleware
 {
-    private readonly DeadlineOptions _options;
-
-    public DeadlineMiddleware(DeadlineOptions? options = null)
-    {
-        _options = options ?? new DeadlineOptions();
-    }
+    private readonly DeadlineOptions _options = options ?? new DeadlineOptions();
 
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,

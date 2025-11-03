@@ -12,7 +12,7 @@ using static Hugo.Go;
 
 namespace Polymer.Core.Middleware;
 
-public sealed class RpcLoggingMiddleware :
+public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, RpcLoggingOptions? options = null) :
     IUnaryInboundMiddleware,
     IUnaryOutboundMiddleware,
     IOnewayInboundMiddleware,
@@ -24,14 +24,8 @@ public sealed class RpcLoggingMiddleware :
     IDuplexInboundMiddleware,
     IDuplexOutboundMiddleware
 {
-    private readonly ILogger _logger;
-    private readonly RpcLoggingOptions _options;
-
-    public RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, RpcLoggingOptions? options = null)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _options = options ?? new RpcLoggingOptions();
-    }
+    private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly RpcLoggingOptions _options = options ?? new RpcLoggingOptions();
 
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,

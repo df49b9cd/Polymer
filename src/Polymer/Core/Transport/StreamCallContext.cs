@@ -4,19 +4,14 @@ using Hugo;
 
 namespace Polymer.Core.Transport;
 
-public sealed class StreamCallContext
+public sealed class StreamCallContext(StreamDirection direction)
 {
     private long _messageCount;
     private int _completionStatus;
     private Error? _completionError;
     private long _completedAtUtcTicks;
 
-    public StreamCallContext(StreamDirection direction)
-    {
-        Direction = direction;
-    }
-
-    public StreamDirection Direction { get; }
+    public StreamDirection Direction { get; } = direction;
 
     public long MessageCount => Interlocked.Read(ref _messageCount);
 

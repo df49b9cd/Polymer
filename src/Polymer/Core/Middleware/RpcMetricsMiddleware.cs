@@ -407,21 +407,13 @@ public sealed class RpcMetricsMiddleware :
         return result;
     }
 
-    private sealed class MetricsStreamCall : IStreamCall
+    private sealed class MetricsStreamCall(IStreamCall inner, KeyValuePair<string, object?>[] tags, long startTimestamp, RpcMetricsMiddleware owner) : IStreamCall
     {
-        private readonly IStreamCall _inner;
-        private readonly KeyValuePair<string, object?>[] _tags;
-        private readonly long _startTimestamp;
-        private readonly RpcMetricsMiddleware _owner;
+        private readonly IStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly KeyValuePair<string, object?>[] _tags = tags ?? throw new ArgumentNullException(nameof(tags));
+        private readonly long _startTimestamp = startTimestamp;
+        private readonly RpcMetricsMiddleware _owner = owner;
         private Error? _completionError;
-
-        public MetricsStreamCall(IStreamCall inner, KeyValuePair<string, object?>[] tags, long startTimestamp, RpcMetricsMiddleware owner)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _tags = tags ?? throw new ArgumentNullException(nameof(tags));
-            _startTimestamp = startTimestamp;
-            _owner = owner;
-        }
 
         public StreamDirection Direction => _inner.Direction;
         public RequestMeta RequestMeta => _inner.RequestMeta;
@@ -461,20 +453,12 @@ public sealed class RpcMetricsMiddleware :
         }
     }
 
-    private sealed class MetricsClientStreamTransportCall : IClientStreamTransportCall
+    private sealed class MetricsClientStreamTransportCall(IClientStreamTransportCall inner, KeyValuePair<string, object?>[] tags, long startTimestamp, RpcMetricsMiddleware owner) : IClientStreamTransportCall
     {
-        private readonly IClientStreamTransportCall _inner;
-        private readonly KeyValuePair<string, object?>[] _tags;
-        private readonly long _startTimestamp;
-        private readonly RpcMetricsMiddleware _owner;
-
-        public MetricsClientStreamTransportCall(IClientStreamTransportCall inner, KeyValuePair<string, object?>[] tags, long startTimestamp, RpcMetricsMiddleware owner)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _tags = tags ?? throw new ArgumentNullException(nameof(tags));
-            _startTimestamp = startTimestamp;
-            _owner = owner;
-        }
+        private readonly IClientStreamTransportCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly KeyValuePair<string, object?>[] _tags = tags ?? throw new ArgumentNullException(nameof(tags));
+        private readonly long _startTimestamp = startTimestamp;
+        private readonly RpcMetricsMiddleware _owner = owner;
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;
@@ -517,22 +501,14 @@ public sealed class RpcMetricsMiddleware :
         }
     }
 
-    private sealed class MetricsDuplexStreamCall : IDuplexStreamCall
+    private sealed class MetricsDuplexStreamCall(IDuplexStreamCall inner, KeyValuePair<string, object?>[] tags, long startTimestamp, RpcMetricsMiddleware owner) : IDuplexStreamCall
     {
-        private readonly IDuplexStreamCall _inner;
-        private readonly KeyValuePair<string, object?>[] _tags;
-        private readonly long _startTimestamp;
-        private readonly RpcMetricsMiddleware _owner;
+        private readonly IDuplexStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly KeyValuePair<string, object?>[] _tags = tags ?? throw new ArgumentNullException(nameof(tags));
+        private readonly long _startTimestamp = startTimestamp;
+        private readonly RpcMetricsMiddleware _owner = owner;
         private Error? _requestError;
         private Error? _responseError;
-
-        public MetricsDuplexStreamCall(IDuplexStreamCall inner, KeyValuePair<string, object?>[] tags, long startTimestamp, RpcMetricsMiddleware owner)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _tags = tags ?? throw new ArgumentNullException(nameof(tags));
-            _startTimestamp = startTimestamp;
-            _owner = owner;
-        }
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;

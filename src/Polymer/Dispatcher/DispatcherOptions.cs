@@ -43,10 +43,7 @@ public sealed class DispatcherOptions
 
     public void AddTransport(ITransport transport)
     {
-        if (transport is null)
-        {
-            throw new ArgumentNullException(nameof(transport));
-        }
+        ArgumentNullException.ThrowIfNull(transport);
 
         AddLifecycle(transport.Name, transport);
     }
@@ -58,10 +55,7 @@ public sealed class DispatcherOptions
             throw new ArgumentException("Lifecycle name cannot be null or whitespace.", nameof(name));
         }
 
-        if (lifecycle is null)
-        {
-            throw new ArgumentNullException(nameof(lifecycle));
-        }
+        ArgumentNullException.ThrowIfNull(lifecycle);
 
         var component = new DispatcherLifecycleComponent(name, lifecycle);
         _componentDescriptors.Add(component);
@@ -74,10 +68,7 @@ public sealed class DispatcherOptions
 
     public void AddUnaryOutbound(string service, string? key, IUnaryOutbound outbound)
     {
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var builder = GetOrCreateOutboundBuilder(service);
         builder.AddUnary(key, outbound);
@@ -86,10 +77,7 @@ public sealed class DispatcherOptions
 
     public void AddOnewayOutbound(string service, string? key, IOnewayOutbound outbound)
     {
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var builder = GetOrCreateOutboundBuilder(service);
         builder.AddOneway(key, outbound);
@@ -98,10 +86,7 @@ public sealed class DispatcherOptions
 
     public void AddStreamOutbound(string service, string? key, IStreamOutbound outbound)
     {
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var builder = GetOrCreateOutboundBuilder(service);
         builder.AddStream(key, outbound);
@@ -110,10 +95,7 @@ public sealed class DispatcherOptions
 
     public void AddClientStreamOutbound(string service, string? key, IClientStreamOutbound outbound)
     {
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var builder = GetOrCreateOutboundBuilder(service);
         builder.AddClientStream(key, outbound);
@@ -122,10 +104,7 @@ public sealed class DispatcherOptions
 
     public void AddDuplexOutbound(string service, string? key, IDuplexOutbound outbound)
     {
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var builder = GetOrCreateOutboundBuilder(service);
         builder.AddDuplex(key, outbound);

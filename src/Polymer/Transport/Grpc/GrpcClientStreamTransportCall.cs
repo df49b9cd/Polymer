@@ -20,7 +20,7 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
     private long _requestCount;
     private int _metricsRecorded;
     private readonly TaskCompletionSource<Result<Response<ReadOnlyMemory<byte>>>> _completion =
-        new TaskCompletionSource<Result<Response<ReadOnlyMemory<byte>>>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _completed;
     private bool _disposed;
 

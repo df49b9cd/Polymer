@@ -8,14 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Polymer.Transport.Grpc;
 
-public sealed class GrpcClientLoggingInterceptor : Interceptor
+public sealed class GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterceptor> logger) : Interceptor
 {
-    private readonly ILogger<GrpcClientLoggingInterceptor> _logger;
-
-    public GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterceptor> logger)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly ILogger<GrpcClientLoggingInterceptor> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
         TRequest request,
@@ -100,14 +95,9 @@ public sealed class GrpcClientLoggingInterceptor : Interceptor
     }
 }
 
-public sealed class GrpcServerLoggingInterceptor : Interceptor
+public sealed class GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterceptor> logger) : Interceptor
 {
-    private readonly ILogger<GrpcServerLoggingInterceptor> _logger;
-
-    public GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterceptor> logger)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly ILogger<GrpcServerLoggingInterceptor> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(
         TRequest request,

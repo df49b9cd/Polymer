@@ -549,19 +549,12 @@ public sealed class RpcTracingMiddleware :
         activity.AddEvent(new ActivityEvent("exception", tags: tags));
     }
 
-    private sealed class TracingStreamCall : IStreamCall
+    private sealed class TracingStreamCall(IStreamCall inner, Activity activity, RpcTracingMiddleware owner) : IStreamCall
     {
-        private readonly IStreamCall _inner;
-        private readonly RpcTracingMiddleware _owner;
-        private Activity? _activity;
+        private readonly IStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly RpcTracingMiddleware _owner = owner;
+        private Activity? _activity = activity ?? throw new ArgumentNullException(nameof(activity));
         private Error? _error;
-
-        public TracingStreamCall(IStreamCall inner, Activity activity, RpcTracingMiddleware owner)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _activity = activity ?? throw new ArgumentNullException(nameof(activity));
-            _owner = owner;
-        }
 
         public StreamDirection Direction => _inner.Direction;
 
@@ -705,20 +698,13 @@ public sealed class RpcTracingMiddleware :
         }
     }
 
-    private sealed class TracingDuplexStreamCall : IDuplexStreamCall
+    private sealed class TracingDuplexStreamCall(IDuplexStreamCall inner, Activity activity, RpcTracingMiddleware owner) : IDuplexStreamCall
     {
-        private readonly IDuplexStreamCall _inner;
-        private readonly RpcTracingMiddleware _owner;
-        private Activity? _activity;
+        private readonly IDuplexStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly RpcTracingMiddleware _owner = owner;
+        private Activity? _activity = activity ?? throw new ArgumentNullException(nameof(activity));
         private Error? _requestError;
         private Error? _responseError;
-
-        public TracingDuplexStreamCall(IDuplexStreamCall inner, Activity activity, RpcTracingMiddleware owner)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _activity = activity ?? throw new ArgumentNullException(nameof(activity));
-            _owner = owner;
-        }
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
 

@@ -11,14 +11,9 @@ using static Hugo.Go;
 
 namespace Polymer.Core.Middleware;
 
-public sealed class RetryMiddleware : IUnaryOutboundMiddleware
+public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutboundMiddleware
 {
-    private readonly RetryOptions _options;
-
-    public RetryMiddleware(RetryOptions? options = null)
-    {
-        _options = options ?? new RetryOptions();
-    }
+    private readonly RetryOptions _options = options ?? new RetryOptions();
 
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,

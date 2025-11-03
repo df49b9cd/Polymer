@@ -1805,8 +1805,8 @@ public class GrpcTransportTests
                 MethodType.Unary,
                 "meta",
                 "success",
-                Marshallers.Create(static payload => payload ?? Array.Empty<byte>(), static payload => payload ?? Array.Empty<byte>()),
-                Marshallers.Create(static payload => payload ?? Array.Empty<byte>(), static payload => payload ?? Array.Empty<byte>()));
+                Marshallers.Create(static payload => payload ?? [], static payload => payload ?? []),
+                Marshallers.Create(static payload => payload ?? [], static payload => payload ?? []));
 
             var metadata = new Metadata
             {
@@ -1883,8 +1883,8 @@ public class GrpcTransportTests
                 MethodType.Unary,
                 "meta",
                 "fail",
-                Marshallers.Create(static payload => payload ?? Array.Empty<byte>(), static payload => payload ?? Array.Empty<byte>()),
-                Marshallers.Create(static payload => payload ?? Array.Empty<byte>(), static payload => payload ?? Array.Empty<byte>()));
+                Marshallers.Create(static payload => payload ?? [], static payload => payload ?? []),
+                Marshallers.Create(static payload => payload ?? [], static payload => payload ?? []));
 
             var metadata = new Metadata();
             var payload = Array.Empty<byte>();
@@ -2151,16 +2151,10 @@ public class GrpcTransportTests
 
         internal sealed record LogEntry(string CategoryName, LogLevel LogLevel, string Message);
 
-        private sealed class CaptureLogger : ILogger
+        private sealed class CaptureLogger(string categoryName, ConcurrentBag<CaptureLoggerProvider.LogEntry> entries) : ILogger
         {
-            private readonly string _categoryName;
-            private readonly ConcurrentBag<LogEntry> _entries;
-
-            public CaptureLogger(string categoryName, ConcurrentBag<LogEntry> entries)
-            {
-                _categoryName = categoryName;
-                _entries = entries;
-            }
+            private readonly string _categoryName = categoryName;
+            private readonly ConcurrentBag<LogEntry> _entries = entries;
 
             public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
 
@@ -2168,10 +2162,7 @@ public class GrpcTransportTests
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             {
-                if (formatter is null)
-                {
-                    throw new ArgumentNullException(nameof(formatter));
-                }
+                ArgumentNullException.ThrowIfNull(formatter);
 
                 var message = formatter(state, exception) ?? string.Empty;
                 _entries.Add(new LogEntry(_categoryName, logLevel, message));
@@ -2257,7 +2248,7 @@ public class GrpcTransportTests
                     return;
                 }
 
-                toAwait = _tasks.ToArray();
+                toAwait = [.. _tasks];
                 _tasks.Clear();
             }
 

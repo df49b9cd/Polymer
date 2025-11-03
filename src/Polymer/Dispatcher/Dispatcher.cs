@@ -30,15 +30,12 @@ public sealed class Dispatcher
     private readonly ImmutableArray<IStreamOutboundMiddleware> _outboundStreamMiddleware;
     private readonly ImmutableArray<IClientStreamOutboundMiddleware> _outboundClientStreamMiddleware;
     private readonly ImmutableArray<IDuplexOutboundMiddleware> _outboundDuplexMiddleware;
-    private readonly object _stateLock = new();
+    private readonly Lock _stateLock = new();
     private DispatcherStatus _status = DispatcherStatus.Created;
 
     public Dispatcher(DispatcherOptions options)
     {
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
+        ArgumentNullException.ThrowIfNull(options);
 
         _serviceName = options.ServiceName;
         _lifecycleDescriptors = [.. options.ComponentDescriptors];
@@ -85,10 +82,7 @@ public sealed class Dispatcher
 
     public void Register(ProcedureSpec spec)
     {
-        if (spec is null)
-        {
-            throw new ArgumentNullException(nameof(spec));
-        }
+        ArgumentNullException.ThrowIfNull(spec);
 
         if (!string.Equals(spec.Service, _serviceName, StringComparison.OrdinalIgnoreCase))
         {
@@ -100,10 +94,7 @@ public sealed class Dispatcher
 
     public void RegisterUnary(string name, UnaryInboundDelegate handler, Action<UnaryProcedureBuilder>? configure = null)
     {
-        if (handler is null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         var builder = new UnaryProcedureBuilder(handler);
         configure?.Invoke(builder);
@@ -112,10 +103,7 @@ public sealed class Dispatcher
 
     public void RegisterUnary(string name, Action<UnaryProcedureBuilder> configure)
     {
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        ArgumentNullException.ThrowIfNull(configure);
 
         var builder = new UnaryProcedureBuilder();
         configure(builder);
@@ -124,10 +112,7 @@ public sealed class Dispatcher
 
     public void RegisterOneway(string name, OnewayInboundDelegate handler, Action<OnewayProcedureBuilder>? configure = null)
     {
-        if (handler is null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         var builder = new OnewayProcedureBuilder(handler);
         configure?.Invoke(builder);
@@ -136,10 +121,7 @@ public sealed class Dispatcher
 
     public void RegisterOneway(string name, Action<OnewayProcedureBuilder> configure)
     {
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        ArgumentNullException.ThrowIfNull(configure);
 
         var builder = new OnewayProcedureBuilder();
         configure(builder);
@@ -148,10 +130,7 @@ public sealed class Dispatcher
 
     public void RegisterStream(string name, StreamInboundDelegate handler, Action<StreamProcedureBuilder>? configure = null)
     {
-        if (handler is null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         var builder = new StreamProcedureBuilder(handler);
         configure?.Invoke(builder);
@@ -160,10 +139,7 @@ public sealed class Dispatcher
 
     public void RegisterStream(string name, Action<StreamProcedureBuilder> configure)
     {
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        ArgumentNullException.ThrowIfNull(configure);
 
         var builder = new StreamProcedureBuilder();
         configure(builder);
@@ -172,10 +148,7 @@ public sealed class Dispatcher
 
     public void RegisterClientStream(string name, ClientStreamInboundDelegate handler, Action<ClientStreamProcedureBuilder>? configure = null)
     {
-        if (handler is null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         var builder = new ClientStreamProcedureBuilder(handler);
         configure?.Invoke(builder);
@@ -184,10 +157,7 @@ public sealed class Dispatcher
 
     public void RegisterClientStream(string name, Action<ClientStreamProcedureBuilder> configure)
     {
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        ArgumentNullException.ThrowIfNull(configure);
 
         var builder = new ClientStreamProcedureBuilder();
         configure(builder);
@@ -196,10 +166,7 @@ public sealed class Dispatcher
 
     public void RegisterDuplex(string name, DuplexInboundDelegate handler, Action<DuplexProcedureBuilder>? configure = null)
     {
-        if (handler is null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         var builder = new DuplexProcedureBuilder(handler);
         configure?.Invoke(builder);
@@ -208,10 +175,7 @@ public sealed class Dispatcher
 
     public void RegisterDuplex(string name, Action<DuplexProcedureBuilder> configure)
     {
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
+        ArgumentNullException.ThrowIfNull(configure);
 
         var builder = new DuplexProcedureBuilder();
         configure(builder);
@@ -354,10 +318,7 @@ public sealed class Dispatcher
                 "Procedure name is required for client streaming calls.")));
         }
 
-        if (requestMeta is null)
-        {
-            throw new ArgumentNullException(nameof(requestMeta));
-        }
+        ArgumentNullException.ThrowIfNull(requestMeta);
 
         if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.ClientStream, out var spec) ||
             spec is not ClientStreamProcedureSpec clientStreamSpec)
@@ -537,10 +498,10 @@ public sealed class Dispatcher
     {
         if (source.Count == 0)
         {
-            return ImmutableArray<OutboundBindingDescriptor>.Empty;
+            return [];
         }
 
-        return source
+        return [.. source
             .OrderBy(static kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
             .Select(static kvp =>
             {
@@ -551,8 +512,7 @@ public sealed class Dispatcher
 
                 var implementation = outbound.GetType().FullName ?? outbound.GetType().Name;
                 return new OutboundBindingDescriptor(kvp.Key, implementation, diagnostics);
-            })
-            .ToImmutableArray();
+            })];
     }
 
     private async Task ProcessClientStreamAsync(

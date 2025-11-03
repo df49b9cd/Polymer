@@ -21,10 +21,7 @@ public sealed class StreamClient<TRequest, TResponse>
         IReadOnlyList<IStreamOutboundMiddleware> middleware)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
-        if (outbound is null)
-        {
-            throw new ArgumentNullException(nameof(outbound));
-        }
+        ArgumentNullException.ThrowIfNull(outbound);
 
         var terminal = new StreamOutboundDelegate(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeStreamOutbound(middleware, terminal);

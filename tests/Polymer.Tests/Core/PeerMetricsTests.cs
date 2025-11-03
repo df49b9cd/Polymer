@@ -196,15 +196,10 @@ public sealed class PeerMetricsTests : IDisposable
         }
     }
 
-    private sealed class CapturingPeer : IPeer
+    private sealed class CapturingPeer(string identifier) : IPeer
     {
-        private readonly string _identifier;
+        private readonly string _identifier = identifier;
         private int _inflight;
-
-        public CapturingPeer(string identifier)
-        {
-            _identifier = identifier;
-        }
 
         public string Identifier => _identifier;
 
@@ -223,14 +218,9 @@ public sealed class PeerMetricsTests : IDisposable
         }
     }
 
-    private sealed class BusyPeer : IPeer
+    private sealed class BusyPeer(string identifier) : IPeer
     {
-        private readonly string _identifier;
-
-        public BusyPeer(string identifier)
-        {
-            _identifier = identifier;
-        }
+        private readonly string _identifier = identifier;
 
         public string Identifier => _identifier;
 

@@ -45,32 +45,22 @@ public sealed class GrpcExceptionAdapterInterceptorTests
         Assert.Same(expected, actual);
     }
 
-    private sealed class TestServerCallContext : ServerCallContext
+    private sealed class TestServerCallContext(
+        string method,
+        string host = "localhost",
+        string peer = "ipv4:127.0.0.1:50051",
+        DateTime? deadline = null,
+        Metadata? requestHeaders = null,
+        CancellationToken cancellationToken = default) : ServerCallContext
     {
-        private readonly string _method;
-        private readonly string _host;
-        private readonly string _peer;
-        private readonly DateTime _deadline;
-        private readonly Metadata _requestHeaders;
-        private readonly CancellationToken _cancellationToken;
+        private readonly string _method = method;
+        private readonly string _host = host;
+        private readonly string _peer = peer;
+        private readonly DateTime _deadline = deadline ?? DateTime.UtcNow.AddMinutes(1);
+        private readonly Metadata _requestHeaders = requestHeaders ?? new Metadata();
+        private readonly CancellationToken _cancellationToken = cancellationToken;
         private readonly Metadata _responseTrailers = new();
         private readonly AuthContext _authContext = new(null, new Dictionary<string, List<AuthProperty>>());
-
-        public TestServerCallContext(
-            string method,
-            string host = "localhost",
-            string peer = "ipv4:127.0.0.1:50051",
-            DateTime? deadline = null,
-            Metadata? requestHeaders = null,
-            CancellationToken cancellationToken = default)
-        {
-            _method = method;
-            _host = host;
-            _peer = peer;
-            _deadline = deadline ?? DateTime.UtcNow.AddMinutes(1);
-            _requestHeaders = requestHeaders ?? new Metadata();
-            _cancellationToken = cancellationToken;
-        }
 
         protected override Task WriteResponseHeadersAsyncCore(Metadata responseHeaders) => Task.CompletedTask;
 

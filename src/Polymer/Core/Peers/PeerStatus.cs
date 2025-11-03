@@ -2,23 +2,15 @@ using System;
 
 namespace Polymer.Core.Peers;
 
-public readonly struct PeerStatus
+public readonly struct PeerStatus(PeerState state, int inflight, DateTimeOffset? lastSuccess, DateTimeOffset? lastFailure)
 {
-    public PeerStatus(PeerState state, int inflight, DateTimeOffset? lastSuccess, DateTimeOffset? lastFailure)
-    {
-        State = state;
-        Inflight = inflight;
-        LastSuccess = lastSuccess;
-        LastFailure = lastFailure;
-    }
+    public PeerState State { get; } = state;
 
-    public PeerState State { get; }
+    public int Inflight { get; } = inflight;
 
-    public int Inflight { get; }
+    public DateTimeOffset? LastSuccess { get; } = lastSuccess;
 
-    public DateTimeOffset? LastSuccess { get; }
-
-    public DateTimeOffset? LastFailure { get; }
+    public DateTimeOffset? LastFailure { get; } = lastFailure;
 
     public static PeerStatus Unknown => new(PeerState.Unknown, 0, null, null);
 }

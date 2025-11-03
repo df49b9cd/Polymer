@@ -33,26 +33,17 @@ internal sealed class TestLogger<T> : ILogger<T>
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
-        if (formatter is null)
-        {
-            throw new ArgumentNullException(nameof(formatter));
-        }
+        ArgumentNullException.ThrowIfNull(formatter);
 
         var message = formatter(state, exception);
         var scopeSnapshot = ScopeState.CreateSnapshot(_currentScope.Value);
         _entries.Add(new LogEntry(logLevel, message, exception, scopeSnapshot));
     }
 
-    private sealed class ScopeState
+    private sealed class ScopeState(IReadOnlyList<KeyValuePair<string, object?>> values, TestLogger<T>.ScopeState? parent)
     {
-        public ScopeState(IReadOnlyList<KeyValuePair<string, object?>> values, ScopeState? parent)
-        {
-            Values = values;
-            Parent = parent;
-        }
-
-        public IReadOnlyList<KeyValuePair<string, object?>> Values { get; }
-        public ScopeState? Parent { get; }
+        public IReadOnlyList<KeyValuePair<string, object?>> Values { get; } = values;
+        public ScopeState? Parent { get; } = parent;
 
         public static IReadOnlyList<KeyValuePair<string, object?>>? CreateSnapshot(ScopeState? scope)
         {
@@ -77,17 +68,11 @@ internal sealed class TestLogger<T> : ILogger<T>
         }
     }
 
-    private sealed class Scope : IDisposable
+    private sealed class Scope(TestLogger<T> logger, TestLogger<T>.ScopeState? previous) : IDisposable
     {
-        private readonly TestLogger<T> _logger;
-        private readonly ScopeState? _previous;
+        private readonly TestLogger<T> _logger = logger;
+        private readonly ScopeState? _previous = previous;
         private bool _disposed;
-
-        public Scope(TestLogger<T> logger, ScopeState? previous)
-        {
-            _logger = logger;
-            _previous = previous;
-        }
 
         public void Dispose()
         {

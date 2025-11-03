@@ -13,14 +13,9 @@ using static Hugo.Go;
 
 namespace Polymer.Transport.Http;
 
-public sealed class HttpDuplexOutbound : IDuplexOutbound, IOutboundDiagnostic
+public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutboundDiagnostic
 {
-    private readonly Uri _baseAddress;
-
-    public HttpDuplexOutbound(Uri baseAddress)
-    {
-        _baseAddress = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
-    }
+    private readonly Uri _baseAddress = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
 
     public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 

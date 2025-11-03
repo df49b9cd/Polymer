@@ -37,7 +37,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private readonly PeerCircuitBreakerOptions _peerBreakerOptions;
     private readonly GrpcTelemetryOptions? _telemetryOptions;
     private readonly Func<IReadOnlyList<IPeer>, IPeerChooser> _peerChooserFactory;
-    private ImmutableArray<GrpcPeer> _peers = ImmutableArray<GrpcPeer>.Empty;
+    private ImmutableArray<GrpcPeer> _peers = [];
     private IPeerChooser? _peerChooser;
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _unaryMethods = new();
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _serverStreamMethods = new();
@@ -80,10 +80,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         PeerCircuitBreakerOptions? peerCircuitBreakerOptions = null,
         GrpcTelemetryOptions? telemetryOptions = null)
     {
-        if (addresses is null)
-        {
-            throw new ArgumentNullException(nameof(addresses));
-        }
+        ArgumentNullException.ThrowIfNull(addresses);
 
         var addressArray = addresses
             .Select(uri => uri ?? throw new ArgumentException("Peer address cannot be null.", nameof(addresses)))
@@ -117,7 +114,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             compression.Validate();
 
             var providers = compression.Providers.Count > 0
-                ? compression.Providers.ToList()
+                ? [.. compression.Providers]
                 : new List<ICompressionProvider>();
 
             _compressionAlgorithms = new HashSet<string>(
@@ -179,7 +176,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             await peer.DisposeAsync().ConfigureAwait(false);
         }
 
-        _peers = ImmutableArray<GrpcPeer>.Empty;
+        _peers = [];
         _peerChooser = null;
         _started = false;
 
@@ -400,10 +397,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             throw new InvalidOperationException("gRPC outbound has not been started.");
         }
 
-        if (requestMeta is null)
-        {
-            throw new ArgumentNullException(nameof(requestMeta));
-        }
+        ArgumentNullException.ThrowIfNull(requestMeta);
 
         if (string.IsNullOrEmpty(requestMeta.Procedure))
         {
@@ -466,10 +460,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             throw new InvalidOperationException("gRPC outbound has not been started.");
         }
 
-        if (request is null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
+        ArgumentNullException.ThrowIfNull(request);
 
         if (string.IsNullOrEmpty(request.Meta.Procedure))
         {
@@ -537,7 +528,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         var algorithms = _compressionAlgorithms is { Count: > 0 }
             ? _compressionAlgorithms.ToArray()
-            : Array.Empty<string>();
+            : [];
 
         var chooserName = _peerChooser is null
             ? "none"
@@ -654,10 +645,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
     private static DateTime? ResolveDeadline(RequestMeta meta)
     {
-        if (meta is null)
-        {
-            throw new ArgumentNullException(nameof(meta));
-        }
+        ArgumentNullException.ThrowIfNull(meta);
 
         DateTime? resolved = null;
 
@@ -680,11 +668,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         return resolved;
     }
 
-    private sealed class GrpcPeer : IPeer, IAsyncDisposable, IPeerTelemetry
+    private sealed class GrpcPeer(Uri address, GrpcOutbound owner, PeerCircuitBreakerOptions breakerOptions) : IPeer, IAsyncDisposable, IPeerTelemetry
     {
-        private readonly GrpcOutbound _owner;
-        private readonly Uri _address;
-        private readonly PeerCircuitBreaker _breaker;
+        private readonly GrpcOutbound _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+        private readonly Uri _address = address ?? throw new ArgumentNullException(nameof(address));
+        private readonly PeerCircuitBreaker _breaker = new(breakerOptions);
         private GrpcChannel? _channel;
         private CallInvoker? _callInvoker;
         private int _inflight;
@@ -694,13 +682,6 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         private long _successCount;
         private long _failureCount;
         private readonly LatencyTracker _latencyTracker = new();
-
-        public GrpcPeer(Uri address, GrpcOutbound owner, PeerCircuitBreakerOptions breakerOptions)
-        {
-            _address = address ?? throw new ArgumentNullException(nameof(address));
-            _owner = owner ?? throw new ArgumentNullException(nameof(owner));
-            _breaker = new PeerCircuitBreaker(breakerOptions);
-        }
 
         public Uri Address => _address;
 
@@ -751,7 +732,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (interceptors.Count > 0)
             {
-                invoker = invoker.Intercept(interceptors.ToArray());
+                invoker = invoker.Intercept([.. interceptors]);
             }
 
             _callInvoker = invoker;
@@ -807,10 +788,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         public ValueTask DisposeAsync()
         {
             var channel = Interlocked.Exchange(ref _channel, null);
-            if (channel is not null)
-            {
-                channel.Dispose();
-            }
+            channel?.Dispose();
 
             _callInvoker = null;
             _state = PeerState.Unknown;
@@ -848,17 +826,14 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private sealed class LatencyTracker
     {
         private readonly double[] _buffer;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private int _count;
         private int _nextIndex;
         private double _sum;
 
         public LatencyTracker(int capacity = 256)
         {
-            if (capacity <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(capacity));
-            }
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
 
             _buffer = new double[capacity];
         }
@@ -942,39 +917,25 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
-    internal readonly struct LatencySnapshot
+    internal readonly struct LatencySnapshot(double average, double p50, double p90, double p99)
     {
         public static LatencySnapshot Empty { get; } = new(double.NaN, double.NaN, double.NaN, double.NaN);
 
-        public LatencySnapshot(double average, double p50, double p90, double p99)
-        {
-            Average = average;
-            P50 = p50;
-            P90 = p90;
-            P99 = p99;
-        }
+        public double Average { get; } = average;
 
-        public double Average { get; }
+        public double P50 { get; } = p50;
 
-        public double P50 { get; }
+        public double P90 { get; } = p90;
 
-        public double P90 { get; }
-
-        public double P99 { get; }
+        public double P99 { get; } = p99;
 
         public bool HasData => !double.IsNaN(Average);
     }
 
-    private sealed class PeerTrackedStreamCall : IStreamCall
+    private sealed class PeerTrackedStreamCall(IStreamCall inner, PeerLease lease) : IStreamCall
     {
-        private readonly IStreamCall _inner;
-        private readonly PeerLease _lease;
-
-        public PeerTrackedStreamCall(IStreamCall inner, PeerLease lease)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _lease = lease ?? throw new ArgumentNullException(nameof(lease));
-        }
+        private readonly IStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly PeerLease _lease = lease ?? throw new ArgumentNullException(nameof(lease));
 
         public StreamDirection Direction => _inner.Direction;
         public RequestMeta RequestMeta => _inner.RequestMeta;
@@ -999,16 +960,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
-    private sealed class PeerTrackedClientStreamCall : IClientStreamTransportCall
+    private sealed class PeerTrackedClientStreamCall(IClientStreamTransportCall inner, PeerLease lease) : IClientStreamTransportCall
     {
-        private readonly IClientStreamTransportCall _inner;
-        private readonly PeerLease _lease;
-
-        public PeerTrackedClientStreamCall(IClientStreamTransportCall inner, PeerLease lease)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _lease = lease ?? throw new ArgumentNullException(nameof(lease));
-        }
+        private readonly IClientStreamTransportCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly PeerLease _lease = lease ?? throw new ArgumentNullException(nameof(lease));
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;
@@ -1033,16 +988,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
-    private sealed class PeerTrackedDuplexStreamCall : IDuplexStreamCall
+    private sealed class PeerTrackedDuplexStreamCall(IDuplexStreamCall inner, PeerLease lease) : IDuplexStreamCall
     {
-        private readonly IDuplexStreamCall _inner;
-        private readonly PeerLease _lease;
-
-        public PeerTrackedDuplexStreamCall(IDuplexStreamCall inner, PeerLease lease)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _lease = lease ?? throw new ArgumentNullException(nameof(lease));
-        }
+        private readonly IDuplexStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly PeerLease _lease = lease ?? throw new ArgumentNullException(nameof(lease));
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;

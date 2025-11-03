@@ -37,19 +37,12 @@ public sealed class FewestPendingPeerChooserTests
         Assert.Equal(PolymerStatusCode.ResourceExhausted, PolymerErrorAdapter.ToStatus(lease.Error!));
     }
 
-    private sealed class TestPeer : IPeer
+    private sealed class TestPeer(string identifier, int inflight = 0, int maxConcurrency = int.MaxValue) : IPeer
     {
-        private readonly int _maxConcurrency;
-        private int _inflight;
+        private readonly int _maxConcurrency = maxConcurrency;
+        private int _inflight = inflight;
 
-        public TestPeer(string identifier, int inflight = 0, int maxConcurrency = int.MaxValue)
-        {
-            Identifier = identifier;
-            _inflight = inflight;
-            _maxConcurrency = maxConcurrency;
-        }
-
-        public string Identifier { get; }
+        public string Identifier { get; } = identifier;
 
         public PeerStatus Status => new(PeerState.Available, _inflight, null, null);
 

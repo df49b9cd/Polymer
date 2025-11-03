@@ -14,15 +14,9 @@ public static class DispatcherClientExtensions
         ICodec<TRequest, TResponse> codec,
         string? outboundKey = null)
     {
-        if (dispatcher is null)
-        {
-            throw new ArgumentNullException(nameof(dispatcher));
-        }
+        ArgumentNullException.ThrowIfNull(dispatcher);
 
-        if (codec is null)
-        {
-            throw new ArgumentNullException(nameof(codec));
-        }
+        ArgumentNullException.ThrowIfNull(codec);
 
         var configuration = dispatcher.ClientConfig(service);
         if (!configuration.TryGetUnary(outboundKey, out var outbound) || outbound is null)
@@ -39,15 +33,9 @@ public static class DispatcherClientExtensions
         ICodec<TRequest, object> codec,
         string? outboundKey = null)
     {
-        if (dispatcher is null)
-        {
-            throw new ArgumentNullException(nameof(dispatcher));
-        }
+        ArgumentNullException.ThrowIfNull(dispatcher);
 
-        if (codec is null)
-        {
-            throw new ArgumentNullException(nameof(codec));
-        }
+        ArgumentNullException.ThrowIfNull(codec);
 
         var configuration = dispatcher.ClientConfig(service);
         if (!configuration.TryGetOneway(outboundKey, out var outbound) || outbound is null)
@@ -64,15 +52,9 @@ public static class DispatcherClientExtensions
         ICodec<TRequest, TResponse> codec,
         string? outboundKey = null)
     {
-        if (dispatcher is null)
-        {
-            throw new ArgumentNullException(nameof(dispatcher));
-        }
+        ArgumentNullException.ThrowIfNull(dispatcher);
 
-        if (codec is null)
-        {
-            throw new ArgumentNullException(nameof(codec));
-        }
+        ArgumentNullException.ThrowIfNull(codec);
 
         var configuration = dispatcher.ClientConfig(service);
         if (!configuration.TryGetStream(outboundKey, out var outbound) || outbound is null)
@@ -89,15 +71,9 @@ public static class DispatcherClientExtensions
         ICodec<TRequest, TResponse> codec,
         string? outboundKey = null)
     {
-        if (dispatcher is null)
-        {
-            throw new ArgumentNullException(nameof(dispatcher));
-        }
+        ArgumentNullException.ThrowIfNull(dispatcher);
 
-        if (codec is null)
-        {
-            throw new ArgumentNullException(nameof(codec));
-        }
+        ArgumentNullException.ThrowIfNull(codec);
 
         var configuration = dispatcher.ClientConfig(service);
         if (!configuration.TryGetClientStream(outboundKey, out var outbound) || outbound is null)
@@ -114,15 +90,9 @@ public static class DispatcherClientExtensions
         ICodec<TRequest, TResponse> codec,
         string? outboundKey = null)
     {
-        if (dispatcher is null)
-        {
-            throw new ArgumentNullException(nameof(dispatcher));
-        }
+        ArgumentNullException.ThrowIfNull(dispatcher);
 
-        if (codec is null)
-        {
-            throw new ArgumentNullException(nameof(codec));
-        }
+        ArgumentNullException.ThrowIfNull(codec);
 
         var configuration = dispatcher.ClientConfig(service);
         if (!configuration.TryGetDuplex(outboundKey, out var outbound) || outbound is null)

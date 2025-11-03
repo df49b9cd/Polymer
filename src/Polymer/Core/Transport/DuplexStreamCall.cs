@@ -131,16 +131,10 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         };
     }
 
-    private sealed class CountingChannelWriter : ChannelWriter<ReadOnlyMemory<byte>>
+    private sealed class CountingChannelWriter(ChannelWriter<ReadOnlyMemory<byte>> inner, Action onWrite) : ChannelWriter<ReadOnlyMemory<byte>>
     {
-        private readonly ChannelWriter<ReadOnlyMemory<byte>> _inner;
-        private readonly Action _onWrite;
-
-        public CountingChannelWriter(ChannelWriter<ReadOnlyMemory<byte>> inner, Action onWrite)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _onWrite = onWrite ?? throw new ArgumentNullException(nameof(onWrite));
-        }
+        private readonly ChannelWriter<ReadOnlyMemory<byte>> _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        private readonly Action _onWrite = onWrite ?? throw new ArgumentNullException(nameof(onWrite));
 
         public override bool TryWrite(ReadOnlyMemory<byte> item)
         {
