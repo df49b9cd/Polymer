@@ -13,12 +13,14 @@ public sealed class HttpStreamCall : IStreamCall
 {
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
+    private readonly StreamCallContext _context;
     private bool _completed;
 
     private HttpStreamCall(RequestMeta requestMeta, ResponseMeta responseMeta)
     {
         RequestMeta = requestMeta ?? throw new ArgumentNullException(nameof(requestMeta));
         ResponseMeta = responseMeta ?? new ResponseMeta();
+        _context = new StreamCallContext(StreamDirection.Server);
 
         _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
@@ -40,6 +42,8 @@ public sealed class HttpStreamCall : IStreamCall
 
     public ResponseMeta ResponseMeta { get; private set; }
 
+    public StreamCallContext Context => _context;
+
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
 
     public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
@@ -49,8 +53,11 @@ public sealed class HttpStreamCall : IStreamCall
         ResponseMeta = responseMeta ?? new ResponseMeta();
     }
 
-    public ValueTask WriteAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default) =>
-        _responses.Writer.WriteAsync(payload, cancellationToken);
+    public async ValueTask WriteAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
+    {
+        await _responses.Writer.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+        _context.IncrementMessageCount();
+    }
 
     public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
     {
@@ -60,6 +67,8 @@ public sealed class HttpStreamCall : IStreamCall
         }
 
         _completed = true;
+
+        var status = ResolveCompletionStatus(error);
 
         if (error is null)
         {
@@ -71,6 +80,8 @@ public sealed class HttpStreamCall : IStreamCall
             _responses.Writer.TryComplete(exception);
         }
 
+        _context.TrySetCompletion(status, error);
+
         return ValueTask.CompletedTask;
     }
 
@@ -78,6 +89,21 @@ public sealed class HttpStreamCall : IStreamCall
     {
         _responses.Writer.TryComplete();
         _requests.Writer.TryComplete();
+        _context.TrySetCompletion(StreamCompletionStatus.Cancelled);
         return ValueTask.CompletedTask;
+    }
+
+    private static StreamCompletionStatus ResolveCompletionStatus(Error? error)
+    {
+        if (error is null)
+        {
+            return StreamCompletionStatus.Succeeded;
+        }
+
+        return PolymerErrorAdapter.ToStatus(error) switch
+        {
+            PolymerStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
+            _ => StreamCompletionStatus.Faulted
+        };
     }
 }

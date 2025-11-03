@@ -452,7 +452,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 *Implementation tip:* compose middleware via Hugo `Functional` extensions where possible to reuse existing retry/timeout primitives.
 
-**Status:** `RpcLoggingMiddleware` handles structured logs, `RpcTracingMiddleware` emits `ActivitySource` spans, `RpcMetricsMiddleware` publishes request counters/latency histograms, `DeadlineMiddleware` enforces TTL/deadline metadata, `PanicRecoveryMiddleware` maps unhandled exceptions to canonical failures, `RetryMiddleware` adds Hugo-powered retry/backoff for outbound calls, and `RateLimitingMiddleware` applies concurrency-based controls with `ResourceExhausted` signaling. Circuit breaking remains outstanding.
+**Status:** `RpcLoggingMiddleware` handles structured logs, `RpcTracingMiddleware` emits `ActivitySource` spans, `RpcMetricsMiddleware` publishes request counters/latency histograms, `DeadlineMiddleware` enforces TTL/deadline metadata, `PanicRecoveryMiddleware` maps unhandled exceptions to canonical failures, `RetryMiddleware` adds Hugo-powered retry/backoff for outbound calls, and `RateLimitingMiddleware` applies concurrency-based controls with `ResourceExhausted` signaling. Streaming-specific context is now provided via `StreamCallContext` / `DuplexStreamCallContext` (exposed on `IStreamCall` and `IDuplexStreamCall`) so middleware can inspect message counts and completion reasons without transport coupling. Circuit breaking remains outstanding.
 
 * * *
 

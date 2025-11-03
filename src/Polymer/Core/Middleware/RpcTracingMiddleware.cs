@@ -569,6 +569,8 @@ public sealed class RpcTracingMiddleware :
 
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;
 
+        public StreamCallContext Context => _inner.Context;
+
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _inner.Requests;
 
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _inner.Responses;
@@ -721,6 +723,8 @@ public sealed class RpcTracingMiddleware :
         public RequestMeta RequestMeta => _inner.RequestMeta;
 
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;
+
+        public DuplexStreamCallContext Context => _inner.Context;
 
         public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _inner.RequestWriter;
 

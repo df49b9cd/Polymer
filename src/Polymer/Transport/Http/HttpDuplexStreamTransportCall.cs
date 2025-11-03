@@ -42,6 +42,8 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
 
     public ResponseMeta ResponseMeta => _inner.ResponseMeta;
 
+    public DuplexStreamCallContext Context => _inner.Context;
+
     public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _inner.RequestWriter;
 
     public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _inner.RequestReader;

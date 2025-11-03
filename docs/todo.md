@@ -43,7 +43,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
       - ~~Manage backpressure (await writes, buffer limits).~~
     - Middleware:
       - ~~Ensure global + per-procedure middleware can observe both inbound/outbound flows.~~ *(completed)*
-      - Provide context objects for stream state (message count, completion reason).
+      - ~~Provide context objects for stream state (message count, completion reason).~~ *(completed via `StreamCallContext` / `DuplexStreamCallContext` surfaced on all streaming call contracts with message counters and completion metadata; covered by `HttpStreamCallTests` and updated `DuplexStreamCallTests`.)*
     - Tests:
       - ~~Add gRPC duplex integration coverage mirroring the HTTP echo scenario (currently only `HttpTransportTests.DuplexStreaming_OverHttpWebSocket` exercises this path).~~ *(completed via `GrpcTransportTests.DuplexStreaming_OverGrpcTransport`)
       - ~~Automate gRPC flow-control scenario (server slower than client).~~ *(completed via `GrpcTransportTests.DuplexStreaming_FlowControl_ServerSlow`)
@@ -155,7 +155,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - ~~Rate limiting / circuit breaking:~~ *(completed via `RateLimitingMiddleware` + `RateLimitingOptions` providing concurrency-based controls with `ResourceExhausted` signaling; circuit breaking will layer on peer subsystem.)*
 
 - **Middleware SDK**
-  - Provide context objects exposing metadata, transport info, channel writers (for streaming).
+  - ~~Provide context objects exposing metadata, transport info, channel writers (for streaming).~~ *(completed via `StreamCallContext` / `DuplexStreamCallContext` now returned on `IStreamCall`/`IDuplexStreamCall`; follow-up documentation/examples still required.)*
   - Document best practices, sample custom middleware.
   - Include analyzers or templates for middleware authors.
 

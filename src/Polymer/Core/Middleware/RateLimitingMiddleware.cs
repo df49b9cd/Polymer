@@ -241,6 +241,7 @@ public sealed class RateLimitingMiddleware :
         public StreamDirection Direction => _inner.Direction;
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;
+        public StreamCallContext Context => _inner.Context;
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _inner.Requests;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _inner.Responses;
 
@@ -307,6 +308,7 @@ public sealed class RateLimitingMiddleware :
 
         public RequestMeta RequestMeta => _inner.RequestMeta;
         public ResponseMeta ResponseMeta => _inner.ResponseMeta;
+        public DuplexStreamCallContext Context => _inner.Context;
         public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _inner.RequestWriter;
         public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _inner.RequestReader;
         public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _inner.ResponseWriter;

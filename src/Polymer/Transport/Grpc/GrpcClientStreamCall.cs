@@ -18,6 +18,7 @@ internal sealed class GrpcClientStreamCall : IStreamCall
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
     private readonly CancellationTokenSource _cts;
+    private readonly StreamCallContext _context;
     private readonly KeyValuePair<string, object?>[] _baseTags;
     private readonly long _startTimestamp = Stopwatch.GetTimestamp();
     private long _responseCount;
@@ -33,6 +34,7 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         _call = call;
         ResponseMeta = responseMeta;
         _baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
+        _context = new StreamCallContext(StreamDirection.Server);
 
         _requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
         _requests.Writer.TryComplete();
@@ -77,6 +79,8 @@ internal sealed class GrpcClientStreamCall : IStreamCall
 
     public ResponseMeta ResponseMeta { get; private set; }
 
+    public StreamCallContext Context => _context;
+
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
 
     public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
@@ -85,6 +89,8 @@ internal sealed class GrpcClientStreamCall : IStreamCall
     {
         _cts.Cancel();
         _responses.Writer.TryComplete();
+        var completionStatus = ResolveCompletionStatus(error);
+        _context.TrySetCompletion(completionStatus, error);
         return ValueTask.CompletedTask;
     }
 
@@ -95,6 +101,7 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         _responses.Writer.TryComplete();
         _requests.Writer.TryComplete();
         RecordCompletion(StatusCode.Cancelled);
+        _context.TrySetCompletion(StreamCompletionStatus.Cancelled);
     }
 
     private async Task PumpResponsesAsync(CancellationToken cancellationToken)
@@ -106,12 +113,14 @@ internal sealed class GrpcClientStreamCall : IStreamCall
                 Interlocked.Increment(ref _responseCount);
                 GrpcTransportMetrics.ClientServerStreamResponseMessages.Add(1, _baseTags);
                 await _responses.Writer.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                _context.IncrementMessageCount();
             }
 
             var trailers = _call.GetTrailers();
             ResponseMeta = GrpcMetadataAdapter.CreateResponseMeta(null, trailers, GrpcTransportConstants.TransportName);
             _responses.Writer.TryComplete();
             RecordCompletion(StatusCode.OK);
+            _context.TrySetCompletion(StreamCompletionStatus.Succeeded);
         }
         catch (RpcException rpcEx)
         {
@@ -120,12 +129,35 @@ internal sealed class GrpcClientStreamCall : IStreamCall
             var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
             _responses.Writer.TryComplete(PolymerErrors.FromError(error, GrpcTransportConstants.TransportName));
             RecordCompletion(rpcEx.Status.StatusCode);
+            var completionStatus = status == PolymerStatusCode.Cancelled
+                ? StreamCompletionStatus.Cancelled
+                : StreamCompletionStatus.Faulted;
+            _context.TrySetCompletion(completionStatus, error);
         }
         catch (Exception ex)
         {
             _responses.Writer.TryComplete(ex);
             RecordCompletion(StatusCode.Unknown);
+            _context.TrySetCompletion(StreamCompletionStatus.Faulted, PolymerErrorAdapter.FromStatus(
+                PolymerStatusCode.Internal,
+                ex.Message ?? "An unknown error occurred while reading the response stream.",
+                transport: GrpcTransportConstants.TransportName,
+                inner: Error.FromException(ex)));
         }
+    }
+
+    private static StreamCompletionStatus ResolveCompletionStatus(Error? error)
+    {
+        if (error is null)
+        {
+            return StreamCompletionStatus.Succeeded;
+        }
+
+        return PolymerErrorAdapter.ToStatus(error) switch
+        {
+            PolymerStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
+            _ => StreamCompletionStatus.Faulted
+        };
     }
 
     private void RecordCompletion(StatusCode statusCode)
