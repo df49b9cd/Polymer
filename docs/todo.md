@@ -92,9 +92,9 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 ## 2. Encodings & Code Generation (Phase 8)
 
 - **Raw/Binary Encoding**
-  - Create `RawCodec` (byte[] passthrough) with metadata enforcement.
+  - ~~Create `RawCodec` (byte[] passthrough) with metadata enforcement.~~ *(implemented in `src/Polymer/Core/RawCodec.cs` with strict encoding checks and zero-copy reuse when possible.)*
   - Ensure HTTP/gRPC transports propagate binary content-type headers correctly.
-  - Add tests ensuring raw payloads bypass serialization.
+  - ~~Add tests ensuring raw payloads bypass serialization.~~ *(covered by `tests/Polymer.Tests/Core/RawCodecTests.cs`, validating encode/decode pass-through and metadata enforcement.)*
 
 - **Protobuf Support**
   - Author `protoc-gen-polymer-csharp` plugin:

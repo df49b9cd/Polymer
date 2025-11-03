@@ -241,6 +241,8 @@ Encodings (JSON, Protobuf, Thrift)
 
 * **JSON:**`ICodec<TReq,TRes>` using `System.Text.Json`; pluggable.
 
+* **Raw:** byte array passthrough codec enforcing metadata consistency. Implemented via `src/Polymer/Core/RawCodec.cs` with unit coverage in `tests/Polymer.Tests/Core/RawCodecTests.cs`.
+
 * **Protobuf:** Thin adapters with `Google.Protobuf`; provide `protoc-gen-yarpc-csharp` to generate typed clients/servers over YARPC Core.
 
 * **Thrift (later):** integrate Apache Thrift C# with a small YARPC adapter (optional).
