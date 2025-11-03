@@ -9,6 +9,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.CommandLine;
+using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,8 +19,8 @@ using Microsoft.Extensions.Logging;
 using Polymer.Configuration;
 using Polymer.Core;
 using Polymer.Core.Transport;
-using Polymer.Errors;
 using Polymer.Dispatcher;
+using Polymer.Errors;
 using Polymer.Transport.Grpc;
 using Polymer.Transport.Http;
 
@@ -30,31 +33,11 @@ public static class Program
 
     public static async Task<int> Main(string[] args)
     {
-        if (args.Length == 0)
-        {
-            PrintRootHelp();
-            return 0;
-        }
-
-        var command = args[0];
-        if (IsHelpToken(command))
-        {
-            PrintRootHelp();
-            return 0;
-        }
-
-        var remainder = args.Skip(1).ToArray();
-
         try
         {
-            return command.ToLowerInvariant() switch
-            {
-                "config" => await RunConfigAsync(remainder).ConfigureAwait(false),
-                "introspect" => await RunIntrospectAsync(remainder).ConfigureAwait(false),
-                "request" => await RunRequestAsync(remainder).ConfigureAwait(false),
-                "help" => PrintRootHelpAndReturn(),
-                _ => UnknownCommand(command)
-            };
+            var root = BuildRootCommand();
+            var parseResult = root.Parse(args, new ParserConfiguration());
+            return await parseResult.InvokeAsync(new InvocationConfiguration(), CancellationToken.None).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -63,48 +46,265 @@ public static class Program
         }
     }
 
-    private static async Task<int> RunConfigAsync(string[] args)
+    private static RootCommand BuildRootCommand()
     {
-        if (args.Length == 0 || IsHelpToken(args[0]))
-        {
-            PrintConfigHelp();
-            return 0;
-        }
-
-        var subcommand = args[0].ToLowerInvariant();
-        var tail = args.Skip(1).ToArray();
-
-        switch (subcommand)
-        {
-            case "validate":
-                return await RunConfigValidateAsync(new CommandArguments(tail)).ConfigureAwait(false);
-            case "help":
-                PrintConfigHelp();
-                return 0;
-            default:
-                Console.Error.WriteLine($"Unknown config subcommand '{args[0]}'.");
-                PrintConfigHelp();
-                return 1;
-        }
+        var root = new RootCommand("Polymer CLI providing configuration validation, dispatcher introspection, and ad-hoc request tooling.");
+        root.Add(CreateConfigCommand());
+        root.Add(CreateIntrospectCommand());
+        root.Add(CreateRequestCommand());
+        return root;
     }
 
-    private static async Task<int> RunConfigValidateAsync(CommandArguments arguments)
+    private static Command CreateConfigCommand()
     {
-        if (arguments.HelpRequested)
-        {
-            PrintConfigValidateHelp();
-            return 0;
-        }
+        var command = new Command("config", "Configuration utilities.");
+        command.Add(CreateConfigValidateCommand());
+        return command;
+    }
 
-        var configPaths = arguments.GetOptionValues("config");
-        if (configPaths.Count == 0)
+    private static Command CreateConfigValidateCommand()
+    {
+        var command = new Command("validate", "Validate Polymer dispatcher configuration.");
+
+        var configOption = new Option<string[]>("--config")
+        {
+            Description = "Configuration file(s) to load.",
+            AllowMultipleArgumentsPerToken = true,
+            Arity = new ArgumentArity(1, int.MaxValue),
+            Required = true
+        };
+        configOption.Aliases.Add("-c");
+
+        var sectionOption = new Option<string>("--section")
+        {
+            Description = "Root configuration section name.",
+            DefaultValueFactory = _ => DefaultConfigSection
+        };
+
+        var setOption = new Option<string[]>("--set")
+        {
+            Description = "Override configuration values (KEY=VALUE).",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => Array.Empty<string>()
+        };
+
+        command.Add(configOption);
+        command.Add(sectionOption);
+        command.Add(setOption);
+
+        command.SetAction(parseResult =>
+        {
+            var configs = parseResult.GetValue(configOption) ?? Array.Empty<string>();
+            var section = parseResult.GetValue(sectionOption) ?? DefaultConfigSection;
+            var overrides = parseResult.GetValue(setOption) ?? Array.Empty<string>();
+            return RunConfigValidateAsync(configs, section, overrides).GetAwaiter().GetResult();
+        });
+
+        return command;
+    }
+
+    private static Command CreateIntrospectCommand()
+    {
+        var command = new Command("introspect", "Fetch dispatcher introspection over HTTP.");
+
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Introspection endpoint to query.",
+            DefaultValueFactory = _ => DefaultIntrospectionUrl
+        };
+
+        var formatOption = new Option<string>("--format")
+        {
+            Description = "Output format (text|json).",
+            DefaultValueFactory = _ => "text"
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Request timeout (e.g. 5s, 00:00:05)."
+        };
+
+        command.Add(urlOption);
+        command.Add(formatOption);
+        command.Add(timeoutOption);
+
+        command.SetAction(parseResult =>
+        {
+            var url = parseResult.GetValue(urlOption) ?? DefaultIntrospectionUrl;
+            var format = parseResult.GetValue(formatOption) ?? "text";
+            var timeout = parseResult.GetValue(timeoutOption);
+            return RunIntrospectAsync(url, format, timeout).GetAwaiter().GetResult();
+        });
+
+        return command;
+    }
+
+    private static Command CreateRequestCommand()
+    {
+        var command = new Command("request", "Issue a unary RPC over HTTP or gRPC.");
+
+        var transportOption = new Option<string>("--transport")
+        {
+            Description = "Transport to use (http|grpc).",
+            DefaultValueFactory = _ => "http"
+        };
+
+        var serviceOption = new Option<string>("--service")
+        {
+            Description = "Remote service name.",
+            Required = true
+        };
+
+        var procedureOption = new Option<string>("--procedure")
+        {
+            Description = "Remote procedure name.",
+            Required = true
+        };
+
+        var callerOption = new Option<string?>("--caller")
+        {
+            Description = "Caller identifier."
+        };
+
+        var encodingOption = new Option<string?>("--encoding")
+        {
+            Description = "Payload encoding (e.g. application/json)."
+        };
+
+        var headerOption = new Option<string[]>("--header")
+        {
+            Description = "Header key=value pairs.",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => Array.Empty<string>()
+        };
+
+        var shardKeyOption = new Option<string?>("--shard-key")
+        {
+            Description = "Shard key metadata."
+        };
+
+        var routingKeyOption = new Option<string?>("--routing-key")
+        {
+            Description = "Routing key metadata."
+        };
+
+        var routingDelegateOption = new Option<string?>("--routing-delegate")
+        {
+            Description = "Routing delegate metadata."
+        };
+
+        var ttlOption = new Option<string?>("--ttl")
+        {
+            Description = "Request time-to-live duration."
+        };
+
+        var deadlineOption = new Option<string?>("--deadline")
+        {
+            Description = "Absolute deadline timestamp (ISO-8601)."
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Overall call timeout (e.g. 10s)."
+        };
+
+        var bodyOption = new Option<string?>("--body")
+        {
+            Description = "Inline UTF-8 body."
+        };
+
+        var bodyFileOption = new Option<string?>("--body-file")
+        {
+            Description = "Path to a file to use as payload."
+        };
+
+        var bodyBase64Option = new Option<string?>("--body-base64")
+        {
+            Description = "Base64 encoded payload."
+        };
+
+        var httpUrlOption = new Option<string?>("--url")
+        {
+            Description = "HTTP endpoint to invoke."
+        };
+
+        var addressOption = new Option<string[]>("--address")
+        {
+            Description = "gRPC address(es) to dial.",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => Array.Empty<string>()
+        };
+
+        command.Add(transportOption);
+        command.Add(serviceOption);
+        command.Add(procedureOption);
+        command.Add(callerOption);
+        command.Add(encodingOption);
+        command.Add(headerOption);
+        command.Add(shardKeyOption);
+        command.Add(routingKeyOption);
+        command.Add(routingDelegateOption);
+        command.Add(ttlOption);
+        command.Add(deadlineOption);
+        command.Add(timeoutOption);
+        command.Add(bodyOption);
+        command.Add(bodyFileOption);
+        command.Add(bodyBase64Option);
+        command.Add(httpUrlOption);
+        command.Add(addressOption);
+
+        command.SetAction(parseResult =>
+        {
+            var transport = parseResult.GetValue(transportOption) ?? "http";
+            var service = parseResult.GetValue(serviceOption) ?? string.Empty;
+            var procedure = parseResult.GetValue(procedureOption) ?? string.Empty;
+            var caller = parseResult.GetValue(callerOption);
+            var encoding = parseResult.GetValue(encodingOption);
+            var headers = parseResult.GetValue(headerOption) ?? Array.Empty<string>();
+            var shardKey = parseResult.GetValue(shardKeyOption);
+            var routingKey = parseResult.GetValue(routingKeyOption);
+            var routingDelegate = parseResult.GetValue(routingDelegateOption);
+            var ttl = parseResult.GetValue(ttlOption);
+            var deadline = parseResult.GetValue(deadlineOption);
+            var timeout = parseResult.GetValue(timeoutOption);
+            var body = parseResult.GetValue(bodyOption);
+            var bodyFile = parseResult.GetValue(bodyFileOption);
+            var bodyBase64 = parseResult.GetValue(bodyBase64Option);
+            var httpUrl = parseResult.GetValue(httpUrlOption);
+            var addresses = parseResult.GetValue(addressOption) ?? Array.Empty<string>();
+
+            return RunRequestAsync(
+                    transport,
+                    service,
+                    procedure,
+                    caller,
+                    encoding,
+                    headers,
+                    shardKey,
+                    routingKey,
+                    routingDelegate,
+                    ttl,
+                    deadline,
+                    timeout,
+                    body,
+                    bodyFile,
+                    bodyBase64,
+                    httpUrl,
+                    addresses)
+                .GetAwaiter()
+                .GetResult();
+        });
+
+        return command;
+    }
+
+    private static async Task<int> RunConfigValidateAsync(string[] configPaths, string section, string[] setOverrides)
+    {
+        if (configPaths.Length == 0)
         {
             Console.Error.WriteLine("No configuration files supplied. Use --config <path> (repeat for layering).");
             return 1;
         }
-
-        var section = arguments.GetOptionValue("section") ?? DefaultConfigSection;
-        var setOverrides = arguments.GetOptionValues("set");
 
         var builder = new ConfigurationBuilder();
 
@@ -129,7 +329,7 @@ public static class Program
             }
         }
 
-        if (setOverrides.Count > 0)
+        if (setOverrides.Length > 0)
         {
             var overlay = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in setOverrides)
@@ -166,7 +366,7 @@ public static class Program
 
         try
         {
-            services.AddPolymerDispatcher(configuration.GetSection(section));
+            services.AddPolymerDispatcher(configuration.GetSection(section ?? DefaultConfigSection));
         }
         catch (PolymerConfigurationException ex)
         {
@@ -217,34 +417,15 @@ public static class Program
         }
     }
 
-    private static async Task<int> RunIntrospectAsync(string[] args)
+    private static async Task<int> RunIntrospectAsync(string url, string format, string? timeoutOption)
     {
-        var arguments = new CommandArguments(args);
-        if (arguments.HelpRequested)
-        {
-            PrintIntrospectHelp();
-            return 0;
-        }
+        var normalizedFormat = string.IsNullOrWhiteSpace(format) ? "text" : format.ToLowerInvariant();
+        var timeout = TimeSpan.FromSeconds(10);
 
-        if (arguments.Positionals.Count > 0)
+        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
         {
-            Console.Error.WriteLine($"Unexpected argument '{arguments.Positionals[0]}'.");
-            PrintIntrospectHelp();
+            Console.Error.WriteLine($"Could not parse timeout '{timeoutOption}'. Use standard TimeSpan formats or suffixes like 5s/1m.");
             return 1;
-        }
-
-        var url = arguments.GetOptionValue("url") ?? DefaultIntrospectionUrl;
-        var format = (arguments.GetOptionValue("format") ?? "text").ToLowerInvariant();
-        var timeoutOption = arguments.GetOptionValue("timeout");
-        var requestTimeout = TimeSpan.FromSeconds(10);
-
-        if (timeoutOption is not null)
-        {
-            if (!TryParseDuration(timeoutOption, out requestTimeout))
-            {
-                Console.Error.WriteLine($"Could not parse timeout '{timeoutOption}'. Use standard TimeSpan formats or suffixes like 5s/1m.");
-                return 1;
-            }
         }
 
         using var httpClient = new HttpClient
@@ -252,7 +433,7 @@ public static class Program
             Timeout = Timeout.InfiniteTimeSpan
         };
 
-        using var cts = new CancellationTokenSource(requestTimeout);
+        using var cts = new CancellationTokenSource(timeout);
 
         try
         {
@@ -269,15 +450,15 @@ public static class Program
                 PropertyNameCaseInsensitive = true
             };
             options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-            var snapshot = await JsonSerializer.DeserializeAsync<DispatcherIntrospection>(stream, options, cts.Token).ConfigureAwait(false);
 
+            var snapshot = await JsonSerializer.DeserializeAsync<DispatcherIntrospection>(stream, options, cts.Token).ConfigureAwait(false);
             if (snapshot is null)
             {
                 Console.Error.WriteLine("Introspection response was empty.");
                 return 1;
             }
 
-            if (format is "json" or "raw")
+            if (normalizedFormat is "json" or "raw")
             {
                 var outputOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
                 {
@@ -287,7 +468,7 @@ public static class Program
                 var json = JsonSerializer.Serialize(snapshot, outputOptions);
                 Console.WriteLine(json);
             }
-            else if (format is "text" or "summary")
+            else if (normalizedFormat is "text" or "summary")
             {
                 PrintIntrospectionSummary(snapshot);
             }
@@ -311,50 +492,38 @@ public static class Program
         }
     }
 
-    private static async Task<int> RunRequestAsync(string[] args)
+    private static async Task<int> RunRequestAsync(
+        string transport,
+        string service,
+        string procedure,
+        string? caller,
+        string? encoding,
+        string[] headerValues,
+        string? shardKey,
+        string? routingKey,
+        string? routingDelegate,
+        string? ttlOption,
+        string? deadlineOption,
+        string? timeoutOption,
+        string? body,
+        string? bodyFile,
+        string? bodyBase64,
+        string? httpUrl,
+        string[] addresses)
     {
-        var arguments = new CommandArguments(args);
-        if (arguments.HelpRequested)
-        {
-            PrintRequestHelp();
-            return 0;
-        }
+        transport = string.IsNullOrWhiteSpace(transport) ? "http" : transport.ToLowerInvariant();
+        var headers = headerValues ?? Array.Empty<string>();
 
-        if (arguments.Positionals.Count > 0)
+        if (transport is not ("http" or "grpc"))
         {
-            Console.Error.WriteLine($"Unexpected argument '{arguments.Positionals[0]}'.");
-            PrintRequestHelp();
+            Console.Error.WriteLine($"Unsupported transport '{transport}'. Use 'http' or 'grpc'.");
             return 1;
         }
-
-        var transport = (arguments.GetOptionValue("transport") ?? "http").ToLowerInvariant();
-        var service = arguments.GetOptionValue("service");
-        if (string.IsNullOrWhiteSpace(service))
-        {
-            Console.Error.WriteLine("Missing required --service option.");
-            return 1;
-        }
-
-        var procedure = arguments.GetOptionValue("procedure");
-        if (string.IsNullOrWhiteSpace(procedure))
-        {
-            Console.Error.WriteLine("Missing required --procedure option.");
-            return 1;
-        }
-
-        var caller = arguments.GetOptionValue("caller");
-        var encoding = arguments.GetOptionValue("encoding");
-        var shardKey = arguments.GetOptionValue("shard-key");
-        var routingKey = arguments.GetOptionValue("routing-key");
-        var routingDelegate = arguments.GetOptionValue("routing-delegate");
-        var ttlOption = arguments.GetOptionValue("ttl");
-        var deadlineOption = arguments.GetOptionValue("deadline");
-        var timeoutOption = arguments.GetOptionValue("timeout");
 
         TimeSpan? ttl = null;
-        if (ttlOption is not null)
+        if (!string.IsNullOrWhiteSpace(ttlOption))
         {
-            if (!TryParseDuration(ttlOption, out var parsedTtl))
+            if (!TryParseDuration(ttlOption!, out var parsedTtl))
             {
                 Console.Error.WriteLine($"Could not parse TTL '{ttlOption}'. Use formats like '00:00:05' or suffixes (e.g. 5s, 1m).");
                 return 1;
@@ -364,7 +533,7 @@ public static class Program
         }
 
         DateTimeOffset? deadline = null;
-        if (deadlineOption is not null)
+        if (!string.IsNullOrWhiteSpace(deadlineOption))
         {
             if (!DateTimeOffset.TryParse(deadlineOption, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedDeadline))
             {
@@ -376,9 +545,9 @@ public static class Program
         }
 
         TimeSpan? timeout = null;
-        if (timeoutOption is not null)
+        if (!string.IsNullOrWhiteSpace(timeoutOption))
         {
-            if (!TryParseDuration(timeoutOption, out var parsedTimeout))
+            if (!TryParseDuration(timeoutOption!, out var parsedTimeout))
             {
                 Console.Error.WriteLine($"Could not parse timeout '{timeoutOption}'.");
                 return 1;
@@ -387,12 +556,12 @@ public static class Program
             timeout = parsedTimeout;
         }
 
-        if (!TryParseHeaders(arguments.GetOptionValues("header"), out var headers))
+        if (!TryParseHeaders(headers, out var headerPairs))
         {
             return 1;
         }
 
-        if (!TryResolvePayload(arguments, out var payload, out var payloadError))
+        if (!TryResolvePayload(body, bodyFile, bodyBase64, out var payload, out var payloadError))
         {
             Console.Error.WriteLine(payloadError ?? "Failed to resolve payload.");
             return 1;
@@ -409,28 +578,23 @@ public static class Program
             routingDelegate: routingDelegate,
             timeToLive: ttl,
             deadline: deadline,
-            headers: headers);
+            headers: headerPairs);
 
         var request = new Request<ReadOnlyMemory<byte>>(meta, payload);
         using var cts = timeout.HasValue && timeout.Value > TimeSpan.Zero
             ? new CancellationTokenSource(timeout.Value)
             : new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-        switch (transport)
+        return transport switch
         {
-            case "http":
-                return await ExecuteHttpRequestAsync(arguments, request, cts.Token).ConfigureAwait(false);
-            case "grpc":
-                return await ExecuteGrpcRequestAsync(arguments, request, service, cts.Token).ConfigureAwait(false);
-            default:
-                Console.Error.WriteLine($"Unsupported transport '{transport}'. Use 'http' or 'grpc'.");
-                return 1;
-        }
+            "http" => await ExecuteHttpRequestAsync(httpUrl, request, cts.Token).ConfigureAwait(false),
+            "grpc" => await ExecuteGrpcRequestAsync(addresses ?? Array.Empty<string>(), service, request, cts.Token).ConfigureAwait(false),
+            _ => 1
+        };
     }
 
-    private static async Task<int> ExecuteHttpRequestAsync(CommandArguments arguments, Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken)
+    private static async Task<int> ExecuteHttpRequestAsync(string? url, Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken)
     {
-        var url = arguments.GetOptionValue("url");
         if (string.IsNullOrWhiteSpace(url))
         {
             Console.Error.WriteLine("HTTP transport requires --url specifying the request endpoint.");
@@ -472,17 +636,16 @@ public static class Program
         }
     }
 
-    private static async Task<int> ExecuteGrpcRequestAsync(CommandArguments arguments, Request<ReadOnlyMemory<byte>> request, string remoteService, CancellationToken cancellationToken)
+    private static async Task<int> ExecuteGrpcRequestAsync(string[] addresses, string remoteService, Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken)
     {
-        var addressValues = arguments.GetOptionValues("address");
-        if (addressValues.Count == 0)
+        if (addresses.Length == 0)
         {
             Console.Error.WriteLine("gRPC transport requires at least one --address option (e.g. --address http://127.0.0.1:9090).");
             return 1;
         }
 
-        var uris = new List<Uri>(addressValues.Count);
-        foreach (var address in addressValues)
+        var uris = new List<Uri>(addresses.Length);
+        foreach (var address in addresses)
         {
             if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
             {
@@ -652,7 +815,7 @@ public static class Program
         Console.WriteLine($"  {label}: inbound[{inbound.Count}] outbound[{outbound.Count}]");
     }
 
-    private static bool TryParseHeaders(IReadOnlyList<string> values, out List<KeyValuePair<string, string>> headers)
+    private static bool TryParseHeaders(IEnumerable<string> values, out List<KeyValuePair<string, string>> headers)
     {
         headers = new List<KeyValuePair<string, string>>();
         foreach (var value in values)
@@ -670,34 +833,30 @@ public static class Program
         return true;
     }
 
-    private static bool TryResolvePayload(CommandArguments arguments, out ReadOnlyMemory<byte> payload, out string? error)
+    private static bool TryResolvePayload(string? body, string? bodyFile, string? bodyBase64, out ReadOnlyMemory<byte> payload, out string? error)
     {
         payload = ReadOnlyMemory<byte>.Empty;
         error = null;
 
-        var bodyValues = arguments.GetOptionValues("body");
-        var bodyFileValues = arguments.GetOptionValues("body-file");
-        var bodyBase64Values = arguments.GetOptionValues("body-base64");
-
         var sources = new[]
         {
-            (Name: "--body", Count: bodyValues.Count),
-            (Name: "--body-file", Count: bodyFileValues.Count),
-            (Name: "--body-base64", Count: bodyBase64Values.Count)
+            (Name: "--body", HasValue: !string.IsNullOrEmpty(body)),
+            (Name: "--body-file", HasValue: !string.IsNullOrEmpty(bodyFile)),
+            (Name: "--body-base64", HasValue: !string.IsNullOrEmpty(bodyBase64))
         };
 
-        var activeSources = sources.Where(static s => s.Count > 0).ToList();
-        if (activeSources.Count > 1)
+        var active = sources.Count(static s => s.HasValue);
+        if (active > 1)
         {
             error = "Specify only one of --body, --body-file, or --body-base64.";
             return false;
         }
 
-        if (bodyBase64Values.Count > 0)
+        if (!string.IsNullOrEmpty(bodyBase64))
         {
             try
             {
-                payload = Convert.FromBase64String(bodyBase64Values[^1]);
+                payload = Convert.FromBase64String(bodyBase64);
                 return true;
             }
             catch (FormatException ex)
@@ -707,22 +866,21 @@ public static class Program
             }
         }
 
-        if (bodyFileValues.Count > 0)
+        if (!string.IsNullOrEmpty(bodyFile))
         {
-            var path = bodyFileValues[^1];
-            if (!File.Exists(path))
+            if (!File.Exists(bodyFile))
             {
-                error = $"Payload file '{path}' does not exist.";
+                error = $"Payload file '{bodyFile}' does not exist.";
                 return false;
             }
 
-            payload = File.ReadAllBytes(path);
+            payload = File.ReadAllBytes(bodyFile);
             return true;
         }
 
-        if (bodyValues.Count > 0)
+        if (!string.IsNullOrEmpty(body))
         {
-            payload = Encoding.UTF8.GetBytes(bodyValues[^1]);
+            payload = Encoding.UTF8.GetBytes(body);
             return true;
         }
 
@@ -751,8 +909,8 @@ public static class Program
             return true;
         }
 
-        value = value.Trim();
-        if (value.Length < 2)
+        var trimmed = value.Trim();
+        if (trimmed.Length < 2)
         {
             duration = TimeSpan.Zero;
             return false;
@@ -768,9 +926,9 @@ public static class Program
 
         foreach (var (suffix, factory) in suffixes)
         {
-            if (value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
-                var numberPart = value[..^suffix.Length];
+                var numberPart = trimmed[..^suffix.Length];
                 if (double.TryParse(numberPart, NumberStyles.Float, CultureInfo.InvariantCulture, out var scalar))
                 {
                     duration = factory(scalar);
@@ -799,186 +957,5 @@ public static class Program
         key = source[..separatorIndex];
         value = source[(separatorIndex + 1)..];
         return true;
-    }
-
-    private static bool IsHelpToken(string value) =>
-        string.Equals(value, "-h", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(value, "--help", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(value, "help", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(value, "-?", StringComparison.OrdinalIgnoreCase);
-
-    private static int PrintRootHelpAndReturn()
-    {
-        PrintRootHelp();
-        return 0;
-    }
-
-    private static int UnknownCommand(string command)
-    {
-        Console.Error.WriteLine($"Unknown command '{command}'.");
-        PrintRootHelp();
-        return 1;
-    }
-
-    private static void PrintRootHelp()
-    {
-        Console.WriteLine("Polymer CLI");
-        Console.WriteLine();
-        Console.WriteLine("Usage: polymer <command> [options]");
-        Console.WriteLine();
-        Console.WriteLine("Commands:");
-        Console.WriteLine("  config validate   Validate a Polymer configuration file");
-        Console.WriteLine("  introspect        Fetch dispatcher introspection over HTTP");
-        Console.WriteLine("  request           Issue an RPC request over HTTP or gRPC");
-        Console.WriteLine();
-        Console.WriteLine("Run 'polymer <command> --help' for command-specific options.");
-    }
-
-    private static void PrintConfigHelp()
-    {
-        Console.WriteLine("Polymer CLI - config");
-        Console.WriteLine("Usage: polymer config validate [options]");
-        Console.WriteLine();
-        PrintConfigValidateHelp();
-    }
-
-    private static void PrintConfigValidateHelp()
-    {
-        Console.WriteLine("Options:");
-        Console.WriteLine("  --config <path>      Configuration file to load (repeat for layering)");
-        Console.WriteLine("  --set key=value      Override keys in-memory (repeatable)");
-        Console.WriteLine("  --section <name>     Root configuration section (default 'polymer')");
-        Console.WriteLine();
-        Console.WriteLine("Example:");
-        Console.WriteLine("  polymer config validate --config appsettings.json --config appsettings.Development.json \\");
-        Console.WriteLine("       --set polymer:outbounds:ledger:unary:http:0:url=http://127.0.0.1:8081");
-    }
-
-    private static void PrintIntrospectHelp()
-    {
-        Console.WriteLine("Polymer CLI - introspect");
-        Console.WriteLine("Usage: polymer introspect [options]");
-        Console.WriteLine();
-        Console.WriteLine("Options:");
-        Console.WriteLine("  --url <url>          Introspection endpoint (default http://127.0.0.1:8080/polymer/introspect)");
-        Console.WriteLine("  --format <format>    Output format: text|json (default text)");
-        Console.WriteLine("  --timeout <duration> Request timeout (e.g. 5s, 00:00:05)");
-    }
-
-    private static void PrintRequestHelp()
-    {
-        Console.WriteLine("Polymer CLI - request");
-        Console.WriteLine("Usage: polymer request [options]");
-        Console.WriteLine();
-        Console.WriteLine("Required:");
-        Console.WriteLine("  --service <name>     Remote service name");
-        Console.WriteLine("  --procedure <name>   Procedure or method name");
-        Console.WriteLine();
-        Console.WriteLine("Transport options:");
-        Console.WriteLine("  --transport <kind>   http|grpc (default http)");
-        Console.WriteLine("  --url <url>          HTTP endpoint (required for http)");
-        Console.WriteLine("  --address <url>      gRPC address (repeatable, required for grpc)");
-        Console.WriteLine();
-        Console.WriteLine("Payload options:");
-        Console.WriteLine("  --body <text>        Inline UTF-8 body");
-        Console.WriteLine("  --body-file <path>   Read payload bytes from file");
-        Console.WriteLine("  --body-base64 <data> Base64 encoded payload");
-        Console.WriteLine();
-        Console.WriteLine("Metadata:");
-        Console.WriteLine("  --encoding <name>    Payload encoding (e.g. application/json)");
-        Console.WriteLine("  --caller <name>      Caller identifier");
-        Console.WriteLine("  --header k=v         Attach header (repeatable)");
-        Console.WriteLine("  --ttl <duration>     Request time-to-live (e.g. 5s)");
-        Console.WriteLine("  --deadline <ts>      Absolute deadline (ISO-8601)");
-        Console.WriteLine("  --timeout <duration> Overall call timeout (default 30s)");
-    }
-
-    private sealed class CommandArguments
-    {
-        private readonly Dictionary<string, List<string>> _options = new(StringComparer.OrdinalIgnoreCase);
-        private readonly List<string> _positionals = new();
-
-        public CommandArguments(IEnumerable<string> args)
-        {
-            var array = args as string[] ?? args.ToArray();
-            for (var index = 0; index < array.Length; index++)
-            {
-                var token = array[index];
-
-                if (IsHelpToken(token))
-                {
-                    HelpRequested = true;
-                    continue;
-                }
-
-                if (token.StartsWith("--", StringComparison.Ordinal))
-                {
-                    var equals = token.IndexOf('=');
-                    if (equals > 2)
-                    {
-                        var name = token[2..equals];
-                        var value = token[(equals + 1)..];
-                        AddOption(name, value);
-                    }
-                    else
-                    {
-                        var name = token[2..];
-                        if (index + 1 < array.Length && !array[index + 1].StartsWith("-", StringComparison.Ordinal))
-                        {
-                            AddOption(name, array[++index]);
-                        }
-                        else
-                        {
-                            AddOption(name, "true");
-                        }
-                    }
-
-                    continue;
-                }
-
-                if (token.StartsWith("-", StringComparison.Ordinal) && token.Length > 1)
-                {
-                    if (string.Equals(token, "-h", StringComparison.OrdinalIgnoreCase) || string.Equals(token, "-?", StringComparison.OrdinalIgnoreCase))
-                    {
-                        HelpRequested = true;
-                        continue;
-                    }
-
-                    _positionals.Add(token);
-                    continue;
-                }
-
-                _positionals.Add(token);
-            }
-        }
-
-        public bool HelpRequested { get; }
-
-        public IReadOnlyList<string> Positionals => _positionals;
-
-        public IReadOnlyList<string> GetOptionValues(string name) =>
-            _options.TryGetValue(name, out var values) ? values : Array.Empty<string>();
-
-        public string? GetOptionValue(string name)
-        {
-            var values = GetOptionValues(name);
-            return values.Count switch
-            {
-                0 => null,
-                1 when values[0].Length == 0 => null,
-                _ => values[^1]
-            };
-        }
-
-        private void AddOption(string name, string value)
-        {
-            if (!_options.TryGetValue(name, out var list))
-            {
-                list = new List<string>();
-                _options[name] = list;
-            }
-
-            list.Add(value);
-        }
     }
 }
