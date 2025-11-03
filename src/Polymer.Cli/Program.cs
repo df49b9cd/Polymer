@@ -138,9 +138,9 @@ public static class Program
         {
             Description = "Configuration file(s) to load.",
             AllowMultipleArgumentsPerToken = true,
-            Required = true
+            Required = true,
+            Arity = ArgumentArity.OneOrMore
         };
-        configOption.Arity = ArgumentArity.OneOrMore;
         configOption.Aliases.Add("-c");
 
         var sectionOption = new Option<string>("--section")
@@ -153,7 +153,7 @@ public static class Program
         {
             Description = "Override configuration values (KEY=VALUE).",
             AllowMultipleArgumentsPerToken = true,
-            DefaultValueFactory = _ => Array.Empty<string>()
+            DefaultValueFactory = _ => []
         };
 
         command.Add(configOption);
@@ -162,9 +162,9 @@ public static class Program
 
         command.SetAction(parseResult =>
         {
-            var configs = parseResult.GetValue(configOption) ?? Array.Empty<string>();
+            var configs = parseResult.GetValue(configOption) ?? [];
             var section = parseResult.GetValue(sectionOption) ?? DefaultConfigSection;
-            var overrides = parseResult.GetValue(setOption) ?? Array.Empty<string>();
+            var overrides = parseResult.GetValue(setOption) ?? [];
             return RunConfigValidateAsync(configs, section, overrides).GetAwaiter().GetResult();
         });
 
@@ -243,14 +243,14 @@ public static class Program
         {
             Description = "Header key=value pairs.",
             AllowMultipleArgumentsPerToken = true,
-            DefaultValueFactory = _ => Array.Empty<string>()
+            DefaultValueFactory = _ => []
         };
 
         var profileOption = new Option<string[]>("--profile")
         {
             Description = "Apply request presets (e.g. json:default, protobuf:package.Message).",
             AllowMultipleArgumentsPerToken = true,
-            DefaultValueFactory = _ => Array.Empty<string>()
+            DefaultValueFactory = _ => []
         };
 
         var shardKeyOption = new Option<string?>("--shard-key")
@@ -272,7 +272,7 @@ public static class Program
         {
             Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding.",
             AllowMultipleArgumentsPerToken = true,
-            DefaultValueFactory = _ => Array.Empty<string>()
+            DefaultValueFactory = _ => []
         };
 
         var protoMessageOption = new Option<string?>("--proto-message")
@@ -319,7 +319,7 @@ public static class Program
         {
             Description = "gRPC address(es) to dial.",
             AllowMultipleArgumentsPerToken = true,
-            DefaultValueFactory = _ => Array.Empty<string>()
+            DefaultValueFactory = _ => []
         };
 
         command.Add(transportOption);
@@ -350,12 +350,12 @@ public static class Program
             var procedure = parseResult.GetValue(procedureOption) ?? string.Empty;
             var caller = parseResult.GetValue(callerOption);
             var encoding = parseResult.GetValue(encodingOption);
-            var headers = parseResult.GetValue(headerOption) ?? Array.Empty<string>();
-            var profiles = parseResult.GetValue(profileOption) ?? Array.Empty<string>();
+            var headers = parseResult.GetValue(headerOption) ?? [];
+            var profiles = parseResult.GetValue(profileOption) ?? [];
             var shardKey = parseResult.GetValue(shardKeyOption);
             var routingKey = parseResult.GetValue(routingKeyOption);
             var routingDelegate = parseResult.GetValue(routingDelegateOption);
-            var protoFiles = parseResult.GetValue(protoFileOption) ?? Array.Empty<string>();
+            var protoFiles = parseResult.GetValue(protoFileOption) ?? [];
             var protoMessage = parseResult.GetValue(protoMessageOption);
             var ttl = parseResult.GetValue(ttlOption);
             var deadline = parseResult.GetValue(deadlineOption);
@@ -364,7 +364,7 @@ public static class Program
             var bodyFile = parseResult.GetValue(bodyFileOption);
             var bodyBase64 = parseResult.GetValue(bodyBase64Option);
             var httpUrl = parseResult.GetValue(httpUrlOption);
-            var addresses = parseResult.GetValue(addressOption) ?? Array.Empty<string>();
+            var addresses = parseResult.GetValue(addressOption) ?? [];
 
             return RunRequestAsync(
                     transport,
@@ -611,9 +611,9 @@ public static class Program
         string[] addresses)
     {
         transport = string.IsNullOrWhiteSpace(transport) ? "http" : transport.ToLowerInvariant();
-        var headers = headerValues ?? Array.Empty<string>();
-        var profiles = profileValues ?? Array.Empty<string>();
-        var protoDescriptorFiles = protoFiles ?? Array.Empty<string>();
+        var headers = headerValues ?? [];
+        var profiles = profileValues ?? [];
+        var protoDescriptorFiles = protoFiles ?? [];
 
         if (transport is not ("http" or "grpc"))
         {
@@ -715,7 +715,7 @@ public static class Program
         return transport switch
         {
             "http" => await ExecuteHttpRequestAsync(httpUrl, request, cts.Token).ConfigureAwait(false),
-            "grpc" => await ExecuteGrpcRequestAsync(addresses ?? Array.Empty<string>(), service, request, cts.Token).ConfigureAwait(false),
+            "grpc" => await ExecuteGrpcRequestAsync(addresses ?? [], service, request, cts.Token).ConfigureAwait(false),
             _ => 1
         };
     }
@@ -872,9 +872,9 @@ public static class Program
                         continue;
                     }
 
-                    var headerPairs = step.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? Array.Empty<string>();
-                    var profiles = step.Profiles ?? Array.Empty<string>();
-                    var addresses = step.Addresses ?? Array.Empty<string>();
+                    var headerPairs = step.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
+                    var profiles = step.Profiles ?? [];
+                    var addresses = step.Addresses ?? [];
                     if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(step.Address))
                     {
                         addresses = new[] { step.Address! };
@@ -902,7 +902,7 @@ public static class Program
                         step.ShardKey,
                         step.RoutingKey,
                         step.RoutingDelegate,
-                        step.ProtoFiles ?? Array.Empty<string>(),
+                        step.ProtoFiles ?? [],
                         step.ProtoMessage,
                         step.Ttl,
                         step.Deadline,
@@ -1006,7 +1006,7 @@ public static class Program
 
     private sealed record AutomationScript
     {
-        public AutomationStep[] Steps { get; init; } = Array.Empty<AutomationStep>();
+        public AutomationStep[] Steps { get; init; } = [];
     }
 
     private sealed record AutomationStep
@@ -1678,7 +1678,7 @@ public static class Program
 
     private static bool TrySerializeMapEntry(FieldDescriptor mapField, string keyText, JsonElement valueElement, out byte[] payload, out string? error)
     {
-        payload = Array.Empty<byte>();
+        payload = [];
         error = null;
 
         var entryDescriptor = mapField.MessageType;
@@ -1869,7 +1869,7 @@ public static class Program
         var text = element.GetString();
         if (string.IsNullOrEmpty(text))
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         try

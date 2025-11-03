@@ -226,14 +226,14 @@ public class GrpcTransportTests
         var invoker = channel.CreateCallInvoker();
         var method = new Method<byte[], byte[]>(MethodType.Unary, "lifecycle", "test::slow", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
 
-        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
         await requestStarted.Task.WaitAsync(ct);
 
         var stopTask = dispatcher.StopAsync(ct);
 
         await Task.Delay(100, ct);
 
-        var rejectedCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+        var rejectedCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
         var rejection = await Assert.ThrowsAsync<RpcException>(() => rejectedCall.ResponseAsync);
         Assert.Equal(StatusCode.Unavailable, rejection.StatusCode);
         Assert.Equal("1", rejection.Trailers.GetValue("retry-after"));
@@ -279,7 +279,7 @@ public class GrpcTransportTests
         var invoker = channel.CreateCallInvoker();
         var method = new Method<byte[], byte[]>(MethodType.Unary, "lifecycle", "test::slow", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
 
-        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
         await requestStarted.Task.WaitAsync(ct);
 
         using var stopCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
@@ -328,7 +328,7 @@ public class GrpcTransportTests
 
         var method = new Method<byte[], byte[]>(MethodType.Unary, "health", "slow", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
         var invoker = channel.CreateCallInvoker();
-        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
 
         await requestStarted.Task.WaitAsync(ct);
 

@@ -174,7 +174,7 @@ public class HttpInboundLifecycleTests
         var request = new HttpRequestMessage(HttpMethod.Post, "/");
         request.Headers.Add(HttpTransportHeaders.Procedure, procedure);
         request.Headers.Add(HttpTransportHeaders.Transport, "http");
-        request.Content = new ByteArrayContent(Array.Empty<byte>());
+        request.Content = new ByteArrayContent([]);
         return request;
     }
 }

@@ -46,7 +46,7 @@ public sealed class HttpOutboundMiddlewareBuilder
         }
 
         var global = _global.Count == 0
-            ? ImmutableArray<IHttpClientMiddleware>.Empty
+            ? []
             : ImmutableArray.CreateRange(_global);
 
         var serviceEntries = ImmutableDictionary.CreateBuilder<string, HttpOutboundMiddlewareRegistry.ServiceEntry>(StringComparer.OrdinalIgnoreCase);
@@ -99,21 +99,21 @@ public sealed class HttpOutboundMiddlewareBuilder
         public HttpOutboundMiddlewareRegistry.ServiceEntry Build(ImmutableArray<IHttpClientMiddleware> global)
         {
             var service = _serviceMiddleware.Count == 0
-                ? ImmutableArray<IHttpClientMiddleware>.Empty
+                ? []
                 : ImmutableArray.CreateRange(_serviceMiddleware);
 
             var basePipeline = Combine(global, service);
 
             if (_procedures.Count == 0)
             {
-                return new HttpOutboundMiddlewareRegistry.ServiceEntry(basePipeline, ImmutableDictionary<string, ImmutableArray<IHttpClientMiddleware>>.Empty);
+                return new HttpOutboundMiddlewareRegistry.ServiceEntry(basePipeline, []);
             }
 
             var procedures = ImmutableDictionary.CreateBuilder<string, ImmutableArray<IHttpClientMiddleware>>(StringComparer.OrdinalIgnoreCase);
             foreach (var (name, middleware) in _procedures)
             {
                 var procedureMiddleware = middleware.Count == 0
-                    ? ImmutableArray<IHttpClientMiddleware>.Empty
+                    ? []
                     : ImmutableArray.CreateRange(middleware);
 
                 procedures[name] = Combine(basePipeline, procedureMiddleware);

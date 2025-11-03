@@ -31,7 +31,7 @@ public class GrpcInterceptorPipelineTests
         var marshaller = Marshallers.Create<byte[]>(static payload => payload, static data => data);
         var method = new Method<byte[], byte[]>(MethodType.Unary, "backend", "Echo", marshaller, marshaller);
 
-        var call = interceptedInvoker.AsyncUnaryCall(method, host: null, options: new CallOptions(), request: Array.Empty<byte>());
+        var call = interceptedInvoker.AsyncUnaryCall(method, host: null, options: new CallOptions(), request: []);
         var response = await call.ResponseAsync;
 
         Assert.Empty(response);

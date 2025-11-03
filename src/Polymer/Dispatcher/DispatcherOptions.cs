@@ -186,7 +186,7 @@ public sealed class DispatcherOptions
         ArgumentNullException.ThrowIfNull(codec);
 
         var aliasSnapshot = aliases is null
-            ? ImmutableArray<string>.Empty
+            ? []
             : ImmutableArray.CreateRange(aliases);
 
         ValidateAliasSnapshot(aliasSnapshot);

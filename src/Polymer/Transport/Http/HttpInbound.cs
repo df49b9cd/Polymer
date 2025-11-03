@@ -251,7 +251,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         {
             status = healthy ? "ok" : "unavailable",
             mode = readiness ? "ready" : "live",
-            issues = issues.Count == 0 ? Array.Empty<string>() : issues.ToArray(),
+            issues = issues.Count == 0 ? [] : issues.ToArray(),
             activeRequests = Math.Max(Volatile.Read(ref _activeRequests), 0),
             draining = _isDraining
         };

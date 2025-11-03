@@ -95,14 +95,14 @@ public sealed class GrpcTransportInterceptorBuilder
         var global = ImmutableArray.CreateRange(_globalServer);
         if (_serverProcedures.Count == 0)
         {
-            return new GrpcServerInterceptorRegistry(global, ImmutableDictionary<string, ImmutableArray<Interceptor>>.Empty);
+            return new GrpcServerInterceptorRegistry(global, []);
         }
 
         var procedures = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Interceptor>>(StringComparer.OrdinalIgnoreCase);
         foreach (var (procedure, list) in _serverProcedures)
         {
             var pipeline = list.Count == 0
-                ? ImmutableArray<Interceptor>.Empty
+                ? []
                 : ImmutableArray.CreateRange(list);
 
             procedures[procedure] = Combine(global, pipeline);
@@ -171,21 +171,21 @@ public sealed class GrpcTransportInterceptorBuilder
         public GrpcClientInterceptorRegistry.ServiceEntry Build(ImmutableArray<Interceptor> global)
         {
             var service = _serviceInterceptors.Count == 0
-                ? ImmutableArray<Interceptor>.Empty
+                ? []
                 : ImmutableArray.CreateRange(_serviceInterceptors);
 
             var basePipeline = Combine(global, service);
 
             if (_procedures.Count == 0)
             {
-                return new GrpcClientInterceptorRegistry.ServiceEntry(basePipeline, ImmutableDictionary<string, ImmutableArray<Interceptor>>.Empty);
+                return new GrpcClientInterceptorRegistry.ServiceEntry(basePipeline, []);
             }
 
             var procedures = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Interceptor>>(StringComparer.OrdinalIgnoreCase);
             foreach (var (procedure, list) in _procedures)
             {
                 var procedureInterceptors = list.Count == 0
-                    ? ImmutableArray<Interceptor>.Empty
+                    ? []
                     : ImmutableArray.CreateRange(list);
 
                 procedures[procedure] = Combine(basePipeline, procedureInterceptors);
