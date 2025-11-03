@@ -187,7 +187,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 - **Error Helpers**
   - ~~Add helper APIs: `PolymerErrors.IsStatus`, `GetFaultType`, `GetRetryable`.~~ *(Expanded helpers include `PolymerErrors.IsRetryable(...)` and metadata-aware fault classification.)*
-  - Provide ASP.NET + gRPC exception adapters (filters/interceptors).
+  - ~~Provide ASP.NET + gRPC exception adapters (filters/interceptors).~~ *(Implemented `PolymerExceptionFilter` for ASP.NET Core and `GrpcExceptionAdapterInterceptor` for gRPC servers, ensuring thrown exceptions surface Polymer metadata uniformly.)*
   - Document canonical error handling patterns.
 
 ## 7. Configuration System (Phase 7)

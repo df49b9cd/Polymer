@@ -292,7 +292,7 @@ Error Model
 
 * **Hugo alignment:** adapt YARPC status enums into Hugo `Error.Code` metadata so existing Hugo-aware tooling (result pipelines, diagnostics) understands transport failures.
 
-**Status:** HTTP and gRPC transports now share canonical mappings (`HttpStatusMapper`, `GrpcStatusMapper` tests), while `PolymerErrorAdapter` stamps `polymer.faultType`/`polymer.retryable` metadata consumed by the expanded `PolymerErrors.IsRetryable` helper.
+**Status:** HTTP and gRPC transports now share canonical mappings (`HttpStatusMapper`, `GrpcStatusMapper` tests), while `PolymerErrorAdapter` stamps `polymer.faultType`/`polymer.retryable` metadata consumed by the expanded `PolymerErrors.IsRetryable` helper. ASP.NET controllers can opt into `PolymerExceptionFilter` and gRPC services can register `GrpcExceptionAdapterInterceptor` to translate thrown exceptions into Polymer-aware responses automatically.
 
 * * *
 
