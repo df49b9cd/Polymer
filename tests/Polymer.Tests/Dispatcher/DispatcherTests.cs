@@ -81,7 +81,7 @@ public class DispatcherTests
                 var response = Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty);
                 return ValueTask.FromResult(Ok(response));
             },
-            aliases: new[] { "v1::user::get", "users::get" });
+            aliases: new[] { "v1::user::*", "users::get" });
 
         dispatcher.Register(spec);
 
@@ -96,8 +96,16 @@ public class DispatcherTests
 
         var snapshot = dispatcher.Introspect();
         var descriptor = Assert.Single(snapshot.Procedures.Unary);
-        Assert.Contains("v1::user::get", descriptor.Aliases);
+        Assert.Contains("v1::user::*", descriptor.Aliases);
         Assert.Contains("users::get", descriptor.Aliases);
+
+        var aliasMeta = new RequestMeta(service: "keyvalue", procedure: "users::get", transport: "test");
+        var aliasRequest = new Request<ReadOnlyMemory<byte>>(aliasMeta, ReadOnlyMemory<byte>.Empty);
+
+        var aliasResult = await dispatcher.InvokeUnaryAsync("users::get", aliasRequest, ct);
+
+        Assert.True(aliasResult.IsSuccess);
+        Assert.Equal(2, callCount);
     }
 
     [Fact]
