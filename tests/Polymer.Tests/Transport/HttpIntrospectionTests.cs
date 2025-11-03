@@ -54,10 +54,14 @@ public sealed class HttpIntrospectionTests
             Assert.Equal("inspect", root.GetProperty("service").GetString());
             Assert.Equal("Running", root.GetProperty("status").GetString());
 
-            var procedures = root.GetProperty("procedures").EnumerateArray().ToArray();
-            var procedure = Assert.Single(procedures, element => element.GetProperty("name").GetString() == "procedures::ping");
-            Assert.Equal("Unary", procedure.GetProperty("kind").GetString());
+            var procedures = root.GetProperty("procedures");
+            var unaryProcedures = procedures.GetProperty("unary").EnumerateArray().ToArray();
+            var procedure = Assert.Single(unaryProcedures, element => element.GetProperty("name").GetString() == "procedures::ping");
             Assert.Equal("application/json", procedure.GetProperty("encoding").GetString());
+            Assert.Equal(0, procedures.GetProperty("oneway").GetArrayLength());
+            Assert.Equal(0, procedures.GetProperty("stream").GetArrayLength());
+            Assert.Equal(0, procedures.GetProperty("clientStream").GetArrayLength());
+            Assert.Equal(0, procedures.GetProperty("duplex").GetArrayLength());
 
             var components = root.GetProperty("components").EnumerateArray().ToArray();
             Assert.Contains(components, component =>

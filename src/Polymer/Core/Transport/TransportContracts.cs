@@ -120,3 +120,8 @@ public interface IDuplexInbound
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default);
 }
+
+public interface IOutboundDiagnostic
+{
+    object? GetOutboundDiagnostics();
+}

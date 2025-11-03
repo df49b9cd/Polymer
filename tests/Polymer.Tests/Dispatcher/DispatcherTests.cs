@@ -169,8 +169,8 @@ public class DispatcherTests
 
         var beforeStart = dispatcher.Introspect();
         Assert.Equal(DispatcherStatus.Created, beforeStart.Status);
-        Assert.Single(beforeStart.Procedures);
-        Assert.Equal("get", beforeStart.Procedures[0].Name);
+        Assert.Single(beforeStart.Procedures.Unary);
+        Assert.Equal("get", beforeStart.Procedures.Unary[0].Name);
         Assert.Empty(beforeStart.Middleware.InboundClientStream);
         Assert.Empty(beforeStart.Middleware.OutboundClientStream);
         Assert.Empty(beforeStart.Middleware.InboundDuplex);

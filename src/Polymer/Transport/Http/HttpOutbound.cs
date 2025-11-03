@@ -16,7 +16,7 @@ using static Hugo.Go;
 
 namespace Polymer.Transport.Http;
 
-public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool disposeClient = false) : IUnaryOutbound, IOnewayOutbound
+public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool disposeClient = false) : IUnaryOutbound, IOnewayOutbound, IOutboundDiagnostic
 {
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
     private readonly Uri _requestUri = requestUri ?? throw new ArgumentNullException(nameof(requestUri));
@@ -203,4 +203,9 @@ public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool dis
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken) =>
         await CallOnewayAsync(request, cancellationToken).ConfigureAwait(false);
+
+    public object? GetOutboundDiagnostics() =>
+        new HttpOutboundSnapshot(_requestUri, _disposeClient);
 }
+
+public sealed record HttpOutboundSnapshot(Uri RequestUri, bool DisposesClient);

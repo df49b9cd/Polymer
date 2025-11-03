@@ -20,7 +20,7 @@ using static Hugo.Go;
 
 namespace Polymer.Transport.Grpc;
 
-public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound
+public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound, IOutboundDiagnostic
 {
     private readonly IReadOnlyList<Uri> _addresses;
     private readonly string _remoteService;
@@ -442,6 +442,21 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
+    public object? GetOutboundDiagnostics()
+    {
+        var algorithms = _compressionAlgorithms is { Count: > 0 }
+            ? _compressionAlgorithms.ToArray()
+            : Array.Empty<string>();
+
+        return new GrpcOutboundSnapshot(
+            _remoteService,
+            _addresses.ToArray(),
+            _peerChooser.GetType().FullName ?? _peerChooser.GetType().Name,
+            _started,
+            _callInvokers.Count,
+            algorithms);
+    }
+
     private Method<byte[], byte[]> CreateUnaryMethod(string procedure) =>
         new(
             MethodType.Unary,
@@ -643,3 +658,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         throw new InvalidOperationException("gRPC client configuration requires a SocketsHttpHandler.");
     }
 }
+
+public sealed record GrpcOutboundSnapshot(
+    string RemoteService,
+    IReadOnlyList<Uri> Peers,
+    string PeerChooser,
+    bool IsStarted,
+    int ChannelCount,
+    IReadOnlyList<string> CompressionAlgorithms);

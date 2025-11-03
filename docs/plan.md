@@ -512,7 +512,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 * JSON view of procedures, inbounds/outbounds, peer chooser state, middleware chains.
 
-**Status:** `HttpInbound` now serves `/polymer/introspect`, returning dispatcher status, procedures, lifecycle components, and middleware lists (see `HttpIntrospectionTests.IntrospectionEndpoint_ReportsDispatcherState`). Extend the payload with RPC-type grouping, streaming metrics, and peer chooser/outbound state to match YARPC-Go parity.
+**Status:** `HttpInbound` serves `/polymer/introspect`, returning dispatcher status, lifecycle components, middleware, grouped procedure listings (with streaming metadata defaults), and outbound diagnostics pulled from transport snapshots (`GrpcOutboundSnapshot`, `HttpOutboundSnapshot`, etc.). Remaining parity work is to layer in live peer health stats once choosers/backoff are implemented.
 
 **Done when:** Endpoint reflects live state and updates dynamically.
 

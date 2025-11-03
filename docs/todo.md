@@ -135,8 +135,8 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 - **Introspection Endpoint**
   - ~~Implement HTTP endpoint (`/polymer/introspect`) returning dispatcher summary (service, status, procedures, middleware).~~ *(completed via `HttpInbound.HandleIntrospectAsync` and `HttpIntrospectionTests.IntrospectionEndpoint_ReportsDispatcherState`)*
   - ~~Include unit/integration tests verifying JSON shape.~~ *(covered by `HttpIntrospectionTests.IntrospectionEndpoint_ReportsDispatcherState`)*
-  - Group procedures by RPC type and embed streaming-specific metadata (buffer sizing, message counts).
-  - Surface outbound/peer chooser state and runtime counters to align with YARPC-Go’s debug output.
+  - ~~Group procedures by RPC type and embed streaming-specific metadata (buffer sizing, message counts).~~ *(completed via `ProcedureGroups` descriptors and streaming metadata defaults stored on `StreamProcedureSpec`, `ClientStreamProcedureSpec`, and `DuplexProcedureSpec`.)*
+  - ~~Surface outbound/peer chooser state and runtime counters to align with YARPC-Go’s debug output.~~ *(completed via `OutboundDescriptor`/`OutboundBindingDescriptor` and transport diagnostic snapshots such as `GrpcOutboundSnapshot` and `HttpOutboundSnapshot`; still plan richer peer health metrics as choosers evolve.)*
 
 - **Shadowing & Tee Support**
   - Support registering dual outbounds (primary + shadow) for migration scenarios.

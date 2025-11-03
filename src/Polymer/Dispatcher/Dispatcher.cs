@@ -333,10 +333,44 @@ public sealed class Dispatcher
 
     public DispatcherIntrospection Introspect()
     {
-        var procedures = _procedures.Snapshot()
+        var procedureSnapshot = _procedures.Snapshot();
+
+        var unaryProcedures = procedureSnapshot
+            .OfType<UnaryProcedureSpec>()
             .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(static spec => new ProcedureDescriptor(spec.Name, spec.Kind, spec.Encoding))
+            .Select(static spec => new ProcedureDescriptor(spec.Name, spec.Encoding))
             .ToImmutableArray();
+
+        var onewayProcedures = procedureSnapshot
+            .OfType<OnewayProcedureSpec>()
+            .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(static spec => new ProcedureDescriptor(spec.Name, spec.Encoding))
+            .ToImmutableArray();
+
+        var streamProcedures = procedureSnapshot
+            .OfType<StreamProcedureSpec>()
+            .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(static spec => new StreamProcedureDescriptor(spec.Name, spec.Encoding, spec.Metadata))
+            .ToImmutableArray();
+
+        var clientStreamProcedures = procedureSnapshot
+            .OfType<ClientStreamProcedureSpec>()
+            .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(static spec => new ClientStreamProcedureDescriptor(spec.Name, spec.Encoding, spec.Metadata))
+            .ToImmutableArray();
+
+        var duplexProcedures = procedureSnapshot
+            .OfType<DuplexProcedureSpec>()
+            .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(static spec => new DuplexProcedureDescriptor(spec.Name, spec.Encoding, spec.Metadata))
+            .ToImmutableArray();
+
+        var procedures = new ProcedureGroups(
+            unaryProcedures,
+            onewayProcedures,
+            streamProcedures,
+            clientStreamProcedures,
+            duplexProcedures);
 
         var components = _lifecycleDescriptors
             .Select(static component =>
@@ -347,14 +381,14 @@ public sealed class Dispatcher
 
         var outbounds = _outbounds.Values
             .OrderBy(static collection => collection.Service, StringComparer.OrdinalIgnoreCase)
-            .Select(static collection =>
-                new OutboundSummary(
+            .Select(collection =>
+                new OutboundDescriptor(
                     collection.Service,
-                    collection.Unary.Count,
-                    collection.Oneway.Count,
-                    collection.Stream.Count,
-                    collection.ClientStream.Count,
-                    collection.Duplex.Count))
+                    DescribeOutbounds(collection.Unary),
+                    DescribeOutbounds(collection.Oneway),
+                    DescribeOutbounds(collection.Stream),
+                    DescribeOutbounds(collection.ClientStream),
+                    DescribeOutbounds(collection.Duplex)))
             .ToImmutableArray();
 
         var middleware = new MiddlewareSummary(
@@ -376,6 +410,29 @@ public sealed class Dispatcher
             components,
             outbounds,
             middleware);
+    }
+
+    private static ImmutableArray<OutboundBindingDescriptor> DescribeOutbounds<TOutbound>(IReadOnlyDictionary<string, TOutbound> source)
+        where TOutbound : class
+    {
+        if (source.Count == 0)
+        {
+            return ImmutableArray<OutboundBindingDescriptor>.Empty;
+        }
+
+        return source
+            .OrderBy(static kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(static kvp =>
+            {
+                var outbound = kvp.Value!;
+                object? diagnostics = outbound is IOutboundDiagnostic diagnostic
+                    ? diagnostic.GetOutboundDiagnostics()
+                    : null;
+
+                var implementation = outbound.GetType().FullName ?? outbound.GetType().Name;
+                return new OutboundBindingDescriptor(kvp.Key, implementation, diagnostics);
+            })
+            .ToImmutableArray();
     }
 
     private async Task ProcessClientStreamAsync(

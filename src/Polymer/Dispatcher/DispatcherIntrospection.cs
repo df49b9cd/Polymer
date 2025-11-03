@@ -5,16 +5,37 @@ namespace Polymer.Dispatcher;
 public sealed record DispatcherIntrospection(
     string Service,
     DispatcherStatus Status,
-    ImmutableArray<ProcedureDescriptor> Procedures,
+    ProcedureGroups Procedures,
     ImmutableArray<LifecycleComponentDescriptor> Components,
-    ImmutableArray<OutboundSummary> Outbounds,
+    ImmutableArray<OutboundDescriptor> Outbounds,
     MiddlewareSummary Middleware);
 
-public sealed record ProcedureDescriptor(string Name, ProcedureKind Kind, string? Encoding);
+public sealed record ProcedureGroups(
+    ImmutableArray<ProcedureDescriptor> Unary,
+    ImmutableArray<ProcedureDescriptor> Oneway,
+    ImmutableArray<StreamProcedureDescriptor> Stream,
+    ImmutableArray<ClientStreamProcedureDescriptor> ClientStream,
+    ImmutableArray<DuplexProcedureDescriptor> Duplex);
+
+public sealed record ProcedureDescriptor(string Name, string? Encoding);
+
+public sealed record StreamProcedureDescriptor(string Name, string? Encoding, StreamIntrospectionMetadata Metadata);
+
+public sealed record ClientStreamProcedureDescriptor(string Name, string? Encoding, ClientStreamIntrospectionMetadata Metadata);
+
+public sealed record DuplexProcedureDescriptor(string Name, string? Encoding, DuplexIntrospectionMetadata Metadata);
 
 public sealed record LifecycleComponentDescriptor(string Name, string ComponentType);
 
-public sealed record OutboundSummary(string Service, int UnaryCount, int OnewayCount, int StreamCount, int ClientStreamCount, int DuplexCount);
+public sealed record OutboundDescriptor(
+    string Service,
+    ImmutableArray<OutboundBindingDescriptor> Unary,
+    ImmutableArray<OutboundBindingDescriptor> Oneway,
+    ImmutableArray<OutboundBindingDescriptor> Stream,
+    ImmutableArray<OutboundBindingDescriptor> ClientStream,
+    ImmutableArray<OutboundBindingDescriptor> Duplex);
+
+public sealed record OutboundBindingDescriptor(string Key, string ImplementationType, object? Metadata);
 
 public sealed record MiddlewareSummary(
     ImmutableArray<string> InboundUnary,

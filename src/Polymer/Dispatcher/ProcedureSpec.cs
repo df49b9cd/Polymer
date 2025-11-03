@@ -70,15 +70,18 @@ public sealed record StreamProcedureSpec : ProcedureSpec
         string name,
         StreamInboundDelegate handler,
         string? encoding = null,
-        IReadOnlyList<IStreamInboundMiddleware>? middleware = null)
+        IReadOnlyList<IStreamInboundMiddleware>? middleware = null,
+        StreamIntrospectionMetadata? metadata = null)
         : base(service, name, ProcedureKind.Stream, encoding)
     {
         Handler = handler ?? throw new ArgumentNullException(nameof(handler));
         Middleware = middleware ?? Array.Empty<IStreamInboundMiddleware>();
+        Metadata = metadata ?? StreamIntrospectionMetadata.Default;
     }
 
     public StreamInboundDelegate Handler { get; }
     public IReadOnlyList<IStreamInboundMiddleware> Middleware { get; }
+    public StreamIntrospectionMetadata Metadata { get; }
 }
 
 public sealed record ClientStreamProcedureSpec : ProcedureSpec
@@ -88,15 +91,18 @@ public sealed record ClientStreamProcedureSpec : ProcedureSpec
         string name,
         ClientStreamInboundDelegate handler,
         string? encoding = null,
-        IReadOnlyList<IClientStreamInboundMiddleware>? middleware = null)
+        IReadOnlyList<IClientStreamInboundMiddleware>? middleware = null,
+        ClientStreamIntrospectionMetadata? metadata = null)
         : base(service, name, ProcedureKind.ClientStream, encoding)
     {
         Handler = handler ?? throw new ArgumentNullException(nameof(handler));
         Middleware = middleware ?? Array.Empty<IClientStreamInboundMiddleware>();
+        Metadata = metadata ?? ClientStreamIntrospectionMetadata.Default;
     }
 
     public ClientStreamInboundDelegate Handler { get; }
     public IReadOnlyList<IClientStreamInboundMiddleware> Middleware { get; }
+    public ClientStreamIntrospectionMetadata Metadata { get; }
 }
 
 public sealed record DuplexProcedureSpec : ProcedureSpec
@@ -106,13 +112,16 @@ public sealed record DuplexProcedureSpec : ProcedureSpec
         string name,
         DuplexInboundDelegate handler,
         string? encoding = null,
-        IReadOnlyList<IDuplexInboundMiddleware>? middleware = null)
+        IReadOnlyList<IDuplexInboundMiddleware>? middleware = null,
+        DuplexIntrospectionMetadata? metadata = null)
         : base(service, name, ProcedureKind.Duplex, encoding)
     {
         Handler = handler ?? throw new ArgumentNullException(nameof(handler));
         Middleware = middleware ?? Array.Empty<IDuplexInboundMiddleware>();
+        Metadata = metadata ?? DuplexIntrospectionMetadata.Default;
     }
 
     public DuplexInboundDelegate Handler { get; }
     public IReadOnlyList<IDuplexInboundMiddleware> Middleware { get; }
+    public DuplexIntrospectionMetadata Metadata { get; }
 }

@@ -13,7 +13,7 @@ using static Hugo.Go;
 
 namespace Polymer.Transport.Http;
 
-public sealed class HttpDuplexOutbound : IDuplexOutbound
+public sealed class HttpDuplexOutbound : IDuplexOutbound, IOutboundDiagnostic
 {
     private readonly Uri _baseAddress;
 
@@ -111,4 +111,9 @@ public sealed class HttpDuplexOutbound : IDuplexOutbound
 
         return builder.Uri;
     }
+
+    public object? GetOutboundDiagnostics() =>
+        new HttpDuplexOutboundSnapshot(_baseAddress);
 }
+
+public sealed record HttpDuplexOutboundSnapshot(Uri BaseAddress);
