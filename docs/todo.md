@@ -75,14 +75,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 - ~~**Transport Middleware & Interceptors**~~ *(completed: HTTP outbound now composes transport-aware middleware via `HttpClientMiddlewareComposer` with logging sample (`HttpClientLoggingMiddleware`), gRPC client/server use composite interceptors with ordered registries, and regression coverage lives in `HttpOutboundMiddlewareTests` and `GrpcInterceptorPipelineTests`.)*
 
-- **Transport Lifecycle & Health**
-  - Implement graceful shutdown semantics:
-    - HTTP: return 503 with `Retry-After`, drain active requests.
-    - gRPC: send GOAWAY, wait for inflight RPCs to finish.
-  - Health/readiness endpoints:
-    - HTTP `/healthz` & `/readyz` factoring transport + peer state.
-    - gRPC health check service implementation.
-  - Tests covering fast stop (force cancel) vs graceful stop.
+- ~~**Transport Lifecycle & Health**~~ *(completed: HTTP inbound now tracks active requests, returns `503` with `Retry-After` while draining, and exposes `/healthz` + `/readyz` backed by `DispatcherHealthEvaluator`; gRPC inbound gates new calls during shutdown, coordinates GOAWAY/drain waits, and publishes the standard health service via `GrpcTransportHealthService`. Coverage added in `HttpInboundLifecycleTests` and extended `GrpcTransportTests` for graceful vs forced stops and health transitions.)*
 
 ## 2. Encodings & Code Generation (Phase 8)
 

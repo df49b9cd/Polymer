@@ -33,7 +33,12 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     private readonly Action<WebApplication>? _configureApp;
     private WebApplication? _app;
     private Dispatcher.Dispatcher? _dispatcher;
+    private volatile bool _isDraining;
+    private int _activeRequests;
+    private TaskCompletionSource<bool> _drainCompletion = CreateDrainTcs();
     private static readonly JsonSerializerOptions IntrospectionSerializerOptions = CreateIntrospectionSerializerOptions();
+    private static readonly JsonSerializerOptions HealthSerializerOptions = CreateHealthSerializerOptions();
+    private const string RetryAfterHeaderValue = "1";
 
     public HttpInbound(
         IEnumerable<string> urls,
@@ -86,6 +91,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         _configureApp?.Invoke(app);
 
         app.MapGet("/polymer/introspect", HandleIntrospectAsync);
+        app.MapGet("/healthz", HandleHealthzAsync);
+        app.MapGet("/readyz", HandleReadyzAsync);
         app.MapMethods("/{**_}", [HttpMethods.Post], HandleUnaryAsync);
         app.MapMethods("/{**_}", [HttpMethods.Get], HandleServerStreamAsync);
 
@@ -100,9 +107,36 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             return;
         }
 
-        await _app.StopAsync(cancellationToken).ConfigureAwait(false);
+        _isDraining = true;
+
+        if (Volatile.Read(ref _activeRequests) == 0)
+        {
+            _drainCompletion.TrySetResult(true);
+        }
+
+        try
+        {
+            await _drainCompletion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // fall through for fast shutdown
+        }
+
+        try
+        {
+            await _app.StopAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore cancellation during shutdown to force stop
+        }
+
         await _app.DisposeAsync().ConfigureAwait(false);
         _app = null;
+        _isDraining = false;
+        Interlocked.Exchange(ref _activeRequests, 0);
+        _drainCompletion = CreateDrainTcs();
     }
 
     private static JsonSerializerOptions CreateIntrospectionSerializerOptions()
@@ -115,6 +149,37 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
         options.Converters.Add(new JsonStringEnumConverter());
         return options;
+    }
+
+    private static JsonSerializerOptions CreateHealthSerializerOptions() =>
+        new(JsonSerializerDefaults.Web)
+        {
+            WriteIndented = false,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+    private static TaskCompletionSource<bool> CreateDrainTcs() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private bool TryBeginRequest(HttpContext context)
+    {
+        if (_isDraining)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.Headers["Retry-After"] = RetryAfterHeaderValue;
+            return false;
+        }
+
+        Interlocked.Increment(ref _activeRequests);
+        return true;
+    }
+
+    private void CompleteRequest()
+    {
+        if (Interlocked.Decrement(ref _activeRequests) == 0 && _isDraining)
+        {
+            _drainCompletion.TrySetResult(true);
+        }
     }
 
     private async Task HandleIntrospectAsync(HttpContext context)
@@ -138,11 +203,79 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             .ConfigureAwait(false);
     }
 
+    private Task HandleHealthzAsync(HttpContext context) =>
+        HandleHealthAsync(context, readiness: false);
+
+    private Task HandleReadyzAsync(HttpContext context) =>
+        HandleHealthAsync(context, readiness: true);
+
+    private async Task HandleHealthAsync(HttpContext context, bool readiness)
+    {
+        var dispatcher = _dispatcher;
+        var issues = new List<string>();
+        var healthy = dispatcher is not null && _app is not null;
+
+        if (!healthy)
+        {
+            if (dispatcher is null)
+            {
+                issues.Add("dispatcher:unbound");
+            }
+
+            if (_app is null)
+            {
+                issues.Add("http-inbound:not-started");
+            }
+        }
+
+        if (healthy && readiness)
+        {
+            var readinessResult = DispatcherHealthEvaluator.Evaluate(dispatcher!);
+            if (!readinessResult.IsReady)
+            {
+                issues.AddRange(readinessResult.Issues);
+            }
+
+            if (_isDraining)
+            {
+                issues.Add("http-inbound:draining");
+            }
+
+            healthy = readinessResult.IsReady && !_isDraining;
+        }
+
+        context.Response.StatusCode = healthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable;
+        context.Response.ContentType = MediaTypeNames.Application.Json;
+
+        var payload = new
+        {
+            status = healthy ? "ok" : "unavailable",
+            mode = readiness ? "ready" : "live",
+            issues = issues.Count == 0 ? Array.Empty<string>() : issues.ToArray(),
+            activeRequests = Math.Max(Volatile.Read(ref _activeRequests), 0),
+            draining = _isDraining
+        };
+
+        await JsonSerializer.SerializeAsync(
+                context.Response.Body,
+                payload,
+                HealthSerializerOptions,
+                context.RequestAborted)
+            .ConfigureAwait(false);
+    }
+
     private async Task HandleUnaryAsync(HttpContext context)
     {
         var dispatcher = _dispatcher!;
         var transport = "http";
 
+        if (!TryBeginRequest(context))
+        {
+            return;
+        }
+
+        try
+        {
         if (!context.Request.Headers.TryGetValue(HttpTransportHeaders.Procedure, out var procedureValues) ||
             StringValues.IsNullOrEmpty(procedureValues))
         {
@@ -244,6 +377,11 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         {
             await context.Response.BodyWriter.WriteAsync(response.Body, context.RequestAborted).ConfigureAwait(false);
         }
+        }
+        finally
+        {
+            CompleteRequest();
+        }
     }
 
     private async Task HandleServerStreamAsync(HttpContext context)
@@ -256,6 +394,14 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             await HandleDuplexAsync(context).ConfigureAwait(false);
             return;
         }
+
+        if (!TryBeginRequest(context))
+        {
+            return;
+        }
+
+        try
+        {
 
         if (!HttpMethods.IsGet(context.Request.Method))
         {
@@ -335,6 +481,11 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             await context.Response.BodyWriter.WriteAsync(frame, context.RequestAborted).ConfigureAwait(false);
             await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
         }
+        }
+        finally
+        {
+            CompleteRequest();
+        }
     }
 
     private async Task HandleDuplexAsync(HttpContext context)
@@ -342,6 +493,13 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         var dispatcher = _dispatcher!;
         const string transport = "http";
 
+        if (!TryBeginRequest(context))
+        {
+            return;
+        }
+
+        try
+        {
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -508,9 +666,14 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                     ex.Message ?? "An error occurred while writing the duplex response stream.",
                     transport: transport,
                     inner: Error.FromException(ex));
-                await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
-                await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+            await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
+            await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
             }
+        }
+        }
+        finally
+        {
+            CompleteRequest();
         }
     }
     private static ResponseMeta NormalizeResponseMeta(ResponseMeta? meta, string transport)

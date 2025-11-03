@@ -15,6 +15,7 @@ using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Compression;
+using Grpc.Health.V1;
 using Microsoft.Extensions.Logging;
 using Polymer.Core;
 using Polymer.Core.Transport;
@@ -190,6 +191,155 @@ public class GrpcTransportTests
         {
             await dispatcher.StopAsync(ct);
         }
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task StopAsync_WaitsForActiveGrpcCallsAndRejectsNewOnes()
+    {
+        var port = TestPortAllocator.GetRandomPort();
+        var address = new Uri($"http://127.0.0.1:{port}");
+
+        var options = new DispatcherOptions("lifecycle");
+        var grpcInbound = new GrpcInbound([address.ToString()]);
+        options.AddLifecycle("grpc-inbound", grpcInbound);
+
+        var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        dispatcher.Register(new UnaryProcedureSpec(
+            "lifecycle",
+            "test::slow",
+            async (request, token) =>
+            {
+                requestStarted.TrySetResult();
+                await releaseRequest.Task.WaitAsync(token);
+                return Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta()));
+            }));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+        await WaitForGrpcReadyAsync(address, ct);
+
+        using var channel = GrpcChannel.ForAddress(address);
+        var invoker = channel.CreateCallInvoker();
+        var method = new Method<byte[], byte[]>(MethodType.Unary, "lifecycle", "test::slow", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
+
+        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+        await requestStarted.Task.WaitAsync(ct);
+
+        var stopTask = dispatcher.StopAsync(ct);
+
+        await Task.Delay(100, ct);
+
+        var rejectedCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+        var rejection = await Assert.ThrowsAsync<RpcException>(() => rejectedCall.ResponseAsync);
+        Assert.Equal(StatusCode.Unavailable, rejection.StatusCode);
+        Assert.Equal("1", rejection.Trailers.GetValue("retry-after"));
+        Assert.False(stopTask.IsCompleted);
+
+        releaseRequest.TrySetResult();
+        var response = await inFlightCall.ResponseAsync;
+        Assert.Empty(response);
+
+        await stopTask;
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task StopAsyncCancellation_CompletesWithoutDrainingGrpcCalls()
+    {
+        var port = TestPortAllocator.GetRandomPort();
+        var address = new Uri($"http://127.0.0.1:{port}");
+
+        var options = new DispatcherOptions("lifecycle");
+        var grpcInbound = new GrpcInbound([address.ToString()]);
+        options.AddLifecycle("grpc-inbound", grpcInbound);
+
+        var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        dispatcher.Register(new UnaryProcedureSpec(
+            "lifecycle",
+            "test::slow",
+            async (request, token) =>
+            {
+                requestStarted.TrySetResult();
+                await releaseRequest.Task.WaitAsync(token);
+                return Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta()));
+            }));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+        await WaitForGrpcReadyAsync(address, ct);
+
+        using var channel = GrpcChannel.ForAddress(address);
+        var invoker = channel.CreateCallInvoker();
+        var method = new Method<byte[], byte[]>(MethodType.Unary, "lifecycle", "test::slow", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
+
+        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+        await requestStarted.Task.WaitAsync(ct);
+
+        using var stopCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+        var stopTask = dispatcher.StopAsync(stopCts.Token);
+
+        await stopTask;
+        releaseRequest.TrySetResult();
+
+        await Assert.ThrowsAsync<RpcException>(async () => await inFlightCall.ResponseAsync);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task GrpcHealthService_ReflectsReadiness()
+    {
+        var port = TestPortAllocator.GetRandomPort();
+        var address = new Uri($"http://127.0.0.1:{port}");
+
+        var options = new DispatcherOptions("health");
+        var grpcInbound = new GrpcInbound([address.ToString()]);
+        options.AddLifecycle("grpc-inbound", grpcInbound);
+
+        var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        dispatcher.Register(new UnaryProcedureSpec(
+            "health",
+            "slow",
+            async (request, token) =>
+            {
+                requestStarted.TrySetResult();
+                await releaseRequest.Task.WaitAsync(token);
+                return Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta()));
+            }));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+        await WaitForGrpcReadyAsync(address, ct);
+
+        using var channel = GrpcChannel.ForAddress(address);
+        var healthClient = new Health.HealthClient(channel);
+
+        var healthy = await healthClient.CheckAsync(new HealthCheckRequest(), cancellationToken: ct).ResponseAsync;
+        Assert.Equal(HealthCheckResponse.Types.ServingStatus.Serving, healthy.Status);
+
+        var method = new Method<byte[], byte[]>(MethodType.Unary, "health", "slow", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
+        var invoker = channel.CreateCallInvoker();
+        var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), Array.Empty<byte>());
+
+        await requestStarted.Task.WaitAsync(ct);
+
+        var stopTask = dispatcher.StopAsync(ct);
+
+        var draining = await healthClient.CheckAsync(new HealthCheckRequest(), cancellationToken: ct).ResponseAsync;
+        Assert.Equal(HealthCheckResponse.Types.ServingStatus.NotServing, draining.Status);
+
+        releaseRequest.TrySetResult();
+        await inFlightCall.ResponseAsync;
+        await stopTask;
     }
 
     [Fact(Timeout = 30_000)]

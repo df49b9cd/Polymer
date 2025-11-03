@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.AspNetCore.Server.Model;
+using Grpc.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -30,6 +31,11 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
     private readonly GrpcTelemetryOptions? _telemetryOptions;
     private GrpcServerInterceptorRegistry? _serverInterceptorRegistry;
     private int _interceptorsConfigured;
+    private volatile bool _isDraining;
+    private int _activeCalls;
+    private TaskCompletionSource<bool> _drainCompletion = CreateDrainTcs();
+    private const string RetryAfterMetadataName = "retry-after";
+    private const string RetryAfterMetadataValue = "1";
 
     public GrpcInbound(
         IEnumerable<string> urls,
@@ -130,7 +136,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
 
         builder.Services.AddSingleton(_dispatcher);
         builder.Services.AddSingleton<IServiceMethodProvider<GrpcDispatcherService>>(
-            _ => new GrpcDispatcherServiceMethodProvider(_dispatcher));
+            _ => new GrpcDispatcherServiceMethodProvider(_dispatcher, this));
         builder.Services.AddSingleton<GrpcDispatcherService>();
 
         var runtimeLoggingInterceptorSpecified = _serverRuntimeOptions?.Interceptors?.Any(type => type == typeof(GrpcServerLoggingInterceptor)) == true;
@@ -145,6 +151,8 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         {
             builder.Services.AddSingleton(new CompositeServerInterceptor(_serverInterceptorRegistry!));
         }
+
+        builder.Services.AddSingleton(new GrpcTransportHealthService(_dispatcher, this));
 
         builder.Services.AddGrpc(options =>
         {
@@ -228,6 +236,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         _configureApp?.Invoke(app);
 
         app.MapGrpcService<GrpcDispatcherService>();
+        app.MapGrpcService<GrpcTransportHealthService>();
 
         await app.StartAsync(cancellationToken).ConfigureAwait(false);
         _app = app;
@@ -245,6 +254,58 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         _serverInterceptorRegistry = registry;
     }
 
+    internal bool IsDraining => _isDraining;
+
+    internal bool TryEnterCall(ServerCallContext context, out IDisposable? scope, out RpcException? rejection)
+    {
+        if (_isDraining)
+        {
+            rejection = CreateShutdownException();
+            scope = null;
+            return false;
+        }
+
+        Interlocked.Increment(ref _activeCalls);
+        scope = new CallScope(this);
+        rejection = null;
+        return true;
+    }
+
+    private void OnCallCompleted()
+    {
+        if (Interlocked.Decrement(ref _activeCalls) == 0 && _isDraining)
+        {
+            _drainCompletion.TrySetResult(true);
+        }
+    }
+
+    private static TaskCompletionSource<bool> CreateDrainTcs() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private static RpcException CreateShutdownException()
+    {
+        var metadata = new Metadata
+        {
+            { RetryAfterMetadataName, RetryAfterMetadataValue }
+        };
+
+        return new RpcException(new Status(StatusCode.Unavailable, "server shutting down"), metadata);
+    }
+
+    private sealed class CallScope(GrpcInbound owner) : IDisposable
+    {
+        private readonly GrpcInbound _owner = owner;
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                _owner.OnCallCompleted();
+            }
+        }
+    }
+
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         if (_app is null)
@@ -252,8 +313,35 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
             return;
         }
 
-        await _app.StopAsync(cancellationToken).ConfigureAwait(false);
+        _isDraining = true;
+
+        if (Volatile.Read(ref _activeCalls) == 0)
+        {
+            _drainCompletion.TrySetResult(true);
+        }
+
+        try
+        {
+            await _drainCompletion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Allow fast shutdown when cancellation is requested.
+        }
+
+        try
+        {
+            await _app.StopAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation during server stop so shutdown continues.
+        }
+
         await _app.DisposeAsync().ConfigureAwait(false);
         _app = null;
+        _isDraining = false;
+        Interlocked.Exchange(ref _activeCalls, 0);
+        _drainCompletion = CreateDrainTcs();
     }
 }

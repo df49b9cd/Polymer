@@ -193,6 +193,8 @@ Wire‑Up & Lifecycle
 * **Procedure aliases:** `ProcedureSpec` now accepts alternative names; the registry resolves aliases transparently and introspection surfaces them alongside canonical procedure names.
 * **Shadowing:** dual outbound tee support (`TeeUnaryOutbound`, `TeeOnewayOutbound`, `DispatcherOptions.AddTee*`) mirrors YARPC-Go shadow traffic, with sampling, header tagging, and best-effort failure handling.
 
+**Status:** Dispatcher start/stop now coordinates transport lifecycles with drain-aware wait groups; `HttpInbound` enforces graceful shutdown (503 + `Retry-After`, active request tracking) and exposes `/healthz` + `/readyz` backed by dispatcher/peer readiness, while `GrpcInbound` gates new RPCs during shutdown, emits GOAWAY, and serves the gRPC health check API. Regression coverage lives in `HttpInboundLifecycleTests` and new gRPC lifecycle/health tests exercising graceful and forced stops.
+
 * * *
 
 Transport Specifics

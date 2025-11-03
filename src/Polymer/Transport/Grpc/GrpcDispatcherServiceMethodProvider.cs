@@ -14,9 +14,10 @@ using Polymer.Errors;
 
 namespace Polymer.Transport.Grpc;
 
-internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher dispatcher) : IServiceMethodProvider<GrpcDispatcherService>
+internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher dispatcher, GrpcInbound inbound) : IServiceMethodProvider<GrpcDispatcherService>
 {
     private readonly Dispatcher.Dispatcher _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+    private readonly GrpcInbound _inbound = inbound ?? throw new ArgumentNullException(nameof(inbound));
 
     public void OnServiceMethodDiscovery(ServiceMethodProviderContext<GrpcDispatcherService> context)
     {
@@ -33,6 +34,12 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
             UnaryServerMethod<GrpcDispatcherService, byte[], byte[]> handler = async (_, request, callContext) =>
             {
+                if (!_inbound.TryEnterCall(callContext, out var scope, out var rejection))
+                {
+                    throw rejection!;
+                }
+
+                using var callScope = scope;
                 var metadata = callContext.RequestHeaders ?? [];
                 var encoding = metadata.GetValue(GrpcTransportConstants.EncodingHeader);
 
@@ -87,6 +94,12 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
             UnaryServerMethod<GrpcDispatcherService, byte[], byte[]> handler = async (_, request, callContext) =>
             {
+                if (!_inbound.TryEnterCall(callContext, out var scope, out var rejection))
+                {
+                    throw rejection!;
+                }
+
+                using var callScope = scope;
                 var metadata = callContext.RequestHeaders ?? [];
                 var encoding = metadata.GetValue(GrpcTransportConstants.EncodingHeader);
 
@@ -140,6 +153,12 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
             ServerStreamingServerMethod<GrpcDispatcherService, byte[], byte[]> handler = async (_, request, responseStream, callContext) =>
             {
+                if (!_inbound.TryEnterCall(callContext, out var scope, out var rejection))
+                {
+                    throw rejection!;
+                }
+
+                using var callScope = scope;
                 var metadata = callContext.RequestHeaders ?? [];
                 var encoding = metadata.GetValue(GrpcTransportConstants.EncodingHeader);
 
@@ -248,6 +267,12 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
             ClientStreamingServerMethod<GrpcDispatcherService, byte[], byte[]> handler = async (_, requestStream, callContext) =>
             {
+                if (!_inbound.TryEnterCall(callContext, out var scope, out var rejection))
+                {
+                    throw rejection!;
+                }
+
+                using var callScope = scope;
                 var metadata = callContext.RequestHeaders ?? [];
                 var encoding = metadata.GetValue(GrpcTransportConstants.EncodingHeader);
 
@@ -407,6 +432,12 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
             DuplexStreamingServerMethod<GrpcDispatcherService, byte[], byte[]> handler = async (_, requestStream, responseStream, callContext) =>
             {
+                if (!_inbound.TryEnterCall(callContext, out var scope, out var rejection))
+                {
+                    throw rejection!;
+                }
+
+                using var callScope = scope;
                 var metadata = callContext.RequestHeaders ?? [];
                 var encoding = metadata.GetValue(GrpcTransportConstants.EncodingHeader);
 
