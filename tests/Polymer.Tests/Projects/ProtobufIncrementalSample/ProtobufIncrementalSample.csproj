@@ -25,17 +25,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="Descriptors/test_service.pb" />
+    <AdditionalFiles Include="$(IntermediateOutputPath)protos/test_service.pb" />
   </ItemGroup>
 
   <ItemGroup>
     <Protobuf Include="Protos/test_service.proto"
               GrpcServices="None"
-              GenerateDescriptorSet="false" />
+              GenerateDescriptorSet="true"
+              DescriptorSetOutputPath="$(IntermediateOutputPath)protos/test_service.pb" />
   </ItemGroup>
-  <ItemGroup>
-    <Analyzer Include="../../../../src/Polymer.Codegen.Protobuf.Generator/bin/Debug/net10.0/Google.Protobuf.dll" />
-    <Analyzer Include="../../../../src/Polymer.Codegen.Protobuf.Generator/bin/Debug/net10.0/Polymer.Codegen.Protobuf.Core.dll" />
-    <Analyzer Include="../../../../src/Polymer.Codegen.Protobuf.Generator/bin/Debug/net10.0/Polymer.dll" />
-  </ItemGroup>
+
+  <Target Name="EnsureSampleDescriptorDirectory" BeforeTargets="ProtobufCompile">
+    <MakeDir Directories="$(IntermediateOutputPath)protos" />
+  </Target>
 </Project>

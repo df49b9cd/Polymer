@@ -56,35 +56,39 @@ For projects that already produce [descriptor sets](https://github.com/dotnet/ro
    </ItemGroup>
    ```
 
-2. Provide a descriptor set (`.pb`) via `AdditionalFiles`. The generator reads binary descriptor sets, so you can pre-generate them with `Grpc.Tools`/`protoc`:
-
-   ```bash
-   ~/.nuget/packages/grpc.tools/2.71.0/tools/macosx_x64/protoc \
-     --descriptor_set_out=Descriptors/test_service.pb \
-     --include_imports \
-     --proto_path=Protos \
-     Protos/test_service.proto
-   ```
-
-   and then include it in the project:
+2. Provide a descriptor set (`.pb`) via `AdditionalFiles`. The generator reads binary descriptor sets, so you can pre-generate them with `Grpc.Tools`/`protoc` or let MSBuild emit one during the build:
 
    ```xml
    <ItemGroup>
-     <AdditionalFiles Include="Descriptors/test_service.pb" />
+     <Protobuf Include="Protos/test_service.proto"
+               GrpcServices="None"
+               GenerateDescriptorSet="true"
+               DescriptorSetOutputPath="$(IntermediateOutputPath)protos/test_service.pb" />
+     <AdditionalFiles Include="$(IntermediateOutputPath)protos/test_service.pb" />
    </ItemGroup>
+
+   <Target Name="EnsureDescriptorDirectory" BeforeTargets="ProtobufCompile">
+     <MakeDir Directories="$(IntermediateOutputPath)protos" />
+   </Target>
    ```
 
-   You still need the regular `Protobuf` MSBuild item so that DTOs are generated (the incremental generator only produces clients/dispatcher helpers):
-
-   ```xml
-   <ItemGroup>
-     <Protobuf Include="Protos/test_service.proto" GrpcServices="None" />
-   </ItemGroup>
-   ```
+   The `Protobuf` item continues to emit DTOs, while the incremental generator consumes the descriptor set to create dispatcher/client helpers.
 
 3. Build the project. MSBuild writes the generated files under `obj/<tfm>/generated/Polymer.Codegen.Protobuf.Generator/...` and the types become available to your project just like the protoc plug-in output.
 
-The repository contains a working sample wired this way: `tests/Polymer.Tests/Projects/ProtobufIncrementalSample/`. It keeps the descriptor set under `Descriptors/test_service.pb`, references the analyzer, and builds successfully with `dotnet build`.
+The repository contains a working sample wired this way: `tests/Polymer.Tests/Projects/ProtobufIncrementalSample/`. It uses the `GenerateDescriptorSet` flow above and builds successfully with `dotnet build`.
+
+## Packaging the incremental generator
+
+`src/Polymer.Codegen.Protobuf.Generator` is configured as an analyzer package. Running `dotnet pack` (or any build because `GeneratePackageOnBuild` is enabled) produces `Polymer.Codegen.Protobuf.Generator.<version>.nupkg` under `bin/<Configuration>/`. The package includes the generator plus its runtime dependencies under `analyzers/dotnet/cs`, so consuming projects only need a single `PackageReference` instead of manual analyzer wiring:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Polymer.Codegen.Protobuf.Generator" Version="0.1.0" PrivateAssets="all" />
+</ItemGroup>
+```
+
+Pre-release builds use the `0.x.y` version band. When Polymer reaches a stable release, align the generator's `VersionPrefix` with the Polymer runtime version in CI before pushing to NuGet (the project file is ready for `dotnet pack` in a release pipeline).
 
 ## Runtime integration
 

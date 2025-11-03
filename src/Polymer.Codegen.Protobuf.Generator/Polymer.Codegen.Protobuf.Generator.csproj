@@ -3,12 +3,24 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);AddAnalyzerDependencies</TargetsForTfmSpecificBuildOutput>
+    <PackageId>Polymer.Codegen.Protobuf.Generator</PackageId>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Authors>Polymer</Authors>
+    <Company>Polymer</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Roslyn incremental generator that emits Polymer dispatcher/client helpers from protobuf descriptor sets.</Description>
+    <PackageTags>polymer;protobuf;codegen;roslyn;incremental</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageType>Analyzer</PackageType>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Telemetry-less analyzer packaging; includes Polymer runtime dependencies.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,4 +46,8 @@
       </TfmSpecificBuildOutput>
     </ItemGroup>
   </Target>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 </Project>
