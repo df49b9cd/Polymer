@@ -168,7 +168,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 - **Peer Lists & Choosers**
   - ~~Implement lists: single, round robin, fewest-pending, two-random choices.~~ *(Round robin, fewest-pending, and two-random choice choosers available via `Polymer.Core.Peers`.)*
   - ~~Integrate with dispatcher outbounds to acquire/release peers around each call.~~ *(gRPC outbound now acquires/leases `GrpcPeer` instances.)*
-  - Propagate peer state into metrics and retry logic.
+  - ~~Propagate peer state into metrics and retry logic.~~ *(completed via `PeerMetrics` instrumentation + updated `PeerLease`/choosers, and retry middleware emitting peer-aware counters.)*
 
 - **Health, Backoff & Circuit Breaking**
   - ~~Add exponential backoff on repeated failures, half-open testing.~~ *(Initial circuit-breaker via `PeerCircuitBreaker` + gRPC peer integration; add half-open probe sampling in later iteration.)*

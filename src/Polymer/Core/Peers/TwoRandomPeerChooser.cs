@@ -84,6 +84,7 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
     {
         if (!peer.TryAcquire(cancellationToken))
         {
+            PeerMetrics.RecordLeaseRejected(meta, peer.Identifier, "rejected");
             var exhausted = PolymerErrorAdapter.FromStatus(
                 PolymerStatusCode.ResourceExhausted,
                 "Selected peer rejected the lease.",
@@ -91,6 +92,6 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
             return ValueTask.FromResult(Err<PeerLease>(exhausted));
         }
 
-        return ValueTask.FromResult(Ok(new PeerLease(peer)));
+        return ValueTask.FromResult(Ok(new PeerLease(peer, meta)));
     }
 }

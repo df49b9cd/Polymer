@@ -45,10 +45,13 @@ public sealed class RoundRobinPeerChooser : IPeerChooser
 
             if (resolved.TryAcquire(cancellationToken))
             {
-                return ValueTask.FromResult(Ok(new PeerLease(resolved)));
+                return ValueTask.FromResult(Ok(new PeerLease(resolved, meta)));
             }
+
+            PeerMetrics.RecordLeaseRejected(meta, resolved.Identifier, "busy");
         }
 
+        PeerMetrics.RecordPoolExhausted(meta);
         var exhausted = PolymerErrorAdapter.FromStatus(PolymerStatusCode.ResourceExhausted, "All peers are busy.", transport: meta.Transport ?? "unknown");
         return ValueTask.FromResult(Err<PeerLease>(exhausted));
     }

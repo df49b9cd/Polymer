@@ -470,6 +470,8 @@ Each step includes _Done when…_ acceptance criteria.
 
 *Implementation tip:* use Hugo channel builders / task queue primitives to coordinate peer leases and inflight tracking.
 
+**Status:** `PeerMetrics` now tracks lease acquisitions, releases, rejections, and retry scheduling; choosers emit busy/exhausted counters, and `RetryMiddleware` reports scheduled/exhausted retries. This keeps peer health visible to observability tooling and aligns retry behaviour with peer state.
+
 * * *
 
 ### 7) Configuration System

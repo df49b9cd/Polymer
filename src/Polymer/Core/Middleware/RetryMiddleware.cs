@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Hugo;
 using Hugo.Policies;
 using Polymer.Core;
+using Polymer.Core.Peers;
 using Polymer.Core.Transport;
 using Polymer.Errors;
 using static Hugo.Go;
@@ -56,25 +57,37 @@ public sealed class RetryMiddleware : IUnaryOutboundMiddleware
         var timeProvider = _options.TimeProvider ?? TimeProvider.System;
         var state = retry.CreateState(timeProvider);
 
+        var attempt = 0;
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            attempt++;
             var attemptResult = await next(request, cancellationToken).ConfigureAwait(false);
             if (attemptResult.IsSuccess)
             {
+                if (attempt > 1)
+                {
+                    PeerMetrics.RecordRetrySucceeded(meta, attempt);
+                }
                 return attemptResult;
             }
 
             var error = attemptResult.Error!;
             if (!IsRetryable(error))
             {
+                if (attempt > 1)
+                {
+                    PeerMetrics.RecordRetryExhausted(meta, error, attempt);
+                }
                 return attemptResult;
             }
 
             var decision = await retry.EvaluateAsync(state, error, cancellationToken).ConfigureAwait(false);
             if (!decision.ShouldRetry)
             {
+                PeerMetrics.RecordRetryExhausted(meta, error, attempt);
                 return attemptResult;
             }
 
@@ -88,6 +101,7 @@ public sealed class RetryMiddleware : IUnaryOutboundMiddleware
                 }
             }
 
+            PeerMetrics.RecordRetryScheduled(meta, error, attempt, delay);
             if (delay is { } sleep && sleep > TimeSpan.Zero)
             {
                 await Task.Delay(sleep, cancellationToken).ConfigureAwait(false);
