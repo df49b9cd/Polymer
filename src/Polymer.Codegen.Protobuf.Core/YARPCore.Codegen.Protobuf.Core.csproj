@@ -11,8 +11,4 @@
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Polymer\Polymer.csproj" />
-  </ItemGroup>
 </Project>

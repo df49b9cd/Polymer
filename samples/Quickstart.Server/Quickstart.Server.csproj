@@ -3,8 +3,4 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Polymer.Samples.Quickstart</RootNamespace>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Polymer\Polymer.csproj" />
-  </ItemGroup>
 </Project>

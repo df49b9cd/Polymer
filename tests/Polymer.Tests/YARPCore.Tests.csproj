@@ -21,17 +21,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Polymer\Polymer.csproj" />
-    <ProjectReference Include="..\..\src\Polymer.Configuration\Polymer.Configuration.csproj" />
-    <ProjectReference Include="..\..\src\Polymer.Codegen.Protobuf.Core\Polymer.Codegen.Protobuf.Core.csproj" />
-    <ProjectReference Include="..\..\src\Polymer.Codegen.Protobuf.Generator\Polymer.Codegen.Protobuf.Generator.csproj" />
+    <ProjectReference Include="../../src/Polymer.Codegen.Protobuf.Core/YARPCore.Codegen.Protobuf.Core.csproj" />
+    <ProjectReference Include="../../src/Polymer.Codegen.Protobuf.Generator/YARPCore.Codegen.Protobuf.Generator.csproj" />
+    <ProjectReference Include="../../src/Polymer.Configuration/YARPCore.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="Protos/test_service.proto"
-              GrpcServices="None"
-              GenerateDescriptorSet="true"
-              DescriptorSetOutputPath="$(IntermediateOutputPath)protos/test_service.pb" />
+    <Protobuf Include="Protos/test_service.proto" GrpcServices="None" GenerateDescriptorSet="true" DescriptorSetOutputPath="$(IntermediateOutputPath)protos/test_service.pb" />
   </ItemGroup>
 
   <ItemGroup>

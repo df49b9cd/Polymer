@@ -1,18 +1,18 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Polymer.Cli/Polymer.Cli.csproj" />
-    <Project Path="src/Polymer.Codegen.Protobuf.Core/Polymer.Codegen.Protobuf.Core.csproj" />
-    <Project Path="src/Polymer.Codegen.Protobuf.Generator/Polymer.Codegen.Protobuf.Generator.csproj" />
-    <Project Path="src/Polymer.Codegen.Protobuf/Polymer.Codegen.Protobuf.csproj" />
-    <Project Path="src/Polymer.Configuration/Polymer.Configuration.csproj" />
-    <Project Path="src/Polymer/Polymer.csproj" />
+    <Project Path="src/Polymer.Cli/YARPCore.Cli.csproj" />
+    <Project Path="src/Polymer.Codegen.Protobuf.Core/YARPCore.Codegen.Protobuf.Core.csproj" />
+    <Project Path="src/Polymer.Codegen.Protobuf.Generator/YARPCore.Codegen.Protobuf.Generator.csproj" />
+    <Project Path="src/Polymer.Codegen.Protobuf/YARPCore.Codegen.Protobuf.csproj" />
+    <Project Path="src/Polymer.Configuration/YARPCore.Configuration.csproj" />
+    <Project Path="src/Polymer/YARPCore.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Polymer.Tests/Polymer.Tests.csproj" />
-    <Project Path="tests/Polymer.YabInterop/Polymer.YabInterop.csproj" />
+    <Project Path="tests/Polymer.Tests/YARPCore.Tests.csproj" />
     <Project Path="tests/Polymer.Tests/Projects/ProtobufIncrementalSample/ProtobufIncrementalSample.csproj" />
+    <Project Path="tests/Polymer.YabInterop/YARPCore.YabInterop.csproj" />
   </Folder>
 </Solution>

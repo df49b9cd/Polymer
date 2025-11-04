@@ -7,12 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../../src/Polymer/Polymer.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="../../../../src/Polymer.Codegen.Protobuf.Generator/Polymer.Codegen.Protobuf.Generator.csproj"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../../../src/Polymer.Codegen.Protobuf.Generator/YARPCore.Codegen.Protobuf.Generator.csproj" />
     <Analyzer Include="../../../../src/Polymer.Codegen.Protobuf.Generator/bin/$(Configuration)/net10.0/analyzers/dotnet/cs/Polymer.Codegen.Protobuf.Generator.dll" />
     <Analyzer Include="../../../../src/Polymer.Codegen.Protobuf.Generator/bin/$(Configuration)/net10.0/analyzers/dotnet/cs/Google.Protobuf.dll" />
     <Analyzer Include="../../../../src/Polymer.Codegen.Protobuf.Generator/bin/$(Configuration)/net10.0/analyzers/dotnet/cs/Polymer.Codegen.Protobuf.Core.dll" />
@@ -32,19 +27,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="Protos/test_service.proto"
-              GrpcServices="None"
-              GenerateDescriptorSet="true"
-              DescriptorSetOutputPath="$(IntermediateOutputPath)protos/test_service.pb" />
+    <Protobuf Include="Protos/test_service.proto" GrpcServices="None" GenerateDescriptorSet="true" DescriptorSetOutputPath="$(IntermediateOutputPath)protos/test_service.pb" />
   </ItemGroup>
 
   <Target Name="EnsureSampleDescriptorDirectory" BeforeTargets="ProtobufCompile">
     <MakeDir Directories="$(IntermediateOutputPath)protos" />
   </Target>
 
-  <Target Name="GenerateDescriptorSetManual"
-          BeforeTargets="CoreCompile"
-          DependsOnTargets="EnsureSampleDescriptorDirectory;Protobuf_ResolvePlatform">
+  <Target Name="GenerateDescriptorSetManual" BeforeTargets="CoreCompile" DependsOnTargets="EnsureSampleDescriptorDirectory;Protobuf_ResolvePlatform">
     <Exec Command="&quot;$(Protobuf_ProtocFullPath)&quot; --proto_path=&quot;$(ProjectDir)Protos&quot; --descriptor_set_out=&quot;$(IntermediateOutputPath)protos/test_service.pb&quot; --include_imports &quot;$(ProjectDir)Protos/test_service.proto&quot;" />
   </Target>
 </Project>

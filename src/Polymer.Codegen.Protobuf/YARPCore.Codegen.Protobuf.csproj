@@ -16,6 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Polymer.Codegen.Protobuf.Core\Polymer.Codegen.Protobuf.Core.csproj" />
+    <ProjectReference Include="../Polymer.Codegen.Protobuf.Core/YARPCore.Codegen.Protobuf.Core.csproj" />
   </ItemGroup>
 </Project>
