@@ -1,0 +1,107 @@
+name: Publish Polymer Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.2.0 or 0.2.0-rc.1)'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  pack-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Polymer.slnx
+
+      - name: Determine package version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            version="${tag#v}"
+          else
+            version="${{ github.event.inputs.version }}"
+          fi
+
+          if [[ -z "${version}" ]]; then
+            echo "Version could not be determined." >&2
+            exit 1
+          fi
+
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z\.-]+)?$ ]]; then
+            echo "Version '${version}' is not a valid SemVer value." >&2
+            exit 1
+          fi
+
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: dotnet build Polymer.slnx --configuration Release
+
+      - name: Test
+        run: dotnet test Polymer.slnx --configuration Release --no-build
+
+      - name: Pack artifacts
+        run: |
+          mkdir -p artifacts/packages
+          dotnet pack Polymer.slnx \
+            --configuration Release \
+            --output artifacts/packages \
+            /p:ContinuousIntegrationBuild=true \
+            /p:PolymerVersion=${{ steps.version.outputs.value }}
+
+      - name: List packages
+        run: ls -1 artifacts/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: polymer-packages-${{ steps.version.outputs.value }}
+          path: artifacts/packages
+          if-no-files-found: error
+
+      - name: Push to GitHub Packages
+        env:
+          OWNER: ${{ github.repository_owner }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for pkg in artifacts/packages/*.nupkg artifacts/packages/*.snupkg; do
+            [ -e "$pkg" ] || continue
+            dotnet nuget push "$pkg" \
+              --source "https://nuget.pkg.github.com/${OWNER}/index.json" \
+              --api-key "${TOKEN}" \
+              --skip-duplicate;
+          done
+
+      - name: Push to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_TOKEN }}
+        run: |
+          for pkg in artifacts/packages/*.nupkg artifacts/packages/*.snupkg; do
+            [ -e "$pkg" ] || continue
+            dotnet nuget push "$pkg" \
+              --source "https://api.nuget.org/v3/index.json" \
+              --api-key "${NUGET_API_KEY}" \
+              --skip-duplicate;
+          done

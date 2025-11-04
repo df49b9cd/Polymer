@@ -2,6 +2,8 @@
   <PropertyGroup>
     <AssemblyName>Polymer.Configuration</AssemblyName>
     <RootNamespace>Polymer.Configuration</RootNamespace>
+    <Description>Configuration binder, hosting extensions, and dependency injection for Polymer dispatchers.</Description>
+    <PackageTags>polymer;configuration;hosting;dependency-injection</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

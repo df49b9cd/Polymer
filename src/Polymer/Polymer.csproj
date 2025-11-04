@@ -2,6 +2,8 @@
   <PropertyGroup>
     <AssemblyName>Polymer</AssemblyName>
     <RootNamespace>Polymer</RootNamespace>
+    <Description>Polymer RPC dispatcher, transports, codecs, middleware, and peer management for .NET.</Description>
+    <PackageTags>rpc;yarpc;grpc;http;middleware</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

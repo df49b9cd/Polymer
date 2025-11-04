@@ -9,11 +9,7 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PrepareAnalyzerOutputs</TargetsForTfmSpecificBuildOutput>
-    <PackageId>Polymer.Codegen.Protobuf.Generator</PackageId>
-    <VersionPrefix>0.1.0</VersionPrefix>
-    <Authors>Polymer</Authors>
-    <Company>Polymer</Company>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageId>Polymer.Codegen.Generator</PackageId>
     <Description>Roslyn incremental generator that emits Polymer dispatcher/client helpers from protobuf descriptor sets.</Description>
     <PackageTags>polymer;protobuf;codegen;roslyn;incremental</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

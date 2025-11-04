@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PackageId>Polymer.Codegen.Protobuf</PackageId>
+    <Description>protoc plug-in for generating Polymer dispatcher and client bindings.</Description>
+    <PackageTags>polymer;protobuf;codegen;protoc</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />

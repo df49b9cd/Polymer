@@ -5,8 +5,9 @@
     <RootNamespace>Polymer.Cli</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>polymer</ToolCommandName>
-    <PackageId>Polymer.Cli.Tool</PackageId>
-    <Version>0.2.0</Version>
+    <PackageId>Polymer.Cli</PackageId>
+    <Description>Polymer operator CLI for validations, introspection, smoke tests, and benchmarking.</Description>
+    <PackageTags>polymer;cli;yarpc;grpc;http</PackageTags>
     <PackageReadmeFile>docs/reference/cli-tool-readme.md</PackageReadmeFile>
   </PropertyGroup>
 
