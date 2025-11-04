@@ -1,6 +1,6 @@
 # Streaming RPCs
 
-Polymer exposes first-class streaming pipelines that mirror YARPC-Go’s server, client, and bidirectional RPC types. This guide walks through the public APIs you use to register streaming handlers and issue calls from clients. Every transport (currently HTTP SSE/websocket and gRPC) implements the same abstractions so application code stays transport-agnostic.
+OmniRelay exposes first-class streaming pipelines that mirror YARPC-Go’s server, client, and bidirectional RPC types. This guide walks through the public APIs you use to register streaming handlers and issue calls from clients. Every transport (currently HTTP SSE/websocket and gRPC) implements the same abstractions so application code stays transport-agnostic.
 
 ## Streaming Shapes
 
@@ -50,7 +50,7 @@ dispatcher.Register(new StreamProcedureSpec(
             }
             catch (Exception ex)
             {
-                var error = PolymerErrors.FromException(ex, call.RequestMeta.Transport ?? "grpc");
+                var error = OmniRelayErrors.FromException(ex, call.RequestMeta.Transport ?? "grpc");
                 await call.CompleteAsync(error, cancellationToken).ConfigureAwait(false);
             }
         }, cancellationToken);
@@ -164,7 +164,7 @@ await foreach (var evt in chat.ReadResponsesAsync(ct))
 ```
 
 - `StreamCallOptions` identifies the stream direction and flows through middleware.
-- Client helpers automatically compose outbound middleware (`IStreamOutboundMiddleware`, `IClientStreamOutboundMiddleware`, `IDuplexOutboundMiddleware`) and translate codec errors into `PolymerException`.
+- Client helpers automatically compose outbound middleware (`IStreamOutboundMiddleware`, `IClientStreamOutboundMiddleware`, `IDuplexOutboundMiddleware`) and translate codec errors into `OmniRelayException`.
 
 ## Metadata, Deadlines, and Completion
 

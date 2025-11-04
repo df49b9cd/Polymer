@@ -104,7 +104,7 @@ internal static class PeerMetrics
     private static KeyValuePair<string, object?>[] AppendRetryTags(RequestMeta meta, Error error, int attempt)
     {
         var tags = CreatePeerTags(meta, string.Empty);
-        var status = PolymerErrorAdapter.ToStatus(error);
+        var status = OmniRelayErrorAdapter.ToStatus(error);
         tags = Append(tags, new KeyValuePair<string, object?>("error.status", status.ToString()));
         tags = Append(tags, new KeyValuePair<string, object?>("retry.attempt", attempt));
         return tags;

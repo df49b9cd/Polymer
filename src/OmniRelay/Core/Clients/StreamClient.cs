@@ -32,14 +32,14 @@ public sealed class StreamClient<TRequest, TResponse>
         var encodeResult = _codec.EncodeRequest(request.Body, meta);
         if (encodeResult.IsFailure)
         {
-            throw PolymerErrors.FromError(encodeResult.Error!, options.Direction.ToString());
+            throw OmniRelayErrors.FromError(encodeResult.Error!, options.Direction.ToString());
         }
 
         var rawRequest = new Request<ReadOnlyMemory<byte>>(meta, encodeResult.Value);
         var streamResult = await _pipeline(rawRequest, options, cancellationToken).ConfigureAwait(false);
         if (streamResult.IsFailure)
         {
-            throw PolymerErrors.FromError(streamResult.Error!, options.Direction.ToString());
+            throw OmniRelayErrors.FromError(streamResult.Error!, options.Direction.ToString());
         }
 
         await using (streamResult.Value.AsAsyncDisposable(out var call))
@@ -50,7 +50,7 @@ public sealed class StreamClient<TRequest, TResponse>
                 if (decodeResult.IsFailure)
                 {
                     await call.CompleteAsync(decodeResult.Error!, cancellationToken).ConfigureAwait(false);
-                    throw PolymerErrors.FromError(decodeResult.Error!, request.Meta.Transport ?? "stream");
+                    throw OmniRelayErrors.FromError(decodeResult.Error!, request.Meta.Transport ?? "stream");
                 }
 
                 yield return Response<TResponse>.Create(decodeResult.Value, call.ResponseMeta);

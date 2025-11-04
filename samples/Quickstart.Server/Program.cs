@@ -22,7 +22,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
 };
 
 await runtime.Dispatcher.StartAsync().ConfigureAwait(false);
-Console.WriteLine("Polymer quickstart dispatcher is running.");
+Console.WriteLine("OmniRelay quickstart dispatcher is running.");
 Console.WriteLine($" HTTP unary + oneway:   {string.Join(", ", runtime.HttpInbound.Urls)}");
 Console.WriteLine($" gRPC unary + streaming: {string.Join(", ", runtime.GrpcInbound.Urls)}");
 Console.WriteLine();
@@ -213,8 +213,8 @@ namespace OmniRelay.Samples.Quickstart
             }
             catch (Exception ex)
             {
-                var error = PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.Internal,
+                var error = OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.Internal,
                     string.IsNullOrWhiteSpace(ex.Message) ? "Streaming pipeline failed." : ex.Message,
                     transport ?? "stream");
                 await call.CompleteAsync(error, cancellationToken).ConfigureAwait(false);

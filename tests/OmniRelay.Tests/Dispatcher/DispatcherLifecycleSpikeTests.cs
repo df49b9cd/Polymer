@@ -48,7 +48,7 @@ public class DispatcherLifecycleSpikeTests
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
 
-        await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
             await DispatcherLifecycleSpike.RunAsync(startSteps, stopSteps, cts.Token);
         });

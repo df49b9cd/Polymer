@@ -32,7 +32,7 @@ public sealed class RateLimitingMiddlewareTests
         var result = await middleware.InvokeAsync(request, CancellationToken.None, (UnaryOutboundDelegate)((req, token) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
 
         Assert.True(result.IsFailure);
-        Assert.Equal(PolymerStatusCode.ResourceExhausted, PolymerErrorAdapter.ToStatus(result.Error!));
+        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(result.Error!));
 
         lease.Dispose();
     }

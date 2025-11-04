@@ -171,16 +171,27 @@ internal static class GrpcMetadataAdapter
             { GrpcTransportConstants.ErrorMessageTrailer, error.Message }
         };
 
+        var statusName = OmniRelayErrorAdapter.ToStatus(error).ToString();
+        trailers.Add(GrpcTransportConstants.StatusTrailer, statusName);
+
         if (!string.IsNullOrEmpty(error.Code))
         {
             trailers.Add(GrpcTransportConstants.ErrorCodeTrailer, error.Code);
         }
 
-        var statusName = PolymerErrorAdapter.ToStatus(error).ToString();
-        trailers.Add(GrpcTransportConstants.StatusTrailer, statusName);
+        if (error.TryGetMetadata(OmniRelayErrorAdapter.TransportMetadataKey, out string? transportValue) &&
+            !string.IsNullOrEmpty(transportValue))
+        {
+            trailers.Add(GrpcTransportConstants.TransportTrailer, transportValue);
+        }
 
         foreach (var kvp in error.Metadata)
         {
+            if (string.Equals(kvp.Key, OmniRelayErrorAdapter.TransportMetadataKey, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             trailers.Add(kvp.Key.ToLowerInvariant(), kvp.Value?.ToString() ?? string.Empty);
         }
 

@@ -1,6 +1,6 @@
 # Shadowing & Tee Outbounds
 
-Polymer supports shadow traffic (also called teeing) by wrapping a primary outbound with a secondary outbound that receives mirrored calls. This is useful for validating new services or transports against production workloads before promoting them fully.
+OmniRelay supports shadow traffic (also called teeing) by wrapping a primary outbound with a secondary outbound that receives mirrored calls. This is useful for validating new services or transports against production workloads before promoting them fully.
 
 ## Quick start
 

@@ -62,8 +62,8 @@ public sealed class FewestPendingPeerChooser : IPeerChooser
         if (bestPeers.Count == 0)
         {
             PeerMetrics.RecordPoolExhausted(meta);
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.ResourceExhausted,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.ResourceExhausted,
                 "All peers are busy.",
                 transport: meta.Transport ?? "unknown");
             return ValueTask.FromResult(Err<PeerLease>(error));
@@ -76,8 +76,8 @@ public sealed class FewestPendingPeerChooser : IPeerChooser
         if (!chosen.TryAcquire(cancellationToken))
         {
             PeerMetrics.RecordLeaseRejected(meta, chosen.Identifier, "rejected");
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.ResourceExhausted,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.ResourceExhausted,
                 "Selected peer rejected the lease.",
                 transport: meta.Transport ?? "unknown");
             return ValueTask.FromResult(Err<PeerLease>(error));

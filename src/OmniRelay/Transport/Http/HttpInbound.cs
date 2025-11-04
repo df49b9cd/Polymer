@@ -271,7 +271,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             StringValues.IsNullOrEmpty(procedureValues))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                await WriteErrorAsync(context, "rpc procedure header missing", OmniRelayStatusCode.InvalidArgument, transport).ConfigureAwait(false);
                 return;
             }
 
@@ -302,7 +302,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 if (onewayResult.IsFailure)
                 {
                     var error = onewayResult.Error!;
-                    var exception = PolymerErrors.FromError(error, transport);
+                    var exception = OmniRelayErrors.FromError(error, transport);
                     await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
                     return;
                 }
@@ -327,7 +327,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             if (result.IsFailure)
             {
                 var error = result.Error!;
-                var exception = PolymerErrors.FromError(error, transport);
+                var exception = OmniRelayErrors.FromError(error, transport);
                 await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
                 return;
             }
@@ -384,7 +384,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 StringValues.IsNullOrEmpty(procedureValues))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                await WriteErrorAsync(context, "rpc procedure header missing", OmniRelayStatusCode.InvalidArgument, transport).ConfigureAwait(false);
                 return;
             }
 
@@ -398,7 +398,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 !acceptValues.Any(static value => !string.IsNullOrEmpty(value) && value.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
             {
                 context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
-                await WriteErrorAsync(context, "text/event-stream Accept header required for streaming", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                await WriteErrorAsync(context, "text/event-stream Accept header required for streaming", OmniRelayStatusCode.InvalidArgument, transport).ConfigureAwait(false);
                 return;
             }
 
@@ -421,7 +421,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             if (streamResult.IsFailure)
             {
                 var error = streamResult.Error!;
-                var exception = PolymerErrors.FromError(error, transport);
+                var exception = OmniRelayErrors.FromError(error, transport);
                 context.Response.StatusCode = HttpStatusMapper.ToStatusCode(exception.StatusCode);
                 await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
                 return;
@@ -473,7 +473,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             if (!context.WebSockets.IsWebSocketRequest)
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await WriteErrorAsync(context, "WebSocket upgrade required for duplex streaming.", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                await WriteErrorAsync(context, "WebSocket upgrade required for duplex streaming.", OmniRelayStatusCode.InvalidArgument, transport).ConfigureAwait(false);
                 return;
             }
 
@@ -481,7 +481,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 StringValues.IsNullOrEmpty(procedureValues))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                await WriteErrorAsync(context, "rpc procedure header missing", OmniRelayStatusCode.InvalidArgument, transport).ConfigureAwait(false);
                 return;
             }
 
@@ -502,7 +502,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             if (callResult.IsFailure)
             {
                 var error = callResult.Error!;
-                var exception = PolymerErrors.FromError(error, transport);
+                var exception = OmniRelayErrors.FromError(error, transport);
                 context.Response.StatusCode = HttpStatusMapper.ToStatusCode(exception.StatusCode);
                 await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
                 return;
@@ -588,16 +588,16 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
                 catch (OperationCanceledException)
                 {
-                    var error = PolymerErrorAdapter.FromStatus(
-                        PolymerStatusCode.Cancelled,
+                    var error = OmniRelayErrorAdapter.FromStatus(
+                        OmniRelayStatusCode.Cancelled,
                         "The client cancelled the request.",
                         transport: transport);
                     await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    var error = PolymerErrorAdapter.FromStatus(
-                        PolymerStatusCode.Internal,
+                    var error = OmniRelayErrorAdapter.FromStatus(
+                        OmniRelayStatusCode.Internal,
                         ex.Message ?? "An error occurred while reading the duplex request stream.",
                         transport: transport,
                         inner: Error.FromException(ex));
@@ -620,8 +620,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
                 catch (OperationCanceledException)
                 {
-                    var error = PolymerErrorAdapter.FromStatus(
-                        PolymerStatusCode.Cancelled,
+                    var error = OmniRelayErrorAdapter.FromStatus(
+                        OmniRelayStatusCode.Cancelled,
                         "The client cancelled the response stream.",
                         transport: transport);
                     await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
@@ -629,8 +629,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
                 catch (Exception ex)
                 {
-                    var error = PolymerErrorAdapter.FromStatus(
-                        PolymerStatusCode.Internal,
+                    var error = OmniRelayErrorAdapter.FromStatus(
+                        OmniRelayStatusCode.Internal,
                         ex.Message ?? "An error occurred while writing the duplex response stream.",
                         transport: transport,
                         inner: Error.FromException(ex));
@@ -727,7 +727,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     private static async Task WriteErrorAsync(
         HttpContext context,
         string message,
-        PolymerStatusCode status,
+        OmniRelayStatusCode status,
         string transport,
         Error? error = null)
     {

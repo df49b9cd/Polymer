@@ -73,7 +73,7 @@ public sealed class HttpStreamCall : IStreamCall
         }
         else
         {
-            var exception = PolymerErrors.FromError(error, "http");
+            var exception = OmniRelayErrors.FromError(error, "http");
             _responses.Writer.TryComplete(exception);
         }
 
@@ -97,9 +97,9 @@ public sealed class HttpStreamCall : IStreamCall
             return StreamCompletionStatus.Succeeded;
         }
 
-        return PolymerErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(error) switch
         {
-            PolymerStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
+            OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted
         };
     }

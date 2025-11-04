@@ -57,7 +57,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                 if (result.IsFailure)
                 {
-                    var exception = PolymerErrors.FromError(result.Error!, GrpcTransportConstants.TransportName);
+                    var exception = OmniRelayErrors.FromError(result.Error!, GrpcTransportConstants.TransportName);
                     var status = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                     var trailers = GrpcMetadataAdapter.CreateErrorTrailers(exception.Error);
                     GrpcTransportDiagnostics.RecordException(activity, exception, status.StatusCode, exception.Message);
@@ -117,7 +117,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                 if (result.IsFailure)
                 {
-                    var exception = PolymerErrors.FromError(result.Error!, GrpcTransportConstants.TransportName);
+                    var exception = OmniRelayErrors.FromError(result.Error!, GrpcTransportConstants.TransportName);
                     var status = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                     var trailers = GrpcMetadataAdapter.CreateErrorTrailers(exception.Error);
                     GrpcTransportDiagnostics.RecordException(activity, exception, status.StatusCode, exception.Message);
@@ -179,7 +179,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                 if (streamResult.IsFailure)
                 {
-                    var exception = PolymerErrors.FromError(streamResult.Error!, GrpcTransportConstants.TransportName);
+                    var exception = OmniRelayErrors.FromError(streamResult.Error!, GrpcTransportConstants.TransportName);
                     var status = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                     var trailers = GrpcMetadataAdapter.CreateErrorTrailers(exception.Error);
                     var rpcException = new RpcException(status, trailers);
@@ -222,13 +222,13 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                     }
                     catch (OperationCanceledException)
                     {
-                        var error = PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Cancelled,
+                        var error = OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Cancelled,
                             "The client cancelled the request.",
                             transport: GrpcTransportConstants.TransportName);
                         await streamCall.CompleteAsync(error, cancellationToken).ConfigureAwait(false);
 
-                        var status = GrpcStatusMapper.ToStatus(PolymerStatusCode.Cancelled, "The client cancelled the request.");
+                        var status = GrpcStatusMapper.ToStatus(OmniRelayStatusCode.Cancelled, "The client cancelled the request.");
                         var trailers = GrpcMetadataAdapter.CreateErrorTrailers(error);
                         var rpcException = new RpcException(status, trailers);
                         GrpcTransportDiagnostics.RecordException(activity, rpcException, status.StatusCode, status.Detail);
@@ -236,7 +236,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                     }
                     catch (Exception ex)
                     {
-                        var polymerException = PolymerErrors.FromException(ex, GrpcTransportConstants.TransportName);
+                        var polymerException = OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName);
                         await streamCall.CompleteAsync(polymerException.Error, cancellationToken).ConfigureAwait(false);
 
                         var status = GrpcStatusMapper.ToStatus(polymerException.StatusCode, polymerException.Message);
@@ -318,7 +318,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                 if (callResult.IsFailure)
                 {
-                    var exception = PolymerErrors.FromError(callResult.Error!, GrpcTransportConstants.TransportName);
+                    var exception = OmniRelayErrors.FromError(callResult.Error!, GrpcTransportConstants.TransportName);
                     var status = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                     var trailers = GrpcMetadataAdapter.CreateErrorTrailers(exception.Error);
                     var rpcException = new RpcException(status, trailers);
@@ -355,19 +355,19 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                             ? rpcEx.Status.StatusCode.ToString()
                             : rpcEx.Status.Detail;
                         GrpcTransportDiagnostics.RecordException(activity, rpcEx, rpcEx.Status.StatusCode, message);
-                        var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+                        var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
                         await clientStreamCall.CompleteWriterAsync(error).ConfigureAwait(false);
                         RecordServerClientStreamMetrics(rpcEx.Status.StatusCode);
                         throw;
                     }
                     catch (OperationCanceledException)
                     {
-                        var error = PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Cancelled,
+                        var error = OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Cancelled,
                             "The client cancelled the request.",
                             transport: GrpcTransportConstants.TransportName);
                         await clientStreamCall.CompleteWriterAsync(error).ConfigureAwait(false);
-                        var status = GrpcStatusMapper.ToStatus(PolymerStatusCode.Cancelled, "The client cancelled the request.");
+                        var status = GrpcStatusMapper.ToStatus(OmniRelayStatusCode.Cancelled, "The client cancelled the request.");
                         var rpcException = new RpcException(status);
                         GrpcTransportDiagnostics.RecordException(activity, rpcException, status.StatusCode, status.Detail);
                         RecordServerClientStreamMetrics(status.StatusCode);
@@ -378,12 +378,12 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         var message = string.IsNullOrWhiteSpace(ex.Message)
                             ? "An error occurred while reading the client stream."
                             : ex.Message;
-                        var error = PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Internal,
+                        var error = OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Internal,
                             message,
                             transport: GrpcTransportConstants.TransportName);
                         await clientStreamCall.CompleteWriterAsync(error).ConfigureAwait(false);
-                        var status = GrpcStatusMapper.ToStatus(PolymerStatusCode.Internal, message);
+                        var status = GrpcStatusMapper.ToStatus(OmniRelayStatusCode.Internal, message);
                         var rpcException = new RpcException(status);
                         GrpcTransportDiagnostics.RecordException(activity, rpcException, status.StatusCode, status.Detail);
                         RecordServerClientStreamMetrics(status.StatusCode);
@@ -394,7 +394,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                     if (responseResult.IsFailure)
                     {
-                        var exception = PolymerErrors.FromError(responseResult.Error!, GrpcTransportConstants.TransportName);
+                        var exception = OmniRelayErrors.FromError(responseResult.Error!, GrpcTransportConstants.TransportName);
                         var status = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                         var trailers = GrpcMetadataAdapter.CreateErrorTrailers(exception.Error);
                         var rpcException = new RpcException(status, trailers);
@@ -486,7 +486,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                 if (callResult.IsFailure)
                 {
-                    var exception = PolymerErrors.FromError(callResult.Error!, GrpcTransportConstants.TransportName);
+                    var exception = OmniRelayErrors.FromError(callResult.Error!, GrpcTransportConstants.TransportName);
                     var status = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                     var trailers = GrpcMetadataAdapter.CreateErrorTrailers(exception.Error);
                     var rpcException = new RpcException(status, trailers);
@@ -521,8 +521,8 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         }
                         catch (OperationCanceledException ex)
                         {
-                            var error = PolymerErrorAdapter.FromStatus(
-                                PolymerStatusCode.Cancelled,
+                            var error = OmniRelayErrorAdapter.FromStatus(
+                                OmniRelayStatusCode.Cancelled,
                                 "The client cancelled the request.",
                                 transport: GrpcTransportConstants.TransportName);
                             await duplexCall.CompleteRequestsAsync(error, cancellationToken).ConfigureAwait(false);
@@ -532,7 +532,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         }
                         catch (RpcException rpcEx)
                         {
-                            var error = PolymerErrorAdapter.FromStatus(
+                            var error = OmniRelayErrorAdapter.FromStatus(
                                 GrpcStatusMapper.FromStatus(rpcEx.Status),
                                 string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail,
                                 transport: GrpcTransportConstants.TransportName);
@@ -543,8 +543,8 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         }
                         catch (Exception ex)
                         {
-                            var error = PolymerErrorAdapter.FromStatus(
-                                PolymerStatusCode.Internal,
+                            var error = OmniRelayErrorAdapter.FromStatus(
+                                OmniRelayStatusCode.Internal,
                                 ex.Message ?? "An error occurred while reading the duplex request stream.",
                                 transport: GrpcTransportConstants.TransportName,
                                 inner: Error.FromException(ex));
@@ -593,14 +593,14 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         }
                         catch (OperationCanceledException)
                         {
-                            var error = PolymerErrorAdapter.FromStatus(
-                                PolymerStatusCode.Cancelled,
+                            var error = OmniRelayErrorAdapter.FromStatus(
+                                OmniRelayStatusCode.Cancelled,
                                 "The client cancelled the request.",
                                 transport: GrpcTransportConstants.TransportName);
 
                             await duplexCall.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
 
-                            var status = GrpcStatusMapper.ToStatus(PolymerStatusCode.Cancelled, "The client cancelled the request.");
+                            var status = GrpcStatusMapper.ToStatus(OmniRelayStatusCode.Cancelled, "The client cancelled the request.");
                             var trailers = GrpcMetadataAdapter.CreateErrorTrailers(error);
                             var rpcException = new RpcException(status, trailers);
                             activityHasError = true;
@@ -610,7 +610,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         }
                         catch (Exception ex)
                         {
-                            var polymerException = PolymerErrors.FromException(ex, GrpcTransportConstants.TransportName);
+                            var polymerException = OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName);
                             await duplexCall.CompleteResponsesAsync(polymerException.Error, cancellationToken).ConfigureAwait(false);
 
                             var status = GrpcStatusMapper.ToStatus(polymerException.StatusCode, polymerException.Message);

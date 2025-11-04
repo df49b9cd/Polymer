@@ -1,39 +1,39 @@
-# Polymer Error Handling
+# OmniRelay Error Handling
 
 Guidance for surfacing and interpreting errors consistently across transports while maintaining parity with `yarpc-go`.
 
 ## Status & Metadata
 
-- `PolymerException` wraps failures with a canonical `PolymerStatusCode`, the original `Hugo.Error`, and the transport that surfaced the issue.
-- `PolymerErrorAdapter` annotates errors with:
-  - `polymer.status`: string representation of the status code.
-  - `polymer.faultType`: `Client` or `Server` classification (when known).
-  - `polymer.retryable`: boolean hint to retry middleware and call sites.
-  - `polymer.transport`: transport identifier (`http`, `grpc`, …).
-- Helpers in `PolymerErrors` provide structured handling:
-  - `PolymerErrors.FromException` → `PolymerException`.
-  - `PolymerErrors.IsStatus` / `TryGetStatus`.
-  - `PolymerErrors.GetFaultType` for quick classification.
-  - `PolymerErrors.IsRetryable` to align with outbound retry policy.
+- `OmniRelayException` wraps failures with a canonical `OmniRelayStatusCode`, the original `Hugo.Error`, and the transport that surfaced the issue.
+- `OmniRelayErrorAdapter` annotates errors with:
+  - `yarpcore.status`: string representation of the status code.
+  - `yarpcore.faultType`: `Client` or `Server` classification (when known).
+  - `yarpcore.retryable`: boolean hint to retry middleware and call sites.
+  - `yarpcore.transport`: transport identifier (`http`, `grpc`, …).
+- Helpers in `OmniRelayErrors` provide structured handling:
+  - `OmniRelayErrors.FromException` → `OmniRelayException`.
+  - `OmniRelayErrors.IsStatus` / `TryGetStatus`.
+  - `OmniRelayErrors.GetFaultType` for quick classification.
+  - `OmniRelayErrors.IsRetryable` to align with outbound retry policy.
 
 ## ASP.NET Core (HTTP)
 
-Use `PolymerExceptionFilter` to normalize exceptions thrown by controllers, Razor pages, and minimal API endpoints:
+Use `OmniRelayExceptionFilter` to normalize exceptions thrown by controllers, Razor pages, and minimal API endpoints:
 
 ```csharp
 builder.Services.AddControllers(options =>
 {
-    options.AddPolymerExceptionFilter(); // transport defaults to "http"
+    options.AddOmniRelayExceptionFilter(); // transport defaults to "http"
 });
 ```
 
 Effects:
 
-- Converts unhandled exceptions into `PolymerException`.
+- Converts unhandled exceptions into `OmniRelayException`.
 - Writes canonical headers (`Rpc-Status`, `Rpc-Error-Code`, `Rpc-Error-Message`, `Rpc-Transport`).
-- Serializes the error payload (`message`, `status`, `code`, `metadata`) so HTTP clients receive the same shape as Polymer inbounds.
+- Serializes the error payload (`message`, `status`, `code`, `metadata`) so HTTP clients receive the same shape as OmniRelay inbounds.
 
-For minimal APIs, register the filter on the shared `MvcOptions` or wrap handlers with a try/catch that calls `PolymerErrors.FromException`.
+For minimal APIs, register the filter on the shared `MvcOptions` or wrap handlers with a try/catch that calls `OmniRelayErrors.FromException`.
 
 ## gRPC Services
 
@@ -48,29 +48,29 @@ builder.Services.AddGrpc(options =>
 
 Benefits:
 
-- Non-`RpcException` failures become `RpcException`s whose status matches `PolymerStatusCode`.
-- Trailers include Polymer metadata (`polymer-status`, `polymer-error-code`, `polymer-transport`, fault/retry hints).
+- Non-`RpcException` failures become `RpcException`s whose status matches `OmniRelayStatusCode`.
+- Trailers include OmniRelay metadata (`polymer-status`, `polymer-error-code`, `polymer-transport`, fault/retry hints).
 - Existing middleware and diagnostics that rely on trailers stay aligned with the HTTP transport.
 
-If you already throw `RpcException` with Polymer trailers, the interceptor leaves the exception untouched.
+If you already throw `RpcException` with OmniRelay trailers, the interceptor leaves the exception untouched.
 
 ## Client Patterns
 
-- Always wrap outbound faults with `PolymerErrors.FromException` (the retry middleware performs this automatically).
-- Use `PolymerErrors.IsRetryable(error)` before manual retries.
-- Inspect `PolymerErrors.GetFaultType(exception)` for client/server attribution in logs.
-- When emitting structured logs, include `PolymerException.Error.Metadata` to preserve fault details.
+- Always wrap outbound faults with `OmniRelayErrors.FromException` (the retry middleware performs this automatically).
+- Use `OmniRelayErrors.IsRetryable(error)` before manual retries.
+- Inspect `OmniRelayErrors.GetFaultType(exception)` for client/server attribution in logs.
+- When emitting structured logs, include `OmniRelayException.Error.Metadata` to preserve fault details.
 
 ## Testing & Diagnostics
 
-- Unit tests can assert metadata via `PolymerErrorAdapter.FaultMetadataKey` / `RetryableMetadataKey`.
+- Unit tests can assert metadata via `OmniRelayErrorAdapter.FaultMetadataKey` / `RetryableMetadataKey`.
 - HTTP integration tests should verify the response headers/JSON mirror the filter output.
-- gRPC tests should inspect response trailers for `polymer-status` and `polymer.retryable` to confirm adapter wiring.
+- gRPC tests should inspect response trailers for `polymer-status` and `yarpcore.retryable` to confirm adapter wiring.
 
 ## Migration Checklist
 
-1. Register `PolymerExceptionFilter` for ASP.NET Core entry points.
+1. Register `OmniRelayExceptionFilter` for ASP.NET Core entry points.
 2. Register `GrpcExceptionAdapterInterceptor` for gRPC services.
-3. Ensure custom middleware rethrows `PolymerException` or wraps via `PolymerErrors.FromException`.
+3. Ensure custom middleware rethrows `OmniRelayException` or wraps via `OmniRelayErrors.FromException`.
 4. Update documentation/tooling references to include the new adapters.  
    (The parity backlog tracks this under **Error Model Parity → Error Helpers**.)

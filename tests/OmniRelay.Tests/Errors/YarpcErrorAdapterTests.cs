@@ -9,14 +9,14 @@ public class YarpcErrorAdapterTests
     [Fact]
     public void FromStatus_AttachesMetadata()
     {
-        var error = PolymerErrorAdapter.FromStatus(
-            PolymerStatusCode.PermissionDenied,
+        var error = OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.PermissionDenied,
             "denied",
             transport: "grpc");
 
         Assert.Equal("permission-denied", error.Code);
         Assert.True(error.TryGetMetadata("yarpcore.status", out string? status));
-        Assert.Equal(nameof(PolymerStatusCode.PermissionDenied), status);
+        Assert.Equal(nameof(OmniRelayStatusCode.PermissionDenied), status);
         Assert.True(error.TryGetMetadata("yarpcore.transport", out string? transport));
         Assert.Equal("grpc", transport);
     }
@@ -24,8 +24,8 @@ public class YarpcErrorAdapterTests
     [Fact]
     public void FromStatus_MergesAdditionalMetadata()
     {
-        var error = PolymerErrorAdapter.FromStatus(
-            PolymerStatusCode.ResourceExhausted,
+        var error = OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.ResourceExhausted,
             "busy",
             metadata: new Dictionary<string, object?>
             {
@@ -43,11 +43,11 @@ public class YarpcErrorAdapterTests
     public void ToStatus_UsesMetadataPriority()
     {
         var error = Error.From("denied")
-            .WithMetadata("yarpcore.status", nameof(PolymerStatusCode.Unavailable));
+            .WithMetadata("yarpcore.status", nameof(OmniRelayStatusCode.Unavailable));
 
-        var status = PolymerErrorAdapter.ToStatus(error);
+        var status = OmniRelayErrorAdapter.ToStatus(error);
 
-        Assert.Equal(PolymerStatusCode.Unavailable, status);
+        Assert.Equal(OmniRelayStatusCode.Unavailable, status);
     }
 
     [Fact]
@@ -55,9 +55,9 @@ public class YarpcErrorAdapterTests
     {
         var error = Error.From("internal failure", "internal");
 
-        var status = PolymerErrorAdapter.ToStatus(error);
+        var status = OmniRelayErrorAdapter.ToStatus(error);
 
-        Assert.Equal(PolymerStatusCode.Internal, status);
+        Assert.Equal(OmniRelayStatusCode.Internal, status);
     }
 
     [Fact]
@@ -65,8 +65,8 @@ public class YarpcErrorAdapterTests
     {
         var error = Error.From("cancelled").WithCause(new OperationCanceledException());
 
-        var status = PolymerErrorAdapter.ToStatus(error);
+        var status = OmniRelayErrorAdapter.ToStatus(error);
 
-        Assert.Equal(PolymerStatusCode.Cancelled, status);
+        Assert.Equal(OmniRelayStatusCode.Cancelled, status);
     }
 }

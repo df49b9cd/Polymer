@@ -124,7 +124,7 @@ public static class Program
 
     private static Command CreateConfigValidateCommand()
     {
-        var command = new Command("validate", "Validate Polymer dispatcher configuration.");
+        var command = new Command("validate", "Validate OmniRelay dispatcher configuration.");
 
         var configOption = new Option<string[]>("--config")
         {
@@ -686,16 +686,16 @@ public static class Program
 
         try
         {
-            services.AddPolymerDispatcher(configuration.GetSection(section ?? DefaultConfigSection));
+            services.AddOmniRelayDispatcher(configuration.GetSection(section ?? DefaultConfigSection));
         }
-        catch (PolymerConfigurationException ex)
+        catch (OmniRelayConfigurationException ex)
         {
             await Console.Error.WriteLineAsync($"Configuration invalid: {ex.Message}").ConfigureAwait(false);
             return 1;
         }
         catch (Exception ex)
         {
-            await Console.Error.WriteLineAsync($"Failed to configure Polymer dispatcher: {ex.Message}").ConfigureAwait(false);
+            await Console.Error.WriteLineAsync($"Failed to configure OmniRelay dispatcher: {ex.Message}").ConfigureAwait(false);
             return 1;
         }
 
@@ -725,7 +725,7 @@ public static class Program
 
             return 0;
         }
-        catch (PolymerConfigurationException ex)
+        catch (OmniRelayConfigurationException ex)
         {
             await Console.Error.WriteLineAsync($"Configuration validation failed: {ex.Message}").ConfigureAwait(false);
             return 1;
@@ -1575,7 +1575,7 @@ public static class Program
 
     private static void PrintError(Error error, string transport)
     {
-        var polymerException = PolymerErrors.FromError(error, transport);
+        var polymerException = OmniRelayErrors.FromError(error, transport);
         Console.Error.WriteLine($"Request failed with status {polymerException.StatusCode}: {polymerException.Message}");
 
         if (polymerException.Error.Metadata is { Count: > 0 } metadata)

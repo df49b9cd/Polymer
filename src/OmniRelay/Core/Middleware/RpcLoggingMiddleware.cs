@@ -211,7 +211,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
             return;
         }
 
-        var status = PolymerErrorAdapter.ToStatus(error);
+        var status = OmniRelayErrorAdapter.ToStatus(error);
 
         var extra = _options.Enrich?.Invoke(meta, null, activity);
         using var scope = RequestLoggingScope.Begin(_logger, meta, null, activity, extra);

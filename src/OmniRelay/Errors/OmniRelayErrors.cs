@@ -3,28 +3,28 @@ using static Hugo.Go;
 
 namespace OmniRelay.Errors;
 
-public static class PolymerErrors
+public static class OmniRelayErrors
 {
-    public static PolymerException FromError(Error error, string? transport = null)
+    public static OmniRelayException FromError(Error error, string? transport = null)
     {
         ArgumentNullException.ThrowIfNull(error);
 
-        var status = PolymerErrorAdapter.ToStatus(error);
-        var normalized = PolymerErrorAdapter.WithStatusMetadata(error, status);
+        var status = OmniRelayErrorAdapter.ToStatus(error);
+        var normalized = OmniRelayErrorAdapter.WithStatusMetadata(error, status);
 
         if (!string.IsNullOrEmpty(transport))
         {
-            normalized = normalized.WithMetadata(PolymerErrorAdapter.TransportMetadataKey, transport);
+            normalized = normalized.WithMetadata(OmniRelayErrorAdapter.TransportMetadataKey, transport);
         }
 
-        return new PolymerException(status, normalized.Message, normalized, transport, normalized.Cause);
+        return new OmniRelayException(status, normalized.Message, normalized, transport, normalized.Cause);
     }
 
-    public static PolymerException FromException(Exception exception, string? transport = null)
+    public static OmniRelayException FromException(Exception exception, string? transport = null)
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        if (exception is PolymerException polymerException)
+        if (exception is OmniRelayException polymerException)
         {
             return EnsureTransport(polymerException, transport);
         }
@@ -40,14 +40,14 @@ public static class PolymerErrors
                 ? "The operation was cancelled."
                 : canceled.Message;
 
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Cancelled,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
                 message,
                 transport,
                 inner: Error.Canceled().WithCause(canceled),
                 metadata: CreateExceptionMetadata(canceled, "operation-canceled"));
 
-            return new PolymerException(PolymerStatusCode.Cancelled, message, error, transport, canceled);
+            return new OmniRelayException(OmniRelayStatusCode.Cancelled, message, error, transport, canceled);
         }
 
         if (exception is TimeoutException timeout)
@@ -56,35 +56,35 @@ public static class PolymerErrors
                 ? "The operation timed out."
                 : timeout.Message;
 
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.DeadlineExceeded,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.DeadlineExceeded,
                 message,
                 transport,
                 inner: Error.Timeout().WithCause(timeout),
                 metadata: CreateExceptionMetadata(timeout, "operation-timeout"));
 
-            return new PolymerException(PolymerStatusCode.DeadlineExceeded, message, error, transport, timeout);
+            return new OmniRelayException(OmniRelayStatusCode.DeadlineExceeded, message, error, transport, timeout);
         }
 
         var innerError = Error.FromException(exception)
             .WithMetadata("exceptionType", exception.GetType().FullName);
 
-        var statusError = PolymerErrorAdapter.FromStatus(
-            PolymerStatusCode.Internal,
+        var statusError = OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.Internal,
             string.IsNullOrEmpty(exception.Message) ? "An internal error occurred." : exception.Message,
             transport,
             inner: innerError,
             metadata: CreateExceptionMetadata(exception, "internal-error"));
 
-        return new PolymerException(PolymerStatusCode.Internal, exception.Message, statusError, transport, exception);
+        return new OmniRelayException(OmniRelayStatusCode.Internal, exception.Message, statusError, transport, exception);
     }
 
-    public static bool IsStatus(Exception exception, PolymerStatusCode statusCode) =>
+    public static bool IsStatus(Exception exception, OmniRelayStatusCode statusCode) =>
         TryGetStatus(exception, out var resolved) && resolved == statusCode;
 
-    public static bool TryGetStatus(Exception exception, out PolymerStatusCode statusCode)
+    public static bool TryGetStatus(Exception exception, out OmniRelayStatusCode statusCode)
     {
-        if (exception is PolymerException polymerException)
+        if (exception is OmniRelayException polymerException)
         {
             statusCode = polymerException.StatusCode;
             return true;
@@ -92,31 +92,31 @@ public static class PolymerErrors
 
         if (exception is ResultException resultException && resultException.Error is not null)
         {
-            statusCode = PolymerErrorAdapter.ToStatus(resultException.Error);
+            statusCode = OmniRelayErrorAdapter.ToStatus(resultException.Error);
             return true;
         }
 
         if (exception is OperationCanceledException)
         {
-            statusCode = PolymerStatusCode.Cancelled;
+            statusCode = OmniRelayStatusCode.Cancelled;
             return true;
         }
 
         if (exception is TimeoutException)
         {
-            statusCode = PolymerStatusCode.DeadlineExceeded;
+            statusCode = OmniRelayStatusCode.DeadlineExceeded;
             return true;
         }
 
-        statusCode = PolymerStatusCode.Internal;
+        statusCode = OmniRelayStatusCode.Internal;
         return false;
     }
 
-    public static PolymerFaultType GetFaultType(Exception exception)
+    public static OmniRelayFaultType GetFaultType(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        if (exception is PolymerException polymerException)
+        if (exception is OmniRelayException polymerException)
         {
             return GetFaultType(polymerException.Error);
         }
@@ -128,23 +128,23 @@ public static class PolymerErrors
 
         return TryGetStatus(exception, out var status)
             ? GetFaultType(status)
-            : PolymerFaultType.Server;
+            : OmniRelayFaultType.Server;
     }
 
-    public static PolymerFaultType GetFaultType(PolymerStatusCode statusCode) =>
-        PolymerStatusFacts.GetFaultType(statusCode);
+    public static OmniRelayFaultType GetFaultType(OmniRelayStatusCode statusCode) =>
+        OmniRelayStatusFacts.GetFaultType(statusCode);
 
-    public static PolymerFaultType GetFaultType(Error error)
+    public static OmniRelayFaultType GetFaultType(Error error)
     {
         ArgumentNullException.ThrowIfNull(error);
 
-        if (error.TryGetMetadata(PolymerErrorAdapter.FaultMetadataKey, out string? faultName) &&
-            Enum.TryParse<PolymerFaultType>(faultName, ignoreCase: true, out var parsed))
+        if (error.TryGetMetadata(OmniRelayErrorAdapter.FaultMetadataKey, out string? faultName) &&
+            Enum.TryParse<OmniRelayFaultType>(faultName, ignoreCase: true, out var parsed))
         {
             return parsed;
         }
 
-        return PolymerStatusFacts.GetFaultType(PolymerErrorAdapter.ToStatus(error));
+        return OmniRelayStatusFacts.GetFaultType(OmniRelayErrorAdapter.ToStatus(error));
     }
 
     public static bool IsRetryable(Exception exception)
@@ -153,43 +153,43 @@ public static class PolymerErrors
 
         return exception switch
         {
-            PolymerException polymerException => IsRetryable(polymerException.Error),
+            OmniRelayException polymerException => IsRetryable(polymerException.Error),
             ResultException resultException when resultException.Error is not null => IsRetryable(resultException.Error),
             _ => TryGetStatus(exception, out var status) && IsRetryable(status)
         };
     }
 
-    public static bool IsRetryable(PolymerStatusCode statusCode) =>
-        PolymerStatusFacts.IsRetryable(statusCode);
+    public static bool IsRetryable(OmniRelayStatusCode statusCode) =>
+        OmniRelayStatusFacts.IsRetryable(statusCode);
 
     public static bool IsRetryable(Error error)
     {
         ArgumentNullException.ThrowIfNull(error);
 
-        if (error.TryGetMetadata(PolymerErrorAdapter.RetryableMetadataKey, out bool retryable))
+        if (error.TryGetMetadata(OmniRelayErrorAdapter.RetryableMetadataKey, out bool retryable))
         {
             return retryable;
         }
 
-        if (error.TryGetMetadata(PolymerErrorAdapter.RetryableMetadataKey, out string? retryableText) &&
+        if (error.TryGetMetadata(OmniRelayErrorAdapter.RetryableMetadataKey, out string? retryableText) &&
             bool.TryParse(retryableText, out var parsed))
         {
             return parsed;
         }
 
-        return PolymerStatusFacts.IsRetryable(PolymerErrorAdapter.ToStatus(error));
+        return OmniRelayStatusFacts.IsRetryable(OmniRelayErrorAdapter.ToStatus(error));
     }
 
     public static Result<T> ToResult<T>(Exception exception, string? transport = null) =>
         Err<T>(FromException(exception, transport).Error);
 
-    public static Result<T> ToResult<T>(PolymerStatusCode statusCode, string message, string? transport = null) =>
-        Err<T>(PolymerErrorAdapter.FromStatus(statusCode, message, transport));
+    public static Result<T> ToResult<T>(OmniRelayStatusCode statusCode, string message, string? transport = null) =>
+        Err<T>(OmniRelayErrorAdapter.FromStatus(statusCode, message, transport));
 
     public static Result<T> ToResult<T>(Error error, string? transport = null) =>
         Err<T>(FromError(error, transport).Error);
 
-    private static PolymerException EnsureTransport(PolymerException exception, string? transport)
+    private static OmniRelayException EnsureTransport(OmniRelayException exception, string? transport)
     {
         if (string.IsNullOrEmpty(transport) ||
             string.Equals(exception.Transport, transport, StringComparison.OrdinalIgnoreCase))
@@ -197,8 +197,8 @@ public static class PolymerErrors
             return exception;
         }
 
-        var updatedError = exception.Error.WithMetadata(PolymerErrorAdapter.TransportMetadataKey, transport);
-        return new PolymerException(exception.StatusCode, exception.Message, updatedError, transport, exception);
+        var updatedError = exception.Error.WithMetadata(OmniRelayErrorAdapter.TransportMetadataKey, transport);
+        return new OmniRelayException(exception.StatusCode, exception.Message, updatedError, transport, exception);
     }
 
     private static IReadOnlyDictionary<string, object?> CreateExceptionMetadata(Exception exception, string stage) =>

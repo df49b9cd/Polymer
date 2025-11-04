@@ -107,7 +107,7 @@ public sealed class PeerMetricsTests : IDisposable
 
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unavailable, "unavailable", transport: "grpc");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "unavailable", transport: "grpc");
 
         var attempt = 0;
         var result = await middleware.InvokeAsync(
@@ -126,7 +126,7 @@ public sealed class PeerMetricsTests : IDisposable
 
         Assert.True(result.IsSuccess);
 
-        Assert.Contains(GetMeasurements("yarpcore.retry.scheduled"), m => HasTag(m, "error.status", PolymerStatusCode.Unavailable.ToString()));
+        Assert.Contains(GetMeasurements("yarpcore.retry.scheduled"), m => HasTag(m, "error.status", OmniRelayStatusCode.Unavailable.ToString()));
         Assert.Contains(GetMeasurements("yarpcore.retry.succeeded"), m => HasTag(m, "retry.attempts", 2));
     }
 

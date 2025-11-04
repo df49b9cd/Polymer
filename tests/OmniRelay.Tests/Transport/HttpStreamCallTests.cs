@@ -33,7 +33,7 @@ public class HttpStreamCallTests
     {
         var meta = new RequestMeta(service: "svc", procedure: "stream", transport: "http");
         var call = HttpStreamCall.CreateServerStream(meta);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Cancelled, "cancelled", transport: "http");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Cancelled, "cancelled", transport: "http");
 
         await call.CompleteAsync(error, TestContext.Current.CancellationToken);
 

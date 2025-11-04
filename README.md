@@ -17,7 +17,7 @@ OmniRelay is the .NET port of Uber's YARPC runtime, layered on top of Hugo concu
 ## Repository Layout
 
 - `src/OmniRelay` - builds `OmniRelay.dll`; contains dispatcher, transports, codecs, middleware, peer subsystem, and client helpers.
-- `src/OmniRelay.Configuration` - builds `OmniRelay.Configuration.dll`; contains `AddPolymerDispatcher`, configuration models, and spec hooks (`ICustomInboundSpec`, etc.).
+- `src/OmniRelay.Configuration` - builds `OmniRelay.Configuration.dll`; contains `AddOmniRelayDispatcher`, configuration models, and spec hooks (`ICustomInboundSpec`, etc.).
 - `src/OmniRelay.Cli` - builds the `OmniRelay.Cli` global tool (`omnirelay` command) for config validation, introspection, and scripted smoke tests.
 - `src/OmniRelay.Codegen.Protobuf` - builds the `OmniRelay.Codegen.Protobuf` console plug-in (`protoc-gen-omnirelay-csharp`).
 - `src/OmniRelay.Codegen.Protobuf.Generator` - Roslyn incremental generator package (ships OmniRelay runtime dependencies).
@@ -146,7 +146,7 @@ The HTTP inbound exposes `/polymer/introspect`, `/healthz`, and `/readyz`. Intro
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddLogging();
-builder.Services.AddPolymerDispatcher(builder.Configuration.GetSection("polymer"));
+builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("polymer"));
 
 var app = builder.Build();
 await app.RunAsync();

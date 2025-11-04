@@ -51,7 +51,7 @@ public sealed class RpcMetricsMiddlewareTests
 
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc", encoding: "application/json");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Internal, "boom", transport: "grpc");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "boom", transport: "grpc");
 
         var result = await middleware.InvokeAsync(
             request,
@@ -61,12 +61,12 @@ public sealed class RpcMetricsMiddlewareTests
         Assert.True(result.IsFailure);
 
         AssertMeasurement(longMeasurements, "test.rpc.requests", 1, "rpc.direction", "outbound");
-        AssertMeasurement(longMeasurements, "test.rpc.failure", 1, "rpc.direction", "outbound", "rpc.status", PolymerStatusCode.Internal.ToString());
+        AssertMeasurement(longMeasurements, "test.rpc.failure", 1, "rpc.direction", "outbound", "rpc.status", OmniRelayStatusCode.Internal.ToString());
         AssertDoesNotContain(longMeasurements, "test.rpc.success");
 
         var duration = doubleMeasurements.Single(m => m.InstrumentName == "test.rpc.duration");
         Assert.Equal("outbound", duration.Tags.Single(tag => tag.Key == "rpc.direction").Value);
-        Assert.Equal(PolymerStatusCode.Internal.ToString(), duration.Tags.Single(tag => tag.Key == "rpc.status").Value);
+        Assert.Equal(OmniRelayStatusCode.Internal.ToString(), duration.Tags.Single(tag => tag.Key == "rpc.status").Value);
     }
 
     private static MeterListener CreateListener(

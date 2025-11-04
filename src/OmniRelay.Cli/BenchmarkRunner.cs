@@ -372,7 +372,7 @@ internal static class BenchmarkRunner
 
     private static string FormatError(Error error, string transport)
     {
-        var polymerException = PolymerErrors.FromError(error, transport);
+        var polymerException = OmniRelayErrors.FromError(error, transport);
         return $"{polymerException.StatusCode}: {polymerException.Message}";
     }
 

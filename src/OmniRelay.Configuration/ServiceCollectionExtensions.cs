@@ -13,21 +13,21 @@ using OmniRelay.Core.Diagnostics;
 
 namespace OmniRelay.Configuration;
 
-public static class PolymerServiceCollectionExtensions
+public static class OmniRelayServiceCollectionExtensions
 {
-    public static IServiceCollection AddPolymerDispatcher(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddOmniRelayDispatcher(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
 
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var snapshot = new PolymerConfigurationOptions();
+        var snapshot = new OmniRelayConfigurationOptions();
         configuration.Bind(snapshot);
         ValidateBasicConfiguration(snapshot);
 
         var (minimumLevel, overrides) = ParseLoggingConfiguration(snapshot.Logging);
 
-        services.Configure<PolymerConfigurationOptions>(configuration);
+        services.Configure<OmniRelayConfigurationOptions>(configuration);
 
         ConfigureDiagnostics(services, snapshot);
 
@@ -49,7 +49,7 @@ public static class PolymerServiceCollectionExtensions
 
         services.AddSingleton(provider =>
         {
-            var options = provider.GetRequiredService<IOptions<PolymerConfigurationOptions>>().Value;
+            var options = provider.GetRequiredService<IOptions<OmniRelayConfigurationOptions>>().Value;
             var builder = new DispatcherBuilder(options, provider, configuration);
             return builder.Build();
         });
@@ -66,7 +66,7 @@ public static class PolymerServiceCollectionExtensions
         return services;
     }
 
-    private static void ConfigureDiagnostics(IServiceCollection services, PolymerConfigurationOptions options)
+    private static void ConfigureDiagnostics(IServiceCollection services, OmniRelayConfigurationOptions options)
     {
         var diagnostics = options.Diagnostics;
         if (diagnostics is null)
@@ -122,7 +122,7 @@ public static class PolymerServiceCollectionExtensions
                         {
                             if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
                             {
-                                throw new PolymerConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
+                                throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
                             }
 
                             options.Endpoint = endpoint;
@@ -186,15 +186,15 @@ public static class PolymerServiceCollectionExtensions
             return parsed;
         }
 
-        throw new PolymerConfigurationException(
+        throw new OmniRelayConfigurationException(
             $"OTLP protocol '{protocol}' is not valid. Supported values: {string.Join(", ", Enum.GetNames(typeof(OtlpExportProtocol)))}.");
     }
 
-    private static void ValidateBasicConfiguration(PolymerConfigurationOptions options)
+    private static void ValidateBasicConfiguration(OmniRelayConfigurationOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.Service))
         {
-            throw new PolymerConfigurationException("Polymer configuration must specify a service name.");
+            throw new OmniRelayConfigurationException("OmniRelay configuration must specify a service name.");
         }
     }
 
@@ -209,7 +209,7 @@ public static class PolymerServiceCollectionExtensions
             }
             else
             {
-                throw new PolymerConfigurationException($"Logging level '{logging.Level}' is not a valid value. Expected values match {nameof(LogLevel)}.");
+                throw new OmniRelayConfigurationException($"Logging level '{logging.Level}' is not a valid value. Expected values match {nameof(LogLevel)}.");
             }
         }
 
@@ -223,7 +223,7 @@ public static class PolymerServiceCollectionExtensions
 
             if (!Enum.TryParse<LogLevel>(entry.Value, ignoreCase: true, out var parsed))
             {
-                throw new PolymerConfigurationException($"Logging override for '{entry.Key}' uses invalid level '{entry.Value}'.");
+                throw new OmniRelayConfigurationException($"Logging override for '{entry.Key}' uses invalid level '{entry.Value}'.");
             }
 
             overrides.Add((entry.Key, parsed));

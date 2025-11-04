@@ -1,6 +1,6 @@
 namespace OmniRelay.Errors;
 
-public enum PolymerFaultType
+public enum OmniRelayFaultType
 {
     Unknown = 0,
     Client = 1,

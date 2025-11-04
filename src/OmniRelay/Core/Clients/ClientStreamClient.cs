@@ -30,7 +30,7 @@ public sealed class ClientStreamClient<TRequest, TResponse>
         var result = await _pipeline(normalizedMeta, cancellationToken).ConfigureAwait(false);
         if (result.IsFailure)
         {
-            throw PolymerErrors.FromError(result.Error!, normalizedMeta.Transport ?? "unknown");
+            throw OmniRelayErrors.FromError(result.Error!, normalizedMeta.Transport ?? "unknown");
         }
 
         return new ClientStreamSession(normalizedMeta, _codec, result.Value);
@@ -67,7 +67,7 @@ public sealed class ClientStreamClient<TRequest, TResponse>
             var encodeResult = _codec.EncodeRequest(message, _meta);
             if (encodeResult.IsFailure)
             {
-                throw PolymerErrors.FromError(encodeResult.Error!, _meta.Transport ?? "unknown");
+                throw OmniRelayErrors.FromError(encodeResult.Error!, _meta.Transport ?? "unknown");
             }
 
             await _transportCall.WriteAsync(encodeResult.Value, cancellationToken).ConfigureAwait(false);
@@ -83,13 +83,13 @@ public sealed class ClientStreamClient<TRequest, TResponse>
             var result = await _transportCall.Response.ConfigureAwait(false);
             if (result.IsFailure)
             {
-                throw PolymerErrors.FromError(result.Error!, _meta.Transport ?? "unknown");
+                throw OmniRelayErrors.FromError(result.Error!, _meta.Transport ?? "unknown");
             }
 
             var decode = _codec.DecodeResponse(result.Value.Body, result.Value.Meta);
             if (decode.IsFailure)
             {
-                throw PolymerErrors.FromError(decode.Error!, _meta.Transport ?? "unknown");
+                throw OmniRelayErrors.FromError(decode.Error!, _meta.Transport ?? "unknown");
             }
 
             return Response<TResponse>.Create(decode.Value, result.Value.Meta);

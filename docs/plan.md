@@ -27,7 +27,7 @@
 
 ## What YARPC Is
 
-**YARPC** is Uber’s RPC toolkit that cleanly separates concerns into **encodings**, **transports**, and **peer choosers**, allowing services to switch wire protocols and load‑balancing strategies without changing handler or call-site code. It provides reference transports (HTTP/1.1, gRPC, TChannel) and encodings (raw, JSON, Thrift, Protobuf). Polymer focuses on HTTP/1.1 and gRPC parity; TChannel is acknowledged historically but intentionally out of scope for the current effort. A central **Dispatcher** wires inbounds, outbounds, routing, and middleware, and manages lifecycle.
+**YARPC** is Uber’s RPC toolkit that cleanly separates concerns into **encodings**, **transports**, and **peer choosers**, allowing services to switch wire protocols and load‑balancing strategies without changing handler or call-site code. It provides reference transports (HTTP/1.1, gRPC, TChannel) and encodings (raw, JSON, Thrift, Protobuf). OmniRelay focuses on HTTP/1.1 and gRPC parity; TChannel is acknowledged historically but intentionally out of scope for the current effort. A central **Dispatcher** wires inbounds, outbounds, routing, and middleware, and manages lifecycle.
 
 > **Status example:** latest release (at time of research): **v1.81.0** (Sep 15, 2025).
 
@@ -114,7 +114,7 @@
 
 ### 10) Ecosystem Tools
 
-* **yab** CLI issues Thrift/Protobuf requests over TChannel/HTTP/gRPC; handy for local testing and benchmarks (Polymer will concentrate on HTTP/gRPC compatibility).
+* **yab** CLI issues Thrift/Protobuf requests over TChannel/HTTP/gRPC; handy for local testing and benchmarks (OmniRelay will concentrate on HTTP/gRPC compatibility).
 
 * * *
 
@@ -170,9 +170,9 @@ API Mapping (Go → C#)
 | `transport.UnaryOutbound/OnewayOutbound/StreamOutbound` | `IUnaryOutbound` / `IOnewayOutbound` / `IStreamOutbound` |
 | `transport.Inbound` + handler specs | `IUnaryInbound` / `IOnewayInbound` / `IStreamInbound` |
 | `peer.Chooser` + lists (round‑robin, pending‑heap) | `IPeerChooser` + `RoundRobinPeerList`, `PendingHeapPeerList` |
-| `yarpcconfig` | `PolymerConfiguration` (YAML/JSON → Dispatcher) |
+| `yarpcconfig` | `OmniRelay.Configuration` (YAML/JSON → Dispatcher) |
 | `encoding/json`, `/thrift`, `/protobuf` | `JsonCodec`, `ProtobufCodec` (Thrift later) |
-| `yarpcerrors` | `PolymerException` + `PolymerStatusCode` enum |
+| `yarpcerrors` | `OmniRelayException` + `OmniRelayStatusCode` enum |
 | Middleware packages | Inbound/Outbound interfaces + ordered pipeline combinators |
 | Hugo `Error`/`Result<T>` | Backing transport error/result semantics; adapters attach YARPC status metadata to Hugo errors |
 
@@ -189,7 +189,7 @@ Wire‑Up & Lifecycle
 
 * Router maps procedures (encoding-specific names) to handlers; `Introspect()` surfaces registered procedures, middleware chains, peer chooser state, and transport health snapshots.
 
-* Provide helper extensions (`AddPolymerDispatcher`, `UsePolymer`) so ASP.NET Core or worker services can register dispatcher components declaratively in `Program.cs`.
+* Provide helper extensions (`AddOmniRelayDispatcher`, `UseOmniRelay`) so ASP.NET Core or worker services can register dispatcher components declaratively in `Program.cs`.
 
 * Bootstrap Hugo diagnostics (`GoDiagnostics.Configure(...)`) as part of dispatcher startup so transport/middleware metrics flow into the shared telemetry backends without bespoke instrumentation.
 * **Procedure aliases:** `ProcedureSpec` now accepts alternative names; the registry resolves aliases transparently and introspection surfaces them alongside canonical procedure names.
@@ -224,7 +224,7 @@ Transport Specifics
 
 * **Outbounds:**`GrpcChannel` + client interceptors wrapping `IUnaryOutbound`&`IStreamOutbound`.
 
-* **Status Mapping:** gRPC `StatusCode` ↔ `PolymerStatusCode`.
+* **Status Mapping:** gRPC `StatusCode` ↔ `OmniRelayStatusCode`.
 
 * **Streaming support:** expose async enumerable APIs for server/client/bidi streams; ensure back-pressure ties into YARPC middleware.
 * **Docs:** `docs/reference/streaming.md` captures handler registration patterns, client helpers, and completion semantics across server, client, and duplex streaming.
@@ -286,19 +286,19 @@ Peer & Load‑Balancing
 Error Model
 -----------
 
-* `PolymerStatusCode` enum and `PolymerException` type.
+* `OmniRelayStatusCode` enum and `OmniRelayException` type.
 
 * Helpers: `FromException`, `IsStatus`, `GetFaultType` (client/server).
 
 * Mapping: gRPC codes ↔ YARPC codes; HTTP status/headers → YARPC codes.
 
-* **.NET integration:** provide exception filters/middleware so ASP.NET Core controllers can translate thrown exceptions into `PolymerException` consistently.
+* **.NET integration:** provide exception filters/middleware so ASP.NET Core controllers can translate thrown exceptions into `OmniRelayException` consistently.
 
 * **Retry semantics:** publish guidance on which status codes are retryable and ensure middleware respects them.
 
 * **Hugo alignment:** adapt YARPC status enums into Hugo `Error.Code` metadata so existing Hugo-aware tooling (result pipelines, diagnostics) understands transport failures.
 
-**Status:** HTTP and gRPC transports now share canonical mappings (`HttpStatusMapper`, `GrpcStatusMapper` tests), while `PolymerErrorAdapter` stamps `polymer.faultType`/`polymer.retryable` metadata consumed by the expanded `PolymerErrors.IsRetryable` helper. ASP.NET controllers can opt into `PolymerExceptionFilter` and gRPC services can register `GrpcExceptionAdapterInterceptor` to translate thrown exceptions into Polymer-aware responses automatically. Canonical usage patterns (server adapters, client helpers, testing guidance) live in `docs/reference/errors.md`.
+**Status:** HTTP and gRPC transports now share canonical mappings (`HttpStatusMapper`, `GrpcStatusMapper` tests), while `OmniRelayErrorAdapter` stamps `polymer.faultType`/`polymer.retryable` metadata consumed by the expanded `OmniRelayErrors.IsRetryable` helper. ASP.NET controllers can opt into `OmniRelayExceptionFilter` and gRPC services can register `GrpcExceptionAdapterInterceptor` to translate thrown exceptions into OmniRelay-aware responses automatically. Canonical usage patterns (server adapters, client helpers, testing guidance) live in `docs/reference/errors.md`.
 
 * * *
 
@@ -307,7 +307,7 @@ Middleware & Observability
 
 * Middleware interfaces for unary/oneway/stream (inbound & outbound) + combinators to build ordered pipelines.
 
-* **Stock middleware:** logging, tracing (OpenTelemetry), metrics, deadline enforcement, panic/exception recovery (convert to `PolymerException`).
+* **Stock middleware:** logging, tracing (OpenTelemetry), metrics, deadline enforcement, panic/exception recovery (convert to `OmniRelayException`).
 
 * **Extensibility:** support per-procedure middleware overrides and attribute-based registration for generated clients.
 
@@ -401,13 +401,13 @@ Each step includes _Done when…_ acceptance criteria.
 
 * `ICodec<TReq,TRes>`, `JsonCodec<TReq,TRes>`.
 
-* Errors: `PolymerStatusCode`, `PolymerException`, helpers `FromException`, `IsStatus`, `GetFaultType`.
+* Errors: `OmniRelayStatusCode`, `OmniRelayException`, helpers `FromException`, `IsStatus`, `GetFaultType`.
 
 * Middleware interfaces and `Compose(...)` combinators.
 
-* Hugo adapters translating `Hugo.Error`/`Result<T>` into the Polymer-specific surface (status codes, headers, metadata).
+* Hugo adapters translating `Hugo.Error`/`Result<T>` into the OmniRelay-specific surface (status codes, headers, metadata).
 
-**Done when:** Library builds; can throw/catch `PolymerException` with a code and convert to/from Hugo `Error`.
+**Done when:** Library builds; can throw/catch `OmniRelayException` with a code and convert to/from Hugo `Error`.
 
 * * *
 
@@ -503,7 +503,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 **Done when:** YAML can spin up HTTP inbound on `:8080`, HTTP unary+oneway outbound to service `keyvalue` with RR peers, and logging levels.
 
-**Status:** `OmniRelay.Configuration` binds dispatcher settings from `IConfiguration`, exposes `AddPolymerDispatcher` for DI wiring, and includes tests (see `PolymerConfigurationTests`) covering HTTP/gRPC bootstrap, logging overrides, and custom transport/peer specs (`ICustomInboundSpec`, `ICustomOutboundSpec`, `ICustomPeerChooserSpec`). Layered samples live under `docs/reference/configuration` to illustrate multi-environment `appsettings*.json` usage. Next steps: optional hot-reload support.
+**Status:** `OmniRelay.Configuration` binds dispatcher settings from `IConfiguration`, exposes `AddOmniRelayDispatcher` for DI wiring, and includes tests (see `OmniRelayConfigurationTests`) covering HTTP/gRPC bootstrap, logging overrides, and custom transport/peer specs (`ICustomInboundSpec`, `ICustomOutboundSpec`, `ICustomPeerChooserSpec`). Layered samples live under `docs/reference/configuration` to illustrate multi-environment `appsettings*.json` usage. Next steps: optional hot-reload support.
 
 * * *
 
@@ -525,7 +525,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 **Prompt:** Provide bi‑directional mappings:
 
-* gRPC `StatusCode` ↔ `PolymerStatusCode`; HTTP status classes → YARPC codes.
+* gRPC `StatusCode` ↔ `OmniRelayStatusCode`; HTTP status classes → YARPC codes.
 
 * Verify `FromException`, `IsStatus`, `GetFaultType` behavior in middleware.
 
@@ -591,7 +591,7 @@ using OmniRelay.Dispatcher;
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddLogging();
-builder.Services.AddPolymerDispatcher(dispatcher =>
+builder.Services.AddOmniRelayDispatcher(dispatcher =>
 {
     dispatcher.SetServiceName("keyvalue");
     dispatcher.AddInbound(HttpInbound.Create("http://0.0.0.0:8080"));
@@ -623,7 +623,7 @@ var response = await client.CallAsync(new GetRequest { Key = "foo" }, cancellati
 Console.WriteLine($"value = {response.Value}");
 ```
 
-The sketch assumes helper extensions (`AddPolymerDispatcher`, `RegisterJsonUnary`, `CreateJsonClient`) introduced in the plan’s earlier steps. Replace with equivalent wiring if naming changes.
+The sketch assumes helper extensions (`AddOmniRelayDispatcher`, `RegisterJsonUnary`, `CreateJsonClient`) introduced in the plan’s earlier steps. Replace with equivalent wiring if naming changes.
 
 * * *
 

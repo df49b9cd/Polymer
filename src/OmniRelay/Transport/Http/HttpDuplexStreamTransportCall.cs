@@ -52,7 +52,7 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            return PolymerErrors.ToResult<IDuplexStreamCall>(ex, transport: transport);
+            return OmniRelayErrors.ToResult<IDuplexStreamCall>(ex, transport: transport);
         }
     }
 
@@ -132,8 +132,8 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (OperationCanceledException)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Cancelled,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
                 "The request stream was cancelled.",
                 transport: _transport);
             await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
@@ -141,8 +141,8 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An error occurred while sending request messages.",
                 transport: _transport,
                 inner: Error.FromException(ex));
@@ -221,15 +221,15 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (OperationCanceledException)
         {
-            await _inner.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Cancelled,
+            await _inner.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
                 "The response stream was cancelled.",
                 transport: _transport), CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            await _inner.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            await _inner.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An error occurred while receiving response messages.",
                 transport: _transport,
                 inner: Error.FromException(ex)), CancellationToken.None).ConfigureAwait(false);

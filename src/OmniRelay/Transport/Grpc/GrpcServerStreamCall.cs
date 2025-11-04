@@ -83,9 +83,9 @@ public sealed class GrpcServerStreamCall : IStreamCall
         }
         else
         {
-            var exception = PolymerErrors.FromError(error, GrpcTransportConstants.TransportName);
+            var exception = OmniRelayErrors.FromError(error, GrpcTransportConstants.TransportName);
             _responses.Writer.TryComplete(exception);
-            var status = GrpcStatusMapper.ToStatus(PolymerErrorAdapter.ToStatus(error), exception.Message);
+            var status = GrpcStatusMapper.ToStatus(OmniRelayErrorAdapter.ToStatus(error), exception.Message);
             RecordCompletion(status.StatusCode);
         }
 
@@ -110,9 +110,9 @@ public sealed class GrpcServerStreamCall : IStreamCall
             return StreamCompletionStatus.Succeeded;
         }
 
-        return PolymerErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(error) switch
         {
-            PolymerStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
+            OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted
         };
     }

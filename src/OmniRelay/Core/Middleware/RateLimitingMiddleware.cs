@@ -215,7 +215,7 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
     private static Error RateLimitExceeded(RequestMeta meta)
     {
         var message = $"Rate limit exceeded for procedure '{meta.Procedure ?? "<unknown>"}'.";
-        return PolymerErrorAdapter.FromStatus(PolymerStatusCode.ResourceExhausted, message, transport: meta.Transport ?? "unknown");
+        return OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.ResourceExhausted, message, transport: meta.Transport ?? "unknown");
     }
 
     private sealed class RateLimitedStreamCall(IStreamCall inner, RateLimitLease lease) : IStreamCall

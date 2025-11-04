@@ -1,6 +1,6 @@
 # Middleware Composition
 
-Polymer mirrors `yarpc-go` by layering transport-specific middleware stacks with procedure-level overrides. This guide explains how middleware is composed, how to attach per-procedure middleware using the builders introduced for parity, and what ordering guarantees the dispatcher provides.
+OmniRelay mirrors `yarpc-go` by layering transport-specific middleware stacks with procedure-level overrides. This guide explains how middleware is composed, how to attach per-procedure middleware using the builders introduced for parity, and what ordering guarantees the dispatcher provides.
 
 ## Global vs per-procedure middleware
 
@@ -38,7 +38,7 @@ dispatcher.RegisterUnary(
 dispatcher.RegisterStream(
     "events::subscribe",
     handler: (request, options, ct) =>
-        ValueTask.FromResult(Go.Err<IStreamCall>(PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unimplemented, "TODO"))),
+        ValueTask.FromResult(Go.Err<IStreamCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unimplemented, "TODO"))),
     configure: builder => builder
         .WithMetadata(new StreamIntrospectionMetadata(
             new StreamChannelMetadata(StreamDirection.Server, "bounded-channel", Capacity: 100, TracksMessageCount: true)))
@@ -110,7 +110,7 @@ public sealed class AuditUnaryMiddleware : IUnaryInboundMiddleware
             request.Meta.Procedure ?? "unknown",
             success: result.IsSuccess,
             duration: TimeProvider.System.GetUtcNow() - start,
-            status: result.IsFailure ? PolymerErrorAdapter.ToStatus(result.Error!) : PolymerStatusCode.OK));
+            status: result.IsFailure ? OmniRelayErrorAdapter.ToStatus(result.Error!) : OmniRelayStatusCode.OK));
 
         return result;
     }
@@ -138,12 +138,12 @@ public sealed class RetryBudgetMiddleware : IUnaryOutboundMiddleware
         if (!_budget.TryConsume())
         {
             return Go.Err<Response<ReadOnlyMemory<byte>>>(
-                PolymerErrorAdapter.FromStatus(PolymerStatusCode.ResourceExhausted, "Retry budget depleted."));
+                OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.ResourceExhausted, "Retry budget depleted."));
         }
 
         var result = await next(request, cancellationToken).ConfigureAwait(false);
 
-        if (result.IsSuccess || !PolymerErrors.IsRetryable(result.Error!))
+        if (result.IsSuccess || !OmniRelayErrors.IsRetryable(result.Error!))
         {
             _budget.ReturnToken();
         }
@@ -154,7 +154,7 @@ public sealed class RetryBudgetMiddleware : IUnaryOutboundMiddleware
 ```
 
 - Outbound middleware has access to `IRequest<ReadOnlyMemory<byte>>` and can inspect or mutate headers before invoking `next`.
-- Use `PolymerErrors.IsRetryable` to decide whether to refund budgets or alter retry policies.
+- Use `OmniRelayErrors.IsRetryable` to decide whether to refund budgets or alter retry policies.
 
 ### Streaming best practices
 
@@ -169,4 +169,4 @@ Streaming middleware receives `StreamCallOptions` (direction, server/client) and
 - Prefer stateless middleware and inject dependencies through constructors for testability.
 - Surface critical metadata via headers or `ResponseMeta.WithHeader(...)`; the dispatcher merges metadata into transport responses.
 - When working with channels, ensure writers/readers are completed to prevent leaking tasks—middleware should call `CompleteAsync`/`CompleteRequestsAsync` when short-circuiting.
-- Keep middleware resilient: catch and translate unexpected exceptions with `PolymerErrors.FromException` so transports can emit canonical codes.
+- Keep middleware resilient: catch and translate unexpected exceptions with `OmniRelayErrors.FromException` so transports can emit canonical codes.

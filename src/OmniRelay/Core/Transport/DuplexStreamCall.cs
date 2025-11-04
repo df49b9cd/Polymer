@@ -110,7 +110,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             return;
         }
 
-        var exception = PolymerErrors.FromError(error, transport);
+        var exception = OmniRelayErrors.FromError(error, transport);
         writer.TryComplete(exception);
     }
 
@@ -121,9 +121,9 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             return StreamCompletionStatus.Succeeded;
         }
 
-        return PolymerErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(error) switch
         {
-            PolymerStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
+            OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted
         };
     }

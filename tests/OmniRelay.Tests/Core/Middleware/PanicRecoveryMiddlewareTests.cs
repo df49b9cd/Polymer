@@ -25,8 +25,8 @@ public sealed class PanicRecoveryMiddlewareTests
             (UnaryInboundDelegate)((_, _) => throw new InvalidOperationException("boom")));
 
         Assert.True(result.IsFailure);
-        var status = PolymerErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(PolymerStatusCode.Internal, status);
+        var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
+        Assert.Equal(OmniRelayStatusCode.Internal, status);
         Assert.Equal("System.InvalidOperationException", result.Error!.Metadata["exception_type"]);
 
         var entry = Assert.Single(logger.Entries);
@@ -47,7 +47,7 @@ public sealed class PanicRecoveryMiddlewareTests
             (UnaryOutboundDelegate)((_, _) => throw new ApplicationException("fail")));
 
         Assert.True(result.IsFailure);
-        Assert.Equal(PolymerStatusCode.Internal, PolymerErrorAdapter.ToStatus(result.Error!));
+        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
         Assert.Equal("System.ApplicationException", result.Error!.Metadata["exception_type"]);
     }
 }

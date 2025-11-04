@@ -33,7 +33,7 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
         var result = await _pipeline(request, cancellationToken).ConfigureAwait(false);
         if (result.IsFailure)
         {
-            throw PolymerErrors.FromError(result.Error!, normalized.Transport ?? "unknown");
+            throw OmniRelayErrors.FromError(result.Error!, normalized.Transport ?? "unknown");
         }
 
         return new DuplexStreamSession(normalized, _codec, result.Value);
@@ -67,7 +67,7 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
             var encodeResult = _codec.EncodeRequest(message, _meta);
             if (encodeResult.IsFailure)
             {
-                throw PolymerErrors.FromError(encodeResult.Error!, _meta.Transport ?? "unknown");
+                throw OmniRelayErrors.FromError(encodeResult.Error!, _meta.Transport ?? "unknown");
             }
 
             await _call.RequestWriter.WriteAsync(encodeResult.Value, cancellationToken).ConfigureAwait(false);
@@ -87,7 +87,7 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
                 if (decode.IsFailure)
                 {
                     await _call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
-                    throw PolymerErrors.FromError(decode.Error!, _meta.Transport ?? "unknown");
+                    throw OmniRelayErrors.FromError(decode.Error!, _meta.Transport ?? "unknown");
                 }
 
                 yield return Response<TResponse>.Create(decode.Value, _call.ResponseMeta);

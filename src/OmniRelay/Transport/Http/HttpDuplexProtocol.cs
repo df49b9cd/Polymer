@@ -79,7 +79,7 @@ internal static class HttpDuplexProtocol
     {
         var envelope = new ErrorEnvelope
         {
-            Status = PolymerErrorAdapter.ToStatus(error).ToString(),
+            Status = OmniRelayErrorAdapter.ToStatus(error).ToString(),
             Message = error.Message,
             Code = error.Code
         };
@@ -150,18 +150,18 @@ internal static class HttpDuplexProtocol
             var envelope = JsonSerializer.Deserialize<ErrorEnvelope>(payload, SerializerOptions);
             if (envelope is null)
             {
-                return PolymerErrorAdapter.FromStatus(PolymerStatusCode.Internal, "duplex error", transport: transport);
+                return OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "duplex error", transport: transport);
             }
 
-            var status = PolymerStatusCode.Internal;
+            var status = OmniRelayStatusCode.Internal;
             if (!string.IsNullOrWhiteSpace(envelope.Status) &&
-                Enum.TryParse(envelope.Status, true, out PolymerStatusCode parsed))
+                Enum.TryParse(envelope.Status, true, out OmniRelayStatusCode parsed))
             {
                 status = parsed;
             }
 
             var message = string.IsNullOrWhiteSpace(envelope.Message) ? status.ToString() : envelope.Message!;
-            var error = PolymerErrorAdapter.FromStatus(status, message, transport: transport);
+            var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: transport);
 
             if (!string.IsNullOrWhiteSpace(envelope.Code))
             {
@@ -172,7 +172,7 @@ internal static class HttpDuplexProtocol
         }
         catch (JsonException)
         {
-            return PolymerErrorAdapter.FromStatus(PolymerStatusCode.Internal, "duplex error", transport: transport);
+            return OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "duplex error", transport: transport);
         }
     }
 

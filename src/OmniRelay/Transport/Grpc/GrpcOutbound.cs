@@ -192,7 +192,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         if (string.IsNullOrEmpty(request.Meta.Procedure))
         {
             return Err<Response<ReadOnlyMemory<byte>>>(
-                PolymerErrorAdapter.FromStatus(PolymerStatusCode.InvalidArgument, "Procedure metadata is required for gRPC calls.", transport: GrpcTransportConstants.TransportName));
+                OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "Procedure metadata is required for gRPC calls.", transport: GrpcTransportConstants.TransportName));
         }
 
         var procedure = request.Meta.Procedure!;
@@ -229,14 +229,14 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
             GrpcTransportDiagnostics.RecordException(activity, rpcEx, rpcEx.Status.StatusCode, message);
-            var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+            var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, error);
             return Err<Response<ReadOnlyMemory<byte>>>(error);
         }
         catch (Exception ex)
         {
             GrpcTransportDiagnostics.RecordException(activity, ex, StatusCode.Unknown, ex.Message);
-            var result = PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, transport: GrpcTransportConstants.TransportName);
+            var result = OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, result.Error!);
             return result;
         }
@@ -254,7 +254,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         if (string.IsNullOrEmpty(request.Meta.Procedure))
         {
             return Err<OnewayAck>(
-                PolymerErrorAdapter.FromStatus(PolymerStatusCode.InvalidArgument, "Procedure metadata is required for gRPC calls.", transport: GrpcTransportConstants.TransportName));
+                OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "Procedure metadata is required for gRPC calls.", transport: GrpcTransportConstants.TransportName));
         }
 
         var procedure = request.Meta.Procedure!;
@@ -291,14 +291,14 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
             GrpcTransportDiagnostics.RecordException(activity, rpcEx, rpcEx.Status.StatusCode, message);
-            var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+            var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, error);
             return Err<OnewayAck>(error);
         }
         catch (Exception ex)
         {
             GrpcTransportDiagnostics.RecordException(activity, ex, StatusCode.Unknown, ex.Message);
-            var result = PolymerErrors.ToResult<OnewayAck>(ex, transport: GrpcTransportConstants.TransportName);
+            var result = OmniRelayErrors.ToResult<OnewayAck>(ex, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, result.Error!);
             return result;
         }
@@ -316,8 +316,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         if (options.Direction != StreamDirection.Server)
         {
-            return Err<IStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Unimplemented,
+            return Err<IStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Unimplemented,
                 "Only server streaming is currently supported over gRPC.",
                 transport: GrpcTransportConstants.TransportName));
         }
@@ -325,7 +325,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         if (string.IsNullOrEmpty(request.Meta.Procedure))
         {
             return Err<IStreamCall>(
-                PolymerErrorAdapter.FromStatus(PolymerStatusCode.InvalidArgument, "Procedure metadata is required for gRPC streaming calls.", transport: GrpcTransportConstants.TransportName));
+                OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "Procedure metadata is required for gRPC streaming calls.", transport: GrpcTransportConstants.TransportName));
         }
 
         var procedure = request.Meta.Procedure!;
@@ -351,7 +351,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 call.Dispose();
                 RecordPeerOutcome(lease, streamCallResult.Error!);
                 await lease.DisposeAsync().ConfigureAwait(false);
-                var exception = PolymerErrors.FromError(streamCallResult.Error!, GrpcTransportConstants.TransportName);
+                var exception = OmniRelayErrors.FromError(streamCallResult.Error!, GrpcTransportConstants.TransportName);
                 var grpcStatus = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                 GrpcTransportDiagnostics.RecordException(activity, exception, grpcStatus.StatusCode, exception.Message);
                 return Err<IStreamCall>(streamCallResult.Error!);
@@ -367,7 +367,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
             GrpcTransportDiagnostics.RecordException(activity, rpcEx, rpcEx.Status.StatusCode, message);
-            var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+            var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, error);
             await lease.DisposeAsync().ConfigureAwait(false);
             return Err<IStreamCall>(error);
@@ -375,7 +375,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         catch (Exception ex)
         {
             GrpcTransportDiagnostics.RecordException(activity, ex, StatusCode.Unknown, ex.Message);
-            var result = PolymerErrors.ToResult<IStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
+            var result = OmniRelayErrors.ToResult<IStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, result.Error!);
             await lease.DisposeAsync().ConfigureAwait(false);
             return result;
@@ -396,8 +396,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         if (string.IsNullOrEmpty(requestMeta.Procedure))
         {
             return Err<IClientStreamTransportCall>(
-                PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.InvalidArgument,
+                OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.InvalidArgument,
                     "Procedure metadata is required for gRPC client streaming calls.",
                     transport: GrpcTransportConstants.TransportName));
         }
@@ -430,7 +430,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
             GrpcTransportDiagnostics.RecordException(activity, rpcEx, rpcEx.Status.StatusCode, message);
-            var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+            var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, error);
             await lease.DisposeAsync().ConfigureAwait(false);
             return Err<IClientStreamTransportCall>(error);
@@ -438,7 +438,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         catch (Exception ex)
         {
             GrpcTransportDiagnostics.RecordException(activity, ex, StatusCode.Unknown, ex.Message);
-            var result = PolymerErrors.ToResult<IClientStreamTransportCall>(ex, transport: GrpcTransportConstants.TransportName);
+            var result = OmniRelayErrors.ToResult<IClientStreamTransportCall>(ex, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, result.Error!);
             await lease.DisposeAsync().ConfigureAwait(false);
             return result;
@@ -458,8 +458,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         if (string.IsNullOrEmpty(request.Meta.Procedure))
         {
-            return Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 "Procedure metadata is required for gRPC duplex streaming calls.",
                 transport: GrpcTransportConstants.TransportName));
         }
@@ -487,7 +487,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 call.Dispose();
                 RecordPeerOutcome(lease, duplexResult.Error!);
                 await lease.DisposeAsync().ConfigureAwait(false);
-                var exception = PolymerErrors.FromError(duplexResult.Error!, GrpcTransportConstants.TransportName);
+                var exception = OmniRelayErrors.FromError(duplexResult.Error!, GrpcTransportConstants.TransportName);
                 var grpcStatus = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
                 GrpcTransportDiagnostics.RecordException(activity, exception, grpcStatus.StatusCode, exception.Message);
                 return Err<IDuplexStreamCall>(duplexResult.Error!);
@@ -503,7 +503,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
             GrpcTransportDiagnostics.RecordException(activity, rpcEx, rpcEx.Status.StatusCode, message);
-            var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+            var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, error);
             await lease.DisposeAsync().ConfigureAwait(false);
             return Err<IDuplexStreamCall>(error);
@@ -511,7 +511,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         catch (Exception ex)
         {
             GrpcTransportDiagnostics.RecordException(activity, ex, StatusCode.Unknown, ex.Message);
-            var result = PolymerErrors.ToResult<IDuplexStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
+            var result = OmniRelayErrors.ToResult<IDuplexStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
             RecordPeerOutcome(lease, result.Error!);
             await lease.DisposeAsync().ConfigureAwait(false);
             return result;
@@ -610,8 +610,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (_peerChooser is null)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Unavailable,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Unavailable,
                 "gRPC outbound has not been started.",
                 transport: meta.Transport ?? GrpcTransportConstants.TransportName);
             return Err<(PeerLease, GrpcPeer)>(error);
@@ -627,8 +627,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         if (lease.Peer is not GrpcPeer grpcPeer)
         {
             await lease.DisposeAsync().ConfigureAwait(false);
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 "Peer chooser returned an incompatible peer instance for gRPC.",
                 transport: meta.Transport ?? GrpcTransportConstants.TransportName);
             return Err<(PeerLease, GrpcPeer)>(error);
@@ -1140,8 +1140,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return true;
         }
 
-        var faultType = PolymerErrors.GetFaultType(error);
-        return faultType != PolymerFaultType.Client;
+        var faultType = OmniRelayErrors.GetFaultType(error);
+        return faultType != OmniRelayFaultType.Client;
     }
 
     private static SocketsHttpHandler GetOrCreateSocketsHandler(GrpcChannelOptions channelOptions)

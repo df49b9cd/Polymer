@@ -1,6 +1,6 @@
 namespace OmniRelay.Configuration.Models;
 
-public sealed class PolymerConfigurationOptions
+public sealed class OmniRelayConfigurationOptions
 {
     public string? Service { get; set; }
 

@@ -35,7 +35,7 @@ public static class ProtobufCallAdapters
             }
             catch (Exception ex)
             {
-                return PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, request.Meta.Transport ?? "grpc");
+                return OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, request.Meta.Transport ?? "grpc");
             }
 
             var responseMeta = EnsureResponseMeta(response.Meta, codec.Encoding);
@@ -81,7 +81,7 @@ public static class ProtobufCallAdapters
             }
             catch (Exception ex)
             {
-                return PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, context.Meta.Transport ?? "stream");
+                return OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, context.Meta.Transport ?? "stream");
             }
 
             var responseMeta = EnsureResponseMeta(response.Meta, codec.Encoding);
@@ -227,7 +227,7 @@ public static class ProtobufCallAdapters
             if (encode.IsFailure)
             {
                 await _call.CompleteAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
-                throw PolymerErrors.FromError(encode.Error!, _transport);
+                throw OmniRelayErrors.FromError(encode.Error!, _transport);
             }
 
             await _call.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
@@ -238,7 +238,7 @@ public static class ProtobufCallAdapters
 
         internal async ValueTask FailAsync(Exception exception, CancellationToken cancellationToken)
         {
-            var failure = PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(exception, _transport);
+            var failure = OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(exception, _transport);
             await _call.CompleteAsync(failure.Error, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -272,7 +272,7 @@ public static class ProtobufCallAdapters
                     var decode = _codec.DecodeRequest(payload, Meta);
                     if (decode.IsFailure)
                     {
-                        throw PolymerErrors.FromError(decode.Error!, transport);
+                        throw OmniRelayErrors.FromError(decode.Error!, transport);
                     }
 
                     yield return decode.Value;
@@ -322,7 +322,7 @@ public static class ProtobufCallAdapters
                     var decode = _codec.DecodeRequest(payload, _call.RequestMeta);
                     if (decode.IsFailure)
                     {
-                        throw PolymerErrors.FromError(decode.Error!, _transport);
+                        throw OmniRelayErrors.FromError(decode.Error!, _transport);
                     }
 
                     yield return decode.Value;
@@ -336,7 +336,7 @@ public static class ProtobufCallAdapters
             if (encode.IsFailure)
             {
                 await FailAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
-                throw PolymerErrors.FromError(encode.Error!, _transport);
+                throw OmniRelayErrors.FromError(encode.Error!, _transport);
             }
 
             await _call.ResponseWriter.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
@@ -347,7 +347,7 @@ public static class ProtobufCallAdapters
 
         internal ValueTask FailAsync(Exception exception, CancellationToken cancellationToken)
         {
-            var failure = PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(exception, _transport);
+            var failure = OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(exception, _transport);
             return _call.CompleteResponsesAsync(failure.Error, cancellationToken);
         }
 

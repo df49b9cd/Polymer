@@ -116,8 +116,8 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
             metadata["procedure"] = procedure;
         }
 
-        var error = PolymerErrorAdapter.FromStatus(
-            PolymerStatusCode.InvalidArgument,
+        var error = OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.InvalidArgument,
             errorMessage,
             metadata: metadata);
 

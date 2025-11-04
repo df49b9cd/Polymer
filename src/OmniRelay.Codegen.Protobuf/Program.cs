@@ -28,8 +28,8 @@ internal static class Program
 
         try
         {
-            var generator = new PolymerProtobufGenerator();
-            var response = PolymerProtobufGenerator.Generate(request);
+            var generator = new OmniRelayProtobufGenerator();
+            var response = OmniRelayProtobufGenerator.Generate(request);
             using var codedOutput = new CodedOutputStream(Console.OpenStandardOutput());
             response.WriteTo(codedOutput);
             codedOutput.Flush();

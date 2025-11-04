@@ -5,9 +5,9 @@ using OmniRelay.Errors;
 namespace OmniRelay.Transport.Http;
 
 /// <summary>
-/// ASP.NET Core exception filter that normalizes thrown exceptions into Polymer error responses.
+/// ASP.NET Core exception filter that normalizes thrown exceptions into OmniRelay error responses.
 /// </summary>
-public sealed class PolymerExceptionFilter(string transport = "http") : IAsyncExceptionFilter
+public sealed class OmniRelayExceptionFilter(string transport = "http") : IAsyncExceptionFilter
 {
     private readonly string _transport = string.IsNullOrWhiteSpace(transport) ? "http" : transport;
 
@@ -21,20 +21,20 @@ public sealed class PolymerExceptionFilter(string transport = "http") : IAsyncEx
         }
 
         var exception = context.Exception;
-        var polymerException = exception switch
+        var omniRelayException = exception switch
         {
-            PolymerException pe => pe,
-            _ => PolymerErrors.FromException(exception, _transport)
+            OmniRelayException pe => pe,
+            _ => OmniRelayErrors.FromException(exception, _transport)
         };
 
-        var statusCode = HttpStatusMapper.ToStatusCode(polymerException.StatusCode);
-        var error = polymerException.Error;
-        var transport = polymerException.Transport ?? _transport;
+        var statusCode = HttpStatusMapper.ToStatusCode(omniRelayException.StatusCode);
+        var error = omniRelayException.Error;
+        var transport = omniRelayException.Transport ?? _transport;
 
         var payload = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
-            ["message"] = polymerException.Message,
-            ["status"] = polymerException.StatusCode.ToString(),
+            ["message"] = omniRelayException.Message,
+            ["status"] = omniRelayException.StatusCode.ToString(),
             ["code"] = error.Code,
             ["metadata"] = error.Metadata
         };
@@ -42,8 +42,8 @@ public sealed class PolymerExceptionFilter(string transport = "http") : IAsyncEx
         var httpContext = context.HttpContext;
         httpContext.Response.StatusCode = statusCode;
         httpContext.Response.Headers[HttpTransportHeaders.Transport] = transport;
-        httpContext.Response.Headers[HttpTransportHeaders.Status] = polymerException.StatusCode.ToString();
-        httpContext.Response.Headers[HttpTransportHeaders.ErrorMessage] = polymerException.Message;
+        httpContext.Response.Headers[HttpTransportHeaders.Status] = omniRelayException.StatusCode.ToString();
+        httpContext.Response.Headers[HttpTransportHeaders.ErrorMessage] = omniRelayException.Message;
 
         if (!string.IsNullOrEmpty(error.Code))
         {
@@ -60,15 +60,15 @@ public sealed class PolymerExceptionFilter(string transport = "http") : IAsyncEx
     }
 }
 
-public static class PolymerMvcOptionsExtensions
+public static class OmniRelayMvcOptionsExtensions
 {
     /// <summary>
-    /// Adds <see cref="PolymerExceptionFilter"/> to MVC filters so ASP.NET controllers surface Polymer errors consistently.
+    /// Adds <see cref="OmniRelayExceptionFilter"/> to MVC filters so ASP.NET controllers surface OmniRelay errors consistently.
     /// </summary>
-    public static void AddPolymerExceptionFilter(this MvcOptions options, string transport = "http")
+    public static void AddOmniRelayExceptionFilter(this MvcOptions options, string transport = "http")
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        options.Filters.Add(new PolymerExceptionFilter(transport));
+        options.Filters.Add(new OmniRelayExceptionFilter(transport));
     }
 }

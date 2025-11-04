@@ -1,6 +1,6 @@
 # OmniRelay CLI
 
-The `omnirelay` command-line tool provides a lightweight way to validate dispatcher configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. This mirrors common `yab` workflows while staying aligned with Polymer's configuration and metadata model.
+The `omnirelay` command-line tool provides a lightweight way to validate dispatcher configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. This mirrors common `yab` workflows while staying aligned with OmniRelay's configuration and metadata model.
 
 ## Installation
 
@@ -42,7 +42,7 @@ omnirelay config validate \
   --set polymer:outbounds:ledger:unary:http:0:url=http://127.0.0.1:8081
 ```
 
-The command prints the resolved service name, dispatcher status, procedure counts, and registered lifecycle components. Any schema or binding errors from `AddPolymerDispatcher` halt the run with a non-zero exit code.
+The command prints the resolved service name, dispatcher status, procedure counts, and registered lifecycle components. Any schema or binding errors from `AddOmniRelayDispatcher` halt the run with a non-zero exit code.
 
 ### Inspect a running dispatcher
 
@@ -159,7 +159,7 @@ Each step is typed (`request`, `introspect`, or `delay`) and matches the options
 }
 ```
 
-This mirrors common `yab` automation flows, while keeping the payload format aligned with Polymer's transport metadata. Mix HTTP and gRPC requests in one file, adjust headers per call, and share the scripts with CI for reproducible diagnostics.
+This mirrors common `yab` automation flows, while keeping the payload format aligned with OmniRelay's transport metadata. Mix HTTP and gRPC requests in one file, adjust headers per call, and share the scripts with CI for reproducible diagnostics.
 
 The companion script `docs/reference/cli-scripts/grpc-protobuf.json` exercises the protobuf profile against the gRPC listener. Generate the descriptor once (see above), start the harness in dual mode (`MODE=both bash tests/OmniRelay.YabInterop/run-yab.sh`), and replay the script:
 

@@ -3,33 +3,33 @@ using Hugo;
 
 namespace OmniRelay.Errors;
 
-public static class PolymerErrorAdapter
+public static class OmniRelayErrorAdapter
 {
     internal const string StatusMetadataKey = "yarpcore.status";
     internal const string TransportMetadataKey = "yarpcore.transport";
     internal const string FaultMetadataKey = "yarpcore.faultType";
     internal const string RetryableMetadataKey = "yarpcore.retryable";
-    private static readonly ImmutableDictionary<PolymerStatusCode, string> StatusCodeNames = new[]
+    private static readonly ImmutableDictionary<OmniRelayStatusCode, string> StatusCodeNames = new[]
     {
-        (PolymerStatusCode.Unknown, "unknown"),
-        (PolymerStatusCode.Cancelled, "cancelled"),
-        (PolymerStatusCode.InvalidArgument, "invalid-argument"),
-        (PolymerStatusCode.DeadlineExceeded, "deadline-exceeded"),
-        (PolymerStatusCode.NotFound, "not-found"),
-        (PolymerStatusCode.AlreadyExists, "already-exists"),
-        (PolymerStatusCode.PermissionDenied, "permission-denied"),
-        (PolymerStatusCode.ResourceExhausted, "resource-exhausted"),
-        (PolymerStatusCode.FailedPrecondition, "failed-precondition"),
-        (PolymerStatusCode.Aborted, "aborted"),
-        (PolymerStatusCode.OutOfRange, "out-of-range"),
-        (PolymerStatusCode.Unimplemented, "unimplemented"),
-        (PolymerStatusCode.Internal, "internal"),
-        (PolymerStatusCode.Unavailable, "unavailable"),
-        (PolymerStatusCode.DataLoss, "data-loss")
+        (OmniRelayStatusCode.Unknown, "unknown"),
+        (OmniRelayStatusCode.Cancelled, "cancelled"),
+        (OmniRelayStatusCode.InvalidArgument, "invalid-argument"),
+        (OmniRelayStatusCode.DeadlineExceeded, "deadline-exceeded"),
+        (OmniRelayStatusCode.NotFound, "not-found"),
+        (OmniRelayStatusCode.AlreadyExists, "already-exists"),
+        (OmniRelayStatusCode.PermissionDenied, "permission-denied"),
+        (OmniRelayStatusCode.ResourceExhausted, "resource-exhausted"),
+        (OmniRelayStatusCode.FailedPrecondition, "failed-precondition"),
+        (OmniRelayStatusCode.Aborted, "aborted"),
+        (OmniRelayStatusCode.OutOfRange, "out-of-range"),
+        (OmniRelayStatusCode.Unimplemented, "unimplemented"),
+        (OmniRelayStatusCode.Internal, "internal"),
+        (OmniRelayStatusCode.Unavailable, "unavailable"),
+        (OmniRelayStatusCode.DataLoss, "data-loss")
     }.ToImmutableDictionary(static tuple => tuple.Item1, static tuple => tuple.Item2);
 
     public static Error FromStatus(
-        PolymerStatusCode code,
+        OmniRelayStatusCode code,
         string message,
         string? transport = null,
         Error? inner = null,
@@ -54,10 +54,10 @@ public static class PolymerErrorAdapter
         return error;
     }
 
-    public static PolymerStatusCode ToStatus(Error error)
+    public static OmniRelayStatusCode ToStatus(Error error)
     {
         if (error.TryGetMetadata(StatusMetadataKey, out string? value) &&
-            Enum.TryParse<PolymerStatusCode>(value, out var parsed))
+            Enum.TryParse<OmniRelayStatusCode>(value, out var parsed))
         {
             return parsed;
         }
@@ -75,25 +75,25 @@ public static class PolymerErrorAdapter
 
         if (error.Cause is OperationCanceledException)
         {
-            return PolymerStatusCode.Cancelled;
+            return OmniRelayStatusCode.Cancelled;
         }
 
-        return PolymerStatusCode.Unknown;
+        return OmniRelayStatusCode.Unknown;
     }
 
-    public static Error WithStatusMetadata(Error error, PolymerStatusCode code) =>
+    public static Error WithStatusMetadata(Error error, OmniRelayStatusCode code) =>
         AnnotateCoreMetadata(error, code);
 
-    internal static string GetStatusName(PolymerStatusCode code) => StatusCodeNames[code];
+    internal static string GetStatusName(OmniRelayStatusCode code) => StatusCodeNames[code];
 
-    private static Error AnnotateCoreMetadata(Error error, PolymerStatusCode code)
+    private static Error AnnotateCoreMetadata(Error error, OmniRelayStatusCode code)
     {
         var updated = error.WithCode(StatusCodeNames[code]).WithMetadata(StatusMetadataKey, code.ToString());
 
         if (!updated.TryGetMetadata(FaultMetadataKey, out string? _))
         {
-            var fault = PolymerStatusFacts.GetFaultType(code);
-            if (fault != PolymerFaultType.Unknown)
+            var fault = OmniRelayStatusFacts.GetFaultType(code);
+            if (fault != OmniRelayFaultType.Unknown)
             {
                 updated = updated.WithMetadata(FaultMetadataKey, fault.ToString());
             }
@@ -101,7 +101,7 @@ public static class PolymerErrorAdapter
 
         if (!updated.TryGetMetadata(RetryableMetadataKey, out bool _))
         {
-            updated = updated.WithMetadata(RetryableMetadataKey, PolymerStatusFacts.IsRetryable(code));
+            updated = updated.WithMetadata(RetryableMetadataKey, OmniRelayStatusFacts.IsRetryable(code));
         }
 
         return updated;

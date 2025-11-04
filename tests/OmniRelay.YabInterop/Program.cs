@@ -113,12 +113,12 @@ try
 
     if (enableHttp)
     {
-        Console.WriteLine($"Polymer HTTP echo server listening on http://127.0.0.1:{httpPort}");
+        Console.WriteLine($"OmniRelay HTTP echo server listening on http://127.0.0.1:{httpPort}");
     }
 
     if (grpcPort is { } activeGrpcPort)
     {
-        Console.WriteLine($"Polymer gRPC echo server listening on 127.0.0.1:{activeGrpcPort}");
+        Console.WriteLine($"OmniRelay gRPC echo server listening on 127.0.0.1:{activeGrpcPort}");
     }
 
     if (durationSeconds > 0)
@@ -194,7 +194,7 @@ static ValueTask<Result<Response<ReadOnlyMemory<byte>>>> HandleGrpcEchoAsync(
     }
     catch (Exception ex)
     {
-        return ValueTask.FromResult(PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, request.Meta.Transport ?? "grpc"));
+        return ValueTask.FromResult(OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, request.Meta.Transport ?? "grpc"));
     }
 }
 

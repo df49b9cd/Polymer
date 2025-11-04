@@ -66,7 +66,7 @@ public sealed class RpcTracingMiddlewareTests
         var middleware = new RpcTracingMiddleware(options: options);
 
         RequestMeta? capturedMeta = null;
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Internal, "boom", transport: "grpc");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "boom", transport: "grpc");
 
         var meta = new RequestMeta(
             service: "svc",

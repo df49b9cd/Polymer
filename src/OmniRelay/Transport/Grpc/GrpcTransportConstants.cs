@@ -16,8 +16,9 @@ internal static class GrpcTransportConstants
 
     public const string TransportName = "grpc";
 
-    public const string StatusTrailer = "polymer-status";
-    public const string ErrorCodeTrailer = "polymer-error-code";
-    public const string ErrorMessageTrailer = "polymer-error-message";
-    public const string EncodingTrailer = "polymer-encoding";
+    public const string StatusTrailer = "omnirelay-status";
+    public const string ErrorCodeTrailer = "omnirelay-error-code";
+    public const string ErrorMessageTrailer = "omnirelay-error-message";
+    public const string EncodingTrailer = "omnirelay-encoding";
+    public const string TransportTrailer = "omnirelay-transport";
 }

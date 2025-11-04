@@ -37,8 +37,8 @@ public class JsonCodecTests
         var result = codec.DecodeRequest(payload, meta);
 
         Assert.True(result.IsFailure);
-        var status = PolymerErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(PolymerStatusCode.InvalidArgument, status);
+        var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
     }
 
     [Fact]
@@ -97,8 +97,8 @@ public class JsonCodecTests
         var result = codec.DecodeRequest(payload, meta);
 
         Assert.True(result.IsFailure);
-        var status = PolymerErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(PolymerStatusCode.InvalidArgument, status);
+        var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
     }
 
     [Fact]
@@ -121,8 +121,8 @@ public class JsonCodecTests
         var result = codec.EncodeResponse(new Sample("alpha", 0), meta);
 
         Assert.True(result.IsFailure);
-        var status = PolymerErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(PolymerStatusCode.InvalidArgument, status);
+        var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
     }
 
     [Fact]

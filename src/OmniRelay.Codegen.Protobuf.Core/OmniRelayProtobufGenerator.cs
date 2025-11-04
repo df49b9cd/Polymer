@@ -4,7 +4,7 @@ using Google.Protobuf.Reflection;
 
 namespace OmniRelay.Codegen.Protobuf.Core;
 
-public sealed class PolymerProtobufGenerator
+public sealed class OmniRelayProtobufGenerator
 {
     public static CodeGeneratorResponse Generate(CodeGeneratorRequest request)
     {

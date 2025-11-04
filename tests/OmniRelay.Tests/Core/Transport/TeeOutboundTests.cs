@@ -128,7 +128,7 @@ public class TeeOutboundTests
             new(_ => Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())));
 
         public static StubUnaryOutbound Failure() =>
-            new(_ => PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(PolymerStatusCode.Internal, "primary failed"));
+            new(_ => OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(OmniRelayStatusCode.Internal, "primary failed"));
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {

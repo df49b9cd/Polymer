@@ -178,7 +178,7 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
 
         var transport = meta?.Transport ?? "unknown";
         var message = exception.Message ?? "Unhandled exception.";
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Internal, message, transport: transport)
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, message, transport: transport)
             .WithMetadata("exception_type", exception.GetType().FullName ?? exception.GetType().Name);
 
         return Err<T>(error);

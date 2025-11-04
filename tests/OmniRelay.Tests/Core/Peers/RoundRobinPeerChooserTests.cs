@@ -38,7 +38,7 @@ public sealed class RoundRobinPeerChooserTests
 
         var second = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
         Assert.True(second.IsFailure);
-        Assert.Equal(PolymerStatusCode.ResourceExhausted, PolymerErrorAdapter.ToStatus(second.Error!));
+        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(second.Error!));
 
         await first.Value.DisposeAsync();
     }

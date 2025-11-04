@@ -31,7 +31,7 @@ public sealed class FewestPendingPeerChooserTests
 
         var lease = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
         Assert.True(lease.IsFailure);
-        Assert.Equal(PolymerStatusCode.ResourceExhausted, PolymerErrorAdapter.ToStatus(lease.Error!));
+        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(lease.Error!));
     }
 
     private sealed class TestPeer(string identifier, int inflight = 0, int maxConcurrency = int.MaxValue) : IPeer

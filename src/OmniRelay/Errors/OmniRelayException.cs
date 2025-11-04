@@ -2,10 +2,10 @@ using Hugo;
 
 namespace OmniRelay.Errors;
 
-public sealed class PolymerException : Exception
+public sealed class OmniRelayException : Exception
 {
-    public PolymerException(
-        PolymerStatusCode statusCode,
+    public OmniRelayException(
+        OmniRelayStatusCode statusCode,
         string message,
         Error? error = null,
         string? transport = null,
@@ -13,7 +13,7 @@ public sealed class PolymerException : Exception
         : base(message, innerException ?? error?.Cause)
     {
         StatusCode = statusCode;
-        Error = NormalizeError(error, statusCode, transport) ?? PolymerErrorAdapter.FromStatus(
+        Error = NormalizeError(error, statusCode, transport) ?? OmniRelayErrorAdapter.FromStatus(
             statusCode,
             message,
             transport: transport,
@@ -21,13 +21,13 @@ public sealed class PolymerException : Exception
         Transport = transport ?? TryReadTransport(Error);
     }
 
-    public PolymerStatusCode StatusCode { get; }
+    public OmniRelayStatusCode StatusCode { get; }
 
     public Error Error { get; }
 
     public string? Transport { get; }
 
-    private static Error? NormalizeError(Error? error, PolymerStatusCode statusCode, string? transport)
+    private static Error? NormalizeError(Error? error, OmniRelayStatusCode statusCode, string? transport)
     {
         if (error is null)
         {
@@ -36,17 +36,17 @@ public sealed class PolymerException : Exception
 
         var normalized = error;
 
-        if (!normalized.TryGetMetadata(PolymerErrorAdapter.StatusMetadataKey, out string? _))
+        if (!normalized.TryGetMetadata(OmniRelayErrorAdapter.StatusMetadataKey, out string? _))
         {
-            normalized = PolymerErrorAdapter.WithStatusMetadata(normalized, statusCode);
+            normalized = OmniRelayErrorAdapter.WithStatusMetadata(normalized, statusCode);
         }
 
         if (!string.IsNullOrEmpty(transport))
         {
-            normalized = normalized.WithMetadata(PolymerErrorAdapter.TransportMetadataKey, transport);
+            normalized = normalized.WithMetadata(OmniRelayErrorAdapter.TransportMetadataKey, transport);
         }
 
-        var expectedCode = PolymerErrorAdapter.GetStatusName(statusCode);
+        var expectedCode = OmniRelayErrorAdapter.GetStatusName(statusCode);
         if (!string.Equals(normalized.Code, expectedCode, StringComparison.OrdinalIgnoreCase))
         {
             normalized = normalized.WithCode(expectedCode);
@@ -56,5 +56,5 @@ public sealed class PolymerException : Exception
     }
 
     private static string? TryReadTransport(Error error) =>
-        error.TryGetMetadata(PolymerErrorAdapter.TransportMetadataKey, out string? value) ? value : null;
+        error.TryGetMetadata(OmniRelayErrorAdapter.TransportMetadataKey, out string? value) ? value : null;
 }

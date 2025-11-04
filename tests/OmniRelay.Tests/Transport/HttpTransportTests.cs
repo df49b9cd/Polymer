@@ -252,8 +252,8 @@ namespace OmniRelay.Tests.Transport;
 //                     }
 //                     catch (OperationCanceledException)
 //                     {
-//                         await call.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-//                             PolymerStatusCode.Cancelled,
+//                         await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+//                             OmniRelayStatusCode.Cancelled,
 //                             "cancelled",
 //                             transport: "http"), CancellationToken.None).ConfigureAwait(false);
 //                     }
@@ -315,8 +315,8 @@ namespace OmniRelay.Tests.Transport;
 //                 _ = Task.Run(async () =>
 //                 {
 //                     await Task.Delay(TimeSpan.FromMilliseconds(20), cancellationToken).ConfigureAwait(false);
-//                     await call.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-//                         PolymerStatusCode.Cancelled,
+//                     await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+//                         OmniRelayStatusCode.Cancelled,
 //                         "cancelled",
 //                         transport: "http"), cancellationToken).ConfigureAwait(false);
 //                 }, cancellationToken);
@@ -335,7 +335,7 @@ namespace OmniRelay.Tests.Transport;
 
 //         await using var session = await client.StartAsync(requestMeta, ct);
 
-//         var ex = await Assert.ThrowsAsync<PolymerException>(async () =>
+//         var ex = await Assert.ThrowsAsync<OmniRelayException>(async () =>
 //         {
 //             await foreach (var response in session.ReadResponsesAsync(ct))
 //             {
@@ -343,7 +343,7 @@ namespace OmniRelay.Tests.Transport;
 //             }
 //         });
 
-//         Assert.Equal(PolymerStatusCode.Cancelled, ex.StatusCode);
+//         Assert.Equal(OmniRelayStatusCode.Cancelled, ex.StatusCode);
 
 //         await dispatcher.StopAsync(ct);
 //     }

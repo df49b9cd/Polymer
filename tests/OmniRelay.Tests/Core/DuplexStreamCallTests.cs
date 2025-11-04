@@ -60,14 +60,14 @@ public class DuplexStreamCallTests
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo", transport: "test");
         var call = DuplexStreamCall.Create(meta);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Internal, "boom", transport: "test");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "boom", transport: "test");
 
         await call.CompleteResponsesAsync(error, TestContext.Current.CancellationToken);
 
         var readTask = call.ResponseReader.ReadAsync(TestContext.Current.CancellationToken).AsTask();
         var channelException = await Assert.ThrowsAsync<ChannelClosedException>(() => readTask);
-        var polymerException = Assert.IsType<PolymerException>(channelException.InnerException);
-        Assert.Equal(PolymerStatusCode.Internal, polymerException.StatusCode);
+        var polymerException = Assert.IsType<OmniRelayException>(channelException.InnerException);
+        Assert.Equal(OmniRelayStatusCode.Internal, polymerException.StatusCode);
 
         Assert.Equal(StreamCompletionStatus.Faulted, call.Context.ResponseCompletionStatus);
         Assert.Same(error, call.Context.ResponseCompletionError);
@@ -80,7 +80,7 @@ public class DuplexStreamCallTests
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo", transport: "test");
         var call = DuplexStreamCall.Create(meta);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Cancelled, "cancel", transport: "test");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Cancelled, "cancel", transport: "test");
 
         await call.CompleteRequestsAsync(error, TestContext.Current.CancellationToken);
 

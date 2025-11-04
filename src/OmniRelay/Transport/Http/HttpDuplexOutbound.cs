@@ -24,8 +24,8 @@ public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutb
         {
             if (string.IsNullOrEmpty(request.Meta.Procedure))
             {
-                return Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.InvalidArgument,
+                return Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.InvalidArgument,
                     "Procedure metadata is required for HTTP duplex streaming calls.",
                     transport: "http"));
             }
@@ -42,7 +42,7 @@ public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutb
         }
         catch (Exception ex)
         {
-            return PolymerErrors.ToResult<IDuplexStreamCall>(ex, transport: "http");
+            return OmniRelayErrors.ToResult<IDuplexStreamCall>(ex, transport: "http");
         }
     }
 

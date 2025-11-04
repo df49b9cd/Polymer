@@ -33,7 +33,7 @@ public sealed class DeadlineMiddlewareTests
 
         Assert.True(result.IsFailure);
         Assert.False(invoked);
-        Assert.Equal(PolymerStatusCode.DeadlineExceeded, PolymerErrorAdapter.ToStatus(result.Error!));
+        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class DeadlineMiddlewareTests
             }));
 
         Assert.True(result.IsFailure);
-        Assert.Equal(PolymerStatusCode.DeadlineExceeded, PolymerErrorAdapter.ToStatus(result.Error!));
+        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class DeadlineMiddlewareTests
 
         Assert.True(result.IsFailure);
         Assert.False(invoked);
-        Assert.Equal(PolymerStatusCode.DeadlineExceeded, PolymerErrorAdapter.ToStatus(result.Error!));
+        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
     [Fact]

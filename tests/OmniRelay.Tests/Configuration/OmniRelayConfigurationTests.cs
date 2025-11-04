@@ -13,16 +13,16 @@ using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
-using PolymerDispatcher = OmniRelay.Dispatcher.Dispatcher;
+using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 using static Hugo.Go;
 
 namespace OmniRelay.Tests.Configuration;
 
-public class PolymerConfigurationTests
+public class OmniRelayConfigurationTests
 {
     [Fact]
-    public void AddPolymerDispatcher_BuildsDispatcherFromConfiguration()
+    public void AddOmniRelayDispatcher_BuildsDispatcherFromConfiguration()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -40,11 +40,11 @@ public class PolymerConfigurationTests
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddPolymerDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
 
         using var provider = services.BuildServiceProvider();
 
-        var dispatcher = provider.GetRequiredService<PolymerDispatcher>();
+        var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
         Assert.Equal("gateway", dispatcher.ServiceName);
 
         var clientConfig = dispatcher.ClientConfig("keyvalue");
@@ -65,7 +65,7 @@ public class PolymerConfigurationTests
     }
 
     [Fact]
-    public void AddPolymerDispatcher_MissingServiceThrows()
+    public void AddOmniRelayDispatcher_MissingServiceThrows()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>())
@@ -73,12 +73,12 @@ public class PolymerConfigurationTests
 
         var services = new ServiceCollection();
 
-        Assert.Throws<PolymerConfigurationException>(
-            () => services.AddPolymerDispatcher(configuration.GetSection("polymer")));
+        Assert.Throws<OmniRelayConfigurationException>(
+            () => services.AddOmniRelayDispatcher(configuration.GetSection("polymer")));
     }
 
     [Fact]
-    public void AddPolymerDispatcher_InvalidPeerChooserThrows()
+    public void AddOmniRelayDispatcher_InvalidPeerChooserThrows()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -91,14 +91,14 @@ public class PolymerConfigurationTests
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddPolymerDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
 
         using var provider = services.BuildServiceProvider();
-        Assert.Throws<PolymerConfigurationException>(() => provider.GetRequiredService<PolymerDispatcher>());
+        Assert.Throws<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
     }
 
     [Fact]
-    public void AddPolymerDispatcher_UsesCustomTransportSpecs()
+    public void AddOmniRelayDispatcher_UsesCustomTransportSpecs()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -120,10 +120,10 @@ public class PolymerConfigurationTests
         services.AddLogging();
         services.AddSingleton<ICustomInboundSpec>(inboundSpec);
         services.AddSingleton<ICustomOutboundSpec>(outboundSpec);
-        services.AddPolymerDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
 
         using var provider = services.BuildServiceProvider();
-        var dispatcher = provider.GetRequiredService<PolymerDispatcher>();
+        var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
 
         var components = dispatcher.Introspect().Components;
         Assert.Contains(components, component => component.Name == "ws-inbound");
@@ -136,7 +136,7 @@ public class PolymerConfigurationTests
     }
 
     [Fact]
-    public void AddPolymerDispatcher_UsesCustomPeerSpec()
+    public void AddOmniRelayDispatcher_UsesCustomPeerSpec()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -155,10 +155,10 @@ public class PolymerConfigurationTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<ICustomPeerChooserSpec>(peerSpec);
-        services.AddPolymerDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
 
         using var provider = services.BuildServiceProvider();
-        var dispatcher = provider.GetRequiredService<PolymerDispatcher>();
+        var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
 
         var clientConfig = dispatcher.ClientConfig("reports");
         Assert.True(clientConfig.TryGetUnary(OutboundCollection.DefaultKey, out var outbound));
@@ -167,7 +167,7 @@ public class PolymerConfigurationTests
     }
 
     [Fact]
-    public void AddPolymerDispatcher_ConfiguresJsonCodecs()
+    public void AddOmniRelayDispatcher_ConfiguresJsonCodecs()
     {
         var schemaPath = Path.Combine(Path.GetTempPath(), $"polymer-schema-{Guid.NewGuid():N}.json");
         File.WriteAllText(schemaPath, "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"count\":{\"type\":\"integer\"}},\"required\":[\"name\",\"count\"]}");
@@ -198,10 +198,10 @@ public class PolymerConfigurationTests
 
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddPolymerDispatcher(configuration.GetSection("polymer"));
+            services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
 
             using var provider = services.BuildServiceProvider();
-            var dispatcher = provider.GetRequiredService<PolymerDispatcher>();
+            var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
 
             Assert.True(dispatcher.Codecs.TryResolve<EchoRequest, EchoResponse>(
                 ProcedureCodecScope.Inbound,
@@ -214,7 +214,7 @@ public class PolymerConfigurationTests
             var invalidPayload = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("{\"count\":2}"));
             var decode = inboundCodec.DecodeRequest(invalidPayload, new RequestMeta(service: "echo", procedure: "echo::call"));
             Assert.True(decode.IsFailure);
-            Assert.Equal(PolymerStatusCode.InvalidArgument, PolymerErrorAdapter.ToStatus(decode.Error!));
+            Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(decode.Error!));
 
             Assert.True(dispatcher.Codecs.TryResolve<EchoRequest, EchoResponse>(
                 ProcedureCodecScope.Outbound,
@@ -280,7 +280,7 @@ public class PolymerConfigurationTests
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(
             IRequest<ReadOnlyMemory<byte>> request,
-            CancellationToken cancellationToken = default) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unimplemented, "test")));
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unimplemented, "test")));
     }
 
     private sealed class TestPeerChooserSpec : ICustomPeerChooserSpec
@@ -306,7 +306,7 @@ public class PolymerConfigurationTests
         {
             if (_peers.Count == 0)
             {
-                return ValueTask.FromResult(Err<PeerLease>(PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unavailable, "no peers")));
+                return ValueTask.FromResult(Err<PeerLease>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "no peers")));
             }
 
             var peer = _peers[0];

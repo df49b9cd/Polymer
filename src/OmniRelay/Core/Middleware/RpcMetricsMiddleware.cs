@@ -382,7 +382,7 @@ public sealed class RpcMetricsMiddleware :
 
     private void RecordFailure(double durationMs, KeyValuePair<string, object?>[] tags, Error error)
     {
-        var augmented = AppendStatus(tags, PolymerErrorAdapter.ToStatus(error).ToString());
+        var augmented = AppendStatus(tags, OmniRelayErrorAdapter.ToStatus(error).ToString());
         _failureCounter.Add(1, augmented);
         _durationHistogram.Record(durationMs, augmented);
     }

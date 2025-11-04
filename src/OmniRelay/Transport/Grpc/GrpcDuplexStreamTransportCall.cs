@@ -52,11 +52,11 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         {
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
-            return Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName));
+            return Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName));
         }
         catch (Exception ex)
         {
-            return PolymerErrors.ToResult<IDuplexStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
+            return OmniRelayErrors.ToResult<IDuplexStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
         }
     }
 
@@ -126,8 +126,8 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            await _inner.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            await _inner.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An error occurred while sending request stream.",
                 transport: GrpcTransportConstants.TransportName,
                 inner: Error.FromException(ex)), cancellationToken).ConfigureAwait(false);
@@ -153,8 +153,8 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (OperationCanceledException)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Cancelled,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
                 "The gRPC duplex call was cancelled.",
                 transport: GrpcTransportConstants.TransportName);
             await _inner.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
@@ -168,8 +168,8 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            await _inner.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            await _inner.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An error occurred while reading response stream.",
                 transport: GrpcTransportConstants.TransportName,
                 inner: Error.FromException(ex)), cancellationToken).ConfigureAwait(false);
@@ -183,7 +183,7 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         var message = string.IsNullOrWhiteSpace(rpcException.Status.Detail)
             ? rpcException.Status.StatusCode.ToString()
             : rpcException.Status.Detail;
-        return PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+        return OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
     }
 
     private void RecordCompletion(StatusCode statusCode)

@@ -13,14 +13,14 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
     {
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Starting Polymer dispatcher for service {ServiceName}", _dispatcher.ServiceName);
+        _logger.LogInformation("Starting OmniRelay dispatcher for service {ServiceName}", _dispatcher.ServiceName);
         }
 
         await _dispatcher.StartAsync(cancellationToken).ConfigureAwait(false);
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Polymer dispatcher for service {ServiceName} started", _dispatcher.ServiceName);
+        _logger.LogInformation("OmniRelay dispatcher for service {ServiceName} started", _dispatcher.ServiceName);
         }
     }
 
@@ -28,14 +28,14 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
     {
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Stopping Polymer dispatcher for service {ServiceName}", _dispatcher.ServiceName);
+        _logger.LogInformation("Stopping OmniRelay dispatcher for service {ServiceName}", _dispatcher.ServiceName);
         }
 
         await _dispatcher.StopAsync(cancellationToken).ConfigureAwait(false);
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Polymer dispatcher for service {ServiceName} stopped", _dispatcher.ServiceName);
+        _logger.LogInformation("OmniRelay dispatcher for service {ServiceName} stopped", _dispatcher.ServiceName);
         }
     }
 }

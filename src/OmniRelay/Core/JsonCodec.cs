@@ -48,8 +48,8 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
         catch (Exception ex)
         {
-            return Err<byte[]>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            return Err<byte[]>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 $"Failed to encode request for procedure '{meta.Procedure ?? "unknown"}'.",
                 metadata: BuildExceptionMetadata(ex, "encode-request")));
         }
@@ -77,15 +77,15 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
         catch (JsonException ex)
         {
-            return Err<TRequest>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return Err<TRequest>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 $"Failed to decode request for procedure '{meta.Procedure ?? "unknown"}'.",
                 metadata: BuildExceptionMetadata(ex, "decode-request")));
         }
         catch (Exception ex)
         {
-            return Err<TRequest>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            return Err<TRequest>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 $"Unexpected error while decoding request for procedure '{meta.Procedure ?? "unknown"}'.",
                 metadata: BuildExceptionMetadata(ex, "decode-request")));
         }
@@ -114,8 +114,8 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
         catch (Exception ex)
         {
-            return Err<byte[]>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            return Err<byte[]>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 "Failed to encode response payload.",
                 metadata: BuildExceptionMetadata(ex, "encode-response")));
         }
@@ -143,15 +143,15 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
         catch (JsonException ex)
         {
-            return Err<TResponse>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return Err<TResponse>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 "Failed to decode response payload.",
                 metadata: BuildExceptionMetadata(ex, "decode-response")));
         }
         catch (Exception ex)
         {
-            return Err<TResponse>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            return Err<TResponse>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 "Unexpected error while decoding response payload.",
                 metadata: BuildExceptionMetadata(ex, "decode-response")));
         }
@@ -190,22 +190,22 @@ public sealed class JsonCodec<TRequest, TResponse>(
             }
 
             var metadata = BuildSchemaMetadata(stage, schemaId, evaluation, identifier, Encoding);
-            return PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 $"JSON schema validation failed for {direction} payload.",
                 metadata: metadata);
         }
         catch (JsonException ex)
         {
-            return PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 $"Failed to parse JSON payload for schema validation ({direction}).",
                 metadata: BuildExceptionMetadata(ex, stage));
         }
         catch (Exception ex)
         {
-            return PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            return OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 $"Unexpected error during JSON schema validation ({direction}).",
                 metadata: BuildExceptionMetadata(ex, stage));
         }

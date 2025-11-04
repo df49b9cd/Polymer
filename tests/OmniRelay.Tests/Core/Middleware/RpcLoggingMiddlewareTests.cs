@@ -45,7 +45,7 @@ public sealed class RpcLoggingMiddlewareTests
 
         var requestMeta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
         var request = new Request<ReadOnlyMemory<byte>>(requestMeta, ReadOnlyMemory<byte>.Empty);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Internal, "boom", transport: "grpc");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "boom", transport: "grpc");
 
         var result = await middleware.InvokeAsync(
             request,

@@ -29,8 +29,8 @@ public class RawCodecTests
         var result = codec.EncodeRequest(payload, meta);
 
         Assert.True(result.IsFailure);
-        var status = PolymerErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(PolymerStatusCode.InvalidArgument, status);
+        var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
     }
 
     [Fact]
@@ -69,8 +69,8 @@ public class RawCodecTests
         var result = codec.EncodeResponse(payload, meta);
 
         Assert.True(result.IsFailure);
-        var status = PolymerErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(PolymerStatusCode.InvalidArgument, status);
+        var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class RawCodecTests
         var result = codec.DecodeResponse(payload, meta);
 
         Assert.True(result.IsFailure);
-        var status = PolymerErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(PolymerStatusCode.InvalidArgument, status);
+        var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
     }
 }

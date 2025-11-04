@@ -71,7 +71,7 @@ public sealed class ServerStreamCall : IStreamCall
         else
         {
             var transport = RequestMeta.Transport ?? "stream";
-            var exception = PolymerErrors.FromError(error, transport);
+            var exception = OmniRelayErrors.FromError(error, transport);
             _responses.Writer.TryComplete(exception);
         }
 
@@ -94,9 +94,9 @@ public sealed class ServerStreamCall : IStreamCall
             return StreamCompletionStatus.Succeeded;
         }
 
-        return PolymerErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(error) switch
         {
-            PolymerStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
+            OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted
         };
     }

@@ -22,7 +22,7 @@ public sealed class RetryMiddlewareTests
 
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unavailable, "unavailable", transport: "grpc");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "unavailable", transport: "grpc");
 
         var attempt = 0;
         var result = await middleware.InvokeAsync(
@@ -54,7 +54,7 @@ public sealed class RetryMiddlewareTests
 
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.InvalidArgument, "invalid", transport: "grpc");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "invalid", transport: "grpc");
 
         var attempt = 0;
         var result = await middleware.InvokeAsync(
@@ -82,7 +82,7 @@ public sealed class RetryMiddlewareTests
 
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unavailable, "oops", transport: "grpc");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "oops", transport: "grpc");
 
         var attempt = 0;
         var result = await middleware.InvokeAsync(

@@ -35,10 +35,10 @@ public class GrpcTransportTests
 
     private const string TransportName = "grpc";
     private const string EncodingHeaderKey = "rpc-encoding";
-    private const string StatusTrailerKey = "polymer-status";
-    private const string EncodingTrailerKey = "polymer-encoding";
-    private const string ErrorMessageTrailerKey = "polymer-error-message";
-    private const string ErrorCodeTrailerKey = "polymer-error-code";
+    private const string StatusTrailerKey = "omnirelay-status";
+    private const string EncodingTrailerKey = "omnirelay-encoding";
+    private const string ErrorMessageTrailerKey = "omnirelay-error-message";
+    private const string ErrorCodeTrailerKey = "omnirelay-error-code";
 
     [Fact]
     public void CompressionOptions_ValidateRequiresRegisteredAlgorithm()
@@ -384,16 +384,16 @@ public class GrpcTransportTests
 
                         await streamCall.WriteAsync(first.Value, cancellationToken).ConfigureAwait(false);
 
-                        var error = PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Internal,
+                        var error = OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Internal,
                             "stream failure",
                             transport: TransportName);
                         await streamCall.CompleteAsync(error, cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
-                        await streamCall.CompleteAsync(PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Internal,
+                        await streamCall.CompleteAsync(OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Internal,
                             ex.Message ?? "unexpected failure",
                             transport: TransportName), cancellationToken).ConfigureAwait(false);
                     }
@@ -425,14 +425,14 @@ public class GrpcTransportTests
             Assert.True(await enumerator.MoveNextAsync());
             Assert.Equal("first", enumerator.Current.Body.Message);
 
-            var exception = await Assert.ThrowsAsync<PolymerException>(async () =>
+            var exception = await Assert.ThrowsAsync<OmniRelayException>(async () =>
             {
                 await enumerator.MoveNextAsync();
             });
 
             await enumerator.DisposeAsync();
 
-            Assert.Equal(PolymerStatusCode.Internal, exception.StatusCode);
+            Assert.Equal(OmniRelayStatusCode.Internal, exception.StatusCode);
             Assert.Contains("stream failure", exception.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
@@ -740,8 +740,8 @@ public class GrpcTransportTests
                     // Simply drain until cancellation.
                 }
 
-                return Err<Response<ReadOnlyMemory<byte>>>(PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.Cancelled,
+                return Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.Cancelled,
                     "cancelled"));
             }));
 
@@ -796,8 +796,8 @@ public class GrpcTransportTests
                 {
                 }
 
-                return Err<Response<ReadOnlyMemory<byte>>>(PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.DeadlineExceeded,
+                return Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.DeadlineExceeded,
                     "deadline exceeded"));
             }));
 
@@ -818,8 +818,8 @@ public class GrpcTransportTests
             await using var stream = await client.StartAsync(requestMeta, ct);
             await stream.CompleteAsync(ct);
 
-            var exception = await Assert.ThrowsAsync<PolymerException>(async () => await stream.Response);
-            Assert.Equal(PolymerStatusCode.DeadlineExceeded, exception.StatusCode);
+            var exception = await Assert.ThrowsAsync<OmniRelayException>(async () => await stream.Response);
+            Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, exception.StatusCode);
         }
         finally
         {
@@ -932,15 +932,15 @@ public class GrpcTransportTests
                     chunks += decode.Value.Amount;
                     if (chunks >= 1)
                     {
-                        return Err<Response<ReadOnlyMemory<byte>>>(PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Unavailable,
+                        return Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Unavailable,
                             "service unavailable",
                             transport: TransportName));
                     }
                 }
 
-                return Err<Response<ReadOnlyMemory<byte>>>(PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.Internal,
+                return Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.Internal,
                     "no data received",
                     transport: TransportName));
             }));
@@ -963,8 +963,8 @@ public class GrpcTransportTests
             await stream.WriteAsync(new AggregateChunk(Amount: 1), ct);
             await stream.CompleteAsync(ct);
 
-            var exception = await Assert.ThrowsAsync<PolymerException>(async () => await stream.Response);
-            Assert.Equal(PolymerStatusCode.Unavailable, exception.StatusCode);
+            var exception = await Assert.ThrowsAsync<OmniRelayException>(async () => await stream.Response);
+            Assert.Equal(OmniRelayStatusCode.Unavailable, exception.StatusCode);
             Assert.Contains("service unavailable", exception.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
@@ -1299,8 +1299,8 @@ public class GrpcTransportTests
                     }
                     catch (Exception ex)
                     {
-                        await call.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Internal,
+                        await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Internal,
                             ex.Message ?? "stream processing failure",
                             transport: TransportName), cancellationToken).ConfigureAwait(false);
                     }
@@ -1399,8 +1399,8 @@ public class GrpcTransportTests
 
                         await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
 
-                        var error = PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Cancelled,
+                        var error = OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Cancelled,
                             "server cancelled",
                             transport: TransportName);
                         await call.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
@@ -1437,14 +1437,14 @@ public class GrpcTransportTests
             Assert.True(await enumerator.MoveNextAsync());
             Assert.Equal("ack:first", enumerator.Current.Body.Message);
 
-            var exception = await Assert.ThrowsAsync<PolymerException>(async () =>
+            var exception = await Assert.ThrowsAsync<OmniRelayException>(async () =>
             {
                 await enumerator.MoveNextAsync();
             });
 
             await enumerator.DisposeAsync();
 
-            Assert.Equal(PolymerStatusCode.Cancelled, exception.StatusCode);
+            Assert.Equal(OmniRelayStatusCode.Cancelled, exception.StatusCode);
             Assert.Contains("server cancelled", exception.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
@@ -1548,14 +1548,14 @@ public class GrpcTransportTests
 
             await callCts.CancelAsync();
 
-            var exception = await Assert.ThrowsAsync<PolymerException>(async () =>
+            var exception = await Assert.ThrowsAsync<OmniRelayException>(async () =>
             {
                 await foreach (var _ in session.ReadResponsesAsync(ct))
                 {
                 }
             });
 
-            Assert.Equal(PolymerStatusCode.Cancelled, exception.StatusCode);
+            Assert.Equal(OmniRelayStatusCode.Cancelled, exception.StatusCode);
         }
         finally
         {
@@ -1629,8 +1629,8 @@ public class GrpcTransportTests
                     }
                     catch (Exception ex)
                     {
-                        await call.CompleteResponsesAsync(PolymerErrorAdapter.FromStatus(
-                            PolymerStatusCode.Internal,
+                        await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Internal,
                             ex.Message ?? "flow-control failure",
                             transport: TransportName), cancellationToken).ConfigureAwait(false);
                     }
@@ -1971,7 +1971,7 @@ public class GrpcTransportTests
                 && string.Equals(entry.Value, "application/json", StringComparison.OrdinalIgnoreCase))
                 || trailers.Any(entry => string.Equals(entry.Key, EncodingTrailerKey, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(entry.Value, "application/json", StringComparison.OrdinalIgnoreCase));
-            Assert.True(encodingHeaderFound, "Expected polymer encoding metadata to be present in headers or trailers.");
+            Assert.True(encodingHeaderFound, "Expected OmniRelay encoding metadata to be present in headers or trailers.");
 
             bool customHeaderFound = headers.Any(entry => string.Equals(entry.Key, "x-meta-response", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(entry.Value, "yes", StringComparison.OrdinalIgnoreCase))
@@ -2003,8 +2003,8 @@ public class GrpcTransportTests
             "fail",
             (request, cancellationToken) =>
             {
-                var error = PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.PermissionDenied,
+                var error = OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.PermissionDenied,
                     "access denied",
                     transport: TransportName);
                 return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
@@ -2045,7 +2045,7 @@ public class GrpcTransportTests
             Assert.Contains(trailers, entry => string.Equals(entry.Key, ErrorCodeTrailerKey, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(entry.Value, "permission-denied", StringComparison.OrdinalIgnoreCase));
             Assert.Contains(trailers, entry => string.Equals(entry.Key, StatusTrailerKey, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(entry.Value, PolymerStatusCode.PermissionDenied.ToString(), StringComparison.OrdinalIgnoreCase));
+                && string.Equals(entry.Value, OmniRelayStatusCode.PermissionDenied.ToString(), StringComparison.OrdinalIgnoreCase));
         }
         finally
         {
@@ -2055,46 +2055,46 @@ public class GrpcTransportTests
 
     public static IEnumerable<object[]> FromStatusMappings()
     {
-        yield return [StatusCode.Cancelled, PolymerStatusCode.Cancelled];
-        yield return [StatusCode.InvalidArgument, PolymerStatusCode.InvalidArgument];
-        yield return [StatusCode.DeadlineExceeded, PolymerStatusCode.DeadlineExceeded];
-        yield return [StatusCode.NotFound, PolymerStatusCode.NotFound];
-        yield return [StatusCode.AlreadyExists, PolymerStatusCode.AlreadyExists];
-        yield return [StatusCode.PermissionDenied, PolymerStatusCode.PermissionDenied];
-        yield return [StatusCode.ResourceExhausted, PolymerStatusCode.ResourceExhausted];
-        yield return [StatusCode.FailedPrecondition, PolymerStatusCode.FailedPrecondition];
-        yield return [StatusCode.Aborted, PolymerStatusCode.Aborted];
-        yield return [StatusCode.OutOfRange, PolymerStatusCode.OutOfRange];
-        yield return [StatusCode.Unimplemented, PolymerStatusCode.Unimplemented];
-        yield return [StatusCode.Internal, PolymerStatusCode.Internal];
-        yield return [StatusCode.Unavailable, PolymerStatusCode.Unavailable];
-        yield return [StatusCode.DataLoss, PolymerStatusCode.DataLoss];
-        yield return [StatusCode.Unknown, PolymerStatusCode.Unknown];
-        yield return [StatusCode.Unauthenticated, PolymerStatusCode.PermissionDenied];
+        yield return [StatusCode.Cancelled, OmniRelayStatusCode.Cancelled];
+        yield return [StatusCode.InvalidArgument, OmniRelayStatusCode.InvalidArgument];
+        yield return [StatusCode.DeadlineExceeded, OmniRelayStatusCode.DeadlineExceeded];
+        yield return [StatusCode.NotFound, OmniRelayStatusCode.NotFound];
+        yield return [StatusCode.AlreadyExists, OmniRelayStatusCode.AlreadyExists];
+        yield return [StatusCode.PermissionDenied, OmniRelayStatusCode.PermissionDenied];
+        yield return [StatusCode.ResourceExhausted, OmniRelayStatusCode.ResourceExhausted];
+        yield return [StatusCode.FailedPrecondition, OmniRelayStatusCode.FailedPrecondition];
+        yield return [StatusCode.Aborted, OmniRelayStatusCode.Aborted];
+        yield return [StatusCode.OutOfRange, OmniRelayStatusCode.OutOfRange];
+        yield return [StatusCode.Unimplemented, OmniRelayStatusCode.Unimplemented];
+        yield return [StatusCode.Internal, OmniRelayStatusCode.Internal];
+        yield return [StatusCode.Unavailable, OmniRelayStatusCode.Unavailable];
+        yield return [StatusCode.DataLoss, OmniRelayStatusCode.DataLoss];
+        yield return [StatusCode.Unknown, OmniRelayStatusCode.Unknown];
+        yield return [StatusCode.Unauthenticated, OmniRelayStatusCode.PermissionDenied];
     }
 
     public static IEnumerable<object[]> ToStatusMappings()
     {
-        yield return [StatusCode.Cancelled, PolymerStatusCode.Cancelled];
-        yield return [StatusCode.InvalidArgument, PolymerStatusCode.InvalidArgument];
-        yield return [StatusCode.DeadlineExceeded, PolymerStatusCode.DeadlineExceeded];
-        yield return [StatusCode.NotFound, PolymerStatusCode.NotFound];
-        yield return [StatusCode.AlreadyExists, PolymerStatusCode.AlreadyExists];
-        yield return [StatusCode.PermissionDenied, PolymerStatusCode.PermissionDenied];
-        yield return [StatusCode.ResourceExhausted, PolymerStatusCode.ResourceExhausted];
-        yield return [StatusCode.FailedPrecondition, PolymerStatusCode.FailedPrecondition];
-        yield return [StatusCode.Aborted, PolymerStatusCode.Aborted];
-        yield return [StatusCode.OutOfRange, PolymerStatusCode.OutOfRange];
-        yield return [StatusCode.Unimplemented, PolymerStatusCode.Unimplemented];
-        yield return [StatusCode.Internal, PolymerStatusCode.Internal];
-        yield return [StatusCode.Unavailable, PolymerStatusCode.Unavailable];
-        yield return [StatusCode.DataLoss, PolymerStatusCode.DataLoss];
-        yield return [StatusCode.Unknown, PolymerStatusCode.Unknown];
+        yield return [StatusCode.Cancelled, OmniRelayStatusCode.Cancelled];
+        yield return [StatusCode.InvalidArgument, OmniRelayStatusCode.InvalidArgument];
+        yield return [StatusCode.DeadlineExceeded, OmniRelayStatusCode.DeadlineExceeded];
+        yield return [StatusCode.NotFound, OmniRelayStatusCode.NotFound];
+        yield return [StatusCode.AlreadyExists, OmniRelayStatusCode.AlreadyExists];
+        yield return [StatusCode.PermissionDenied, OmniRelayStatusCode.PermissionDenied];
+        yield return [StatusCode.ResourceExhausted, OmniRelayStatusCode.ResourceExhausted];
+        yield return [StatusCode.FailedPrecondition, OmniRelayStatusCode.FailedPrecondition];
+        yield return [StatusCode.Aborted, OmniRelayStatusCode.Aborted];
+        yield return [StatusCode.OutOfRange, OmniRelayStatusCode.OutOfRange];
+        yield return [StatusCode.Unimplemented, OmniRelayStatusCode.Unimplemented];
+        yield return [StatusCode.Internal, OmniRelayStatusCode.Internal];
+        yield return [StatusCode.Unavailable, OmniRelayStatusCode.Unavailable];
+        yield return [StatusCode.DataLoss, OmniRelayStatusCode.DataLoss];
+        yield return [StatusCode.Unknown, OmniRelayStatusCode.Unknown];
     }
 
     [Theory]
     [MemberData(nameof(FromStatusMappings))]
-    public void GrpcStatusMapper_FromStatus_MapsExpected(StatusCode statusCode, PolymerStatusCode expected)
+    public void GrpcStatusMapper_FromStatus_MapsExpected(StatusCode statusCode, OmniRelayStatusCode expected)
     {
         var mapperType = typeof(GrpcOutbound).Assembly.GetType("OmniRelay.Transport.Grpc.GrpcStatusMapper", throwOnError: true)
             ?? throw new InvalidOperationException("Unable to locate GrpcStatusMapper type.");
@@ -2102,14 +2102,14 @@ public class GrpcTransportTests
             ?? throw new InvalidOperationException("Unable to locate FromStatus method.");
 
         var status = new Status(statusCode, "detail");
-        var result = (PolymerStatusCode)method.Invoke(null, [status])!;
+        var result = (OmniRelayStatusCode)method.Invoke(null, [status])!;
 
         Assert.Equal(expected, result);
     }
 
     [Theory]
     [MemberData(nameof(ToStatusMappings))]
-    public void GrpcStatusMapper_ToStatus_MapsExpected(StatusCode expectedStatusCode, PolymerStatusCode polymerStatus)
+    public void GrpcStatusMapper_ToStatus_MapsExpected(StatusCode expectedStatusCode, OmniRelayStatusCode polymerStatus)
     {
         var mapperType = typeof(GrpcOutbound).Assembly.GetType("OmniRelay.Transport.Grpc.GrpcStatusMapper", throwOnError: true)
             ?? throw new InvalidOperationException("Unable to locate GrpcStatusMapper type.");

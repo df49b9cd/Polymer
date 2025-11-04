@@ -187,7 +187,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     private static Error DeadlineExceeded(RequestMeta meta, Exception? exception = null)
     {
         var message = $"Deadline exceeded for procedure '{meta.Procedure ?? "<unknown>"}'.";
-        var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.DeadlineExceeded, message, transport: meta.Transport ?? "unknown");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.DeadlineExceeded, message, transport: meta.Transport ?? "unknown");
 
         if (exception is not null)
         {

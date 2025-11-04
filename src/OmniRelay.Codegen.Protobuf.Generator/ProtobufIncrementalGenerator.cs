@@ -70,8 +70,8 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
                 return;
             }
 
-            var generator = new PolymerProtobufGenerator();
-            foreach (var file in PolymerProtobufGenerator.GenerateFiles(result.DescriptorSet))
+            var generator = new OmniRelayProtobufGenerator();
+            foreach (var file in OmniRelayProtobufGenerator.GenerateFiles(result.DescriptorSet))
             {
                 var hintName = CreateHintName(result.Path, file.Name);
                 spc.AddSource(hintName, file.Content);

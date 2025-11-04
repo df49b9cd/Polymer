@@ -65,7 +65,7 @@ public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool dis
         }
         catch (Exception ex)
         {
-            return PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, transport: "http");
+            return OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, transport: "http");
         }
     }
 
@@ -96,7 +96,7 @@ public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool dis
         }
         catch (Exception ex)
         {
-            return PolymerErrors.ToResult<OnewayAck>(ex, transport: "http");
+            return OmniRelayErrors.ToResult<OnewayAck>(ex, transport: "http");
         }
     }
 
@@ -227,11 +227,11 @@ public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool dis
                     }
 
                     var status = document.RootElement.TryGetProperty("status", out var statusProperty) &&
-                                 Enum.TryParse(statusProperty.GetString(), out PolymerStatusCode parsedStatus)
+                                 Enum.TryParse(statusProperty.GetString(), out OmniRelayStatusCode parsedStatus)
                         ? parsedStatus
                         : HttpStatusMapper.FromStatusCode((int)response.StatusCode);
 
-                    var error = PolymerErrorAdapter.FromStatus(status, message, transport: transport);
+                    var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: transport);
                     if (!string.IsNullOrEmpty(code))
                     {
                         error = error.WithCode(code);
@@ -248,7 +248,7 @@ public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool dis
 
         var fallbackStatus = HttpStatusMapper.FromStatusCode((int)response.StatusCode);
         var fallbackMessage = response.ReasonPhrase ?? $"HTTP {(int)response.StatusCode}";
-        return PolymerErrorAdapter.FromStatus(fallbackStatus, fallbackMessage, transport: transport);
+        return OmniRelayErrorAdapter.FromStatus(fallbackStatus, fallbackMessage, transport: transport);
     }
 
     async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> IUnaryOutbound.CallAsync(

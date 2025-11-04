@@ -26,7 +26,7 @@ public sealed class RoundRobinPeerChooser : IPeerChooser
     {
         if (_peers.IsDefaultOrEmpty)
         {
-            var error = PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unavailable, "No peers are registered for the requested service.", transport: meta.Transport ?? "unknown");
+            var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "No peers are registered for the requested service.", transport: meta.Transport ?? "unknown");
             return ValueTask.FromResult(Err<PeerLease>(error));
         }
 
@@ -45,7 +45,7 @@ public sealed class RoundRobinPeerChooser : IPeerChooser
         }
 
         PeerMetrics.RecordPoolExhausted(meta);
-        var exhausted = PolymerErrorAdapter.FromStatus(PolymerStatusCode.ResourceExhausted, "All peers are busy.", transport: meta.Transport ?? "unknown");
+        var exhausted = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.ResourceExhausted, "All peers are busy.", transport: meta.Transport ?? "unknown");
         return ValueTask.FromResult(Err<PeerLease>(exhausted));
     }
 }

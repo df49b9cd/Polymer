@@ -26,7 +26,7 @@ namespace OmniRelay.Configuration.Internal;
 
 internal sealed class DispatcherBuilder
 {
-    private readonly PolymerConfigurationOptions _options;
+    private readonly OmniRelayConfigurationOptions _options;
     private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
     private readonly Dictionary<string, HttpOutbound> _httpOutboundCache = new(StringComparer.OrdinalIgnoreCase);
@@ -35,7 +35,7 @@ internal sealed class DispatcherBuilder
     private readonly IReadOnlyDictionary<string, ICustomOutboundSpec> _customOutboundSpecs;
     private readonly IReadOnlyDictionary<string, ICustomPeerChooserSpec> _customPeerSpecs;
 
-    public DispatcherBuilder(PolymerConfigurationOptions options, IServiceProvider serviceProvider, IConfiguration configuration)
+    public DispatcherBuilder(OmniRelayConfigurationOptions options, IServiceProvider serviceProvider, IConfiguration configuration)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -59,7 +59,7 @@ internal sealed class DispatcherBuilder
         var serviceName = _options.Service?.Trim();
         if (string.IsNullOrEmpty(serviceName))
         {
-            throw new PolymerConfigurationException("Polymer configuration must specify a service name (service).");
+            throw new OmniRelayConfigurationException("OmniRelay configuration must specify a service name (service).");
         }
 
         var dispatcherOptions = new DispatcherOptions(serviceName);
@@ -97,7 +97,7 @@ internal sealed class DispatcherBuilder
 
             if (inbound.Urls.Count == 0)
             {
-                throw new PolymerConfigurationException($"HTTP inbound at index {index} must specify at least one url.");
+                throw new OmniRelayConfigurationException($"HTTP inbound at index {index} must specify at least one url.");
             }
 
             var urls = inbound.Urls
@@ -106,7 +106,7 @@ internal sealed class DispatcherBuilder
 
             if (urls.Length == 0)
             {
-                throw new PolymerConfigurationException($"HTTP inbound at index {index} resolved to zero valid urls.");
+                throw new OmniRelayConfigurationException($"HTTP inbound at index {index} resolved to zero valid urls.");
             }
 
             var name = string.IsNullOrWhiteSpace(inbound.Name)
@@ -137,7 +137,7 @@ internal sealed class DispatcherBuilder
 
             if (inbound.Urls.Count == 0)
             {
-                throw new PolymerConfigurationException($"gRPC inbound at index {index} must specify at least one url.");
+                throw new OmniRelayConfigurationException($"gRPC inbound at index {index} must specify at least one url.");
             }
 
             var urls = inbound.Urls
@@ -183,16 +183,16 @@ internal sealed class DispatcherBuilder
             var specName = section.GetValue<string>("spec");
             if (string.IsNullOrWhiteSpace(specName))
             {
-                throw new PolymerConfigurationException($"Custom inbound at index {index} must specify a 'spec' value.");
+                throw new OmniRelayConfigurationException($"Custom inbound at index {index} must specify a 'spec' value.");
             }
 
             if (!_customInboundSpecs.TryGetValue(specName, out var spec))
             {
-                throw new PolymerConfigurationException($"No custom inbound spec registered for '{specName}'.");
+                throw new OmniRelayConfigurationException($"No custom inbound spec registered for '{specName}'.");
             }
 
             var inbound = spec.CreateInbound(section, _serviceProvider)
-                ?? throw new PolymerConfigurationException($"Custom inbound spec '{specName}' returned null.");
+                ?? throw new OmniRelayConfigurationException($"Custom inbound spec '{specName}' returned null.");
 
             var name = section.GetValue<string>("name");
             if (string.IsNullOrWhiteSpace(name))
@@ -248,7 +248,7 @@ internal sealed class DispatcherBuilder
 
             if (kind is OutboundKind.Stream or OutboundKind.ClientStream or OutboundKind.Duplex)
             {
-                throw new PolymerConfigurationException(
+                throw new OmniRelayConfigurationException(
                     $"HTTP outbound cannot satisfy {kind.ToString().ToLowerInvariant()} RPCs for service '{service}'.");
             }
 
@@ -335,12 +335,12 @@ internal sealed class DispatcherBuilder
             var specName = section.GetValue<string>("spec");
             if (string.IsNullOrWhiteSpace(specName))
             {
-                throw new PolymerConfigurationException($"Custom outbound at index {index} for service '{service}' must specify a 'spec' value.");
+                throw new OmniRelayConfigurationException($"Custom outbound at index {index} for service '{service}' must specify a 'spec' value.");
             }
 
             if (!_customOutboundSpecs.TryGetValue(specName, out var spec))
             {
-                throw new PolymerConfigurationException($"No custom outbound spec registered for '{specName}'.");
+                throw new OmniRelayConfigurationException($"No custom outbound spec registered for '{specName}'.");
             }
 
             var key = section.GetValue<string>("key");
@@ -350,35 +350,35 @@ internal sealed class DispatcherBuilder
                 case OutboundKind.Unary:
                     {
                         var outbound = spec.CreateUnaryOutbound(section, _serviceProvider)
-                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a unary outbound.");
+                            ?? throw new OmniRelayConfigurationException($"Custom outbound spec '{specName}' did not provide a unary outbound.");
                         dispatcherOptions.AddUnaryOutbound(service, key, outbound);
                         break;
                     }
                 case OutboundKind.Oneway:
                     {
                         var outbound = spec.CreateOnewayOutbound(section, _serviceProvider)
-                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a oneway outbound.");
+                            ?? throw new OmniRelayConfigurationException($"Custom outbound spec '{specName}' did not provide a oneway outbound.");
                         dispatcherOptions.AddOnewayOutbound(service, key, outbound);
                         break;
                     }
                 case OutboundKind.Stream:
                     {
                         var outbound = spec.CreateStreamOutbound(section, _serviceProvider)
-                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a stream outbound.");
+                            ?? throw new OmniRelayConfigurationException($"Custom outbound spec '{specName}' did not provide a stream outbound.");
                         dispatcherOptions.AddStreamOutbound(service, key, outbound);
                         break;
                     }
                 case OutboundKind.ClientStream:
                     {
                         var outbound = spec.CreateClientStreamOutbound(section, _serviceProvider)
-                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a client stream outbound.");
+                            ?? throw new OmniRelayConfigurationException($"Custom outbound spec '{specName}' did not provide a client stream outbound.");
                         dispatcherOptions.AddClientStreamOutbound(service, key, outbound);
                         break;
                     }
                 case OutboundKind.Duplex:
                     {
                         var outbound = spec.CreateDuplexOutbound(section, _serviceProvider)
-                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a duplex outbound.");
+                            ?? throw new OmniRelayConfigurationException($"Custom outbound spec '{specName}' did not provide a duplex outbound.");
                         dispatcherOptions.AddDuplexOutbound(service, key, outbound);
                         break;
                     }
@@ -394,7 +394,7 @@ internal sealed class DispatcherBuilder
     {
         if (string.IsNullOrWhiteSpace(configuration.Url))
         {
-            throw new PolymerConfigurationException($"HTTP outbound for service '{service}' must specify a url.");
+            throw new OmniRelayConfigurationException($"HTTP outbound for service '{service}' must specify a url.");
         }
 
         var uri = ValidateHttpUrl(configuration.Url!, $"http outbound for service '{service}'");
@@ -432,7 +432,7 @@ internal sealed class DispatcherBuilder
     {
         if (configuration.Addresses.Count == 0)
         {
-            throw new PolymerConfigurationException($"gRPC outbound for service '{service}' must specify peer addresses.");
+            throw new OmniRelayConfigurationException($"gRPC outbound for service '{service}' must specify peer addresses.");
         }
 
         var uris = configuration.Addresses
@@ -494,12 +494,12 @@ internal sealed class DispatcherBuilder
         {
             if (!_customPeerSpecs.TryGetValue(specName, out var spec))
             {
-                throw new PolymerConfigurationException($"No custom peer chooser spec registered for '{specName}'.");
+                throw new OmniRelayConfigurationException($"No custom peer chooser spec registered for '{specName}'.");
             }
 
             if (peerSection is null)
             {
-                throw new PolymerConfigurationException($"Peer spec '{specName}' requires configuration under 'peer'.");
+                throw new OmniRelayConfigurationException($"Peer spec '{specName}' requires configuration under 'peer'.");
             }
 
             return spec.CreateFactory(peerSection, _serviceProvider);
@@ -525,7 +525,7 @@ internal sealed class DispatcherBuilder
             return peers => new TwoRandomPeerChooser(ImmutableArray.CreateRange(peers));
         }
 
-        throw new PolymerConfigurationException(
+        throw new OmniRelayConfigurationException(
             $"Unsupported peer chooser '{peerChooser}'. Supported values: round-robin, fewest-pending, two-random-choice.");
     }
 
@@ -585,7 +585,7 @@ internal sealed class DispatcherBuilder
             var path = ResolvePath(configuration.CertificatePath!);
             if (!File.Exists(path))
             {
-                throw new PolymerConfigurationException($"Client TLS certificate file '{path}' could not be found.");
+                throw new OmniRelayConfigurationException($"Client TLS certificate file '{path}' could not be found.");
             }
 
             X509Certificate2 cert;
@@ -599,7 +599,7 @@ internal sealed class DispatcherBuilder
 
         if (!string.IsNullOrWhiteSpace(configuration.TargetNameOverride))
         {
-            throw new PolymerConfigurationException("gRPC client target name override is not yet supported in configuration.");
+            throw new OmniRelayConfigurationException("gRPC client target name override is not yet supported in configuration.");
         }
 
         RemoteCertificateValidationCallback? validationCallback = null;
@@ -659,7 +659,7 @@ internal sealed class DispatcherBuilder
             var type = ResolveType(typeName);
             if (!typeof(Interceptor).IsAssignableFrom(type))
             {
-                throw new PolymerConfigurationException(
+                throw new OmniRelayConfigurationException(
                     $"Configured gRPC client interceptor '{typeName}' does not derive from {nameof(Interceptor)}.");
             }
 
@@ -849,7 +849,7 @@ internal sealed class DispatcherBuilder
             var type = ResolveType(typeName);
             if (!typeof(Interceptor).IsAssignableFrom(type))
             {
-                throw new PolymerConfigurationException(
+                throw new OmniRelayConfigurationException(
                     $"Configured gRPC server interceptor '{typeName}' does not derive from {nameof(Interceptor)}.");
             }
 
@@ -869,7 +869,7 @@ internal sealed class DispatcherBuilder
         var path = ResolvePath(configuration.CertificatePath!);
         if (!File.Exists(path))
         {
-            throw new PolymerConfigurationException($"gRPC server certificate '{path}' could not be found.");
+            throw new OmniRelayConfigurationException($"gRPC server certificate '{path}' could not be found.");
         }
 
         X509Certificate2 certificate;
@@ -979,7 +979,7 @@ internal sealed class DispatcherBuilder
         var procedure = registration.Procedure?.Trim();
         if (string.IsNullOrWhiteSpace(procedure))
         {
-            throw new PolymerConfigurationException("JSON codec registrations must specify a procedure name.");
+            throw new OmniRelayConfigurationException("JSON codec registrations must specify a procedure name.");
         }
 
         var kind = ParseProcedureKind(registration.Kind, procedure);
@@ -1032,7 +1032,7 @@ internal sealed class DispatcherBuilder
         {
             if (!profiles.TryGetValue(registration.Profile!, out profile))
             {
-                throw new PolymerConfigurationException($"No JSON codec profile named '{registration.Profile}' was found.");
+                throw new OmniRelayConfigurationException($"No JSON codec profile named '{registration.Profile}' was found.");
             }
 
             options = new JsonSerializerOptions(options);
@@ -1058,7 +1058,7 @@ internal sealed class DispatcherBuilder
         var contextType = ResolveType(contextTypeName, $"JsonSerializerContext for '{procedure}'");
         if (!typeof(JsonSerializerContext).IsAssignableFrom(contextType))
         {
-            throw new PolymerConfigurationException($"Type '{contextTypeName}' is not a valid JsonSerializerContext.");
+            throw new OmniRelayConfigurationException($"Type '{contextTypeName}' is not a valid JsonSerializerContext.");
         }
 
         try
@@ -1075,15 +1075,15 @@ internal sealed class DispatcherBuilder
 
             var defaultInstance = Activator.CreateInstance(contextType);
             return defaultInstance as JsonSerializerContext
-                ?? throw new PolymerConfigurationException($"Failed to instantiate JsonSerializerContext '{contextTypeName}'.");
+                ?? throw new OmniRelayConfigurationException($"Failed to instantiate JsonSerializerContext '{contextTypeName}'.");
         }
-        catch (PolymerConfigurationException)
+        catch (OmniRelayConfigurationException)
         {
             throw;
         }
         catch (Exception ex)
         {
-            throw new PolymerConfigurationException($"Failed to instantiate JsonSerializerContext '{contextTypeName}'.", ex);
+            throw new OmniRelayConfigurationException($"Failed to instantiate JsonSerializerContext '{contextTypeName}'.", ex);
         }
     }
 
@@ -1100,7 +1100,7 @@ internal sealed class DispatcherBuilder
 
         if (!File.Exists(resolved))
         {
-            throw new PolymerConfigurationException($"Unable to locate JSON schema '{path}' for {description}.");
+            throw new OmniRelayConfigurationException($"Unable to locate JSON schema '{path}' for {description}.");
         }
 
         try
@@ -1110,7 +1110,7 @@ internal sealed class DispatcherBuilder
         }
         catch (Exception ex)
         {
-            throw new PolymerConfigurationException($"Failed to load JSON schema '{path}' for {description}.", ex);
+            throw new OmniRelayConfigurationException($"Failed to load JSON schema '{path}' for {description}.", ex);
         }
     }
 
@@ -1121,20 +1121,20 @@ internal sealed class DispatcherBuilder
             return parsed;
         }
 
-        throw new PolymerConfigurationException($"JSON codec registration for '{procedure}' specifies invalid procedure kind '{value}'.");
+        throw new OmniRelayConfigurationException($"JSON codec registration for '{procedure}' specifies invalid procedure kind '{value}'.");
     }
 
     private static Type ResolveType(string? typeName, string description)
     {
         if (string.IsNullOrWhiteSpace(typeName))
         {
-            throw new PolymerConfigurationException($"Type name is required for {description}.");
+            throw new OmniRelayConfigurationException($"Type name is required for {description}.");
         }
 
         var type = Type.GetType(typeName, throwOnError: false);
         if (type is null)
         {
-            throw new PolymerConfigurationException($"Unable to resolve type '{typeName}' for {description}.");
+            throw new OmniRelayConfigurationException($"Unable to resolve type '{typeName}' for {description}.");
         }
 
         return type;
@@ -1149,7 +1149,7 @@ internal sealed class DispatcherBuilder
 
         if (string.IsNullOrWhiteSpace(registration.ResponseType))
         {
-            throw new PolymerConfigurationException($"JSON codec registration for '{procedure}' must specify a response type.");
+            throw new OmniRelayConfigurationException($"JSON codec registration for '{procedure}' must specify a response type.");
         }
 
         return ResolveType(registration.ResponseType, $"json codec registration for '{procedure}'");
@@ -1179,15 +1179,15 @@ internal sealed class DispatcherBuilder
                        requestSchemaId,
                        responseSchema,
                        responseSchemaId)
-                   ?? throw new PolymerConfigurationException($"Failed to create JsonCodec instance for '{requestType.FullName}' → '{responseType.FullName}'.");
+                   ?? throw new OmniRelayConfigurationException($"Failed to create JsonCodec instance for '{requestType.FullName}' → '{responseType.FullName}'.");
         }
         catch (TargetInvocationException ex)
         {
-            throw new PolymerConfigurationException("Failed to create JsonCodec instance.", ex.InnerException ?? ex);
+            throw new OmniRelayConfigurationException("Failed to create JsonCodec instance.", ex.InnerException ?? ex);
         }
         catch (Exception ex)
         {
-            throw new PolymerConfigurationException("Failed to create JsonCodec instance.", ex);
+            throw new OmniRelayConfigurationException("Failed to create JsonCodec instance.", ex);
         }
     }
 
@@ -1214,18 +1214,18 @@ internal sealed class DispatcherBuilder
                 case ProcedureCodecScope.Outbound:
                     if (string.IsNullOrWhiteSpace(service))
                     {
-                        throw new PolymerConfigurationException($"JSON codec registration for '{procedure}' must specify a service when used for outbound codecs.");
+                        throw new OmniRelayConfigurationException($"JSON codec registration for '{procedure}' must specify a service when used for outbound codecs.");
                     }
 
                     RegisterOutboundCodec(dispatcherOptions, kind, requestType, responseType, codec, service!, procedure, aliasArgument);
                     break;
                 default:
-                    throw new PolymerConfigurationException($"Unsupported codec scope '{scope}'.");
+                    throw new OmniRelayConfigurationException($"Unsupported codec scope '{scope}'.");
             }
         }
         catch (TargetInvocationException ex)
         {
-            throw new PolymerConfigurationException("Failed to register JSON codec with dispatcher.", ex.InnerException ?? ex);
+            throw new OmniRelayConfigurationException("Failed to register JSON codec with dispatcher.", ex.InnerException ?? ex);
         }
     }
 
@@ -1256,7 +1256,7 @@ internal sealed class DispatcherBuilder
                 InvokeCodecRegistration(dispatcherOptions, nameof(DispatcherOptions.AddInboundDuplexCodec), requestType, responseType, codec, procedure, aliases);
                 break;
             default:
-                throw new PolymerConfigurationException($"JSON codec registrations do not support inbound kind '{kind}'.");
+                throw new OmniRelayConfigurationException($"JSON codec registrations do not support inbound kind '{kind}'.");
         }
     }
 
@@ -1288,7 +1288,7 @@ internal sealed class DispatcherBuilder
                 InvokeCodecRegistration(dispatcherOptions, nameof(DispatcherOptions.AddOutboundDuplexCodec), requestType, responseType, codec, service, procedure, aliases);
                 break;
             default:
-                throw new PolymerConfigurationException($"JSON codec registrations do not support outbound kind '{kind}'.");
+                throw new OmniRelayConfigurationException($"JSON codec registrations do not support outbound kind '{kind}'.");
         }
     }
 
@@ -1405,7 +1405,7 @@ internal sealed class DispatcherBuilder
             }
             else
             {
-                throw new PolymerConfigurationException($"Unsupported JSON ignore condition '{configuration.DefaultIgnoreCondition}'.");
+                throw new OmniRelayConfigurationException($"Unsupported JSON ignore condition '{configuration.DefaultIgnoreCondition}'.");
             }
         }
 
@@ -1416,7 +1416,7 @@ internal sealed class DispatcherBuilder
             {
                 if (!Enum.TryParse<JsonNumberHandling>(entry, ignoreCase: true, out var parsed))
                 {
-                    throw new PolymerConfigurationException($"Unsupported JSON number handling flag '{entry}'.");
+                    throw new OmniRelayConfigurationException($"Unsupported JSON number handling flag '{entry}'.");
                 }
 
                 handling |= parsed;
@@ -1439,7 +1439,7 @@ internal sealed class DispatcherBuilder
             }
             else
             {
-                throw new PolymerConfigurationException($"Unsupported JSON property naming policy '{configuration.PropertyNamingPolicy}'.");
+                throw new OmniRelayConfigurationException($"Unsupported JSON property naming policy '{configuration.PropertyNamingPolicy}'.");
             }
         }
 
@@ -1467,22 +1467,22 @@ internal sealed class DispatcherBuilder
         var converterType = ResolveType(converterTypeName, "JSON converter");
         if (!typeof(JsonConverter).IsAssignableFrom(converterType))
         {
-            throw new PolymerConfigurationException($"Type '{converterTypeName}' is not assignable to JsonConverter.");
+            throw new OmniRelayConfigurationException($"Type '{converterTypeName}' is not assignable to JsonConverter.");
         }
 
         try
         {
             var converter = Activator.CreateInstance(converterType) as JsonConverter
-                            ?? throw new PolymerConfigurationException($"Unable to instantiate JSON converter '{converterTypeName}'.");
+                            ?? throw new OmniRelayConfigurationException($"Unable to instantiate JSON converter '{converterTypeName}'.");
             target.Converters.Add(converter);
         }
-        catch (PolymerConfigurationException)
+        catch (OmniRelayConfigurationException)
         {
             throw;
         }
         catch (Exception ex)
         {
-            throw new PolymerConfigurationException($"Failed to instantiate JSON converter '{converterTypeName}'.", ex);
+            throw new OmniRelayConfigurationException($"Failed to instantiate JSON converter '{converterTypeName}'.", ex);
         }
     }
 
@@ -1537,7 +1537,7 @@ internal sealed class DispatcherBuilder
             var type = ResolveType(typeName);
             if (!typeof(TMiddleware).IsAssignableFrom(type))
             {
-                throw new PolymerConfigurationException(
+                throw new OmniRelayConfigurationException(
                     $"Configured middleware '{typeName}' does not implement {typeof(TMiddleware).Name}.");
             }
 
@@ -1558,7 +1558,7 @@ internal sealed class DispatcherBuilder
             return parsed;
         }
 
-        throw new PolymerConfigurationException(
+        throw new OmniRelayConfigurationException(
             $"Unsupported client certificate mode '{value}'. Supported values: NoCertificate, AllowCertificate, RequireCertificate, RequireCertificateAndVerify.");
     }
 
@@ -1566,13 +1566,13 @@ internal sealed class DispatcherBuilder
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new PolymerConfigurationException($"The url for {context} cannot be empty.");
+            throw new OmniRelayConfigurationException($"The url for {context} cannot be empty.");
         }
 
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            throw new PolymerConfigurationException($"The url '{value}' for {context} is not a valid HTTP/HTTPS address.");
+            throw new OmniRelayConfigurationException($"The url '{value}' for {context} is not a valid HTTP/HTTPS address.");
         }
 
         return uri.ToString();
@@ -1582,7 +1582,7 @@ internal sealed class DispatcherBuilder
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new PolymerConfigurationException($"The url/address for {context} cannot be empty.");
+            throw new OmniRelayConfigurationException($"The url/address for {context} cannot be empty.");
         }
 
         if (Uri.TryCreate(value, UriKind.Absolute, out var absolute))
@@ -1595,7 +1595,7 @@ internal sealed class DispatcherBuilder
             return fallback.ToString();
         }
 
-        throw new PolymerConfigurationException($"The value '{value}' for {context} is not a valid URI.");
+        throw new OmniRelayConfigurationException($"The value '{value}' for {context} is not a valid URI.");
     }
 
     private static Type ResolveType(string typeName)
@@ -1615,7 +1615,7 @@ internal sealed class DispatcherBuilder
             }
         }
 
-        throw new PolymerConfigurationException($"Type '{typeName}' could not be resolved. Ensure the assembly is loaded and the type name is fully qualified.");
+        throw new OmniRelayConfigurationException($"Type '{typeName}' could not be resolved. Ensure the assembly is loaded and the type name is fully qualified.");
     }
 
     private static string ResolvePath(string path) =>

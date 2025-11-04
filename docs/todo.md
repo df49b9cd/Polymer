@@ -68,7 +68,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
     - ~~Security & connection tuning: The inbound config only forces HTTP/2 listeners and never exposes TLS, keepalive, or max message size knobs (src/OmniRelay/Transport/Grpc/GrpcInbound.cs (lines 60-71)); the outbound constructor similarly only tweaks the HTTP handler (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 27-39)). YARPC-Go ships options for server/client TLS credentials, keepalive params, compressors, and header size limits, so our transport is missing that flexibility.~~ *(completed via `GrpcServerTlsOptions`, `GrpcClientTlsOptions`, runtime keepalive/message-size options, and `GrpcCompressionOptions`; request/response compression pipeline remains to be validated.)*
     
-    - ~~Operational introspection: Our gRPC types implement only the Polymer transport interfaces (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 15-25); src/OmniRelay/Transport/Grpc/GrpcInbound.cs (lines 17-42)) and expose no running-state, peer list, or metrics surfaces. YARPC-Go’s inbound/outbound implement introspection APIs and structured logging, so we lack comparable admin visibility.~~ *(completed via `IOutboundDiagnostic` snapshots (`GrpcOutboundSnapshot`, `GrpcPeerSummary`) consumed by the dispatcher introspection endpoint; see `GrpcTransportTests` diagnostics assertions and `HttpIntrospectionTests.IntrospectionEndpoint_ReportsDispatcherState`.)*
+    - ~~Operational introspection: Our gRPC types implement only the OmniRelay transport interfaces (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 15-25); src/OmniRelay/Transport/Grpc/GrpcInbound.cs (lines 17-42)) and expose no running-state, peer list, or metrics surfaces. YARPC-Go’s inbound/outbound implement introspection APIs and structured logging, so we lack comparable admin visibility.~~ *(completed via `IOutboundDiagnostic` snapshots (`GrpcOutboundSnapshot`, `GrpcPeerSummary`) consumed by the dispatcher introspection endpoint; see `GrpcTransportTests` diagnostics assertions and `HttpIntrospectionTests.IntrospectionEndpoint_ReportsDispatcherState`.)*
     
     - ~~Deadline/TTL enforcement & header hygiene: We serialize TTL/deadline information into metadata (src/OmniRelay/Transport/Grpc/GrpcMetadataAdapter.cs (lines 75-88)) but never convert it into gRPC deadlines in CallOptions, so the runtime won’t actually enforce them (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 61-174)). YARPC-Go validates headers, propagates TTLs into contexts, and distinguishes application errors via metadata, which leaves us short on request semantics.~~ *(completed: `GrpcOutbound` maps TTL/deadline via `ResolveDeadline` when building `CallOptions`, and tests like `GrpcTransportTests.ClientStreaming_DeadlineExceededMapsStatus` verify deadline propagation and status mapping.)*
 
@@ -100,13 +100,13 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - Add interop tests using YARPC fixtures.
 
 - **JSON Enhancements**
-  - ~~Allow custom `JsonSerializerOptions` via configuration (per-procedure overrides).~~ *(`DispatcherBuilder` now binds `encodings:json` profiles/registrations into strongly typed `JsonCodec` instances, wiring them into the dispatcher via `DispatcherOptions.Add*Codec`; validated by `PolymerConfigurationTests.AddPolymerDispatcher_ConfiguresJsonCodecs`.)*
+  - ~~Allow custom `JsonSerializerOptions` via configuration (per-procedure overrides).~~ *(`DispatcherBuilder` now binds `encodings:json` profiles/registrations into strongly typed `JsonCodec` instances, wiring them into the dispatcher via `DispatcherOptions.Add*Codec`; validated by `OmniRelayConfigurationTests.AddOmniRelayDispatcher_ConfiguresJsonCodecs`.)*
   - ~~Add source-generated context support for performance.~~ *(`JsonCodec` accepts `JsonSerializerContext` metadata; configuration may reference generated contexts (see `EchoJsonContext`) ensuring serializers use statically generated type info.)*
   - ~~Optional: schema validation hooks leveraging JSON Schema.~~ *(`JsonCodec` gained optional request/response `JsonSchema` enforcement, triggered through configuration-provided schema paths; failures map to `InvalidArgument` with schema error metadata and are exercised in new unit tests.)*
 
 - **Codec Registry**
   - ~~Introduce registry at dispatcher level mapping procedure → codec.~~ *(Added `CodecRegistry` with typed lookup/registration and memory-safe alias handling inside `Dispatcher`.)*
-  - ~~Provide DI integration so transports autoselect codecs without manual wiring.~~ *(`DispatcherClientExtensions` gained registry-backed overloads; `AddPolymerDispatcher` now exposes the shared registry via DI for middleware/transports.)*
+  - ~~Provide DI integration so transports autoselect codecs without manual wiring.~~ *(`DispatcherClientExtensions` gained registry-backed overloads; `AddOmniRelayDispatcher` now exposes the shared registry via DI for middleware/transports.)*
   - ~~Update documentation to reflect simplified registration workflow.~~ *(Docs updated inline here and `docs/plan.md` section refined to describe registry + JSON configuration pipeline.)*
 
 ## 3. Dispatcher & Routing (Phase 2)
@@ -161,7 +161,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 - **Health, Backoff & Circuit Breaking**
   - ~~Add exponential backoff on repeated failures, half-open testing.~~ *(Completed with `PeerCircuitBreaker` supporting exponential backoff, half-open probe limits, and success thresholds integrated into gRPC peers.)*
-  - ~~Surface retryable vs non-retryable errors to chooser.~~ *(gRPC outbound now classifies errors via `PolymerErrors.GetFaultType`, avoiding peer penalties for caller faults.)*
+  - ~~Surface retryable vs non-retryable errors to chooser.~~ *(gRPC outbound now classifies errors via `OmniRelayErrors.GetFaultType`, avoiding peer penalties for caller faults.)*
   - ~~Provide configuration knobs for thresholds.~~ *(exposed via `PeerCircuitBreakerOptions` consumed by `GrpcOutbound`.)*
 
 - **Peer Introspection**
@@ -172,18 +172,18 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 - **Status Mapping**
   - ~~Ensure HTTP/gRPC/TChannel (if implemented) map all YARPC codes correctly.~~ *(HTTP + gRPC mappings now verified via `HttpStatusMapperTests` and existing `GrpcStatusMapper` coverage; TChannel remains intentionally out of scope for this parity push.)*
-  - ~~Define retry hints, fault classification metadata.~~ *(Errors are annotated with `polymer.faultType`/`polymer.retryable` metadata via `PolymerErrorAdapter` and surfaced through `PolymerErrors.IsRetryable`.)*
+  - ~~Define retry hints, fault classification metadata.~~ *(Errors are annotated with `polymer.faultType`/`polymer.retryable` metadata via `OmniRelayErrorAdapter` and surfaced through `OmniRelayErrors.IsRetryable`.)*
 
 - **Error Helpers**
-  - ~~Add helper APIs: `PolymerErrors.IsStatus`, `GetFaultType`, `GetRetryable`.~~ *(Expanded helpers include `PolymerErrors.IsRetryable(...)` and metadata-aware fault classification.)*
-  - ~~Provide ASP.NET + gRPC exception adapters (filters/interceptors).~~ *(Implemented `PolymerExceptionFilter` for ASP.NET Core and `GrpcExceptionAdapterInterceptor` for gRPC servers, ensuring thrown exceptions surface Polymer metadata uniformly.)*
+  - ~~Add helper APIs: `OmniRelayErrors.IsStatus`, `GetFaultType`, `GetRetryable`.~~ *(Expanded helpers include `OmniRelayErrors.IsRetryable(...)` and metadata-aware fault classification.)*
+  - ~~Provide ASP.NET + gRPC exception adapters (filters/interceptors).~~ *(Implemented `OmniRelayExceptionFilter` for ASP.NET Core and `GrpcExceptionAdapterInterceptor` for gRPC servers, ensuring thrown exceptions surface OmniRelay metadata uniformly.)*
   - ~~Document canonical error handling patterns.~~ *(Captured in `docs/reference/errors.md`, covering ASP.NET/gRPC adapters, client guidance, and metadata expectations.)*
 
 ## 7. Configuration System (Phase 7)
 
-- ~~**Declarative Bootstrap**~~ *(Delivered via the new `src/OmniRelay.Configuration` project. `PolymerConfigurationOptions` captures transports/peers/middleware, `AddPolymerDispatcher` wires everything into DI, and validation is covered by `PolymerConfigurationTests`.)*
+- ~~**Declarative Bootstrap**~~ *(Delivered via the new `src/OmniRelay.Configuration` project. `OmniRelayConfigurationOptions` captures transports/peers/middleware, `AddOmniRelayDispatcher` wires everything into DI, and validation is covered by `OmniRelayConfigurationTests`.)*
 
-- ~~**Transport/Peer Specs**~~ *(`ICustomInboundSpec`, `ICustomOutboundSpec`, and `ICustomPeerChooserSpec` let DI registered components materialize transports/peer choosers from configuration. Covered by `PolymerConfigurationTests.AddPolymerDispatcher_UsesCustomTransportSpecs` and `.UsesCustomPeerSpec`.)*
+- ~~**Transport/Peer Specs**~~ *(`ICustomInboundSpec`, `ICustomOutboundSpec`, and `ICustomPeerChooserSpec` let DI registered components materialize transports/peer choosers from configuration. Covered by `OmniRelayConfigurationTests.AddOmniRelayDispatcher_UsesCustomTransportSpecs` and `.UsesCustomPeerSpec`.)*
 
 - **Environment Overrides**
   - ~~Support layered configuration (appsettings + env vars + command line).~~ *(Binder operates on `IConfiguration`, so configuration layering works out of the box; follow-up task is documenting best practices.)*
@@ -208,7 +208,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 ## 9. Interop & Testing (Phase 11)
 
 - **Conformance Suite**
-  - Build test harness running Polymer server against `yarpc-go` clients (HTTP + gRPC).
+  - Build test harness running OmniRelay server against `yarpc-go` clients (HTTP + gRPC).
   - Verify metadata propagation, streaming semantics, error codes, deadlines.
   - Mirror YARPC crossdock tests if feasible.
 

@@ -62,11 +62,11 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         {
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
-            return Err<GrpcClientStreamCall>(PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName));
+            return Err<GrpcClientStreamCall>(OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName));
         }
         catch (Exception ex)
         {
-            return PolymerErrors.ToResult<GrpcClientStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
+            return OmniRelayErrors.ToResult<GrpcClientStreamCall>(ex, transport: GrpcTransportConstants.TransportName);
         }
     }
 
@@ -123,10 +123,10 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         {
             var status = GrpcStatusMapper.FromStatus(rpcEx.Status);
             var message = string.IsNullOrWhiteSpace(rpcEx.Status.Detail) ? rpcEx.Status.StatusCode.ToString() : rpcEx.Status.Detail;
-            var error = PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
-            _responses.Writer.TryComplete(PolymerErrors.FromError(error, GrpcTransportConstants.TransportName));
+            var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+            _responses.Writer.TryComplete(OmniRelayErrors.FromError(error, GrpcTransportConstants.TransportName));
             RecordCompletion(rpcEx.Status.StatusCode);
-            var completionStatus = status == PolymerStatusCode.Cancelled
+            var completionStatus = status == OmniRelayStatusCode.Cancelled
                 ? StreamCompletionStatus.Cancelled
                 : StreamCompletionStatus.Faulted;
             _context.TrySetCompletion(completionStatus, error);
@@ -135,8 +135,8 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         {
             _responses.Writer.TryComplete(ex);
             RecordCompletion(StatusCode.Unknown);
-            _context.TrySetCompletion(StreamCompletionStatus.Faulted, PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            _context.TrySetCompletion(StreamCompletionStatus.Faulted, OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An unknown error occurred while reading the response stream.",
                 transport: GrpcTransportConstants.TransportName,
                 inner: Error.FromException(ex)));
@@ -150,9 +150,9 @@ internal sealed class GrpcClientStreamCall : IStreamCall
             return StreamCompletionStatus.Succeeded;
         }
 
-        return PolymerErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(error) switch
         {
-            PolymerStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
+            OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted
         };
     }

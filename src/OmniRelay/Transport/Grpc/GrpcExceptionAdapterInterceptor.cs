@@ -5,7 +5,7 @@ using OmniRelay.Errors;
 namespace OmniRelay.Transport.Grpc;
 
 /// <summary>
-/// gRPC server interceptor that converts thrown exceptions into Polymer-aware <see cref="RpcException"/> instances.
+/// gRPC server interceptor that converts thrown exceptions into OmniRelay-aware <see cref="RpcException"/> instances.
 /// </summary>
 public sealed class GrpcExceptionAdapterInterceptor : Interceptor
 {
@@ -91,12 +91,17 @@ public sealed class GrpcExceptionAdapterInterceptor : Interceptor
     {
         var polymerException = exception switch
         {
-            PolymerException pe => pe,
-            _ => PolymerErrors.FromException(exception, GrpcTransportConstants.TransportName)
+            OmniRelayException pe => pe,
+            _ => OmniRelayErrors.FromException(exception, GrpcTransportConstants.TransportName)
         };
 
         var status = GrpcStatusMapper.ToStatus(polymerException.StatusCode, polymerException.Message);
         var trailers = GrpcMetadataAdapter.CreateErrorTrailers(polymerException.Error);
+        var transport = polymerException.Transport ?? GrpcTransportConstants.TransportName;
+        if (trailers.GetValue(GrpcTransportConstants.TransportTrailer) is null)
+        {
+            trailers.Add(GrpcTransportConstants.TransportTrailer, transport);
+        }
         return new RpcException(status, trailers, polymerException.Message);
     }
 }

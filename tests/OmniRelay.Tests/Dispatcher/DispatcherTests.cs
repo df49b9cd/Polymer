@@ -267,7 +267,7 @@ public class DispatcherTests
         dispatcher.RegisterStream(
             "events::subscribe",
             (request, options, cancellationToken) =>
-                ValueTask.FromResult(Err<IStreamCall>(PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unimplemented, "stub"))),
+                ValueTask.FromResult(Err<IStreamCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unimplemented, "stub"))),
             builder => builder
                 .WithEncoding("json")
                 .AddAliases(["events::watch"])
@@ -365,7 +365,7 @@ public class DispatcherTests
         var result = await dispatcher.InvokeClientStreamAsync("missing", requestMeta, ct);
 
         Assert.True(result.IsFailure);
-        Assert.Equal(PolymerStatusCode.Unimplemented, PolymerErrorAdapter.ToStatus(result.Error!));
+        Assert.Equal(OmniRelayStatusCode.Unimplemented, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
     [Fact]
@@ -453,7 +453,7 @@ public class DispatcherTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(PolymerErrorAdapter.FromStatus(PolymerStatusCode.Unavailable, "not-implemented")));
+            ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "not-implemented")));
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {

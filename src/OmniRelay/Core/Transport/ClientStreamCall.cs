@@ -65,7 +65,7 @@ public sealed class ClientStreamCall : IAsyncDisposable
         }
         else
         {
-            var exception = PolymerErrors.FromError(error, RequestMeta.Transport ?? "grpc");
+            var exception = OmniRelayErrors.FromError(error, RequestMeta.Transport ?? "grpc");
             _requests.Writer.TryComplete(exception);
         }
 

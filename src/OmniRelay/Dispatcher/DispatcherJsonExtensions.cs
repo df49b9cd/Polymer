@@ -43,7 +43,7 @@ public static class DispatcherJsonExtensions
             }
             catch (Exception ex)
             {
-                return PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, rawRequest.Meta.Transport ?? "json");
+                return OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, rawRequest.Meta.Transport ?? "json");
             }
 
             var responseMeta = typedResponse.Meta;

@@ -107,6 +107,6 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
             return predicate(error);
         }
 
-        return PolymerErrors.IsRetryable(error);
+        return OmniRelayErrors.IsRetryable(error);
     }
 }

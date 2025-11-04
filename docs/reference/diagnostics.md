@@ -91,7 +91,7 @@ Each workflow measurement includes metric tags for `workflow.namespace`, `workfl
 
 ## OmniRelay Diagnostics Configuration
 
-`AddPolymerDispatcher` understands a `diagnostics` section that wires OpenTelemetry exporters and runtime controls without additional code. Metrics default to enabled and are exported through OTLP and an optional Prometheus scrape endpoint hosted by every HTTP inbound.
+`AddOmniRelayDispatcher` understands a `diagnostics` section that wires OpenTelemetry exporters and runtime controls without additional code. Metrics default to enabled and are exported through OTLP and an optional Prometheus scrape endpoint hosted by every HTTP inbound.
 
 ```json
 {
@@ -131,7 +131,7 @@ These endpoints appear alongside `/polymer/introspect` on every HTTP inbound whe
 
 ### Control-plane quickstart
 
-With the `appsettings.json` above and a Polymer HTTP inbound listening on `http://localhost:8080`, the following commands exercise the runtime controls end-to-end:
+With the `appsettings.json` above and an OmniRelay HTTP inbound listening on `http://localhost:8080`, the following commands exercise the runtime controls end-to-end:
 
 ```bash
 # Check the current minimum log level

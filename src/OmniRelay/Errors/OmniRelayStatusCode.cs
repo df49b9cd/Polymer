@@ -1,6 +1,6 @@
 namespace OmniRelay.Errors;
 
-public enum PolymerStatusCode
+public enum OmniRelayStatusCode
 {
     Unknown = 0,
     Cancelled = 1,

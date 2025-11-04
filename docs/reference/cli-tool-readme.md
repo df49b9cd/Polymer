@@ -1,6 +1,6 @@
 # OmniRelay CLI Tool
 
-`omnirelay` is a .NET global tool that helps Polymer operators validate configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. It mirrors the ergonomics of `yab` while staying aligned with Polymer's transport metadata and codec stack.
+`omnirelay` is a .NET global tool that helps OmniRelay operators validate configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. It mirrors the ergonomics of `yab` while staying aligned with OmniRelay's transport metadata and codec stack.
 
 ## Features
 

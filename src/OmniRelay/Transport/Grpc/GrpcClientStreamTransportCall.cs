@@ -63,18 +63,18 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
             var error = MapRpcException(rpcEx);
             _completion.TrySetResult(Err<Response<ReadOnlyMemory<byte>>>(error));
             RecordCompletion(rpcEx.Status.StatusCode);
-            throw PolymerErrors.FromError(error, GrpcTransportConstants.TransportName);
+            throw OmniRelayErrors.FromError(error, GrpcTransportConstants.TransportName);
         }
         catch (Exception ex)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An error occurred while writing to the client stream.",
                 transport: GrpcTransportConstants.TransportName,
                 inner: Error.FromException(ex));
             _completion.TrySetResult(Err<Response<ReadOnlyMemory<byte>>>(error));
             RecordCompletion(StatusCode.Unknown);
-            throw PolymerErrors.FromError(error, GrpcTransportConstants.TransportName);
+            throw OmniRelayErrors.FromError(error, GrpcTransportConstants.TransportName);
         }
     }
 
@@ -96,18 +96,18 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
             var error = MapRpcException(rpcEx);
             _completion.TrySetResult(Err<Response<ReadOnlyMemory<byte>>>(error));
             RecordCompletion(rpcEx.Status.StatusCode);
-            throw PolymerErrors.FromError(error, GrpcTransportConstants.TransportName);
+            throw OmniRelayErrors.FromError(error, GrpcTransportConstants.TransportName);
         }
         catch (Exception ex)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An error occurred while completing the client stream.",
                 transport: GrpcTransportConstants.TransportName,
                 inner: Error.FromException(ex));
             _completion.TrySetResult(Err<Response<ReadOnlyMemory<byte>>>(error));
             RecordCompletion(StatusCode.Unknown);
-            throw PolymerErrors.FromError(error, GrpcTransportConstants.TransportName);
+            throw OmniRelayErrors.FromError(error, GrpcTransportConstants.TransportName);
         }
     }
 
@@ -162,8 +162,8 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         }
         catch (Exception ex)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Internal,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Internal,
                 ex.Message ?? "An error occurred while reading the client stream response.",
                 transport: GrpcTransportConstants.TransportName,
                 inner: Error.FromException(ex));
@@ -178,7 +178,7 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         var message = string.IsNullOrWhiteSpace(rpcException.Status.Detail)
             ? rpcException.Status.StatusCode.ToString()
             : rpcException.Status.Detail;
-        return PolymerErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
+        return OmniRelayErrorAdapter.FromStatus(status, message, transport: GrpcTransportConstants.TransportName);
     }
 
     private void RecordCompletion(StatusCode statusCode)

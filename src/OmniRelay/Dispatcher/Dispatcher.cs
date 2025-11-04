@@ -205,8 +205,8 @@ public sealed class Dispatcher
         if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Unary, out var spec) ||
             spec is not UnaryProcedureSpec unarySpec)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Unimplemented,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Unimplemented,
                 $"Unary procedure '{procedure}' is not registered for service '{_serviceName}'.",
                 transport: request.Meta.Transport ?? "unknown");
 
@@ -228,8 +228,8 @@ public sealed class Dispatcher
         if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Oneway, out var spec) ||
             spec is not OnewayProcedureSpec onewaySpec)
         {
-            var error = PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Unimplemented,
+            var error = OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Unimplemented,
                 $"Oneway procedure '{procedure}' is not registered for service '{_serviceName}'.",
                 transport: request.Meta.Transport ?? "unknown");
 
@@ -272,16 +272,16 @@ public sealed class Dispatcher
     {
         if (string.IsNullOrWhiteSpace(procedure))
         {
-            return ValueTask.FromResult(Err<IStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return ValueTask.FromResult(Err<IStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 "Procedure name is required for streaming calls.")));
         }
 
         if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Stream, out var spec) ||
             spec is not StreamProcedureSpec streamSpec)
         {
-            return ValueTask.FromResult(Err<IStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Unimplemented,
+            return ValueTask.FromResult(Err<IStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Unimplemented,
                 $"Stream procedure '{procedure}' is not registered for service '{_serviceName}'.")));
         }
 
@@ -297,16 +297,16 @@ public sealed class Dispatcher
     {
         if (string.IsNullOrWhiteSpace(procedure))
         {
-            return ValueTask.FromResult(Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return ValueTask.FromResult(Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 "Procedure name is required for duplex streaming calls.")));
         }
 
         if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.Duplex, out var spec) ||
             spec is not DuplexProcedureSpec duplexSpec)
         {
-            return ValueTask.FromResult(Err<IDuplexStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Unimplemented,
+            return ValueTask.FromResult(Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Unimplemented,
                 $"Duplex stream procedure '{procedure}' is not registered for service '{_serviceName}'.")));
         }
 
@@ -322,8 +322,8 @@ public sealed class Dispatcher
     {
         if (string.IsNullOrWhiteSpace(procedure))
         {
-            return ValueTask.FromResult(Err<ClientStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.InvalidArgument,
+            return ValueTask.FromResult(Err<ClientStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
                 "Procedure name is required for client streaming calls.")));
         }
 
@@ -332,8 +332,8 @@ public sealed class Dispatcher
         if (!_procedures.TryGet(_serviceName, procedure, ProcedureKind.ClientStream, out var spec) ||
             spec is not ClientStreamProcedureSpec clientStreamSpec)
         {
-            return ValueTask.FromResult(Err<ClientStreamCall>(PolymerErrorAdapter.FromStatus(
-                PolymerStatusCode.Unimplemented,
+            return ValueTask.FromResult(Err<ClientStreamCall>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Unimplemented,
                 $"Client stream procedure '{procedure}' is not registered for service '{_serviceName}'.",
                 transport: requestMeta.Transport ?? "unknown")));
         }
@@ -538,7 +538,7 @@ public sealed class Dispatcher
         catch (Exception ex)
         {
             var transport = call.RequestMeta.Transport ?? "unknown";
-            var failure = PolymerErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, transport);
+            var failure = OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, transport);
             call.TryComplete(failure);
         }
     }

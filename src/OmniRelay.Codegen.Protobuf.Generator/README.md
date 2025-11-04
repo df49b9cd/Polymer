@@ -1,10 +1,10 @@
 # OmniRelay.Codegen.Generator
 
-`OmniRelay.Codegen.Generator` is the Roslyn incremental generator that powers Polymer's protobuf story. Namespaces remain under `OmniRelay.*` for now, but the package/assembly ships as `OmniRelay.Codegen.Generator`. It consumes descriptor sets (`.pb` files) and emits:
+`OmniRelay.Codegen.Generator` is the Roslyn incremental generator that powers OmniRelay's protobuf story. Namespaces remain under `OmniRelay.*` for now, but the package/assembly ships as `OmniRelay.Codegen.Generator`. It consumes descriptor sets (`.pb` files) and emits:
 
 - `Register<Service>` extension methods that wire server implementations into a `Dispatcher`.
 - Strongly typed service interfaces mirroring the protobuf service definition.
-- Typed Polymer clients (`Create<Service>Client`) that wrap dispatcher outbounds with correct codecs for unary + streaming RPCs.
+- Typed OmniRelay clients (`Create<Service>Client`) that wrap dispatcher outbounds with correct codecs for unary + streaming RPCs.
 
 The NuGet package ships the generator plus its runtime dependencies (`OmniRelay.dll`, `OmniRelay.Codegen.Protobuf.Core.dll`, `Google.Protobuf.dll`) so consumers do not have to reference the runtime separately.
 
@@ -55,7 +55,7 @@ Reference the incremental generator as an analyzer and surface descriptor sets v
 </Target>
 ```
 
-The generator watches the descriptor set and services regenerate on every design-time/build invocation; no extra build steps are required. Because the generator includes Polymer runtime assemblies, the emitted clients compile without additional references.
+The generator watches the descriptor set and services regenerate on every design-time/build invocation; no extra build steps are required. Because the generator includes OmniRelay runtime assemblies, the emitted clients compile without additional references.
 
 ## Generated Surface
 
@@ -70,4 +70,4 @@ See `tests/OmniRelay.Tests/Generated/TestService.OmniRelay.g.cs` for the full em
 
 ## Versioning
 
-Pre-release builds follow `0.x.y` while we stabilise the generator APIs. Once Polymer reaches a stable release, generator versions will align with the Polymer runtime major/minor version.
+Pre-release builds follow `0.x.y` while we stabilise the generator APIs. Once OmniRelay reaches a stable release, generator versions will align with the OmniRelay runtime major/minor version.

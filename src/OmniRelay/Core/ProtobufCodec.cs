@@ -45,7 +45,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (Exception ex) when (ex is InvalidProtocolBufferException or InvalidOperationException)
         {
             return Err<byte[]>(CreateError(
-                PolymerStatusCode.InvalidArgument,
+                OmniRelayStatusCode.InvalidArgument,
                 $"Failed to encode Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
                 ex,
                 EncodeRequestStage,
@@ -54,7 +54,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (Exception ex)
         {
             return Err<byte[]>(CreateError(
-                PolymerStatusCode.Internal,
+                OmniRelayStatusCode.Internal,
                 $"Unexpected error while encoding Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
                 ex,
                 EncodeRequestStage,
@@ -80,7 +80,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (InvalidProtocolBufferException ex)
         {
             return Err<TRequest>(CreateError(
-                PolymerStatusCode.InvalidArgument,
+                OmniRelayStatusCode.InvalidArgument,
                 $"Failed to decode Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
                 ex,
                 DecodeRequestStage,
@@ -89,7 +89,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (Exception ex)
         {
             return Err<TRequest>(CreateError(
-                PolymerStatusCode.Internal,
+                OmniRelayStatusCode.Internal,
                 $"Unexpected error while decoding Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
                 ex,
                 DecodeRequestStage,
@@ -108,7 +108,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (Exception ex) when (ex is InvalidProtocolBufferException or InvalidOperationException)
         {
             return Err<byte[]>(CreateError(
-                PolymerStatusCode.InvalidArgument,
+                OmniRelayStatusCode.InvalidArgument,
                 "Failed to encode Protobuf response payload.",
                 ex,
                 EncodeResponseStage,
@@ -117,7 +117,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (Exception ex)
         {
             return Err<byte[]>(CreateError(
-                PolymerStatusCode.Internal,
+                OmniRelayStatusCode.Internal,
                 "Unexpected error while encoding Protobuf response payload.",
                 ex,
                 EncodeResponseStage,
@@ -143,7 +143,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (InvalidProtocolBufferException ex)
         {
             return Err<TResponse>(CreateError(
-                PolymerStatusCode.InvalidArgument,
+                OmniRelayStatusCode.InvalidArgument,
                 "Failed to decode Protobuf response payload.",
                 ex,
                 DecodeResponseStage,
@@ -152,7 +152,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         catch (Exception ex)
         {
             return Err<TResponse>(CreateError(
-                PolymerStatusCode.Internal,
+                OmniRelayStatusCode.Internal,
                 "Unexpected error while decoding Protobuf response payload.",
                 ex,
                 DecodeResponseStage,
@@ -166,7 +166,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         if (value is null)
         {
             return Err<byte[]>(CreateError(
-                PolymerStatusCode.InvalidArgument,
+                OmniRelayStatusCode.InvalidArgument,
                 "Protobuf value cannot be null.",
                 new InvalidOperationException("Value cannot be null."),
                 stage,
@@ -184,7 +184,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
             EncodingKind.Binary => Ok(value.ToByteArray()),
             EncodingKind.Json => Ok(System.Text.Encoding.UTF8.GetBytes(_jsonFormatter.Format(value))),
             _ => Err<byte[]>(CreateError(
-                PolymerStatusCode.InvalidArgument,
+                OmniRelayStatusCode.InvalidArgument,
                 $"Unsupported Protobuf encoding '{resolvedEncoding.Value.Encoding}'.",
                 new InvalidOperationException("Unsupported encoding."),
                 stage,
@@ -222,7 +222,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         }
 
         var error = CreateError(
-            PolymerStatusCode.InvalidArgument,
+            OmniRelayStatusCode.InvalidArgument,
             $"Unsupported Protobuf encoding '{effectiveEncoding}'.",
             new InvalidOperationException("Unsupported Protobuf encoding."),
             stage,
@@ -283,7 +283,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
     }
 
     private static Error CreateError(
-        PolymerStatusCode statusCode,
+        OmniRelayStatusCode statusCode,
         string message,
         Exception exception,
         string stage,
@@ -297,7 +297,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
             ["exceptionMessage"] = exception.Message
         };
 
-        return PolymerErrorAdapter.FromStatus(
+        return OmniRelayErrorAdapter.FromStatus(
             statusCode,
             message,
             metadata: metadata);
