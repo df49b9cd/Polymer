@@ -5,12 +5,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Hugo" Version="1.4.2" />
-    <PackageReference Include="Grpc.AspNetCore.Server" Version="2.71.0" />
-    <PackageReference Include="Grpc.Net.Client" Version="2.71.0" />
-    <PackageReference Include="Grpc.HealthCheck" Version="2.71.0" />
-    <PackageReference Include="Google.Protobuf" Version="3.30.2" />
-    <PackageReference Include="JsonSchema.Net" Version="7.4.0" />
+    <PackageReference Include="Hugo" />
+    <PackageReference Include="Grpc.AspNetCore.Server" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.HealthCheck" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="JsonSchema.Net" />
   </ItemGroup>
   
   <ItemGroup>
