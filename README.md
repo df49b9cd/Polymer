@@ -157,6 +157,7 @@ await app.RunAsync();
 - `polymer config validate --config appsettings.json --config appsettings.Development.json`
 - `polymer introspect --url http://127.0.0.1:8080/polymer/introspect --format text`
 - `polymer request --transport grpc --address http://127.0.0.1:9090 --service echo --procedure Ping --profile protobuf:echo.EchoRequest --proto-file descriptors/echo.protoset --body '{"message":"cli"}'`
+- `polymer benchmark --transport http --url http://127.0.0.1:8080/yarpc/v1 --service echo --procedure echo::ping --profile json:pretty --body '{"message":"load"}' --concurrency 20 --requests 500`
 - `polymer script run --file docs/reference/cli-scripts/echo-harness.json --dry-run`
 
 Install locally with:

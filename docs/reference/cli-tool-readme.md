@@ -7,6 +7,7 @@
 - `polymer config validate` — load layered `appsettings*.json` files and ensure the dispatcher can be constructed.
 - `polymer introspect` — fetch `/polymer/introspect` and print either a compact summary or the raw JSON snapshot.
 - `polymer request` — issue unary calls over HTTP or gRPC, with profiles for JSON and protobuf payloads.
+- `polymer benchmark` — drive concurrent HTTP or gRPC requests and report latency/throughput stats (YAB-style).
 - `polymer script run` — replay automation scripts (JSON) that combine requests, delays, and introspection probes.
 
 ## Quick start
@@ -38,6 +39,21 @@ polymer request \
   --profile protobuf:echo.EchoRequest \
   --proto-file descriptors/echo.protoset \
   --body '{"message":"hello from CLI"}'
+```
+
+Run a quick load test with the benchmark command:
+
+```bash
+polymer benchmark \
+  --transport http \
+  --url http://127.0.0.1:8080/yarpc/v1 \
+  --service echo \
+  --procedure echo::ping \
+  --profile json:pretty \
+  --body '{"message":"load-test"}' \
+  --concurrency 20 \
+  --requests 500 \
+  --warmup 5s
 ```
 
 See `docs/reference/cli.md` for automation recipes, script samples, and CI integration tips.

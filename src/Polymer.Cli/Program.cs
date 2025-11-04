@@ -68,6 +68,7 @@ public static class Program
             CreateConfigCommand(),
             CreateIntrospectCommand(),
             CreateRequestCommand(),
+            CreateBenchmarkCommand(),
             CreateScriptCommand()
         };
         return root;
@@ -385,6 +386,238 @@ public static class Program
         return command;
     }
 
+    private static Command CreateBenchmarkCommand()
+    {
+        var command = new Command("benchmark", "Run concurrent unary RPC load tests over HTTP or gRPC.");
+
+        var transportOption = new Option<string>("--transport")
+        {
+            Description = "Transport to use (http|grpc).",
+            DefaultValueFactory = _ => "http"
+        };
+
+        var serviceOption = new Option<string>("--service")
+        {
+            Description = "Remote service name.",
+            Required = true
+        };
+
+        var procedureOption = new Option<string>("--procedure")
+        {
+            Description = "Remote procedure name.",
+            Required = true
+        };
+
+        var callerOption = new Option<string?>("--caller")
+        {
+            Description = "Caller identifier."
+        };
+
+        var encodingOption = new Option<string?>("--encoding")
+        {
+            Description = "Payload encoding (e.g. application/json)."
+        };
+
+        var headerOption = new Option<string[]>("--header")
+        {
+            Description = "Header key=value pairs.",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => []
+        };
+
+        var profileOption = new Option<string[]>("--profile")
+        {
+            Description = "Apply request presets (e.g. json:default, protobuf:package.Message).",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => []
+        };
+
+        var shardKeyOption = new Option<string?>("--shard-key")
+        {
+            Description = "Shard key metadata."
+        };
+
+        var routingKeyOption = new Option<string?>("--routing-key")
+        {
+            Description = "Routing key metadata."
+        };
+
+        var routingDelegateOption = new Option<string?>("--routing-delegate")
+        {
+            Description = "Routing delegate metadata."
+        };
+
+        var protoFileOption = new Option<string[]>("--proto-file")
+        {
+            Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding.",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => []
+        };
+
+        var protoMessageOption = new Option<string?>("--proto-message")
+        {
+            Description = "Fully-qualified protobuf message name when using protobuf profiles."
+        };
+
+        var ttlOption = new Option<string?>("--ttl")
+        {
+            Description = "Request time-to-live duration."
+        };
+
+        var deadlineOption = new Option<string?>("--deadline")
+        {
+            Description = "Absolute deadline timestamp (ISO-8601)."
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Overall call timeout (e.g. 10s)."
+        };
+
+        var bodyOption = new Option<string?>("--body")
+        {
+            Description = "Inline UTF-8 body."
+        };
+
+        var bodyFileOption = new Option<string?>("--body-file")
+        {
+            Description = "Path to a file to use as payload."
+        };
+
+        var bodyBase64Option = new Option<string?>("--body-base64")
+        {
+            Description = "Base64 encoded payload."
+        };
+
+        var httpUrlOption = new Option<string?>("--url")
+        {
+            Description = "HTTP endpoint to invoke."
+        };
+
+        var addressOption = new Option<string[]>("--address")
+        {
+            Description = "gRPC address(es) to dial.",
+            AllowMultipleArgumentsPerToken = true,
+            DefaultValueFactory = _ => []
+        };
+
+        var concurrencyOption = new Option<int>("--concurrency")
+        {
+            Description = "Number of concurrent workers issuing requests.",
+            DefaultValueFactory = _ => 25
+        };
+        concurrencyOption.Aliases.Add("-c");
+
+        var requestsOption = new Option<int>("--requests")
+        {
+            Description = "Total requests to measure (set to 0 to disable the request cap).",
+            DefaultValueFactory = _ => 100
+        };
+        requestsOption.Aliases.Add("-n");
+
+        var durationOption = new Option<string?>("--duration")
+        {
+            Description = "Measurement duration (e.g. 30s, 1m)."
+        };
+        durationOption.Aliases.Add("-d");
+
+        var rpsOption = new Option<double?>("--rps")
+        {
+            Description = "Global requests-per-second limit."
+        };
+
+        var warmupOption = new Option<string?>("--warmup")
+        {
+            Description = "Warmup duration prior to measurement (e.g. 5s)."
+        };
+
+        command.Add(transportOption);
+        command.Add(serviceOption);
+        command.Add(procedureOption);
+        command.Add(callerOption);
+        command.Add(encodingOption);
+        command.Add(headerOption);
+        command.Add(profileOption);
+        command.Add(shardKeyOption);
+        command.Add(routingKeyOption);
+        command.Add(routingDelegateOption);
+        command.Add(protoFileOption);
+        command.Add(protoMessageOption);
+        command.Add(ttlOption);
+        command.Add(deadlineOption);
+        command.Add(timeoutOption);
+        command.Add(bodyOption);
+        command.Add(bodyFileOption);
+        command.Add(bodyBase64Option);
+        command.Add(httpUrlOption);
+        command.Add(addressOption);
+        command.Add(concurrencyOption);
+        command.Add(requestsOption);
+        command.Add(durationOption);
+        command.Add(rpsOption);
+        command.Add(warmupOption);
+
+        command.SetAction(parseResult =>
+        {
+            var transportValue = parseResult.GetValue(transportOption) ?? "http";
+            var serviceValue = parseResult.GetValue(serviceOption) ?? string.Empty;
+            var procedureValue = parseResult.GetValue(procedureOption) ?? string.Empty;
+            var callerValue = parseResult.GetValue(callerOption);
+            var encodingValue = parseResult.GetValue(encodingOption);
+            var headersValue = parseResult.GetValue(headerOption) ?? [];
+            var profilesValue = parseResult.GetValue(profileOption) ?? [];
+            var shardKeyValue = parseResult.GetValue(shardKeyOption);
+            var routingKeyValue = parseResult.GetValue(routingKeyOption);
+            var routingDelegateValue = parseResult.GetValue(routingDelegateOption);
+            var protoFilesValue = parseResult.GetValue(protoFileOption) ?? [];
+            var protoMessageValue = parseResult.GetValue(protoMessageOption);
+            var ttlValue = parseResult.GetValue(ttlOption);
+            var deadlineValue = parseResult.GetValue(deadlineOption);
+            var timeoutValue = parseResult.GetValue(timeoutOption);
+            var bodyValue = parseResult.GetValue(bodyOption);
+            var bodyFileValue = parseResult.GetValue(bodyFileOption);
+            var bodyBase64Value = parseResult.GetValue(bodyBase64Option);
+            var httpUrlValue = parseResult.GetValue(httpUrlOption);
+            var addressesValue = parseResult.GetValue(addressOption) ?? [];
+            var concurrencyValue = parseResult.GetValue(concurrencyOption);
+            var requestsValue = parseResult.GetValue(requestsOption);
+            var durationValue = parseResult.GetValue(durationOption);
+            var rpsValue = parseResult.GetValue(rpsOption);
+            var warmupValue = parseResult.GetValue(warmupOption);
+
+            return RunBenchmarkAsync(
+                    transportValue,
+                    serviceValue,
+                    procedureValue,
+                    callerValue,
+                    encodingValue,
+                    headersValue,
+                    profilesValue,
+                    shardKeyValue,
+                    routingKeyValue,
+                    routingDelegateValue,
+                    protoFilesValue,
+                    protoMessageValue,
+                    ttlValue,
+                    deadlineValue,
+                    timeoutValue,
+                    bodyValue,
+                    bodyFileValue,
+                    bodyBase64Value,
+                    httpUrlValue,
+                    addressesValue,
+                    concurrencyValue,
+                    requestsValue,
+                    durationValue,
+                    rpsValue,
+                    warmupValue)
+                .GetAwaiter()
+                .GetResult();
+        });
+
+        return command;
+    }
+
     private static async Task<int> RunConfigValidateAsync(string[] configPaths, string section, string[] setOverrides)
     {
         if (configPaths.Length == 0)
@@ -603,24 +836,94 @@ public static class Program
         string? httpUrl,
         string[] addresses)
     {
-        transport = string.IsNullOrWhiteSpace(transport) ? "http" : transport.ToLowerInvariant();
-        var headers = headerValues ?? [];
-        var profiles = profileValues ?? [];
-        var protoDescriptorFiles = protoFiles ?? [];
-
-        if (transport is not ("http" or "grpc"))
+        if (!TryBuildRequestInvocation(
+                transport,
+                service,
+                procedure,
+                caller,
+                encoding,
+                headerValues,
+                profileValues,
+                shardKey,
+                routingKey,
+                routingDelegate,
+                protoFiles,
+                protoMessage,
+                ttlOption,
+                deadlineOption,
+                timeoutOption,
+                body,
+                bodyFile,
+                bodyBase64,
+                httpUrl,
+                addresses ?? Array.Empty<string>(),
+                out var invocation,
+                out var error))
         {
-            Console.Error.WriteLine($"Unsupported transport '{transport}'. Use 'http' or 'grpc'.");
+            Console.Error.WriteLine(error ?? "Failed to prepare request.");
             return 1;
         }
+
+        using var cts = invocation.Timeout.HasValue && invocation.Timeout.Value > TimeSpan.Zero
+            ? new CancellationTokenSource(invocation.Timeout.Value)
+            : new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+        return invocation.Transport switch
+        {
+            "http" => await ExecuteHttpRequestAsync(invocation.HttpUrl, invocation.Request, cts.Token).ConfigureAwait(false),
+            "grpc" => await ExecuteGrpcRequestAsync(invocation.Addresses, invocation.Request.Meta.Service, invocation.Request, cts.Token).ConfigureAwait(false),
+            _ => 1
+        };
+    }
+
+    private static bool TryBuildRequestInvocation(
+        string transport,
+        string service,
+        string procedure,
+        string? caller,
+        string? encoding,
+        string[] headerValues,
+        string[] profileValues,
+        string? shardKey,
+        string? routingKey,
+        string? routingDelegate,
+        string[] protoFiles,
+        string? protoMessage,
+        string? ttlOption,
+        string? deadlineOption,
+        string? timeoutOption,
+        string? body,
+        string? bodyFile,
+        string? bodyBase64,
+        string? httpUrl,
+        string[] addresses,
+        out RequestInvocation invocation,
+        out string? error)
+    {
+        invocation = default!;
+        error = null;
+
+        var normalizedTransport = string.IsNullOrWhiteSpace(transport) ? "http" : transport.ToLowerInvariant();
+        if (normalizedTransport is not ("http" or "grpc"))
+        {
+            error = $"Unsupported transport '{transport}'. Use 'http' or 'grpc'.";
+            return false;
+        }
+
+        var headers = headerValues ?? Array.Empty<string>();
+        var profiles = profileValues ?? Array.Empty<string>();
+        var protoDescriptorFiles = protoFiles ?? Array.Empty<string>();
+        var normalizedAddresses = addresses is { Length: > 0 }
+            ? addresses.Where(static address => !string.IsNullOrWhiteSpace(address)).ToArray()
+            : Array.Empty<string>();
 
         TimeSpan? ttl = null;
         if (!string.IsNullOrWhiteSpace(ttlOption))
         {
             if (!TryParseDuration(ttlOption!, out var parsedTtl))
             {
-                Console.Error.WriteLine($"Could not parse TTL '{ttlOption}'. Use formats like '00:00:05' or suffixes (e.g. 5s, 1m).");
-                return 1;
+                error = $"Could not parse TTL '{ttlOption}'. Use formats like '00:00:05' or suffixes (e.g. 5s, 1m).";
+                return false;
             }
 
             ttl = parsedTtl;
@@ -631,8 +934,8 @@ public static class Program
         {
             if (!DateTimeOffset.TryParse(deadlineOption, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedDeadline))
             {
-                Console.Error.WriteLine($"Could not parse deadline '{deadlineOption}'. Provide an ISO-8601 timestamp.");
-                return 1;
+                error = $"Could not parse deadline '{deadlineOption}'. Provide an ISO-8601 timestamp.";
+                return false;
             }
 
             deadline = parsedDeadline;
@@ -643,36 +946,38 @@ public static class Program
         {
             if (!TryParseDuration(timeoutOption!, out var parsedTimeout))
             {
-                Console.Error.WriteLine($"Could not parse timeout '{timeoutOption}'.");
-                return 1;
+                error = $"Could not parse timeout '{timeoutOption}'.";
+                return false;
             }
 
             timeout = parsedTimeout;
         }
 
-        if (!TryParseHeaders(headers, out var headerPairs))
+        if (!TryParseHeaders(headers, out var headerPairs, out var headerError))
         {
-            return 1;
+            error = headerError ?? "Failed to parse headers.";
+            return false;
         }
 
+        var resolvedEncoding = encoding;
         if (!TryPrepareProfiles(
-                transport,
+                normalizedTransport,
                 profiles,
                 protoDescriptorFiles,
                 protoMessage,
                 headerPairs,
-                ref encoding,
+                ref resolvedEncoding,
                 out var profileState,
                 out var profileError))
         {
-            Console.Error.WriteLine(profileError ?? "Failed to process profiles.");
-            return 1;
+            error = profileError ?? "Failed to process profiles.";
+            return false;
         }
 
         if (!TryResolvePayload(body, bodyFile, bodyBase64, out var payload, out var payloadSource, out var payloadError))
         {
-            Console.Error.WriteLine(payloadError ?? "Failed to resolve payload.");
-            return 1;
+            error = payloadError ?? "Failed to resolve payload.";
+            return false;
         }
 
         if (!TryFinalizeProfiles(
@@ -683,16 +988,16 @@ public static class Program
                 ref payload,
                 out var finalizeError))
         {
-            Console.Error.WriteLine(finalizeError ?? "Failed to apply profile transforms.");
-            return 1;
+            error = finalizeError ?? "Failed to apply profile transforms.";
+            return false;
         }
 
         var meta = new RequestMeta(
-            service: service,
+            service: service ?? string.Empty,
             procedure: procedure,
             caller: caller,
-            encoding: encoding,
-            transport: transport,
+            encoding: resolvedEncoding,
+            transport: normalizedTransport,
             shardKey: shardKey,
             routingKey: routingKey,
             routingDelegate: routingDelegate,
@@ -700,17 +1005,152 @@ public static class Program
             deadline: deadline,
             headers: headerPairs);
 
-        var request = new Request<ReadOnlyMemory<byte>>(meta, payload);
-        using var cts = timeout.HasValue && timeout.Value > TimeSpan.Zero
-            ? new CancellationTokenSource(timeout.Value)
-            : new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        invocation = new RequestInvocation(
+            normalizedTransport,
+            new Request<ReadOnlyMemory<byte>>(meta, payload),
+            timeout,
+            httpUrl,
+            normalizedAddresses);
 
-        return transport switch
+        return true;
+    }
+
+    private static async Task<int> RunBenchmarkAsync(
+        string transport,
+        string service,
+        string procedure,
+        string? caller,
+        string? encoding,
+        string[] headerValues,
+        string[] profileValues,
+        string? shardKey,
+        string? routingKey,
+        string? routingDelegate,
+        string[] protoFiles,
+        string? protoMessage,
+        string? ttlOption,
+        string? deadlineOption,
+        string? timeoutOption,
+        string? body,
+        string? bodyFile,
+        string? bodyBase64,
+        string? httpUrl,
+        string[] addresses,
+        int concurrency,
+        int requestLimit,
+        string? durationOption,
+        double? rateLimit,
+        string? warmupOption)
+    {
+        if (!TryBuildRequestInvocation(
+                transport,
+                service,
+                procedure,
+                caller,
+                encoding,
+                headerValues,
+                profileValues,
+                shardKey,
+                routingKey,
+                routingDelegate,
+                protoFiles,
+                protoMessage,
+                ttlOption,
+                deadlineOption,
+                timeoutOption,
+                body,
+                bodyFile,
+                bodyBase64,
+                httpUrl,
+                addresses ?? Array.Empty<string>(),
+                out var invocation,
+                out var buildError))
         {
-            "http" => await ExecuteHttpRequestAsync(httpUrl, request, cts.Token).ConfigureAwait(false),
-            "grpc" => await ExecuteGrpcRequestAsync(addresses ?? [], service, request, cts.Token).ConfigureAwait(false),
-            _ => 1
-        };
+            Console.Error.WriteLine(buildError ?? "Failed to prepare request.");
+            return 1;
+        }
+
+        if (concurrency <= 0)
+        {
+            Console.Error.WriteLine("Concurrency must be greater than zero.");
+            return 1;
+        }
+
+        long? maxRequests = requestLimit > 0 ? requestLimit : null;
+
+        TimeSpan? duration = null;
+        if (!string.IsNullOrWhiteSpace(durationOption))
+        {
+            if (!TryParseDuration(durationOption!, out var parsedDuration))
+            {
+                Console.Error.WriteLine($"Could not parse duration '{durationOption}'.");
+                return 1;
+            }
+
+            if (parsedDuration <= TimeSpan.Zero)
+            {
+                Console.Error.WriteLine("Duration must be greater than zero.");
+                return 1;
+            }
+
+            duration = parsedDuration;
+        }
+
+        TimeSpan? warmup = null;
+        if (!string.IsNullOrWhiteSpace(warmupOption))
+        {
+            if (!TryParseDuration(warmupOption!, out var parsedWarmup))
+            {
+                Console.Error.WriteLine($"Could not parse warmup '{warmupOption}'.");
+                return 1;
+            }
+
+            if (parsedWarmup <= TimeSpan.Zero)
+            {
+                Console.Error.WriteLine("Warmup duration must be greater than zero when specified.");
+                return 1;
+            }
+
+            warmup = parsedWarmup;
+        }
+
+        if (maxRequests is null && duration is null)
+        {
+            Console.Error.WriteLine("Specify a positive --requests value or a --duration for benchmarking.");
+            return 1;
+        }
+
+        if (rateLimit.HasValue && rateLimit.Value <= 0)
+        {
+            Console.Error.WriteLine("Rate limit must be greater than zero when specified.");
+            return 1;
+        }
+
+        var perRequestTimeout = invocation.Timeout.HasValue
+            ? invocation.Timeout.Value
+            : TimeSpan.FromSeconds(30);
+
+        var options = new BenchmarkRunner.BenchmarkExecutionOptions(
+            concurrency,
+            maxRequests,
+            duration,
+            rateLimit,
+            warmup,
+            perRequestTimeout);
+
+        BenchmarkRunner.BenchmarkSummary summary;
+        try
+        {
+            summary = await BenchmarkRunner.RunAsync(invocation, options, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Benchmark failed: {ex.Message}");
+            return 1;
+        }
+
+        PrintBenchmarkSummary(invocation, options, summary);
+        return summary.Successes > 0 ? 0 : 1;
     }
 
     private static async Task<int> ExecuteHttpRequestAsync(string? url, Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken)
@@ -1034,6 +1474,72 @@ public static class Program
         public string? Delay { get; init; }
     }
 
+    private static void PrintBenchmarkSummary(
+        RequestInvocation invocation,
+        BenchmarkRunner.BenchmarkExecutionOptions options,
+        BenchmarkRunner.BenchmarkSummary summary)
+    {
+        Console.WriteLine("Benchmark complete.");
+        Console.WriteLine($"Transport: {invocation.Transport}");
+        Console.WriteLine($"Service: {invocation.Request.Meta.Service}");
+        Console.WriteLine($"Procedure: {invocation.Request.Meta.Procedure ?? "(none)"}");
+        Console.WriteLine($"Concurrency: {options.Concurrency}");
+
+        if (options.MaxRequests.HasValue)
+        {
+            Console.WriteLine($"Target requests: {options.MaxRequests.Value.ToString("N0", CultureInfo.InvariantCulture)}");
+        }
+
+        if (options.Duration.HasValue)
+        {
+            Console.WriteLine($"Target duration: {options.Duration.Value.ToString("c", CultureInfo.InvariantCulture)}");
+        }
+
+        if (options.RateLimitPerSecond.HasValue)
+        {
+            Console.WriteLine($"Rate limit: {options.RateLimitPerSecond.Value.ToString("F2", CultureInfo.InvariantCulture)} req/s");
+        }
+
+        if (options.WarmupDuration is { TotalMilliseconds: > 0 } warmup)
+        {
+            Console.WriteLine($"Warmup: {warmup.ToString("c", CultureInfo.InvariantCulture)}");
+        }
+
+        Console.WriteLine($"Measured requests: {summary.Attempts.ToString("N0", CultureInfo.InvariantCulture)}");
+        Console.WriteLine($"  Success: {summary.Successes.ToString("N0", CultureInfo.InvariantCulture)}");
+        Console.WriteLine($"  Failures: {summary.Failures.ToString("N0", CultureInfo.InvariantCulture)}");
+        Console.WriteLine($"Elapsed: {summary.Elapsed.ToString("c", CultureInfo.InvariantCulture)}");
+        Console.WriteLine($"Throughput: {summary.RequestsPerSecond.ToString("F2", CultureInfo.InvariantCulture)} req/s");
+
+        if (summary.Latency is { } latency)
+        {
+            Console.WriteLine("Latency (ms):");
+            Console.WriteLine($"  Min : {latency.Min.ToString("F2", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"  P50 : {latency.P50.ToString("F2", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"  P90 : {latency.P90.ToString("F2", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"  P95 : {latency.P95.ToString("F2", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"  P99 : {latency.P99.ToString("F2", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"  Max : {latency.Max.ToString("F2", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"  Mean: {latency.Mean.ToString("F2", CultureInfo.InvariantCulture)}");
+        }
+        else
+        {
+            Console.WriteLine("Latency (ms): no successful samples.");
+        }
+
+        if (summary.Errors.Count > 0)
+        {
+            Console.WriteLine("Top errors:");
+            foreach (var entry in summary.Errors
+                         .OrderByDescending(static kvp => kvp.Value)
+                         .ThenBy(static kvp => kvp.Key, StringComparer.Ordinal)
+                         .Take(5))
+            {
+                Console.WriteLine($"  {entry.Value.ToString("N0", CultureInfo.InvariantCulture)} - {entry.Key}");
+            }
+        }
+    }
+
     private static void PrintResponse(Response<ReadOnlyMemory<byte>> response)
     {
         Console.WriteLine("Request succeeded.");
@@ -1166,14 +1672,15 @@ public static class Program
         Console.WriteLine($"  {label}: inbound[{inbound.Count}] outbound[{outbound.Count}]");
     }
 
-    private static bool TryParseHeaders(IEnumerable<string> values, out List<KeyValuePair<string, string>> headers)
+    private static bool TryParseHeaders(IEnumerable<string> values, out List<KeyValuePair<string, string>> headers, out string? error)
     {
         headers = [];
+        error = null;
         foreach (var value in values)
         {
             if (!TrySplitKeyValue(value, out var key, out var parsedValue))
             {
-                Console.Error.WriteLine($"Could not parse header '{value}'. Expected KEY=VALUE.");
+                error = $"Could not parse header '{value}'. Expected KEY=VALUE.";
                 headers = [];
                 return false;
             }
