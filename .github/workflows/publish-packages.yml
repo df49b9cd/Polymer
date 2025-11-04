@@ -111,7 +111,7 @@ jobs:
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_TOKEN }}
         run: |
-          for pkg in artifacts/packages/*.nupkg artifacts/packages/*.snupkg; do
+          for pkg in artifacts/packages/*.nupkg; do
             [ -e "$pkg" ] || continue
             dotnet nuget push "$pkg" \
               --source "https://api.nuget.org/v3/index.json" \
