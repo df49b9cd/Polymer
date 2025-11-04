@@ -596,26 +596,26 @@ public class GrpcTransportTests
             Assert.True(successPayload.IsSuccess);
             var successRequest = new Request<ReadOnlyMemory<byte>>(successMeta, successPayload.Value);
 
-        var attempts = 0;
-        Result<Response<ReadOnlyMemory<byte>>> successResult;
-        do
-        {
-            successResult = await outbound.CallAsync(successRequest, ct);
-            if (successResult.IsSuccess)
+            var attempts = 0;
+            Result<Response<ReadOnlyMemory<byte>>> successResult;
+            do
             {
-                break;
+                successResult = await outbound.CallAsync(successRequest, ct);
+                if (successResult.IsSuccess)
+                {
+                    break;
+                }
+
+                attempts++;
+                await Task.Delay(200, ct);
             }
+            while (attempts < 3);
 
-            attempts++;
-            await Task.Delay(200, ct);
-        }
-        while (attempts < 3);
+            Assert.True(successResult.IsSuccess, successResult.Error?.Message ?? "Unable to reach healthy gRPC peer after retries");
 
-        Assert.True(successResult.IsSuccess, successResult.Error?.Message ?? "Unable to reach healthy gRPC peer after retries");
-
-        var decode = codec.DecodeResponse(successResult.Value.Body, successResult.Value.Meta);
-        Assert.True(decode.IsSuccess, decode.Error?.Message);
-        Assert.Equal("second", decode.Value.Message);
+            var decode = codec.DecodeResponse(successResult.Value.Body, successResult.Value.Meta);
+            Assert.True(decode.IsSuccess, decode.Error?.Message);
+            Assert.Equal("second", decode.Value.Message);
 
             var snapshot = Assert.IsType<GrpcOutboundSnapshot>(outbound.GetOutboundDiagnostics());
             Assert.Equal(2, snapshot.PeerSummaries.Count);

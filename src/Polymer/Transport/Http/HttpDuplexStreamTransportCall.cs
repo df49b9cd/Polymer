@@ -170,46 +170,46 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
                 switch (frame.Type)
                 {
                     case HttpDuplexProtocol.FrameType.ResponseHeaders:
-                    {
-                        var meta = HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport);
-                        _inner.SetResponseMeta(meta);
-                        break;
-                    }
+                        {
+                            var meta = HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport);
+                            _inner.SetResponseMeta(meta);
+                            break;
+                        }
 
                     case HttpDuplexProtocol.FrameType.ResponseData:
                         await _inner.ResponseWriter.WriteAsync(frame.Payload.ToArray(), cancellationToken).ConfigureAwait(false);
                         break;
 
                     case HttpDuplexProtocol.FrameType.ResponseComplete:
-                    {
-                        if (!frame.Payload.IsEmpty)
                         {
-                            var meta = HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport);
-                            _inner.SetResponseMeta(meta);
+                            if (!frame.Payload.IsEmpty)
+                            {
+                                var meta = HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport);
+                                _inner.SetResponseMeta(meta);
+                            }
+
+                            await _inner.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                            return;
                         }
 
-                        await _inner.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                        return;
-                    }
-
                     case HttpDuplexProtocol.FrameType.ResponseError:
-                    {
-                        var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, _transport);
-                        await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                        return;
-                    }
+                        {
+                            var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, _transport);
+                            await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            return;
+                        }
 
                     case HttpDuplexProtocol.FrameType.RequestComplete:
                         await _inner.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
                         break;
 
                     case HttpDuplexProtocol.FrameType.RequestError:
-                    {
-                        var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, _transport);
-                        await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-                        await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                        return;
-                    }
+                        {
+                            var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, _transport);
+                            await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            return;
+                        }
 
                     case HttpDuplexProtocol.FrameType.RequestData:
                         await _inner.RequestWriter.WriteAsync(frame.Payload.ToArray(), cancellationToken).ConfigureAwait(false);

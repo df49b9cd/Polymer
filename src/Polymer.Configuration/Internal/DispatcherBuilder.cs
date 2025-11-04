@@ -349,40 +349,40 @@ internal sealed class DispatcherBuilder
             switch (kind)
             {
                 case OutboundKind.Unary:
-                {
-                    var outbound = spec.CreateUnaryOutbound(section, _serviceProvider)
-                        ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a unary outbound.");
-                    dispatcherOptions.AddUnaryOutbound(service, key, outbound);
-                    break;
-                }
+                    {
+                        var outbound = spec.CreateUnaryOutbound(section, _serviceProvider)
+                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a unary outbound.");
+                        dispatcherOptions.AddUnaryOutbound(service, key, outbound);
+                        break;
+                    }
                 case OutboundKind.Oneway:
-                {
-                    var outbound = spec.CreateOnewayOutbound(section, _serviceProvider)
-                        ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a oneway outbound.");
-                    dispatcherOptions.AddOnewayOutbound(service, key, outbound);
-                    break;
-                }
+                    {
+                        var outbound = spec.CreateOnewayOutbound(section, _serviceProvider)
+                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a oneway outbound.");
+                        dispatcherOptions.AddOnewayOutbound(service, key, outbound);
+                        break;
+                    }
                 case OutboundKind.Stream:
-                {
-                    var outbound = spec.CreateStreamOutbound(section, _serviceProvider)
-                        ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a stream outbound.");
-                    dispatcherOptions.AddStreamOutbound(service, key, outbound);
-                    break;
-                }
+                    {
+                        var outbound = spec.CreateStreamOutbound(section, _serviceProvider)
+                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a stream outbound.");
+                        dispatcherOptions.AddStreamOutbound(service, key, outbound);
+                        break;
+                    }
                 case OutboundKind.ClientStream:
-                {
-                    var outbound = spec.CreateClientStreamOutbound(section, _serviceProvider)
-                        ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a client stream outbound.");
-                    dispatcherOptions.AddClientStreamOutbound(service, key, outbound);
-                    break;
-                }
+                    {
+                        var outbound = spec.CreateClientStreamOutbound(section, _serviceProvider)
+                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a client stream outbound.");
+                        dispatcherOptions.AddClientStreamOutbound(service, key, outbound);
+                        break;
+                    }
                 case OutboundKind.Duplex:
-                {
-                    var outbound = spec.CreateDuplexOutbound(section, _serviceProvider)
-                        ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a duplex outbound.");
-                    dispatcherOptions.AddDuplexOutbound(service, key, outbound);
-                    break;
-                }
+                    {
+                        var outbound = spec.CreateDuplexOutbound(section, _serviceProvider)
+                            ?? throw new PolymerConfigurationException($"Custom outbound spec '{specName}' did not provide a duplex outbound.");
+                        dispatcherOptions.AddDuplexOutbound(service, key, outbound);
+                        break;
+                    }
                 default:
                     throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
             }

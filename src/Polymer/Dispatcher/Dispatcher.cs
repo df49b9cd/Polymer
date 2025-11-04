@@ -233,7 +233,7 @@ public sealed class Dispatcher
                 $"Oneway procedure '{procedure}' is not registered for service '{_serviceName}'.",
                 transport: request.Meta.Transport ?? "unknown");
 
-        return ValueTask.FromResult(Err<OnewayAck>(error));
+            return ValueTask.FromResult(Err<OnewayAck>(error));
         }
 
         var pipeline = MiddlewareComposer.ComposeOnewayInbound(

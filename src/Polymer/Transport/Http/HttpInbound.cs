@@ -268,85 +268,85 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         {
             if (!context.Request.Headers.TryGetValue(HttpTransportHeaders.Procedure, out var procedureValues) ||
             StringValues.IsNullOrEmpty(procedureValues))
-        {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
-            return;
-        }
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                return;
+            }
 
-        var procedure = procedureValues![0];
+            var procedure = procedureValues![0];
 
             var encoding = ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType);
 
             var meta = BuildRequestMeta(dispatcher.ServiceName, procedure!, encoding, context.Request.Headers, transport, context.RequestAborted);
 
-        byte[] buffer;
-        if (context.Request.ContentLength is > 0)
-        {
-            buffer = new byte[context.Request.ContentLength.Value];
-            await context.Request.Body.ReadExactlyAsync(buffer.AsMemory(), context.RequestAborted).ConfigureAwait(false);
-        }
-        else
-        {
-            using var memory = new MemoryStream();
-            await context.Request.Body.CopyToAsync(memory, context.RequestAborted).ConfigureAwait(false);
-            buffer = memory.ToArray();
-        }
-
-        var request = new Request<ReadOnlyMemory<byte>>(meta, buffer);
-
-        if (dispatcher.TryGetProcedure(procedure!, ProcedureKind.Oneway, out _))
-        {
-            var onewayResult = await dispatcher.InvokeOnewayAsync(procedure!, request, context.RequestAborted).ConfigureAwait(false);
-            if (onewayResult.IsFailure)
+            byte[] buffer;
+            if (context.Request.ContentLength is > 0)
             {
-                var error = onewayResult.Error!;
+                buffer = new byte[context.Request.ContentLength.Value];
+                await context.Request.Body.ReadExactlyAsync(buffer.AsMemory(), context.RequestAborted).ConfigureAwait(false);
+            }
+            else
+            {
+                using var memory = new MemoryStream();
+                await context.Request.Body.CopyToAsync(memory, context.RequestAborted).ConfigureAwait(false);
+                buffer = memory.ToArray();
+            }
+
+            var request = new Request<ReadOnlyMemory<byte>>(meta, buffer);
+
+            if (dispatcher.TryGetProcedure(procedure!, ProcedureKind.Oneway, out _))
+            {
+                var onewayResult = await dispatcher.InvokeOnewayAsync(procedure!, request, context.RequestAborted).ConfigureAwait(false);
+                if (onewayResult.IsFailure)
+                {
+                    var error = onewayResult.Error!;
+                    var exception = PolymerErrors.FromError(error, transport);
+                    await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
+                    return;
+                }
+
+                context.Response.StatusCode = StatusCodes.Status202Accepted;
+                context.Response.Headers[HttpTransportHeaders.Transport] = transport;
+
+                var ackMeta = onewayResult.Value.Meta;
+                var ackEncoding = ackMeta.Encoding ?? encoding;
+                context.Response.Headers[HttpTransportHeaders.Encoding] = ackEncoding ?? MediaTypeNames.Application.Octet;
+                context.Response.ContentType = ResolveContentType(ackEncoding) ?? MediaTypeNames.Application.Octet;
+
+                foreach (var header in ackMeta.Headers)
+                {
+                    context.Response.Headers[header.Key] = header.Value;
+                }
+                return;
+            }
+
+            var result = await dispatcher.InvokeUnaryAsync(procedure!, request, context.RequestAborted).ConfigureAwait(false);
+
+            if (result.IsFailure)
+            {
+                var error = result.Error!;
                 var exception = PolymerErrors.FromError(error, transport);
                 await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
                 return;
             }
 
-            context.Response.StatusCode = StatusCodes.Status202Accepted;
+            var response = result.Value;
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            var responseEncoding = response.Meta.Encoding ?? encoding;
+            context.Response.Headers[HttpTransportHeaders.Encoding] = responseEncoding ?? MediaTypeNames.Application.Octet;
             context.Response.Headers[HttpTransportHeaders.Transport] = transport;
+            context.Response.ContentType = ResolveContentType(responseEncoding) ?? MediaTypeNames.Application.Octet;
 
-            var ackMeta = onewayResult.Value.Meta;
-            var ackEncoding = ackMeta.Encoding ?? encoding;
-            context.Response.Headers[HttpTransportHeaders.Encoding] = ackEncoding ?? MediaTypeNames.Application.Octet;
-            context.Response.ContentType = ResolveContentType(ackEncoding) ?? MediaTypeNames.Application.Octet;
-
-            foreach (var header in ackMeta.Headers)
+            foreach (var header in response.Meta.Headers)
             {
                 context.Response.Headers[header.Key] = header.Value;
             }
-            return;
-        }
 
-        var result = await dispatcher.InvokeUnaryAsync(procedure!, request, context.RequestAborted).ConfigureAwait(false);
-
-        if (result.IsFailure)
-        {
-            var error = result.Error!;
-            var exception = PolymerErrors.FromError(error, transport);
-            await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
-            return;
-        }
-
-        var response = result.Value;
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        var responseEncoding = response.Meta.Encoding ?? encoding;
-        context.Response.Headers[HttpTransportHeaders.Encoding] = responseEncoding ?? MediaTypeNames.Application.Octet;
-        context.Response.Headers[HttpTransportHeaders.Transport] = transport;
-        context.Response.ContentType = ResolveContentType(responseEncoding) ?? MediaTypeNames.Application.Octet;
-
-        foreach (var header in response.Meta.Headers)
-        {
-            context.Response.Headers[header.Key] = header.Value;
-        }
-
-        if (!response.Body.IsEmpty)
-        {
-            await context.Response.BodyWriter.WriteAsync(response.Body, context.RequestAborted).ConfigureAwait(false);
-        }
+            if (!response.Body.IsEmpty)
+            {
+                await context.Response.BodyWriter.WriteAsync(response.Body, context.RequestAborted).ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -373,82 +373,82 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         try
         {
 
-        if (!HttpMethods.IsGet(context.Request.Method))
-        {
-            context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
-            return;
-        }
+            if (!HttpMethods.IsGet(context.Request.Method))
+            {
+                context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+                return;
+            }
 
-        if (!context.Request.Headers.TryGetValue(HttpTransportHeaders.Procedure, out var procedureValues) ||
-            StringValues.IsNullOrEmpty(procedureValues))
-        {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
-            return;
-        }
+            if (!context.Request.Headers.TryGetValue(HttpTransportHeaders.Procedure, out var procedureValues) ||
+                StringValues.IsNullOrEmpty(procedureValues))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                return;
+            }
 
-        var procedure = procedureValues![0];
+            var procedure = procedureValues![0];
 
-        var acceptValues = context.Request.Headers.TryGetValue("Accept", out var acceptRaw)
-            ? acceptRaw
-            : StringValues.Empty;
+            var acceptValues = context.Request.Headers.TryGetValue("Accept", out var acceptRaw)
+                ? acceptRaw
+                : StringValues.Empty;
 
-        if (acceptValues.Count == 0 ||
-            !acceptValues.Any(static value => !string.IsNullOrEmpty(value) && value.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
-        {
-            context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
-            await WriteErrorAsync(context, "text/event-stream Accept header required for streaming", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
-            return;
-        }
+            if (acceptValues.Count == 0 ||
+                !acceptValues.Any(static value => !string.IsNullOrEmpty(value) && value.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
+            {
+                context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
+                await WriteErrorAsync(context, "text/event-stream Accept header required for streaming", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                return;
+            }
 
-        var meta = BuildRequestMeta(
-            dispatcher.ServiceName,
-            procedure!,
-            encoding: ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType),
-            headers: context.Request.Headers,
-            transport: transport,
-            cancellationToken: context.RequestAborted);
+            var meta = BuildRequestMeta(
+                dispatcher.ServiceName,
+                procedure!,
+                encoding: ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType),
+                headers: context.Request.Headers,
+                transport: transport,
+                cancellationToken: context.RequestAborted);
 
-        var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
+            var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-        var streamResult = await dispatcher.InvokeStreamAsync(
-            procedure!,
-            request,
-            new StreamCallOptions(StreamDirection.Server),
-            context.RequestAborted).ConfigureAwait(false);
+            var streamResult = await dispatcher.InvokeStreamAsync(
+                procedure!,
+                request,
+                new StreamCallOptions(StreamDirection.Server),
+                context.RequestAborted).ConfigureAwait(false);
 
-        if (streamResult.IsFailure)
-        {
-            var error = streamResult.Error!;
-            var exception = PolymerErrors.FromError(error, transport);
-            context.Response.StatusCode = HttpStatusMapper.ToStatusCode(exception.StatusCode);
-            await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
-            return;
-        }
+            if (streamResult.IsFailure)
+            {
+                var error = streamResult.Error!;
+                var exception = PolymerErrors.FromError(error, transport);
+                context.Response.StatusCode = HttpStatusMapper.ToStatusCode(exception.StatusCode);
+                await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
+                return;
+            }
 
-        await using var call = streamResult.Value;
+            await using var call = streamResult.Value;
 
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.Headers[HttpTransportHeaders.Transport] = transport;
-        context.Response.Headers["Cache-Control"] = "no-cache";
-        context.Response.Headers["Connection"] = "keep-alive";
-        context.Response.Headers["Content-Type"] = "text/event-stream";
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.Headers[HttpTransportHeaders.Transport] = transport;
+            context.Response.Headers["Cache-Control"] = "no-cache";
+            context.Response.Headers["Connection"] = "keep-alive";
+            context.Response.Headers["Content-Type"] = "text/event-stream";
 
-        var responseMeta = call.ResponseMeta ?? new ResponseMeta();
-        var responseHeaders = responseMeta.Headers ?? [];
-        foreach (var header in responseHeaders)
-        {
-            context.Response.Headers[header.Key] = header.Value;
-        }
+            var responseMeta = call.ResponseMeta ?? new ResponseMeta();
+            var responseHeaders = responseMeta.Headers ?? [];
+            foreach (var header in responseHeaders)
+            {
+                context.Response.Headers[header.Key] = header.Value;
+            }
 
-        await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
-
-        await foreach (var payload in call.Responses.ReadAllAsync(context.RequestAborted).ConfigureAwait(false))
-        {
-            var frame = EncodeSseFrame(payload, responseMeta.Encoding);
-            await context.Response.BodyWriter.WriteAsync(frame, context.RequestAborted).ConfigureAwait(false);
             await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
-        }
+
+            await foreach (var payload in call.Responses.ReadAllAsync(context.RequestAborted).ConfigureAwait(false))
+            {
+                var frame = EncodeSseFrame(payload, responseMeta.Encoding);
+                await context.Response.BodyWriter.WriteAsync(frame, context.RequestAborted).ConfigureAwait(false);
+                await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -468,174 +468,174 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
         try
         {
-        if (!context.WebSockets.IsWebSocketRequest)
-        {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await WriteErrorAsync(context, "WebSocket upgrade required for duplex streaming.", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
-            return;
-        }
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await WriteErrorAsync(context, "WebSocket upgrade required for duplex streaming.", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                return;
+            }
 
-        if (!context.Request.Headers.TryGetValue(HttpTransportHeaders.Procedure, out var procedureValues) ||
-            StringValues.IsNullOrEmpty(procedureValues))
-        {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
-            return;
-        }
+            if (!context.Request.Headers.TryGetValue(HttpTransportHeaders.Procedure, out var procedureValues) ||
+                StringValues.IsNullOrEmpty(procedureValues))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await WriteErrorAsync(context, "rpc procedure header missing", PolymerStatusCode.InvalidArgument, transport).ConfigureAwait(false);
+                return;
+            }
 
-        var procedure = procedureValues![0];
+            var procedure = procedureValues![0];
 
-        var meta = BuildRequestMeta(
-            dispatcher.ServiceName,
-            procedure!,
-            encoding: ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType),
-            headers: context.Request.Headers,
-            transport: transport,
-            cancellationToken: context.RequestAborted);
+            var meta = BuildRequestMeta(
+                dispatcher.ServiceName,
+                procedure!,
+                encoding: ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType),
+                headers: context.Request.Headers,
+                transport: transport,
+                cancellationToken: context.RequestAborted);
 
-        var dispatcherRequest = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
+            var dispatcherRequest = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-        var callResult = await dispatcher.InvokeDuplexAsync(procedure!, dispatcherRequest, context.RequestAborted).ConfigureAwait(false);
+            var callResult = await dispatcher.InvokeDuplexAsync(procedure!, dispatcherRequest, context.RequestAborted).ConfigureAwait(false);
 
-        if (callResult.IsFailure)
-        {
-            var error = callResult.Error!;
-            var exception = PolymerErrors.FromError(error, transport);
-            context.Response.StatusCode = HttpStatusMapper.ToStatusCode(exception.StatusCode);
-            await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
-            return;
-        }
+            if (callResult.IsFailure)
+            {
+                var error = callResult.Error!;
+                var exception = PolymerErrors.FromError(error, transport);
+                context.Response.StatusCode = HttpStatusMapper.ToStatusCode(exception.StatusCode);
+                await WriteErrorAsync(context, exception.Message, exception.StatusCode, transport, error).ConfigureAwait(false);
+                return;
+            }
 
-        var socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-        context.Response.Headers[HttpTransportHeaders.Transport] = transport;
+            var socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
+            context.Response.Headers[HttpTransportHeaders.Transport] = transport;
 
-        var call = callResult.Value;
-        var requestBuffer = new byte[32 * 1024];
-        var responseBuffer = new byte[32 * 1024];
+            var call = callResult.Value;
+            var requestBuffer = new byte[32 * 1024];
+            var responseBuffer = new byte[32 * 1024];
 
-        try
-        {
-            var requestPump = PumpRequestsAsync(socket, call, requestBuffer, context.RequestAborted);
-            var responsePump = PumpResponsesAsync(socket, call, responseBuffer, context.RequestAborted);
+            try
+            {
+                var requestPump = PumpRequestsAsync(socket, call, requestBuffer, context.RequestAborted);
+                var responsePump = PumpResponsesAsync(socket, call, responseBuffer, context.RequestAborted);
 
-            await Task.WhenAll(requestPump, responsePump).ConfigureAwait(false);
-        }
-        finally
-        {
-            await call.DisposeAsync().ConfigureAwait(false);
+                await Task.WhenAll(requestPump, responsePump).ConfigureAwait(false);
+            }
+            finally
+            {
+                await call.DisposeAsync().ConfigureAwait(false);
 
-            if (socket.State == WebSocketState.Open)
+                if (socket.State == WebSocketState.Open)
+                {
+                    try
+                    {
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "completed", CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (WebSocketException)
+                    {
+                        // ignore handshake failures during shutdown
+                    }
+                }
+
+                socket.Dispose();
+            }
+
+            async Task PumpRequestsAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, CancellationToken cancellationToken)
             {
                 try
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "completed", CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (WebSocketException)
-                {
-                    // ignore handshake failures during shutdown
-                }
-            }
-
-            socket.Dispose();
-        }
-
-        async Task PumpRequestsAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, CancellationToken cancellationToken)
-        {
-            try
-            {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    var frame = await HttpDuplexProtocol.ReceiveFrameAsync(webSocket, tempBuffer, cancellationToken).ConfigureAwait(false);
-
-                    if (frame.MessageType == WebSocketMessageType.Close)
+                    while (!cancellationToken.IsCancellationRequested)
                     {
-                        await streamCall.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                        return;
-                    }
+                        var frame = await HttpDuplexProtocol.ReceiveFrameAsync(webSocket, tempBuffer, cancellationToken).ConfigureAwait(false);
 
-                    switch (frame.Type)
-                    {
-                        case HttpDuplexProtocol.FrameType.RequestData:
-                            await streamCall.RequestWriter.WriteAsync(frame.Payload.ToArray(), cancellationToken).ConfigureAwait(false);
-                            break;
-
-                        case HttpDuplexProtocol.FrameType.RequestComplete:
+                        if (frame.MessageType == WebSocketMessageType.Close)
+                        {
                             await streamCall.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
                             return;
-
-                        case HttpDuplexProtocol.FrameType.RequestError:
-                        {
-                            var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
-                            await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-                            await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                            return;
                         }
 
-                        case HttpDuplexProtocol.FrameType.ResponseError:
+                        switch (frame.Type)
                         {
-                            var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
-                            await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                            return;
-                        }
+                            case HttpDuplexProtocol.FrameType.RequestData:
+                                await streamCall.RequestWriter.WriteAsync(frame.Payload.ToArray(), cancellationToken).ConfigureAwait(false);
+                                break;
 
-                        case HttpDuplexProtocol.FrameType.ResponseComplete:
-                            await streamCall.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                            break;
+                            case HttpDuplexProtocol.FrameType.RequestComplete:
+                                await streamCall.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                                return;
+
+                            case HttpDuplexProtocol.FrameType.RequestError:
+                                {
+                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
+                                    await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    return;
+                                }
+
+                            case HttpDuplexProtocol.FrameType.ResponseError:
+                                {
+                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
+                                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    return;
+                                }
+
+                            case HttpDuplexProtocol.FrameType.ResponseComplete:
+                                await streamCall.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                                break;
+                        }
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                var error = PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.Cancelled,
-                    "The client cancelled the request.",
-                    transport: transport);
-                await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                var error = PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.Internal,
-                    ex.Message ?? "An error occurred while reading the duplex request stream.",
-                    transport: transport,
-                    inner: Error.FromException(ex));
-                await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-
-        async Task PumpResponsesAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, CancellationToken cancellationToken)
-        {
-            try
-            {
-                await foreach (var payload in streamCall.ResponseReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                catch (OperationCanceledException)
                 {
-                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseData, payload, cancellationToken).ConfigureAwait(false);
+                    var error = PolymerErrorAdapter.FromStatus(
+                        PolymerStatusCode.Cancelled,
+                        "The client cancelled the request.",
+                        transport: transport);
+                    await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
                 }
+                catch (Exception ex)
+                {
+                    var error = PolymerErrorAdapter.FromStatus(
+                        PolymerStatusCode.Internal,
+                        ex.Message ?? "An error occurred while reading the duplex request stream.",
+                        transport: transport,
+                        inner: Error.FromException(ex));
+                    await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
 
-                var finalMeta = NormalizeResponseMeta(streamCall.ResponseMeta, transport);
-                var completePayload = HttpDuplexProtocol.SerializeResponseMeta(finalMeta);
-                await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseComplete, completePayload, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
+            async Task PumpResponsesAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, CancellationToken cancellationToken)
             {
-                var error = PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.Cancelled,
-                    "The client cancelled the response stream.",
-                    transport: transport);
-                await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
-                await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    await foreach (var payload in streamCall.ResponseReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseData, payload, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    var finalMeta = NormalizeResponseMeta(streamCall.ResponseMeta, transport);
+                    var completePayload = HttpDuplexProtocol.SerializeResponseMeta(finalMeta);
+                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseComplete, completePayload, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    var error = PolymerErrorAdapter.FromStatus(
+                        PolymerStatusCode.Cancelled,
+                        "The client cancelled the response stream.",
+                        transport: transport);
+                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
+                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    var error = PolymerErrorAdapter.FromStatus(
+                        PolymerStatusCode.Internal,
+                        ex.Message ?? "An error occurred while writing the duplex response stream.",
+                        transport: transport,
+                        inner: Error.FromException(ex));
+                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
+                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                }
             }
-            catch (Exception ex)
-            {
-                var error = PolymerErrorAdapter.FromStatus(
-                    PolymerStatusCode.Internal,
-                    ex.Message ?? "An error occurred while writing the duplex response stream.",
-                    transport: transport,
-                    inner: Error.FromException(ex));
-            await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
-            await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-            }
-        }
         }
         finally
         {
