@@ -57,15 +57,15 @@ jobs:
           echo "value=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Build
-        run: dotnet build Polymer.slnx --configuration Release
+        run: dotnet build YARPCore.slnx --configuration Release
 
       - name: Test
-        run: dotnet test Polymer.slnx --configuration Release --no-build
+        run: dotnet test YARPCore.slnx --configuration Release --no-build
 
       - name: Pack artifacts
         run: |
           mkdir -p artifacts/packages
-          dotnet pack Polymer.slnx \
+          dotnet pack YARPCore.slnx \
             --configuration Release \
             --output artifacts/packages \
             /p:ContinuousIntegrationBuild=true \
