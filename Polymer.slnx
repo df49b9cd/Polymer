@@ -7,6 +7,9 @@
     <Project Path="src/Polymer.Configuration/Polymer.Configuration.csproj" />
     <Project Path="src/Polymer/Polymer.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Polymer.Tests/Polymer.Tests.csproj" />
     <Project Path="tests/Polymer.YabInterop/Polymer.YabInterop.csproj" />

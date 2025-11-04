@@ -202,11 +202,8 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - ~~Implement runtime toggles (e.g., log level, sampling) via control plane endpoint or config reload.~~
 
 - **Examples & Samples**
-  - Provide sample services demonstrating:
-    - HTTP unary + oneway.
-    - gRPC unary + streaming.
-    - Middleware usage, peer chooser configuration.
-  - Add detailed documentation and quickstart tutorials.
+  - ~~Provide sample services demonstrating HTTP unary + oneway, gRPC unary + streaming, and middleware + peer chooser configuration.~~ *(Implemented via `samples/Quickstart.Server/Program.cs` with JSON codecs across transports.)*
+  - ~~Add detailed documentation and quickstart tutorials.~~ *(See `docs/reference/quickstart.md` for end-to-end commands.)*
 
 ## 9. Interop & Testing (Phase 11)
 
