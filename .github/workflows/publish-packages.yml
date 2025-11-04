@@ -31,7 +31,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore Polymer.slnx
+        run: dotnet restore YARPCore.slnx
 
       - name: Determine package version
         id: version
