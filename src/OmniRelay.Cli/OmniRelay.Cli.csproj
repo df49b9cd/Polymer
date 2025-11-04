@@ -8,7 +8,8 @@
     <PackageId>OmniRelay.Cli</PackageId>
     <Description>OmniRelay operator CLI for validations, introspection, smoke tests, and benchmarking.</Description>
     <PackageTags>omnirelay;yarpc;cli;grpc;http</PackageTags>
-    <PackageReadmeFile>docs/reference/cli-tool-readme.md</PackageReadmeFile>
+    <PackageReadmeFile>OmniRelay.Cli.README.md</PackageReadmeFile>
+    <PackageIcon>omnirelay-icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\docs\reference\cli-tool-readme.md" Pack="true" PackagePath="docs/reference/cli-tool-readme.md" />
+    <None Include="..\..\docs\reference\cli-tool-readme.md" Pack="false" />
+    <None Include="..\..\docs\nuget\OmniRelay.Cli.md" Pack="true" PackagePath="OmniRelay.Cli.README.md" Visible="false" />
+    <None Include="..\..\branding\omnirelay-icon.png" Pack="true" PackagePath="omnirelay-icon.png" Visible="false" />
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />

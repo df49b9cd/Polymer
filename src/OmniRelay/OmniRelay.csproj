@@ -5,6 +5,8 @@
     <PackageId>OmniRelay</PackageId>
     <Description>OmniRelay dispatcher, transports, codecs, middleware, and peer management for .NET.</Description>
     <PackageTags>omnirelay;yarpc;rpc;grpc;http;middleware</PackageTags>
+    <PackageReadmeFile>OmniRelay.README.md</PackageReadmeFile>
+    <PackageIcon>omnirelay-icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +20,11 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\nuget\OmniRelay.md" Pack="true" PackagePath="OmniRelay.README.md" Visible="false" />
+    <None Include="..\..\branding\omnirelay-icon.png" Pack="true" PackagePath="omnirelay-icon.png" Visible="false" />
   </ItemGroup>
 
 </Project>

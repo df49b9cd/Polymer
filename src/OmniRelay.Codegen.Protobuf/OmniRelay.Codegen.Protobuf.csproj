@@ -10,6 +10,8 @@
     <Description>protoc plug-in for generating OmniRelay dispatcher and client bindings.</Description>
     <PackageTags>omnirelay;yarpc;protobuf;codegen;protoc</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageReadmeFile>OmniRelay.Codegen.Protobuf.README.md</PackageReadmeFile>
+    <PackageIcon>omnirelay-icon.png</PackageIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />
@@ -17,5 +19,10 @@
 
   <ItemGroup>
     <ProjectReference Include="../OmniRelay.Codegen.Protobuf.Core/OmniRelay.Codegen.Protobuf.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\nuget\OmniRelay.Codegen.Protobuf.md" Pack="true" PackagePath="OmniRelay.Codegen.Protobuf.README.md" Visible="false" />
+    <None Include="..\..\branding\omnirelay-icon.png" Pack="true" PackagePath="omnirelay-icon.png" Visible="false" />
   </ItemGroup>
 </Project>

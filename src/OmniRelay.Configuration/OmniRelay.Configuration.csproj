@@ -5,6 +5,8 @@
     <PackageId>OmniRelay.Configuration</PackageId>
     <Description>Configuration binder, hosting extensions, and dependency injection for OmniRelay dispatchers.</Description>
     <PackageTags>omnirelay;yarpc;configuration;hosting;dependency-injection</PackageTags>
+    <PackageReadmeFile>OmniRelay.Configuration.README.md</PackageReadmeFile>
+    <PackageIcon>omnirelay-icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,5 +22,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OmniRelay\OmniRelay.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\nuget\OmniRelay.Configuration.md" Pack="true" PackagePath="OmniRelay.Configuration.README.md" Visible="false" />
+    <None Include="..\..\branding\omnirelay-icon.png" Pack="true" PackagePath="omnirelay-icon.png" Visible="false" />
   </ItemGroup>
 </Project>

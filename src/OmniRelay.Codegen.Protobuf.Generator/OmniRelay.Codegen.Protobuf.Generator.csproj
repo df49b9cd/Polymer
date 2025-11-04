@@ -16,7 +16,8 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageType>Analyzer</PackageType>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReadmeFile>OmniRelay.Codegen.Protobuf.Generator.README.md</PackageReadmeFile>
+    <PackageIcon>omnirelay-icon.png</PackageIcon>
     <PackageReleaseNotes>Telemetry-less analyzer packaging; bundles OmniRelay runtime dependencies.</PackageReleaseNotes>
   </PropertyGroup>
 
@@ -55,7 +56,9 @@
   </Target>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="README.md" Pack="false" />
+    <None Include="..\..\docs\nuget\OmniRelay.Codegen.Protobuf.Generator.md" Pack="true" PackagePath="OmniRelay.Codegen.Protobuf.Generator.README.md" Visible="false" />
+    <None Include="..\..\branding\omnirelay-icon.png" Pack="true" PackagePath="omnirelay-icon.png" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
