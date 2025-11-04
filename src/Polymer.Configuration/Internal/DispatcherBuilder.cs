@@ -1019,7 +1019,7 @@ internal sealed class DispatcherBuilder
             registration.Aliases);
     }
 
-    private (JsonSerializerOptions Options, JsonSerializerContext? Context) BuildJsonCodecMaterials(
+    private static (JsonSerializerOptions Options, JsonSerializerContext? Context) BuildJsonCodecMaterials(
         IDictionary<string, JsonProfileDescriptor> profiles,
         JsonCodecRegistrationConfiguration registration,
         Type requestType,

@@ -71,7 +71,7 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
             }
 
             var generator = new PolymerProtobufGenerator();
-            foreach (var file in generator.GenerateFiles(result.DescriptorSet))
+            foreach (var file in PolymerProtobufGenerator.GenerateFiles(result.DescriptorSet))
             {
                 var hintName = CreateHintName(result.Path, file.Name);
                 spc.AddSource(hintName, file.Content);

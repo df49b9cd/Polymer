@@ -29,7 +29,7 @@ internal static class Program
         try
         {
             var generator = new PolymerProtobufGenerator();
-            var response = generator.Generate(request);
+            var response = PolymerProtobufGenerator.Generate(request);
             using var codedOutput = new CodedOutputStream(Console.OpenStandardOutput());
             response.WriteTo(codedOutput);
             codedOutput.Flush();

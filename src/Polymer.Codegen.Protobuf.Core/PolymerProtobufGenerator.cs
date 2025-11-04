@@ -6,7 +6,7 @@ namespace Polymer.Codegen.Protobuf.Core;
 
 public sealed class PolymerProtobufGenerator
 {
-    public CodeGeneratorResponse Generate(CodeGeneratorRequest request)
+    public static CodeGeneratorResponse Generate(CodeGeneratorRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -27,13 +27,13 @@ public sealed class PolymerProtobufGenerator
         return response;
     }
 
-    public IEnumerable<GeneratedFile> GenerateFiles(CodeGeneratorRequest request)
+    public static IEnumerable<GeneratedFile> GenerateFiles(CodeGeneratorRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         return GenerateFilesInternal(request);
     }
 
-    public IEnumerable<GeneratedFile> GenerateFiles(FileDescriptorSet descriptorSet, IEnumerable<string>? filesToGenerate = null)
+    public static IEnumerable<GeneratedFile> GenerateFiles(FileDescriptorSet descriptorSet, IEnumerable<string>? filesToGenerate = null)
     {
         ArgumentNullException.ThrowIfNull(descriptorSet);
 
