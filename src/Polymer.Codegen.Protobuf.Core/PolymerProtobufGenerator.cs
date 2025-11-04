@@ -346,7 +346,7 @@ public sealed class PolymerProtobufGenerator
                     RpcKind.ServerStreaming => $"ValueTask {method.HandlerName}(Request<{method.InputType}> request, ProtobufCallAdapters.ProtobufServerStreamWriter<{method.InputType}, {method.OutputType}> stream, CancellationToken cancellationToken)",
                     RpcKind.ClientStreaming => $"ValueTask<Response<{method.OutputType}>> {method.HandlerName}(ProtobufCallAdapters.ProtobufClientStreamContext<{method.InputType}, {method.OutputType}> context, CancellationToken cancellationToken)",
                     RpcKind.DuplexStreaming => $"ValueTask {method.HandlerName}(ProtobufCallAdapters.ProtobufDuplexStreamContext<{method.InputType}, {method.OutputType}> context, CancellationToken cancellationToken)",
-                    _ => throw new ArgumentOutOfRangeException(nameof(method.Kind), method.Kind, null)
+                    _ => throw new ArgumentOutOfRangeException(nameof(methods), method.Kind, null)
                 };
 
                 builder.AppendLine($"{signature};");
