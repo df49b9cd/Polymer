@@ -203,7 +203,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
 
         var (lease, peer) = acquireResult.Value;
-        await using var leaseScope = lease.ConfigureAwait(false);
+        await using var _ = lease.ConfigureAwait(false);
 
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "unary");
 
@@ -265,7 +265,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
 
         var (lease, peer) = acquireResult.Value;
-        await using var leaseScope = lease.ConfigureAwait(false);
+        await using var _ = lease.ConfigureAwait(false);
 
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "oneway");
 
