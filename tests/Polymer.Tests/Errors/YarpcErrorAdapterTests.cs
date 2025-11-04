@@ -1,6 +1,6 @@
 using Hugo;
-using Xunit;
 using Polymer.Errors;
+using Xunit;
 
 namespace Polymer.Tests.Errors;
 

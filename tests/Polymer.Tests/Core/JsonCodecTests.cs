@@ -1,10 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Json.Schema;
 using Polymer.Core;
 using Polymer.Errors;
 using Xunit;
-using Json.Schema;
 
 namespace Polymer.Tests.Core;
 

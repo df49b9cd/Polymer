@@ -57,7 +57,7 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
                 _call.RequestStream.WriteOptions = _writeOptions;
             }
 
-            await _call.RequestStream.WriteAsync(payload.ToArray()).ConfigureAwait(false);
+            await _call.RequestStream.WriteAsync(payload.ToArray(), cancellationToken).ConfigureAwait(false);
             Interlocked.Increment(ref _requestCount);
             GrpcTransportMetrics.ClientClientStreamRequestMessages.Add(1, _baseTags);
         }

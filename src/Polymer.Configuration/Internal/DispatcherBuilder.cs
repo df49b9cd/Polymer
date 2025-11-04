@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Net.Security;
@@ -7,21 +6,21 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Grpc.Core.Interceptors;
+using Json.Schema;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Polymer.Configuration.Models;
 using Polymer.Core;
-using Polymer.Core.Peers;
 using Polymer.Core.Diagnostics;
+using Polymer.Core.Peers;
 using Polymer.Dispatcher;
 using Polymer.Transport.Grpc;
 using Polymer.Transport.Http;
-using Json.Schema;
 
 namespace Polymer.Configuration.Internal;
 
@@ -562,7 +561,7 @@ internal sealed class DispatcherBuilder
         };
     }
 
-    private GrpcClientTlsOptions? BuildGrpcClientTlsOptions(GrpcClientTlsConfiguration configuration)
+    private static GrpcClientTlsOptions? BuildGrpcClientTlsOptions(GrpcClientTlsConfiguration configuration)
     {
         if (configuration is null)
         {
@@ -860,7 +859,7 @@ internal sealed class DispatcherBuilder
         return resolved;
     }
 
-    private GrpcServerTlsOptions? BuildGrpcServerTlsOptions(GrpcServerTlsConfiguration configuration)
+    private static GrpcServerTlsOptions? BuildGrpcServerTlsOptions(GrpcServerTlsConfiguration configuration)
     {
         if (configuration is null || string.IsNullOrWhiteSpace(configuration.CertificatePath))
         {
@@ -1049,7 +1048,7 @@ internal sealed class DispatcherBuilder
         return (options, context);
     }
 
-    private JsonSerializerContext? CreateSerializerContext(string? contextTypeName, JsonSerializerOptions options, string procedure)
+    private static JsonSerializerContext? CreateSerializerContext(string? contextTypeName, JsonSerializerOptions options, string procedure)
     {
         if (string.IsNullOrWhiteSpace(contextTypeName))
         {
@@ -1088,7 +1087,7 @@ internal sealed class DispatcherBuilder
         }
     }
 
-    private JsonSchema? LoadJsonSchema(string? path, string basePath, string description)
+    private static JsonSchema? LoadJsonSchema(string? path, string basePath, string description)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -1141,7 +1140,7 @@ internal sealed class DispatcherBuilder
         return type;
     }
 
-    private Type ResolveResponseType(JsonCodecRegistrationConfiguration registration, ProcedureKind kind, string procedure)
+    private static Type ResolveResponseType(JsonCodecRegistrationConfiguration registration, ProcedureKind kind, string procedure)
     {
         if (kind == ProcedureKind.Oneway)
         {
@@ -1156,7 +1155,7 @@ internal sealed class DispatcherBuilder
         return ResolveType(registration.ResponseType, $"json codec registration for '{procedure}'");
     }
 
-    private object CreateJsonCodecInstance(
+    private static object CreateJsonCodecInstance(
         Type requestType,
         Type responseType,
         JsonSerializerOptions options,
@@ -1192,7 +1191,7 @@ internal sealed class DispatcherBuilder
         }
     }
 
-    private void RegisterCodecWithDispatcher(
+    private static void RegisterCodecWithDispatcher(
         DispatcherOptions dispatcherOptions,
         ProcedureCodecScope scope,
         string? service,
@@ -1458,7 +1457,7 @@ internal sealed class DispatcherBuilder
         }
     }
 
-    private void AddJsonConverter(JsonSerializerOptions target, string converterTypeName)
+    private static void AddJsonConverter(JsonSerializerOptions target, string converterTypeName)
     {
         if (string.IsNullOrWhiteSpace(converterTypeName))
         {

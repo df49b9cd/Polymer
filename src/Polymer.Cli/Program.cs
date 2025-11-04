@@ -1,14 +1,14 @@
 using System.Collections.Concurrent;
+using System.CommandLine;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.CommandLine;
-using Hugo;
-using System.Reflection;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
+using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -2069,22 +2069,6 @@ public static class Program
         return true;
     }
 
-    private static MessageDescriptor? FindMessageDescriptor(IEnumerable<FileDescriptor> descriptors, string normalizedMessageName)
-    {
-        foreach (var descriptor in descriptors)
-        {
-            foreach (var message in EnumerateMessages(descriptor.MessageTypes))
-            {
-                if (string.Equals(message.FullName, normalizedMessageName, StringComparison.Ordinal))
-                {
-                    return message;
-                }
-            }
-        }
-
-        return null;
-    }
-
     private static IEnumerable<MessageDescriptor> EnumerateMessages(IEnumerable<MessageDescriptor> rootMessages)
     {
         foreach (var message in rootMessages)
@@ -2101,7 +2085,7 @@ public static class Program
     private static string NormalizeProtoMessageName(string messageName)
     {
         var trimmed = messageName.Trim();
-        return trimmed.StartsWith(".", StringComparison.Ordinal) ? trimmed[1..] : trimmed;
+        return trimmed.StartsWith('.') ? trimmed[1..] : trimmed;
     }
 
     private static List<string> ResolveDescriptorFiles(IEnumerable<string> inputs)

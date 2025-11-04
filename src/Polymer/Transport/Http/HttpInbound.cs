@@ -3,12 +3,12 @@ using System.Net.Mime;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
-using Hugo;
 using Polymer.Core;
 using Polymer.Core.Transport;
 using Polymer.Dispatcher;
@@ -430,9 +430,9 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
             context.Response.StatusCode = StatusCodes.Status200OK;
             context.Response.Headers[HttpTransportHeaders.Transport] = transport;
-            context.Response.Headers["Cache-Control"] = "no-cache";
-            context.Response.Headers["Connection"] = "keep-alive";
-            context.Response.Headers["Content-Type"] = "text/event-stream";
+            context.Response.Headers.CacheControl = "no-cache";
+            context.Response.Headers.Connection = "keep-alive";
+            context.Response.Headers.ContentType = "text/event-stream";
 
             var responseMeta = call.ResponseMeta ?? new ResponseMeta();
             var responseHeaders = responseMeta.Headers ?? [];

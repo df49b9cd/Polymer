@@ -3,17 +3,17 @@ using System.Collections.Immutable;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
 using Grpc.Core;
-using Grpc.Net.Client;
 using Grpc.Core.Interceptors;
+using Grpc.Net.Client;
 using Grpc.Net.Compression;
 using Hugo;
 using Microsoft.Extensions.Logging;
 using Polymer.Core;
-using Polymer.Core.Transport;
 using Polymer.Core.Peers;
+using Polymer.Core.Transport;
 using Polymer.Errors;
-using static Hugo.Go;
 using Polymer.Transport.Grpc.Interceptors;
+using static Hugo.Go;
 
 namespace Polymer.Transport.Grpc;
 
@@ -203,7 +203,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
 
         var (lease, peer) = acquireResult.Value;
-        await using var leaseScope = lease;
+        await using var leaseScope = lease.ConfigureAwait(false);
 
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "unary");
 
@@ -265,7 +265,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
 
         var (lease, peer) = acquireResult.Value;
-        await using var leaseScope = lease;
+        await using var leaseScope = lease.ConfigureAwait(false);
 
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "oneway");
 

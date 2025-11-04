@@ -2,8 +2,8 @@ using System.Collections.Immutable;
 using Polymer.Core;
 using Polymer.Core.Middleware;
 using Polymer.Core.Transport;
-using Polymer.Transport.Http.Middleware;
 using Polymer.Transport.Grpc.Interceptors;
+using Polymer.Transport.Http.Middleware;
 
 namespace Polymer.Dispatcher;
 

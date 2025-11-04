@@ -321,7 +321,7 @@ public sealed class PolymerProtobufGenerator
             builder.AppendLine("}");
         }
 
-        private void EmitRegistration(IndentedStringBuilder builder, string methodName, MethodModel method, string adapterFactory)
+        private static void EmitRegistration(IndentedStringBuilder builder, string methodName, MethodModel method, string adapterFactory)
         {
             builder.AppendLine($"dispatcher.{methodName}(\"{method.ProcedureName}\", builder =>");
             builder.AppendLine("{");
@@ -346,7 +346,7 @@ public sealed class PolymerProtobufGenerator
                     RpcKind.ServerStreaming => $"ValueTask {method.HandlerName}(Request<{method.InputType}> request, ProtobufCallAdapters.ProtobufServerStreamWriter<{method.InputType}, {method.OutputType}> stream, CancellationToken cancellationToken)",
                     RpcKind.ClientStreaming => $"ValueTask<Response<{method.OutputType}>> {method.HandlerName}(ProtobufCallAdapters.ProtobufClientStreamContext<{method.InputType}, {method.OutputType}> context, CancellationToken cancellationToken)",
                     RpcKind.DuplexStreaming => $"ValueTask {method.HandlerName}(ProtobufCallAdapters.ProtobufDuplexStreamContext<{method.InputType}, {method.OutputType}> context, CancellationToken cancellationToken)",
-                    _ => throw new ArgumentOutOfRangeException()
+                    _ => throw new ArgumentOutOfRangeException(nameof(method.Kind), method.Kind, null)
                 };
 
                 builder.AppendLine($"{signature};");
@@ -422,7 +422,7 @@ public sealed class PolymerProtobufGenerator
             builder.AppendLine("}");
         }
 
-        private void EmitUnaryClientMethod(IndentedStringBuilder builder, MethodModel method)
+        private static void EmitUnaryClientMethod(IndentedStringBuilder builder, MethodModel method)
         {
             builder.AppendLine($"public ValueTask<Result<Response<{method.OutputType}>>> {method.HandlerName}({method.InputType} request, RequestMeta? meta = null, CancellationToken cancellationToken = default)");
             builder.AppendLine("{");
@@ -435,7 +435,7 @@ public sealed class PolymerProtobufGenerator
             builder.AppendLine();
         }
 
-        private void EmitStreamClientMethod(IndentedStringBuilder builder, MethodModel method)
+        private static void EmitStreamClientMethod(IndentedStringBuilder builder, MethodModel method)
         {
             builder.AppendLine($"public IAsyncEnumerable<Response<{method.OutputType}>> {method.HandlerName}({method.InputType} request, RequestMeta? meta = null, CancellationToken cancellationToken = default)");
             builder.AppendLine("{");
@@ -448,7 +448,7 @@ public sealed class PolymerProtobufGenerator
             builder.AppendLine();
         }
 
-        private void EmitClientStreamClientMethod(IndentedStringBuilder builder, MethodModel method)
+        private static void EmitClientStreamClientMethod(IndentedStringBuilder builder, MethodModel method)
         {
             builder.AppendLine($"public ValueTask<ClientStreamClient<{method.InputType}, {method.OutputType}>.ClientStreamSession> {method.HandlerName}(RequestMeta? meta = null, CancellationToken cancellationToken = default)");
             builder.AppendLine("{");
@@ -461,7 +461,7 @@ public sealed class PolymerProtobufGenerator
             builder.AppendLine();
         }
 
-        private void EmitDuplexClientMethod(IndentedStringBuilder builder, MethodModel method)
+        private static void EmitDuplexClientMethod(IndentedStringBuilder builder, MethodModel method)
         {
             builder.AppendLine($"public ValueTask<DuplexStreamClient<{method.InputType}, {method.OutputType}>.DuplexStreamSession> {method.HandlerName}(RequestMeta? meta = null, CancellationToken cancellationToken = default)");
             builder.AppendLine("{");
@@ -486,7 +486,7 @@ public sealed class PolymerProtobufGenerator
             builder.AppendLine("}");
         }
 
-        private void AppendPrepareRequestMetaHelper(IndentedStringBuilder builder)
+        private static void AppendPrepareRequestMetaHelper(IndentedStringBuilder builder)
         {
             builder.AppendLine("private static RequestMeta PrepareRequestMeta(RequestMeta? meta, string service, string procedure, string encoding)");
             builder.AppendLine("{");

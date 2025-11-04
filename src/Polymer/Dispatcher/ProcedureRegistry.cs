@@ -108,7 +108,7 @@ internal sealed class ProcedureRegistry
     private static string CreateKey(string service, string name, ProcedureKind kind) =>
         $"{service}::{name}:{kind}";
 
-    private static bool IsWildcard(string alias) => alias.IndexOf('*') >= 0 || alias.IndexOf('?') >= 0;
+    private static bool IsWildcard(string alias) => alias.Contains('*') || alias.Contains('?');
 
     private static int ComputeSpecificity(string pattern)
     {

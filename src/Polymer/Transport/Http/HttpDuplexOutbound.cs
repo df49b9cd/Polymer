@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Net.WebSockets;
+using Hugo;
 using Polymer.Core;
 using Polymer.Core.Transport;
 using Polymer.Errors;
-using Hugo;
 using static Hugo.Go;
 
 namespace Polymer.Transport.Http;

@@ -15,10 +15,7 @@ public sealed class GrpcTransportInterceptorBuilder
 
     public void UseClient(Interceptor interceptor)
     {
-        if (interceptor is null)
-        {
-            throw new ArgumentNullException(nameof(interceptor));
-        }
+        ArgumentNullException.ThrowIfNull(interceptor);
 
         _globalClient.Add(interceptor);
     }
@@ -41,10 +38,7 @@ public sealed class GrpcTransportInterceptorBuilder
 
     public void UseServer(Interceptor interceptor)
     {
-        if (interceptor is null)
-        {
-            throw new ArgumentNullException(nameof(interceptor));
-        }
+        ArgumentNullException.ThrowIfNull(interceptor);
 
         _globalServer.Add(interceptor);
     }
@@ -142,10 +136,7 @@ public sealed class GrpcTransportInterceptorBuilder
 
         public void Use(Interceptor interceptor)
         {
-            if (interceptor is null)
-            {
-                throw new ArgumentNullException(nameof(interceptor));
-            }
+            ArgumentNullException.ThrowIfNull(interceptor);
 
             _serviceInterceptors.Add(interceptor);
         }
@@ -224,10 +215,7 @@ public readonly struct GrpcClientProcedureInterceptorBuilder
 
     public GrpcClientProcedureInterceptorBuilder Use(Interceptor interceptor)
     {
-        if (interceptor is null)
-        {
-            throw new ArgumentNullException(nameof(interceptor));
-        }
+        ArgumentNullException.ThrowIfNull(interceptor);
 
         _interceptors.Add(interceptor);
         return this;
@@ -245,10 +233,7 @@ public readonly struct GrpcServerProcedureInterceptorBuilder
 
     public GrpcServerProcedureInterceptorBuilder Use(Interceptor interceptor)
     {
-        if (interceptor is null)
-        {
-            throw new ArgumentNullException(nameof(interceptor));
-        }
+        ArgumentNullException.ThrowIfNull(interceptor);
 
         _interceptors.Add(interceptor);
         return this;

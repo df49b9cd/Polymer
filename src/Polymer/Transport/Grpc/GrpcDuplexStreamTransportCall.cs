@@ -109,7 +109,7 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
             {
                 Interlocked.Increment(ref _requestCount);
                 GrpcTransportMetrics.ClientDuplexRequestMessages.Add(1, _baseTags);
-                await _call.RequestStream.WriteAsync(payload.ToArray()).ConfigureAwait(false);
+                await _call.RequestStream.WriteAsync(payload.ToArray(), cancellationToken).ConfigureAwait(false);
             }
 
             await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
@@ -121,7 +121,7 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         catch (RpcException rpcEx)
         {
             var error = MapRpcException(rpcEx);
-            await _inner.CompleteResponsesAsync(error).ConfigureAwait(false);
+            await _inner.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
             RecordCompletion(rpcEx.Status.StatusCode);
         }
         catch (Exception ex)
@@ -130,7 +130,7 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
                 PolymerStatusCode.Internal,
                 ex.Message ?? "An error occurred while sending request stream.",
                 transport: GrpcTransportConstants.TransportName,
-                inner: Error.FromException(ex))).ConfigureAwait(false);
+                inner: Error.FromException(ex)), cancellationToken).ConfigureAwait(false);
             RecordCompletion(StatusCode.Unknown);
         }
     }
@@ -148,13 +148,13 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
 
             var trailers = _call.GetTrailers();
             _inner.SetResponseMeta(GrpcMetadataAdapter.CreateResponseMeta(null, trailers, GrpcTransportConstants.TransportName));
-            await _inner.CompleteResponsesAsync().ConfigureAwait(false);
+            await _inner.CompleteResponsesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             RecordCompletion(StatusCode.OK);
         }
         catch (RpcException rpcEx)
         {
             var error = MapRpcException(rpcEx);
-            await _inner.CompleteResponsesAsync(error).ConfigureAwait(false);
+            await _inner.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
             RecordCompletion(rpcEx.Status.StatusCode);
         }
         catch (Exception ex)
@@ -163,7 +163,7 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
                 PolymerStatusCode.Internal,
                 ex.Message ?? "An error occurred while reading response stream.",
                 transport: GrpcTransportConstants.TransportName,
-                inner: Error.FromException(ex))).ConfigureAwait(false);
+                inner: Error.FromException(ex)), cancellationToken).ConfigureAwait(false);
             RecordCompletion(StatusCode.Unknown);
         }
     }

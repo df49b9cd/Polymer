@@ -1,14 +1,14 @@
 using System.Collections.Immutable;
 using Hugo;
-using static Hugo.Go;
 using Polymer.Core;
 using Polymer.Core.Middleware;
 using Polymer.Core.Transport;
 using Polymer.Errors;
-using Polymer.Transport.Http;
-using Polymer.Transport.Http.Middleware;
 using Polymer.Transport.Grpc;
 using Polymer.Transport.Grpc.Interceptors;
+using Polymer.Transport.Http;
+using Polymer.Transport.Http.Middleware;
+using static Hugo.Go;
 
 namespace Polymer.Dispatcher;
 
@@ -524,7 +524,7 @@ public sealed class Dispatcher
             })];
     }
 
-    private async Task ProcessClientStreamAsync(
+    private static async Task ProcessClientStreamAsync(
         ClientStreamCall call,
         ClientStreamRequestContext context,
         ClientStreamInboundDelegate pipeline,

@@ -1,7 +1,8 @@
 using System.Text;
+using System.Text.Json.Serialization;
+using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Hugo;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,7 +12,6 @@ using Polymer.Core.Peers;
 using Polymer.Core.Transport;
 using Polymer.Dispatcher;
 using Polymer.Errors;
-using System.Text.Json.Serialization;
 using Xunit;
 using static Hugo.Go;
 using PolymerDispatcher = Polymer.Dispatcher.Dispatcher;

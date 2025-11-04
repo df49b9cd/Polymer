@@ -1,5 +1,5 @@
-using Xunit;
 using Polymer.Dispatcher;
+using Xunit;
 
 namespace Polymer.Tests.Dispatcher;
 

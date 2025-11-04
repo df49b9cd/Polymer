@@ -1,7 +1,7 @@
 using System.Net;
 using Polymer.Core;
-using Polymer.Transport.Http.Middleware;
 using Polymer.Tests.Support;
+using Polymer.Transport.Http.Middleware;
 using Xunit;
 
 namespace Polymer.Tests.Transport.Http.Middleware;

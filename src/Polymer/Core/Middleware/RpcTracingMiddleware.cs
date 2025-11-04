@@ -266,7 +266,7 @@ public sealed class RpcTracingMiddleware :
                 return result;
             }
 
-            var wrapped = new TracingStreamCall(result.Value, activity, this);
+            var wrapped = new TracingStreamCall(result.Value, activity);
             activity = null;
             return Ok<IStreamCall>(wrapped);
         }
@@ -389,7 +389,7 @@ public sealed class RpcTracingMiddleware :
                 return result;
             }
 
-            var wrapped = new TracingDuplexStreamCall(result.Value, activity, this);
+            var wrapped = new TracingDuplexStreamCall(result.Value, activity);
             activity = null;
             return Ok<IDuplexStreamCall>(wrapped);
         }
@@ -567,10 +567,9 @@ public sealed class RpcTracingMiddleware :
         activity.AddEvent(new ActivityEvent("exception", tags: tags));
     }
 
-    private sealed class TracingStreamCall(IStreamCall inner, Activity activity, RpcTracingMiddleware owner) : IStreamCall
+    private sealed class TracingStreamCall(IStreamCall inner, Activity activity) : IStreamCall
     {
         private readonly IStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        private readonly RpcTracingMiddleware _owner = owner;
         private Activity? _activity = activity ?? throw new ArgumentNullException(nameof(activity));
         private Error? _error;
 
@@ -716,10 +715,9 @@ public sealed class RpcTracingMiddleware :
         }
     }
 
-    private sealed class TracingDuplexStreamCall(IDuplexStreamCall inner, Activity activity, RpcTracingMiddleware owner) : IDuplexStreamCall
+    private sealed class TracingDuplexStreamCall(IDuplexStreamCall inner, Activity activity) : IDuplexStreamCall
     {
         private readonly IDuplexStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        private readonly RpcTracingMiddleware _owner = owner;
         private Activity? _activity = activity ?? throw new ArgumentNullException(nameof(activity));
         private Error? _requestError;
         private Error? _responseError;

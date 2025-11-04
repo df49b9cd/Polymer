@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Hugo;
-using static Hugo.Go;
 using Polymer.Errors;
+using static Hugo.Go;
 
 namespace Polymer.Core.Transport;
 

@@ -12,10 +12,7 @@ public sealed class HttpOutboundMiddlewareBuilder
 
     public void Use(IHttpClientMiddleware middleware)
     {
-        if (middleware is null)
-        {
-            throw new ArgumentNullException(nameof(middleware));
-        }
+        ArgumentNullException.ThrowIfNull(middleware);
 
         _global.Add(middleware);
     }
@@ -70,10 +67,7 @@ public sealed class HttpOutboundMiddlewareBuilder
 
         public void Use(IHttpClientMiddleware middleware)
         {
-            if (middleware is null)
-            {
-                throw new ArgumentNullException(nameof(middleware));
-            }
+            ArgumentNullException.ThrowIfNull(middleware);
 
             _serviceMiddleware.Add(middleware);
         }
@@ -173,10 +167,7 @@ public readonly struct HttpOutboundProcedureMiddlewareBuilder
 
     public HttpOutboundProcedureMiddlewareBuilder Use(IHttpClientMiddleware middleware)
     {
-        if (middleware is null)
-        {
-            throw new ArgumentNullException(nameof(middleware));
-        }
+        ArgumentNullException.ThrowIfNull(middleware);
 
         _middleware.Add(middleware);
         return this;

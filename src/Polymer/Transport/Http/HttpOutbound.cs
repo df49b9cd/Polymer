@@ -3,13 +3,13 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text.Json;
+using Hugo;
 using Microsoft.AspNetCore.Http;
 using Polymer.Core;
 using Polymer.Core.Transport;
 using Polymer.Errors;
-using Hugo;
-using static Hugo.Go;
 using Polymer.Transport.Http.Middleware;
+using static Hugo.Go;
 
 namespace Polymer.Transport.Http;
 
@@ -117,11 +117,30 @@ public sealed class HttpOutbound(HttpClient httpClient, Uri requestUri, bool dis
         httpRequest.Headers.Add(HttpTransportHeaders.Transport, "http");
         httpRequest.Headers.Add(HttpTransportHeaders.Procedure, request.Meta.Procedure ?? string.Empty);
 
-        if (!string.IsNullOrEmpty(request.Meta.Caller)) httpRequest.Headers.Add(HttpTransportHeaders.Caller, request.Meta.Caller);
-        if (!string.IsNullOrEmpty(encoding)) httpRequest.Headers.Add(HttpTransportHeaders.Encoding, encoding);
-        if (!string.IsNullOrEmpty(request.Meta.ShardKey)) httpRequest.Headers.Add(HttpTransportHeaders.ShardKey, request.Meta.ShardKey);
-        if (!string.IsNullOrEmpty(request.Meta.RoutingKey)) httpRequest.Headers.Add(HttpTransportHeaders.RoutingKey, request.Meta.RoutingKey);
-        if (!string.IsNullOrEmpty(request.Meta.RoutingDelegate)) httpRequest.Headers.Add(HttpTransportHeaders.RoutingDelegate, request.Meta.RoutingDelegate);
+        if (!string.IsNullOrEmpty(request.Meta.Caller))
+        {
+            httpRequest.Headers.Add(HttpTransportHeaders.Caller, request.Meta.Caller);
+        }
+
+        if (!string.IsNullOrEmpty(encoding))
+        {
+            httpRequest.Headers.Add(HttpTransportHeaders.Encoding, encoding);
+        }
+
+        if (!string.IsNullOrEmpty(request.Meta.ShardKey))
+        {
+            httpRequest.Headers.Add(HttpTransportHeaders.ShardKey, request.Meta.ShardKey);
+        }
+
+        if (!string.IsNullOrEmpty(request.Meta.RoutingKey))
+        {
+            httpRequest.Headers.Add(HttpTransportHeaders.RoutingKey, request.Meta.RoutingKey);
+        }
+
+        if (!string.IsNullOrEmpty(request.Meta.RoutingDelegate))
+        {
+            httpRequest.Headers.Add(HttpTransportHeaders.RoutingDelegate, request.Meta.RoutingDelegate);
+        }
 
         if (request.Meta.TimeToLive is { } ttl)
         {
