@@ -1,6 +1,6 @@
 # OmniRelay CLI
 
-The `yarpcore` command-line tool provides a lightweight way to validate dispatcher configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. This mirrors common `yab` workflows while staying aligned with Polymer's configuration and metadata model.
+The `omnirelay` command-line tool provides a lightweight way to validate dispatcher configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. This mirrors common `yab` workflows while staying aligned with Polymer's configuration and metadata model.
 
 ## Installation
 
@@ -11,15 +11,15 @@ Build the solution or publish the CLI project directly:
 dotnet build
 
 # Optionally publish a self-contained binary
-dotnet publish src/Polymer.Cli/Polymer.Cli.csproj -c Release -o artifacts/cli
+dotnet publish src/OmniRelay.Cli/OmniRelay.Cli.csproj -c Release -o artifacts/cli
 ```
 
-The resulting executable is located under `src/Polymer.Cli/bin/<Configuration>/net10.0/` or in the publish output.
+The resulting executable is located under `src/OmniRelay.Cli/bin/<Configuration>/net10.0/` or in the publish output.
 
 ## Command overview
 
 ```text
-yarpcore <command> [options]
+omnirelay <command> [options]
 ```
 
 | Command | Purpose |
@@ -29,14 +29,14 @@ yarpcore <command> [options]
 | `request` | Issue a unary RPC over HTTP or gRPC with configurable metadata and payload sources. |
 | `script run` | Replay a sequence of requests, introspection calls, and delays defined in a JSON automation file. |
 
-Run `yarpcore <command> --help` for a detailed option list.
+Run `omnirelay <command> --help` for a detailed option list.
 
 ## Workflow examples
 
 ### Validate layered configuration
 
 ```bash
-yarpcore config validate \
+omnirelay config validate \
   --config docs/reference/configuration/appsettings.json \
   --config docs/reference/configuration/appsettings.Development.json \
   --set polymer:outbounds:ledger:unary:http:0:url=http://127.0.0.1:8081
@@ -47,7 +47,7 @@ The command prints the resolved service name, dispatcher status, procedure count
 ### Inspect a running dispatcher
 
 ```bash
-yarpcore introspect --url http://localhost:8080/polymer/introspect --format text
+omnirelay introspect --url http://localhost:8080/polymer/introspect --format text
 ```
 
 Switch `--format json` to emit the raw JSON payload for scripting or piping into `jq`.
@@ -57,16 +57,16 @@ Switch `--format json` to emit the raw JSON payload for scripting or piping into
 HTTP example:
 
 ```bash
-yarpcore request \
+omnirelay request \
   --transport http \
   --url http://localhost:8080/yarpc/v1 \
   --service echo \
   --procedure echo::ping \
   --caller cli-demo \
   --encoding application/json \
-  --body '{"message":"hello from yarpcore"}'
+  --body '{"message":"hello from omnirelay"}'
 
-yarpcore request \
+omnirelay request \
   --url http://localhost:8080/yarpc/v1 \
   --service echo \
   --procedure echo::ping \
@@ -79,7 +79,7 @@ The second variant applies the `json:pretty` profile, which auto-populates `Cont
 Binary gRPC example (payload encoded as base64):
 
 ```bash
-yarpcore request \
+omnirelay request \
   --transport grpc \
   --address http://localhost:9090 \
   --service echo \
@@ -100,9 +100,9 @@ Profiles shortcut common encoding concerns:
 Example end-to-end flow using the bundled echo descriptor:
 
 ```bash
-dotnet run --project tests/Polymer.YabInterop/Polymer.YabInterop.csproj -- --dump-descriptor docs/reference/cli-scripts/echo.protoset
+dotnet run --project tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj -- --dump-descriptor docs/reference/cli-scripts/echo.protoset
 
-yarpcore request \
+omnirelay request \
   --transport grpc \
   --address http://127.0.0.1:9090 \
   --service echo \
@@ -122,10 +122,10 @@ Example script: `docs/reference/cli-scripts/echo-harness.json`
 
 ```bash
 # Start the sample echo harness (separate terminal)
-bash tests/Polymer.YabInterop/run-yab.sh
+bash tests/OmniRelay.YabInterop/run-yab.sh
 
 # In another terminal, replay the scripted scenario
-yarpcore script run --file docs/reference/cli-scripts/echo-harness.json
+omnirelay script run --file docs/reference/cli-scripts/echo-harness.json
 ```
 
 Each step is typed (`request`, `introspect`, or `delay`) and matches the options exposed by the interactive commands:
@@ -161,10 +161,10 @@ Each step is typed (`request`, `introspect`, or `delay`) and matches the options
 
 This mirrors common `yab` automation flows, while keeping the payload format aligned with Polymer's transport metadata. Mix HTTP and gRPC requests in one file, adjust headers per call, and share the scripts with CI for reproducible diagnostics.
 
-The companion script `docs/reference/cli-scripts/grpc-protobuf.json` exercises the protobuf profile against the gRPC listener. Generate the descriptor once (see above), start the harness in dual mode (`MODE=both bash tests/Polymer.YabInterop/run-yab.sh`), and replay the script:
+The companion script `docs/reference/cli-scripts/grpc-protobuf.json` exercises the protobuf profile against the gRPC listener. Generate the descriptor once (see above), start the harness in dual mode (`MODE=both bash tests/OmniRelay.YabInterop/run-yab.sh`), and replay the script:
 
 ```bash
-yarpcore script run --file docs/reference/cli-scripts/grpc-protobuf.json
+omnirelay script run --file docs/reference/cli-scripts/grpc-protobuf.json
 ```
 
 Stop the harness when you are done (`Ctrl+C`).
@@ -183,16 +183,16 @@ SERVICE=${3:-echo}
 PROCEDURE=${4:-echo::ping}
 BODY=${5:-'{"message":"smoke"}'}
 
-until yarpcore introspect --url "${ENDPOINT%/yarpc/v1}/polymer/introspect" --timeout 2s >/dev/null 2>&1; do
+until omnirelay introspect --url "${ENDPOINT%/yarpc/v1}/polymer/introspect" --timeout 2s >/dev/null 2>&1; do
   echo "Waiting for dispatcher ..."
   sleep 1
 done
 
 echo "Validating configuration ..."
-yarpcore config validate --config "$CONFIG"
+omnirelay config validate --config "$CONFIG"
 
 echo "Issuing smoke test ..."
-yarpcore request \
+omnirelay request \
   --transport http \
   --url "$ENDPOINT" \
   --service "$SERVICE" \
@@ -201,24 +201,24 @@ yarpcore request \
   --body "$BODY"
 ```
 
-Drop this script into `scripts/yarpcore-smoke.sh`, mark it executable, and point CI to it after publishing a build. Non-zero exits indicate the dispatcher failed validation or the smoke test RPC.
+Drop this script into `scripts/omnirelay-smoke.sh`, mark it executable, and point CI to it after publishing a build. Non-zero exits indicate the dispatcher failed validation or the smoke test RPC.
 
 ## Install as a .NET tool
 
 `OmniRelay.Cli` packs as a .NET global tool. Publish a local package and install it from the generated feed:
 
 ```bash
-dotnet pack src/Polymer.Cli/Polymer.Cli.csproj -c Release -o artifacts/cli
+dotnet pack src/OmniRelay.Cli/OmniRelay.Cli.csproj -c Release -o artifacts/cli
 dotnet tool install --global OmniRelay.Cli --add-source artifacts/cli
 
-# Available everywhere as `yarpcore`
-yarpcore --help
+# Available everywhere as `omnirelay`
+omnirelay --help
 ```
 
 Push the resulting `.nupkg` to your package registry of choice once the version is finalised and trim the `--add-source` flag.
 
 ## Next steps
 
-- Surface profile discovery (`yarpcore request --profile list`) and user-defined profile files.
+- Surface profile discovery (`omnirelay request --profile list`) and user-defined profile files.
 - Add protobuf descriptor caching to avoid rebuilding sets on every invocation.
 - Publish pre-built descriptor packs for popular demos to simplify quickstarts.

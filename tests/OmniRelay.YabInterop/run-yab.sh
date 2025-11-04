@@ -38,7 +38,7 @@ case "$MODE" in
     ;;
 esac
 
-dotnet run --project tests/Polymer.YabInterop/Polymer.YabInterop.csproj -- "${DOTNET_ARGS[@]}" &
+dotnet run --project tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj -- "${DOTNET_ARGS[@]}" &
 SERVER_PID=$!
 trap 'kill $SERVER_PID >/dev/null 2>&1 || true' EXIT
 

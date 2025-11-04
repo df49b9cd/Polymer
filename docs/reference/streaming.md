@@ -175,6 +175,6 @@ await foreach (var evt in chat.ReadResponsesAsync(ct))
 
 ## Related Reading
 
-- `tests/Polymer.Tests/Transport/GrpcTransportTests.cs` includes end-to-end fixtures for every streaming shape.
+- `tests/OmniRelay.Tests/Transport/GrpcTransportTests.cs` includes end-to-end fixtures for every streaming shape.
 - `docs/todo.md` tracks remaining parity items such as compression negotiation for gRPC streams.
 - `docs/reference/diagnostics.md` documents the metrics emitted by streaming pipelines (message counters, durations, failure reasons).

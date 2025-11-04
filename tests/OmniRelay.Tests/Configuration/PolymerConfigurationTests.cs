@@ -34,7 +34,7 @@ public class PolymerConfigurationTests
                 ["polymer:outbounds:keyvalue:oneway:http:0:key"] = "primary",
                 ["polymer:outbounds:keyvalue:oneway:http:0:url"] = "http://127.0.0.1:8081",
                 ["polymer:logging:level"] = "Warning",
-                ["polymer:logging:overrides:Polymer.Transport.Http"] = "Trace"
+                ["polymer:logging:overrides:OmniRelay.Transport.Http"] = "Trace"
             }!)
             .Build();
 
@@ -57,7 +57,7 @@ public class PolymerConfigurationTests
         Assert.Equal(LogLevel.Warning, loggerOptions.MinLevel);
         Assert.Contains(
             loggerOptions.Rules,
-            rule => string.Equals(rule.CategoryName, "Polymer.Transport.Http", StringComparison.Ordinal) &&
+            rule => string.Equals(rule.CategoryName, "OmniRelay.Transport.Http", StringComparison.Ordinal) &&
                     rule.LogLevel == LogLevel.Trace);
 
         var hostedServices = provider.GetServices<IHostedService>().ToList();

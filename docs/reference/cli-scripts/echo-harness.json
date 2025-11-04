@@ -2,13 +2,13 @@
   "steps": [
     {
       "type": "request",
-      "description": "HTTP echo call via local Polymer.YabInterop harness",
+      "description": "HTTP echo call via local OmniRelay.YabInterop harness",
       "transport": "http",
       "service": "echo",
       "procedure": "echo::ping",
       "url": "http://127.0.0.1:8080/yarpc/v1",
       "encoding": "application/json",
-      "body": "{\"message\":\"hello from yarpcore script\"}",
+      "body": "{\"message\":\"hello from omnirelay script\"}",
       "headers": {
         "x-run-id": "cli-script"
       }

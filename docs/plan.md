@@ -125,7 +125,7 @@ C# Port: Scope & Milestones
 
 | Phase | Focus | Key Deliverables | Acceptance Criteria | Notes |
 | --- | --- | --- | --- | --- |
-| 0. Foundation | Shared primitives | `Polymer.Core` abstractions layered on Hugo `Result`, `Error`, and middleware contracts | Unit tests cover request/response envelopes, adapter helpers, codec interface | Confirms Hugo primitives satisfy YARPC semantics without duplication |
+| 0. Foundation | Shared primitives | `OmniRelay.Core` abstractions layered on Hugo `Result`, `Error`, and middleware contracts | Unit tests cover request/response envelopes, adapter helpers, codec interface | Confirms Hugo primitives satisfy YARPC semantics without duplication |
 | 1. MVP Transports | HTTP & gRPC pipelines | Dispatcher hosted on Generic Host, HTTP unary/oneway, gRPC unary/streaming, JSON & Protobuf codecs | Sample echo + key-value services run locally over both transports | Grpc.Net.Client requires .NET 6+; reuse HttpClientFactory; surface responses as Hugo `Result<T>` |
 | 2. Platform Features | Operational parity | Peer chooser library using Hugo channels/task queues, declarative configuration builder, OpenTelemetry middleware via `GoDiagnostics`, error mapping, introspection endpoints | Config-driven app spins up with round-robin peers; telemetry captured in OTLP exporter | Align metrics/events with Uber conventions while reusing Hugo instrumentation |
 | 3. Tooling & Interop | Developer productivity | `protoc-gen-yarpc-csharp`, integration tests vs `yarpc-go`, `yab` scenarios, benchmarking harness | Generated code passes interop suite; latency regression baseline documented | Extend to Thrift once Protobuf path is stable; validate Hugo adapters against Go parity |
@@ -144,18 +144,18 @@ Project Layout (Namespaces & Packages)
 
 | Directory | Assembly / Namespace | Purpose |
 | --- | --- | --- |
-| `src/Polymer/Core` | `Polymer.Core` (namespace) | Core abstractions within the consolidated `Polymer` project: dispatcher, metadata envelopes, codecs, middleware contracts, transport contracts. |
-| `src/Polymer/Transport/Http` | `Polymer.Transport.Http` | ASP.NET Core inbound adapter, HttpClient-based outbound, oneway helpers, HTTP-specific middleware defaults. |
-| `src/Polymer/Transport/Grpc` | `Polymer.Transport.Grpc` | gRPC inbound/outbound, metadata translators, streaming utilities, logging/metrics interceptors. |
-| `src/Polymer/Configuration` | `Polymer.Configuration` | (Planned) Declarative config loader, DI extensions, transport/peer registries, validation logic. |
-| `src/Polymer/Codegen/Protobuf` | `protoc-gen-polymer-csharp` | Protobuf CLI plug-in emitting dispatcher registration helpers, typed clients, and codec wiring. |
-| `src/Polymer.Codegen.Protobuf.Core` | `Polymer.Codegen.Protobuf.Core` | Shared code generation library used by the `protoc` plug-in and incremental generator. |
-| `src/Polymer.Codegen.Protobuf.Generator` | `Polymer.Codegen.Protobuf.Generator` | Roslyn incremental generator that consumes descriptor sets from MSBuild `AdditionalFiles`. |
+| `src/OmniRelay/Core` | `OmniRelay.Core` (namespace) | Core abstractions within the consolidated `OmniRelay` project: dispatcher, metadata envelopes, codecs, middleware contracts, transport contracts. |
+| `src/OmniRelay/Transport/Http` | `OmniRelay.Transport.Http` | ASP.NET Core inbound adapter, HttpClient-based outbound, oneway helpers, HTTP-specific middleware defaults. |
+| `src/OmniRelay/Transport/Grpc` | `OmniRelay.Transport.Grpc` | gRPC inbound/outbound, metadata translators, streaming utilities, logging/metrics interceptors. |
+| `src/OmniRelay/Configuration` | `OmniRelay.Configuration` | (Planned) Declarative config loader, DI extensions, transport/peer registries, validation logic. |
+| `src/OmniRelay/Codegen/Protobuf` | `protoc-gen-omnirelay-csharp` | Protobuf CLI plug-in emitting dispatcher registration helpers, typed clients, and codec wiring. |
+| `src/OmniRelay.Codegen.Protobuf.Core` | `OmniRelay.Codegen.Protobuf.Core` | Shared code generation library used by the `protoc` plug-in and incremental generator. |
+| `src/OmniRelay.Codegen.Protobuf.Generator` | `OmniRelay.Codegen.Protobuf.Generator` | Roslyn incremental generator that consumes descriptor sets from MSBuild `AdditionalFiles`. |
 | `samples/KeyValueService` | `KeyValueService` | Demonstrates multi-transport dispatcher, config-driven wiring, OpenTelemetry integration. |
 | `samples/PingClient` | `PingClient` | Console client exercising unary, oneway, and streaming calls for manual verification. |
 | `tests/<ProjectName>.Tests` | Mirrors each library | xUnit-based unit tests, transport/interop harnesses, property tests for peer choosers. |
 
-**Solution structure:** `Polymer.sln` at repo root; use `Directory.Build.props`/`Directory.Build.targets` to centralize analyzers, nullable context, and packaging metadata. Favor `InternalsVisibleTo` only for associated test assemblies.
+**Solution structure:** `OmniRelay.slnx` at repo root; use `Directory.Build.props`/`Directory.Build.targets` to centralize analyzers, nullable context, and packaging metadata. Favor `InternalsVisibleTo` only for associated test assemblies.
 
 **Dependencies:** treat Hugo packages (`Hugo`, `Hugo.Diagnostics.OpenTelemetry`, `Hugo.Go`) as external NuGet dependencies the core project references for result pipelines, diagnostics, and concurrency primitives.
 
@@ -245,7 +245,7 @@ Encodings (JSON, Protobuf, Thrift)
 
 * **JSON:**`ICodec<TReq,TRes>` using `System.Text.Json`; now configurable via `encodings:json` profiles that shape `JsonSerializerOptions`, opt into source-generated `JsonSerializerContext` metadata, and (optionally) attach request/response schemas enforced by `JsonSchema.Net` during encode/decode.
 
-* **Raw:** byte array passthrough codec enforcing metadata consistency. Implemented via `src/Polymer/Core/RawCodec.cs` with unit coverage in `tests/Polymer.Tests/Core/RawCodecTests.cs`. HTTP transport now maps the `raw` encoding to `application/octet-stream` on both outbound requests and inbound acknowledgements, with coverage in `tests/Polymer.Tests/Transport/HttpDuplexTransportTests.cs`.
+* **Raw:** byte array passthrough codec enforcing metadata consistency. Implemented via `src/OmniRelay/Core/RawCodec.cs` with unit coverage in `tests/OmniRelay.Tests/Core/RawCodecTests.cs`. HTTP transport now maps the `raw` encoding to `application/octet-stream` on both outbound requests and inbound acknowledgements, with coverage in `tests/OmniRelay.Tests/Transport/HttpDuplexTransportTests.cs`.
 
 * **Protobuf:** Thin adapters with `Google.Protobuf`; provide `protoc-gen-yarpc-csharp` to generate typed clients/servers over YARPC Core.
 
@@ -266,7 +266,7 @@ Peer & Load‑Balancing
 
 * **Choosers:**
 
-  * `RoundRobinPeerList` (cycle over healthy peers). *(Implemented via `Polymer.Core.Peers.RoundRobinPeerChooser`; gRPC outbound now leases peers with inflight accounting.)*
+  * `RoundRobinPeerList` (cycle over healthy peers). *(Implemented via `OmniRelay.Core.Peers.RoundRobinPeerChooser`; gRPC outbound now leases peers with inflight accounting.)*
 
   * `PendingHeapPeerList` (fewest in-flight; tie-break RR/random). *(Covered by `FewestPendingPeerChooser`; extend to heap-based implementation for large peer sets.)*
 
@@ -383,7 +383,7 @@ Step‑by‑Step Codex Prompts
 
 Each step includes _Done when…_ acceptance criteria.
 
-> **Status:** Steps 1‑3 are implemented in the consolidated `Polymer` project; the prompts remain for historical traceability and future enhancements.
+> **Status:** Steps 1‑3 are implemented in the consolidated `OmniRelay` project; the prompts remain for historical traceability and future enhancements.
 
 **Workflow guidance:**
 
@@ -393,7 +393,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 1) Core Primitives
 
-**Prompt:** Create `Polymer.Core` (wrapping Hugo building blocks) with:
+**Prompt:** Create `OmniRelay.Core` (wrapping Hugo building blocks) with:
 
 * `RequestMeta`, `ResponseMeta`, `IRequest<T>`, `IResponse<T>`.
 
@@ -429,7 +429,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 3) HTTP Transport (Unary + Oneway)
 
-**Prompt:** Build `Polymer.Transport.Http`:
+**Prompt:** Build `OmniRelay.Transport.Http`:
 
 * **Inbound:** ASP.NET Core middleware → `IRequest<byte[]>` → handler; 200 for unary, **202** for oneway.
 
@@ -445,7 +445,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 4) gRPC Transport (Unary + Streaming)
 
-**Prompt:** Build `Polymer.Transport.Grpc`:
+**Prompt:** Build `OmniRelay.Transport.Grpc`:
 
 * **Inbound:** generic gRPC service delegating to YARPC handlers; header/trailer normalization.
 
@@ -475,7 +475,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 6) Peer Chooser & Load Balancing
 
-**Prompt:** Add `Polymer.Core.Peer`:
+**Prompt:** Add `OmniRelay.Core.Peer`:
 
 * `IPeer`, `IPeerChooser`, `PeerStatus`, inflight accounting.
 
@@ -493,7 +493,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 ### 7) Configuration System
 
-**Prompt:** Create `Polymer.Configuration`:
+**Prompt:** Create `OmniRelay.Configuration`:
 
 * Models for `Inbounds`, `Outbounds`, `Transports`, `Logging`, `Peers`.
 
@@ -503,7 +503,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 **Done when:** YAML can spin up HTTP inbound on `:8080`, HTTP unary+oneway outbound to service `keyvalue` with RR peers, and logging levels.
 
-**Status:** `Polymer.Configuration` binds dispatcher settings from `IConfiguration`, exposes `AddPolymerDispatcher` for DI wiring, and includes tests (see `PolymerConfigurationTests`) covering HTTP/gRPC bootstrap, logging overrides, and custom transport/peer specs (`ICustomInboundSpec`, `ICustomOutboundSpec`, `ICustomPeerChooserSpec`). Layered samples live under `docs/reference/configuration` to illustrate multi-environment `appsettings*.json` usage. Next steps: optional hot-reload support.
+**Status:** `OmniRelay.Configuration` binds dispatcher settings from `IConfiguration`, exposes `AddPolymerDispatcher` for DI wiring, and includes tests (see `PolymerConfigurationTests`) covering HTTP/gRPC bootstrap, logging overrides, and custom transport/peer specs (`ICustomInboundSpec`, `ICustomOutboundSpec`, `ICustomPeerChooserSpec`). Layered samples live under `docs/reference/configuration` to illustrate multi-environment `appsettings*.json` usage. Next steps: optional hot-reload support.
 
 * * *
 
@@ -517,7 +517,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 **Done when:** Generated code round‑trips over gRPC; optional Protobuf‑over‑HTTP via codec.
 
-**Status:** `protoc-gen-polymer-csharp` now lives under `src/Polymer.Codegen.Protobuf/`. The generator emits dispatcher registration helpers and lazy clients that wrap `ProtobufCodec`. Runtime changes extend media-type negotiation so HTTP outbounds understand `application/x-protobuf`. Golden tests (`ProtobufCodeGeneratorTests`) and integration tests (`GeneratedServiceIntegrationTests`) cover unary HTTP and gRPC flows. Documentation for tooling resides in `docs/reference/codegen/protobuf.md`. Future work: extend generator for streaming convenience helpers and Thrift parity.
+**Status:** `protoc-gen-omnirelay-csharp` now lives under `src/OmniRelay.Codegen.Protobuf/`. The generator emits dispatcher registration helpers and lazy clients that wrap `ProtobufCodec`. Runtime changes extend media-type negotiation so HTTP outbounds understand `application/x-protobuf`. Golden tests (`ProtobufCodeGeneratorTests`) and integration tests (`GeneratedServiceIntegrationTests`) cover unary HTTP and gRPC flows. Documentation for tooling resides in `docs/reference/codegen/protobuf.md`. Future work: extend generator for streaming convenience helpers and Thrift parity.
 
 * * *
 
@@ -549,7 +549,7 @@ Each step includes _Done when…_ acceptance criteria.
 
 **Prompt:** Interop tests against a `yarpc-go` sample (HTTP/gRPC; unary/stream). Provide `yab` commands for benchmarks.
 
-**Status:** Initial `yab` harness and helper script live under `tests/Polymer.YabInterop`; extend to full yarpc-go interop matrix and benchmarking tooling.
+**Status:** Initial `yab` harness and helper script live under `tests/OmniRelay.YabInterop`; extend to full yarpc-go interop matrix and benchmarking tooling.
 
 **Done when:** Tests pass; `yab` successfully exercises the C# server.
 
@@ -584,8 +584,9 @@ Lightweight Usage Sketch (C#)
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Polymer.Core;
-using Polymer.Transport.Http;
+using OmniRelay.Core;
+using OmniRelay.Transport.Http;
+using OmniRelay.Dispatcher;
 
 var builder = Host.CreateApplicationBuilder(args);
 

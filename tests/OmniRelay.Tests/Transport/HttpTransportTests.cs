@@ -16,7 +16,7 @@ namespace OmniRelay.Tests.Transport;
 //         var httpOutbound = new HttpOutbound(httpClient, baseAddress, disposeClient: true);
 //         options.AddUnaryOutbound("echo", null, httpOutbound);
 
-//         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+//         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 
 //         var codec = new JsonCodec<EchoRequest, EchoResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
@@ -86,7 +86,7 @@ namespace OmniRelay.Tests.Transport;
 //         var httpOutbound = new HttpOutbound(httpClient, baseAddress, disposeClient: true);
 //         options.AddOnewayOutbound("echo", null, httpOutbound);
 
-//         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+//         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 //         var received = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 //         var codec = new JsonCodec<EchoRequest, object>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
@@ -134,7 +134,7 @@ namespace OmniRelay.Tests.Transport;
 //         var httpInbound = new HttpInbound([baseAddress.ToString()]);
 //         options.AddLifecycle("http-inbound", httpInbound);
 
-//         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+//         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 
 //         dispatcher.Register(new StreamProcedureSpec(
 //             "stream",
@@ -213,7 +213,7 @@ namespace OmniRelay.Tests.Transport;
 //         var httpDuplexOutbound = new HttpDuplexOutbound(baseAddress);
 //         options.AddDuplexOutbound("chat", null, httpDuplexOutbound);
 
-//         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+//         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 //         var codec = new JsonCodec<ChatMessage, ChatMessage>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, encoding: "application/json");
 
 //         dispatcher.Register(new DuplexProcedureSpec(
@@ -302,7 +302,7 @@ namespace OmniRelay.Tests.Transport;
 //         var httpDuplexOutbound = new HttpDuplexOutbound(baseAddress);
 //         options.AddDuplexOutbound("chat", null, httpDuplexOutbound);
 
-//         var dispatcher = new Polymer.Dispatcher.Dispatcher(options);
+//         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 //         var codec = new JsonCodec<ChatMessage, ChatMessage>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, encoding: "application/json");
 
 //         dispatcher.Register(new DuplexProcedureSpec(

@@ -4,7 +4,7 @@
     <AssemblyName>OmniRelay.Cli</AssemblyName>
     <RootNamespace>OmniRelay.Cli</RootNamespace>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>yarpcore</ToolCommandName>
+    <ToolCommandName>omnirelay</ToolCommandName>
     <PackageId>OmniRelay.Cli</PackageId>
     <Description>OmniRelay operator CLI for validations, introspection, smoke tests, and benchmarking.</Description>
     <PackageTags>omnirelay;yarpc;cli;grpc;http</PackageTags>

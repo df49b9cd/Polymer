@@ -1,15 +1,15 @@
 # Protobuf Code Generation
 
-OmniRelay ships a protoc plug-in, `protoc-gen-yarpcore-csharp`, that generates dispatcher registration helpers and typed clients on top of the runtime `ProtobufCodec`. Namespaces remain under `Polymer.*` until the API surface fully migrates, but the published packages/assemblies carry the `OmniRelay.*` prefix. This document outlines how to run the generator and how to consume the emitted code.
+OmniRelay ships a protoc plug-in, `protoc-gen-omnirelay-csharp`, that generates dispatcher registration helpers and typed clients on top of the runtime `ProtobufCodec`. This document outlines how to run the generator and how to consume the emitted code.
 
 ## Building the plug-in
 
-The plug-in lives at `src/Polymer.Codegen.Protobuf/`. It is built automatically when you run `dotnet build` for the repository. The compiled assembly can be found under `src/Polymer.Codegen.Protobuf/bin/<Configuration>/net10.0/OmniRelay.Codegen.Protobuf.dll`.
+The plug-in lives at `src/OmniRelay.Codegen.Protobuf/`. It is built automatically when you run `dotnet build` for the repository. The compiled assembly can be found under `src/OmniRelay.Codegen.Protobuf/bin/<Configuration>/net10.0/OmniRelay.Codegen.Protobuf.dll`.
 
 If you need a self-contained binary, publish the project:
 
 ```bash
-cd src/Polymer.Codegen.Protobuf
+cd src/OmniRelay.Codegen.Protobuf
  dotnet publish -c Release
 ```
 
@@ -26,7 +26,7 @@ Because the repo already depends on `Grpc.Tools`, you can add the plug-in invoca
 </ItemGroup>
 
 <Target Name="OmniRelayCodegen" BeforeTargets="BeforeCompile">
-  <Exec Command="$(Protobuf_ProtocPath) --plugin=protoc-gen-OmniRelayCSharp=$(SolutionDir)src/Polymer.Codegen.Protobuf/bin/$(Configuration)/net10.0/OmniRelay.Codegen.Protobuf.dll --OmniRelayCSharp_out=$(ProjectDir)Generated $(ProtoRoot)Protos/test_service.proto" />
+  <Exec Command="$(Protobuf_ProtocPath) --plugin=protoc-gen-omnirelay-csharp=$(SolutionDir)src/OmniRelay.Codegen.Protobuf/bin/$(Configuration)/net10.0/OmniRelay.Codegen.Protobuf.dll --omnirelay-csharp_out=$(ProjectDir)Generated $(ProtoRoot)Protos/test_service.proto" />
 </Target>
 ```
 
@@ -34,23 +34,23 @@ Alternatively, call `protoc` directly:
 
 ```bash
 protoc \
-  --plugin=protoc-gen-yarpcore-csharp=src/Polymer.Codegen.Protobuf/bin/Debug/net10.0/OmniRelay.Codegen.Protobuf.dll \
-  --yarpcore-csharp_out=Generated \
+  --plugin=protoc-gen-omnirelay-csharp=src/OmniRelay.Codegen.Protobuf/bin/Debug/net10.0/OmniRelay.Codegen.Protobuf.dll \
+  --omnirelay-csharp_out=Generated \
   --proto_path=Protos \
   Protos/test_service.proto
 ```
 
-The generated C# file mirrors the proto namespace. See `tests/Polymer.Tests/Generated/TestService.Polymer.g.cs` for a complete example.
+The generated C# file mirrors the proto namespace. See `tests/OmniRelay.Tests/Generated/TestService.OmniRelay.g.cs` for a complete example.
 
 ## Roslyn incremental generator (MSBuild integration)
 
-For projects that already produce [descriptor sets](https://github.com/dotnet/roslyn/blob/main/docs/features/incremental-generators.md) you can skip the `protoc` plug-in entirely and let MSBuild feed Polymer’s incremental generator. The generator ships from `src/Polymer.Codegen.Protobuf.Generator/` and can be consumed as a project reference or packaged analyzer.
+For projects that already produce [descriptor sets](https://github.com/dotnet/roslyn/blob/main/docs/features/incremental-generators.md) you can skip the `protoc` plug-in entirely and let MSBuild feed OmniRelay’s incremental generator. The generator ships from `src/OmniRelay.Codegen.Protobuf.Generator/` and can be consumed as a project reference or packaged analyzer.
 
 1. Reference the generator as an analyzer:
 
    ```xml
    <ItemGroup>
-     <ProjectReference Include="..\..\src\Polymer.Codegen.Protobuf.Generator\Polymer.Codegen.Protobuf.Generator.csproj"
+     <ProjectReference Include="..\..\src\OmniRelay.Codegen.Protobuf.Generator\OmniRelay.Codegen.Protobuf.Generator.csproj"
                        OutputItemType="Analyzer"
                        ReferenceOutputAssembly="true" />
    </ItemGroup>
@@ -76,11 +76,11 @@ For projects that already produce [descriptor sets](https://github.com/dotnet/ro
 
 3. Build the project. MSBuild writes the generated files under `obj/<tfm>/generated/OmniRelay.Codegen.Generator/...` and the types become available to your project just like the protoc plug-in output.
 
-The repository contains a working sample wired this way: `tests/Polymer.Tests/Projects/ProtobufIncrementalSample/`. It uses the `GenerateDescriptorSet` flow above and builds successfully with `dotnet build`.
+The repository contains a working sample wired this way: `tests/OmniRelay.Tests/Projects/ProtobufIncrementalSample/`. It uses the `GenerateDescriptorSet` flow above and builds successfully with `dotnet build`.
 
 ## Packaging the incremental generator
 
-`src/Polymer.Codegen.Protobuf.Generator` is configured as an analyzer package. Running `dotnet pack` (or any build because `GeneratePackageOnBuild` is enabled) produces `OmniRelay.Codegen.Generator.<version>.nupkg` under `bin/<Configuration>/`. The package includes the generator plus its runtime dependencies under `analyzers/dotnet/cs`, so consuming projects only need a single `PackageReference` instead of manual analyzer wiring:
+`src/OmniRelay.Codegen.Protobuf.Generator` is configured as an analyzer package. Running `dotnet pack` (or any build because `GeneratePackageOnBuild` is enabled) produces `OmniRelay.Codegen.Generator.<version>.nupkg` under `bin/<Configuration>/`. The package includes the generator plus its runtime dependencies under `analyzers/dotnet/cs`, so consuming projects only need a single `PackageReference` instead of manual analyzer wiring:
 
 ```xml
 <ItemGroup>
@@ -106,14 +106,14 @@ The job restores dependencies, runs the full test suite, packs the analyzer with
 
 Generated code exposes two entry points:
 
-- `TestServicePolymer.RegisterTestService(dispatcher, implementation)` wires the dispatcher to a service implementation that uses strongly-typed requests/responses.
-- `TestServicePolymer.CreateTestServiceClient(dispatcher, serviceName, outboundKey)` returns a lazy client that creates `UnaryClient`/`StreamClient`/etc only when the corresponding RPC is invoked.
+- `TestServiceOmniRelay.RegisterTestService(dispatcher, implementation)` wires the dispatcher to a service implementation that uses strongly-typed requests/responses.
+- `TestServiceOmniRelay.CreateTestServiceClient(dispatcher, serviceName, outboundKey)` returns a lazy client that creates `UnaryClient`/`StreamClient`/etc only when the corresponding RPC is invoked.
 
 All generated clients use `ProtobufCodec`, so as long as transports supply a Protobuf outbound the calls will negotiate the correct media type (see `ProtobufCodec` + HTTP metadata handlers).
 
 ## Tests
 
-- Golden coverage: `tests/Polymer.Tests/Codegen/ProtobufCodeGeneratorTests.cs`
-- Integration coverage: `tests/Polymer.Tests/Codegen/GeneratedServiceIntegrationTests.cs`
+- Golden coverage: `tests/OmniRelay.Tests/Codegen/ProtobufCodeGeneratorTests.cs`
+- Integration coverage: `tests/OmniRelay.Tests/Codegen/GeneratedServiceIntegrationTests.cs`
 
 These tests regenerate the code for `Protos/test_service.proto`, ensure it matches the checked-in baseline, and exercise unary calls over both HTTP and gRPC.

@@ -10,14 +10,14 @@ The NuGet package ships the generator plus its runtime dependencies (`OmniRelay.
 
 ## Using The protoc Plugin
 
-The console project in `src/OmniRelay.Codegen.Protobuf` builds `protoc-gen-yarpcore-csharp`. Point `protoc` (or `Grpc.Tools`) at the published binary to generate C# during your build:
+The console project in `src/OmniRelay.Codegen.Protobuf` builds `protoc-gen-omnirelay-csharp`. Point `protoc` (or `Grpc.Tools`) at the published binary to generate C# during your build:
 
 ```bash
 dotnet publish src/OmniRelay.Codegen.Protobuf/OmniRelay.Codegen.Protobuf.csproj -c Release -o artifacts/codegen
 
 protoc \
-  --plugin=protoc-gen-yarpcore-csharp=artifacts/codegen/OmniRelay.Codegen.Protobuf \
-  --yarpcore-csharp_out=Generated \
+  --plugin=protoc-gen-omnirelay-csharp=artifacts/codegen/OmniRelay.Codegen.Protobuf \
+  --omnirelay-csharp_out=Generated \
   --proto_path=Protos \
   Protos/test_service.proto
 ```

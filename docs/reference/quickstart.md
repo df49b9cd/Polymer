@@ -1,4 +1,4 @@
-# Polymer Quickstart
+# OmniRelay Quickstart
 
 This quickstart walks through the `samples/Quickstart.Server` host, which demonstrates HTTP unary and oneway endpoints alongside gRPC unary and server-streaming calls. The sample also shows how to plug in middleware and configure a peer chooser for gRPC outbounds.
 

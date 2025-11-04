@@ -1,4 +1,4 @@
-# Polymer Parity TODO
+# OmniRelay Parity TODO
 
 Comprehensive backlog tracking the remaining work needed to reach feature parity with `yarpc-go`. Every item is broken into actionable sub-tasks so the team can triage and implement incrementally. When a task is marked *completed*, its subtasks are preserved for historical reference.
 
@@ -62,15 +62,15 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
       - ~~Add regression coverage once upstream enables forcing request/response compression so we can validate advertised `grpc-accept-encoding` behavior.~~ *(covered by `GrpcTransportTests.GrpcOutbound_CreateCallOptionsAddsAcceptEncoding` and `_PreservesExistingAcceptEncoding`, which assert negotiation headers and call option compression.)*
       - ~~Compression negotiation coverage: advertise supported compressors (`grpc-accept-encoding`) and verify request/response compression once upstream exposes the necessary hooks.~~ *(Outbound call options now populate `grpc-accept-encoding` metadata when `GrpcCompressionOptions.DefaultAlgorithm` is configured; inbound defaults validated via unit tests. Request compression will follow once the managed client exposes the required hook.)*
 
-    - ~~Peer management & load balancing: GrpcOutbound binds to a single _address and opens one GrpcChannel with no peer chooser, retention, or backoff logic (src/Polymer/Transport/Grpc/GrpcOutbound.cs (lines 17-45)). YARPC-Go’s gRPC transport fronts multiple peers with choosers, dial-time backoff, and per-peer lifecycle management, so we currently lack parity on resiliency and multi-host routing.~~ *(completed: `GrpcOutbound` now accepts multiple addresses, leases peers through configurable `IPeerChooser` implementations, and integrates `PeerCircuitBreaker` options; validated by `GrpcTransportTests.GrpcOutbound_RoundRobinPeers_RecordSuccessAcrossEndpoints` and circuit-breaker tests.)*
+    - ~~Peer management & load balancing: GrpcOutbound binds to a single _address and opens one GrpcChannel with no peer chooser, retention, or backoff logic (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 17-45)). YARPC-Go’s gRPC transport fronts multiple peers with choosers, dial-time backoff, and per-peer lifecycle management, so we currently lack parity on resiliency and multi-host routing.~~ *(completed: `GrpcOutbound` now accepts multiple addresses, leases peers through configurable `IPeerChooser` implementations, and integrates `PeerCircuitBreaker` options; validated by `GrpcTransportTests.GrpcOutbound_RoundRobinPeers_RecordSuccessAcrossEndpoints` and circuit-breaker tests.)*
 
     - ~~Observability & middleware: Added built-in logging/metrics interceptors (`GrpcClientLoggingInterceptor`, `GrpcServerLoggingInterceptor`), streaming message/duration metrics, and runtime hooks; still need integration with central telemetry config.~~ *(completed via `GrpcTelemetryOptions`, which wires client/server logging interceptors into `GrpcOutbound` and `GrpcInbound` by default; validated by `GrpcTransportTests.GrpcOutbound_TelemetryOptions_EnableClientLoggingInterceptor` and `.GrpcInbound_TelemetryOptions_RegistersServerLoggingInterceptor`.)*
 
-    - ~~Security & connection tuning: The inbound config only forces HTTP/2 listeners and never exposes TLS, keepalive, or max message size knobs (src/Polymer/Transport/Grpc/GrpcInbound.cs (lines 60-71)); the outbound constructor similarly only tweaks the HTTP handler (src/Polymer/Transport/Grpc/GrpcOutbound.cs (lines 27-39)). YARPC-Go ships options for server/client TLS credentials, keepalive params, compressors, and header size limits, so our transport is missing that flexibility.~~ *(completed via `GrpcServerTlsOptions`, `GrpcClientTlsOptions`, runtime keepalive/message-size options, and `GrpcCompressionOptions`; request/response compression pipeline remains to be validated.)*
+    - ~~Security & connection tuning: The inbound config only forces HTTP/2 listeners and never exposes TLS, keepalive, or max message size knobs (src/OmniRelay/Transport/Grpc/GrpcInbound.cs (lines 60-71)); the outbound constructor similarly only tweaks the HTTP handler (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 27-39)). YARPC-Go ships options for server/client TLS credentials, keepalive params, compressors, and header size limits, so our transport is missing that flexibility.~~ *(completed via `GrpcServerTlsOptions`, `GrpcClientTlsOptions`, runtime keepalive/message-size options, and `GrpcCompressionOptions`; request/response compression pipeline remains to be validated.)*
     
-    - ~~Operational introspection: Our gRPC types implement only the Polymer transport interfaces (src/Polymer/Transport/Grpc/GrpcOutbound.cs (lines 15-25); src/Polymer/Transport/Grpc/GrpcInbound.cs (lines 17-42)) and expose no running-state, peer list, or metrics surfaces. YARPC-Go’s inbound/outbound implement introspection APIs and structured logging, so we lack comparable admin visibility.~~ *(completed via `IOutboundDiagnostic` snapshots (`GrpcOutboundSnapshot`, `GrpcPeerSummary`) consumed by the dispatcher introspection endpoint; see `GrpcTransportTests` diagnostics assertions and `HttpIntrospectionTests.IntrospectionEndpoint_ReportsDispatcherState`.)*
+    - ~~Operational introspection: Our gRPC types implement only the Polymer transport interfaces (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 15-25); src/OmniRelay/Transport/Grpc/GrpcInbound.cs (lines 17-42)) and expose no running-state, peer list, or metrics surfaces. YARPC-Go’s inbound/outbound implement introspection APIs and structured logging, so we lack comparable admin visibility.~~ *(completed via `IOutboundDiagnostic` snapshots (`GrpcOutboundSnapshot`, `GrpcPeerSummary`) consumed by the dispatcher introspection endpoint; see `GrpcTransportTests` diagnostics assertions and `HttpIntrospectionTests.IntrospectionEndpoint_ReportsDispatcherState`.)*
     
-    - ~~Deadline/TTL enforcement & header hygiene: We serialize TTL/deadline information into metadata (src/Polymer/Transport/Grpc/GrpcMetadataAdapter.cs (lines 75-88)) but never convert it into gRPC deadlines in CallOptions, so the runtime won’t actually enforce them (src/Polymer/Transport/Grpc/GrpcOutbound.cs (lines 61-174)). YARPC-Go validates headers, propagates TTLs into contexts, and distinguishes application errors via metadata, which leaves us short on request semantics.~~ *(completed: `GrpcOutbound` maps TTL/deadline via `ResolveDeadline` when building `CallOptions`, and tests like `GrpcTransportTests.ClientStreaming_DeadlineExceededMapsStatus` verify deadline propagation and status mapping.)*
+    - ~~Deadline/TTL enforcement & header hygiene: We serialize TTL/deadline information into metadata (src/OmniRelay/Transport/Grpc/GrpcMetadataAdapter.cs (lines 75-88)) but never convert it into gRPC deadlines in CallOptions, so the runtime won’t actually enforce them (src/OmniRelay/Transport/Grpc/GrpcOutbound.cs (lines 61-174)). YARPC-Go validates headers, propagates TTLs into contexts, and distinguishes application errors via metadata, which leaves us short on request semantics.~~ *(completed: `GrpcOutbound` maps TTL/deadline via `ResolveDeadline` when building `CallOptions`, and tests like `GrpcTransportTests.ClientStreaming_DeadlineExceededMapsStatus` verify deadline propagation and status mapping.)*
 
 
 - ~~**Transport Middleware & Interceptors**~~ *(completed: HTTP outbound now composes transport-aware middleware via `HttpClientMiddlewareComposer` with logging sample (`HttpClientLoggingMiddleware`), gRPC client/server use composite interceptors with ordered registries, and regression coverage lives in `HttpOutboundMiddlewareTests` and `GrpcInterceptorPipelineTests`.)*
@@ -80,18 +80,18 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 ## 2. Encodings & Code Generation (Phase 8)
 
 - **Raw/Binary Encoding**
-  - ~~Create `RawCodec` (byte[] passthrough) with metadata enforcement.~~ *(implemented in `src/Polymer/Core/RawCodec.cs` with strict encoding checks and zero-copy reuse when possible.)*
+  - ~~Create `RawCodec` (byte[] passthrough) with metadata enforcement.~~ *(implemented in `src/OmniRelay/Core/RawCodec.cs` with strict encoding checks and zero-copy reuse when possible.)*
   - ~~Ensure HTTP/gRPC transports propagate binary content-type headers correctly.~~ *(HTTP outbound now maps `raw` encoding to `application/octet-stream` and inbound normalizes ack/response headers; covered by `HttpDuplexTransportTests`.)*
-  - ~~Add tests ensuring raw payloads bypass serialization.~~ *(covered by `tests/Polymer.Tests/Core/RawCodecTests.cs`, validating encode/decode pass-through and metadata enforcement.)*
+  - ~~Add tests ensuring raw payloads bypass serialization.~~ *(covered by `tests/OmniRelay.Tests/Core/RawCodecTests.cs`, validating encode/decode pass-through and metadata enforcement.)*
 
 - **Protobuf Support**
-  - ~~Author `protoc-gen-polymer-csharp` plugin:~~ *(implemented in `src/Polymer.Codegen.Protobuf`; generator emits dispatcher registration helpers plus lazy C# clients and `ProtobufCodec` wiring. Usage documented in `docs/reference/codegen/protobuf.md`.)*
-    - ~~Generate request/response DTOs, codecs, dispatcher registration stubs, client helpers.~~ *(Generated output lives under `tests/Polymer.Tests/Generated/TestService.Polymer.g.cs` with golden coverage.)*
+  - ~~Author `protoc-gen-polymer-csharp` plugin:~~ *(implemented in `src/OmniRelay.Codegen.Protobuf`; generator emits dispatcher registration helpers plus lazy C# clients and `ProtobufCodec` wiring. Usage documented in `docs/reference/codegen/protobuf.md`.)*
+    - ~~Generate request/response DTOs, codecs, dispatcher registration stubs, client helpers.~~ *(Generated output lives under `tests/OmniRelay.Tests/Generated/TestService.OmniRelay.g.cs` with golden coverage.)*
     - ~~Provide MSBuild integration / tooling instructions.~~ *(Documented in `docs/reference/codegen/protobuf.md`, including `Grpc.Tools` pairing and `protoc` invocation.)*
   - ~~Support Protobuf over gRPC (native) and optional HTTP Protobuf:~~ *(Runtime `ProtobufCodec` gained media-type negotiation; HTTP metadata normalization extended so JSON/Protobuf interop works across transports.)*
     - ~~Handle content negotiation & media types.~~ *(HTTP inbounds/outbounds now normalize `application/x-protobuf` ↔ `protobuf`.)*
   - ~~Write codegen tests (golden outputs) and integration tests round-tripping messages across transports.~~ *(See `ProtobufCodeGeneratorTests` for golden coverage and `GeneratedServiceIntegrationTests` for HTTP and gRPC round-trips.)*
-  - ~~Expose Roslyn incremental generator and MSBuild wiring sample.~~ *(Incremental generator lives in `src/Polymer.Codegen.Protobuf.Generator`; `tests/Polymer.Tests/Projects/ProtobufIncrementalSample` demonstrates referencing the analyzer with a descriptor set AdditionalFile.)*
+  - ~~Expose Roslyn incremental generator and MSBuild wiring sample.~~ *(Incremental generator lives in `src/OmniRelay.Codegen.Protobuf.Generator`; `tests/OmniRelay.Tests/Projects/ProtobufIncrementalSample` demonstrates referencing the analyzer with a descriptor set AdditionalFile.)*
 
 - **Thrift Encoding**
   - Investigate options: port ThriftRW vs using Apache Thrift.
@@ -151,11 +151,11 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 ## 5. Peer Management & Load Balancing (Phase 6)
 
 - **Peer Models**
-  - ~~Define `IPeer` with address, connection status, metrics.~~ *(completed via `Polymer.Core.Peers` primitives.)*
+  - ~~Define `IPeer` with address, connection status, metrics.~~ *(completed via `OmniRelay.Core.Peers` primitives.)*
   - ~~Track inflight requests, last success/failure times.~~ *(maintained by `GrpcPeer` status reporting.)*
 
 - **Peer Lists & Choosers**
-  - ~~Implement lists: single, round robin, fewest-pending, two-random choices.~~ *(Round robin, fewest-pending, and two-random choice choosers available via `Polymer.Core.Peers`.)*
+  - ~~Implement lists: single, round robin, fewest-pending, two-random choices.~~ *(Round robin, fewest-pending, and two-random choice choosers available via `OmniRelay.Core.Peers`.)*
   - ~~Integrate with dispatcher outbounds to acquire/release peers around each call.~~ *(gRPC outbound now acquires/leases `GrpcPeer` instances.)*
   - ~~Propagate peer state into metrics and retry logic.~~ *(completed via `PeerMetrics` instrumentation + updated `PeerLease`/choosers, and retry middleware emitting peer-aware counters.)*
 
@@ -181,7 +181,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 
 ## 7. Configuration System (Phase 7)
 
-- ~~**Declarative Bootstrap**~~ *(Delivered via the new `src/Polymer.Configuration` project. `PolymerConfigurationOptions` captures transports/peers/middleware, `AddPolymerDispatcher` wires everything into DI, and validation is covered by `PolymerConfigurationTests`.)*
+- ~~**Declarative Bootstrap**~~ *(Delivered via the new `src/OmniRelay.Configuration` project. `PolymerConfigurationOptions` captures transports/peers/middleware, `AddPolymerDispatcher` wires everything into DI, and validation is covered by `PolymerConfigurationTests`.)*
 
 - ~~**Transport/Peer Specs**~~ *(`ICustomInboundSpec`, `ICustomOutboundSpec`, and `ICustomPeerChooserSpec` let DI registered components materialize transports/peer choosers from configuration. Covered by `PolymerConfigurationTests.AddPolymerDispatcher_UsesCustomTransportSpecs` and `.UsesCustomPeerSpec`.)*
 
@@ -192,9 +192,9 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 ## 8. Tooling & Introspection
 
 - **CLI Support**
-  - ~~Develop `yarpcore` CLI (or adapt `yab`) for issuing test requests, inspecting dispatcher state, validating configuration. *(Initial `yab` harness available under `tests/Polymer.YabInterop`; expand to richer CLI and automation.)*~~ *(shipped via `src/Polymer.Cli` with docs/reference/cli.md)*
-  - ~~Add codec-aware presets (json/protobuf helpers) and package the CLI as a dotnet global tool once the surface area settles.~~ *(Profiles landed in `Program.cs`, protobuf descriptors supported via `--proto-file`, new automation in `docs/reference/cli-scripts`, and the project now packs as `OmniRelay.Cli`.)*
-  - ~~Include scripting/automation examples.~~ *(Documented in `docs/reference/cli.md` with `yarpcore-smoke.sh` helper.)*
+  - ~~Develop `omnirelay` CLI (or adapt `yab`) for issuing test requests, inspecting dispatcher state, validating configuration. *(Initial `yab` harness available under `tests/OmniRelay.YabInterop`; expand to richer CLI and automation.)*~~ *(shipped via `src/OmniRelay.Cli` with docs/reference/cli.md)*
+  - ~~Add codec-aware presets (json/protobuf helpers) and package the CLI as a dotnet global tool once the surface area settles.~~ *(Profiles landed in `src/OmniRelay.Cli/Program.cs`, protobuf descriptors supported via `--proto-file`, new automation in `docs/reference/cli-scripts`, and the project now packs as `OmniRelay.Cli`.)*
+  - ~~Include scripting/automation examples.~~ *(Documented in `docs/reference/cli.md` with `omnirelay-smoke.sh` helper.)*
 
 - **Diagnostics**
   - ~~Expose metrics via OpenTelemetry exporters (Prometheus OTLP).~~
@@ -213,7 +213,7 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
   - Mirror YARPC crossdock tests if feasible.
 
 - **Performance Benchmarks**
-  - ~~Provide scripts/infrastructure (e.g., `yab`, `wrk`, `ghz`) to measure throughput/latency.~~ *(Initial `yab` script + echo harness in `tests/Polymer.YabInterop`; extend with benchmarking tools.)*
+  - ~~Provide scripts/infrastructure (e.g., `yab`, `wrk`, `ghz`) to measure throughput/latency.~~ *(Initial `yab` script + echo harness in `tests/OmniRelay.YabInterop`; extend with benchmarking tools.)*
   - Capture baseline metrics for releases and regressions.
 
 - **CI Enhancements**

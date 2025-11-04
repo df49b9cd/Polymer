@@ -1,14 +1,14 @@
 # OmniRelay CLI Tool
 
-`yarpcore` is a .NET global tool that helps Polymer operators validate configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. It mirrors the ergonomics of `yab` while staying aligned with Polymer's transport metadata and codec stack.
+`omnirelay` is a .NET global tool that helps Polymer operators validate configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. It mirrors the ergonomics of `yab` while staying aligned with Polymer's transport metadata and codec stack.
 
 ## Features
 
-- `yarpcore config validate` — load layered `appsettings*.json` files and ensure the dispatcher can be constructed.
-- `yarpcore introspect` — fetch `/polymer/introspect` and print either a compact summary or the raw JSON snapshot.
-- `yarpcore request` — issue unary calls over HTTP or gRPC, with profiles for JSON and protobuf payloads.
-- `yarpcore benchmark` — drive concurrent HTTP or gRPC requests and report latency/throughput stats (YAB-style).
-- `yarpcore script run` — replay automation scripts (JSON) that combine requests, delays, and introspection probes.
+- `omnirelay config validate` — load layered `appsettings*.json` files and ensure the dispatcher can be constructed.
+- `omnirelay introspect` — fetch `/polymer/introspect` and print either a compact summary or the raw JSON snapshot.
+- `omnirelay request` — issue unary calls over HTTP or gRPC, with profiles for JSON and protobuf payloads.
+- `omnirelay benchmark` — drive concurrent HTTP or gRPC requests and report latency/throughput stats (YAB-style).
+- `omnirelay script run` — replay automation scripts (JSON) that combine requests, delays, and introspection probes.
 
 ## Quick start
 
@@ -18,8 +18,8 @@
 dotnet tool install --global OmniRelay.Cli --add-source artifacts/cli
 
 # Validate config and execute a smoke test call
-yarpcore config validate --config appsettings.json
-yarpcore request \
+omnirelay config validate --config appsettings.json
+omnirelay request \
   --transport http \
   --url http://127.0.0.1:8080/yarpc/v1 \
   --service echo \
@@ -31,7 +31,7 @@ yarpcore request \
 For protobuf services, supply a descriptor set and let the CLI translate JSON request bodies on the fly:
 
 ```bash
-yarpcore request \
+omnirelay request \
   --transport grpc \
   --address http://127.0.0.1:9090 \
   --service echo \
@@ -44,7 +44,7 @@ yarpcore request \
 Run a quick load test with the benchmark command:
 
 ```bash
-yarpcore benchmark \
+omnirelay benchmark \
   --transport http \
   --url http://127.0.0.1:8080/yarpc/v1 \
   --service echo \
