@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package yarpcore.tests.codegen;
+option csharp_namespace = "YARPCore.Tests.Protos";
+
+message UnaryRequest {
+  string message = 1;
+}
+
+message UnaryResponse {
+  string message = 1;
+}
+
+message StreamRequest {
+  string value = 1;
+}
+
+message StreamResponse {
+  string value = 1;
+}
+
+service TestService {
+  rpc UnaryCall(UnaryRequest) returns (UnaryResponse);
+  rpc ServerStream(StreamRequest) returns (stream StreamResponse);
+  rpc ClientStream(stream StreamRequest) returns (UnaryResponse);
+  rpc DuplexStream(stream StreamRequest) returns (stream StreamResponse);
+}

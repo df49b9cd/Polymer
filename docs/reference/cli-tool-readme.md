@@ -14,7 +14,7 @@
 
 ```bash
 # Install from a local package feed
-# (publish with `dotnet pack src/Polymer.Cli/Polymer.Cli.csproj -c Release -o artifacts/cli`)
+# (publish with `dotnet pack src/YARPCore.Cli/YARPCore.Cli.csproj -c Release -o artifacts/cli`)
 dotnet tool install --global YARPCore.Cli --add-source artifacts/cli
 
 # Validate config and execute a smoke test call

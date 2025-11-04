@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/YARPCore.Cli/YARPCore.Cli.csproj" />
+    <Project Path="src/YARPCore.Codegen.Protobuf.Core/YARPCore.Codegen.Protobuf.Core.csproj" />
+    <Project Path="src/YARPCore.Codegen.Protobuf.Generator/YARPCore.Codegen.Protobuf.Generator.csproj" />
+    <Project Path="src/YARPCore.Codegen.Protobuf/YARPCore.Codegen.Protobuf.csproj" />
+    <Project Path="src/YARPCore.Configuration/YARPCore.Configuration.csproj" />
+    <Project Path="src/YARPCore/YARPCore.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/YARPCore.Tests/YARPCore.Tests.csproj" />
+    <Project Path="tests/YARPCore.Tests/Projects/ProtobufIncrementalSample/ProtobufIncrementalSample.csproj" />
+    <Project Path="tests/YARPCore.YabInterop/YARPCore.YabInterop.csproj" />
+  </Folder>
+</Solution>

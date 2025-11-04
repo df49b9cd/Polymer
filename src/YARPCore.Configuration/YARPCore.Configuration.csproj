@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>YARPCore.Configuration</AssemblyName>
+    <RootNamespace>YARPCore.Configuration</RootNamespace>
+    <PackageId>YARPCore.Configuration</PackageId>
+    <Description>Configuration binder, hosting extensions, and dependency injection for YARPCore dispatchers.</Description>
+    <PackageTags>yarpc;configuration;hosting;dependency-injection</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\YARPCore\YARPCore.csproj" />
+  </ItemGroup>
+</Project>

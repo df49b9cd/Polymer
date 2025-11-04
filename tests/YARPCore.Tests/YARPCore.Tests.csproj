@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hugo" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/YARPCore.Codegen.Protobuf.Core/YARPCore.Codegen.Protobuf.Core.csproj" />
+    <ProjectReference Include="../../src/YARPCore.Codegen.Protobuf.Generator/YARPCore.Codegen.Protobuf.Generator.csproj" />
+    <ProjectReference Include="../../src/YARPCore.Configuration/YARPCore.Configuration.csproj" />
+    <ProjectReference Include="../../src/YARPCore/YARPCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos/test_service.proto" GrpcServices="None" GenerateDescriptorSet="true" DescriptorSetOutputPath="$(IntermediateOutputPath)protos/test_service.pb" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="$(IntermediateOutputPath)protos/test_service.pb" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Generated/TestService.actual.g.cs" />
+    <Compile Remove="Generated/TestService.incremental.g.cs" />
+    <Compile Remove="Projects/ProtobufIncrementalSample/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Generated\" />
+  </ItemGroup>
+
+  <Target Name="EnsureTestProtoDescriptorDirectory" BeforeTargets="ProtobufCompile">
+    <MakeDir Directories="$(IntermediateOutputPath)protos" />
+  </Target>
+</Project>

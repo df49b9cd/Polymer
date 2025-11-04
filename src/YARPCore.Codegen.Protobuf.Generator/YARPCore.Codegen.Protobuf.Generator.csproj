@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PrepareAnalyzerOutputs</TargetsForTfmSpecificBuildOutput>
+    <AssemblyName>YARPCore.Codegen.Generator</AssemblyName>
+    <PackageId>YARPCore.Codegen.Generator</PackageId>
+    <Description>Roslyn incremental generator that emits YARPCore dispatcher/client helpers from protobuf descriptor sets.</Description>
+    <PackageTags>yarpc;protobuf;codegen;roslyn;incremental</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageType>Analyzer</PackageType>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Telemetry-less analyzer packaging; bundles YARPCore runtime dependencies.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../YARPCore.Codegen.Protobuf.Core/YARPCore.Codegen.Protobuf.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="PrepareAnalyzerOutputs" AfterTargets="Build">
+    <PropertyGroup>
+      <AnalyzerOutputDirectory>$(TargetDir)analyzers/dotnet/cs</AnalyzerOutputDirectory>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_AnalyzerDependency Include="$(TargetPath)">
+        <TargetPath>analyzers/dotnet/cs/$(TargetFileName)</TargetPath>
+      </_AnalyzerDependency>
+      <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="%(ReferenceCopyLocalPaths.Extension) == '.dll' and (%(ReferenceCopyLocalPaths.FileName) == 'Google.Protobuf' or %(ReferenceCopyLocalPaths.FileName) == 'YARPCore.Codegen.Protobuf.Core' or %(ReferenceCopyLocalPaths.FileName) == 'YARPCore')">
+        <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
+      </_AnalyzerDependency>
+    </ItemGroup>
+
+    <MakeDir Directories="$(AnalyzerOutputDirectory)" />
+    <Copy SourceFiles="@(_AnalyzerDependency)" DestinationFiles="@(_AnalyzerDependency->'$(AnalyzerOutputDirectory)/%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Message Importance="High" Text="Analyzer dependency copied: %(_AnalyzerDependency.Identity) -&gt; $(AnalyzerOutputDirectory)/%(_AnalyzerDependency.Filename)%(_AnalyzerDependency.Extension)" />
+
+    <ItemGroup>
+      <TfmSpecificBuildOutput Include="@(_AnalyzerDependency)">
+        <TargetPath>%(_AnalyzerDependency.TargetPath)</TargetPath>
+      </TfmSpecificBuildOutput>
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>AnalyzerDependencyPath</_Parameter1>
+      <_Parameter2>$(MSBuildProjectDirectory)bin/$(Configuration)/$(TargetFramework)/analyzers/dotnet/cs</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

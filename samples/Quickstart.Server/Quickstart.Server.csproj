@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Polymer.Samples.Quickstart</RootNamespace>
+    <RootNamespace>YARPCore.Samples.Quickstart</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\YARPCore\YARPCore.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Hugo" />
+  </ItemGroup>
 </Project>
