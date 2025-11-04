@@ -64,12 +64,25 @@ jobs:
 
       - name: Pack artifacts
         run: |
+          set -euo pipefail
           mkdir -p artifacts/packages
-          dotnet pack YARPCore.slnx \
-            --configuration Release \
-            --output artifacts/packages \
-            /p:ContinuousIntegrationBuild=true \
-            /p:YARPCoreVersion=${{ steps.version.outputs.value }}
+
+          projects=(
+            "src/YARPCore/YARPCore.csproj"
+            "src/YARPCore.Configuration/YARPCore.Configuration.csproj"
+            "src/YARPCore.Codegen.Protobuf.Core/YARPCore.Codegen.Protobuf.Core.csproj"
+            "src/YARPCore.Codegen.Protobuf.Generator/YARPCore.Codegen.Protobuf.Generator.csproj"
+          )
+
+          for project in "${projects[@]}"; do
+            echo "Packing ${project}"
+            dotnet pack "${project}" \
+              --configuration Release \
+              --output artifacts/packages \
+              /p:ContinuousIntegrationBuild=true \
+              /p:YARPCoreVersion=${{ steps.version.outputs.value }} \
+              /p:PackageVersion=${{ steps.version.outputs.value }}
+          done
 
       - name: List packages
         run: ls -1 artifacts/packages
