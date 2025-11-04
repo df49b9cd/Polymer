@@ -5,9 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <PackageId>Polymer.Codegen.Protobuf</PackageId>
-    <Description>protoc plug-in for generating Polymer dispatcher and client bindings.</Description>
-    <PackageTags>polymer;protobuf;codegen;protoc</PackageTags>
+    <AssemblyName>YARPCore.Codegen.Protobuf</AssemblyName>
+    <PackageId>YARPCore.Codegen.Protobuf</PackageId>
+    <Description>protoc plug-in for generating YARPCore dispatcher and client bindings.</Description>
+    <PackageTags>yarpc;protobuf;codegen;protoc</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>

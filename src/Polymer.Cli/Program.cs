@@ -63,7 +63,7 @@ public static class Program
 
     private static RootCommand BuildRootCommand()
     {
-        var root = new RootCommand("Polymer CLI providing configuration validation, dispatcher introspection, and ad-hoc request tooling.")
+        var root = new RootCommand("YARPCore CLI providing configuration validation, dispatcher introspection, and ad-hoc request tooling.")
         {
             CreateConfigCommand(),
             CreateIntrospectCommand(),
@@ -85,7 +85,7 @@ public static class Program
 
     private static Command CreateScriptCommand()
     {
-        var command = new Command("script", "Run scripted Polymer CLI automation.");
+        var command = new Command("script", "Run scripted YARPCore CLI automation.");
 
         var runCommand = new Command("run", "Execute a sequence of actions described in a JSON script.");
 

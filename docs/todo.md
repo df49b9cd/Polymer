@@ -192,9 +192,9 @@ Comprehensive backlog tracking the remaining work needed to reach feature parity
 ## 8. Tooling & Introspection
 
 - **CLI Support**
-  - ~~Develop `polymer` CLI (or adapt `yab`) for issuing test requests, inspecting dispatcher state, validating configuration. *(Initial `yab` harness available under `tests/Polymer.YabInterop`; expand to richer CLI and automation.)*~~ *(shipped via `src/Polymer.Cli` with docs/reference/cli.md)*
-  - ~~Add codec-aware presets (json/protobuf helpers) and package the CLI as a dotnet global tool once the surface area settles.~~ *(Profiles landed in `Program.cs`, protobuf descriptors supported via `--proto-file`, new automation in `docs/reference/cli-scripts`, and the project now packs as `Polymer.Cli.Tool`.)*
-  - ~~Include scripting/automation examples.~~ *(Documented in `docs/reference/cli.md` with `polymer-smoke.sh` helper.)*
+  - ~~Develop `yarpcore` CLI (or adapt `yab`) for issuing test requests, inspecting dispatcher state, validating configuration. *(Initial `yab` harness available under `tests/Polymer.YabInterop`; expand to richer CLI and automation.)*~~ *(shipped via `src/Polymer.Cli` with docs/reference/cli.md)*
+  - ~~Add codec-aware presets (json/protobuf helpers) and package the CLI as a dotnet global tool once the surface area settles.~~ *(Profiles landed in `Program.cs`, protobuf descriptors supported via `--proto-file`, new automation in `docs/reference/cli-scripts`, and the project now packs as `YARPCore.Cli`.)*
+  - ~~Include scripting/automation examples.~~ *(Documented in `docs/reference/cli.md` with `yarpcore-smoke.sh` helper.)*
 
 - **Diagnostics**
   - ~~Expose metrics via OpenTelemetry exporters (Prometheus OTLP).~~

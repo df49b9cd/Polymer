@@ -8,7 +8,7 @@
       "procedure": "echo::ping",
       "url": "http://127.0.0.1:8080/yarpc/v1",
       "encoding": "application/json",
-      "body": "{\"message\":\"hello from polymer script\"}",
+      "body": "{\"message\":\"hello from yarpcore script\"}",
       "headers": {
         "x-run-id": "cli-script"
       }

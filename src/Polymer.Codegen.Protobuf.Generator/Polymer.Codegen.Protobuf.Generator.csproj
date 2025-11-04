@@ -9,14 +9,15 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PrepareAnalyzerOutputs</TargetsForTfmSpecificBuildOutput>
-    <PackageId>Polymer.Codegen.Generator</PackageId>
-    <Description>Roslyn incremental generator that emits Polymer dispatcher/client helpers from protobuf descriptor sets.</Description>
-    <PackageTags>polymer;protobuf;codegen;roslyn;incremental</PackageTags>
+    <AssemblyName>YARPCore.Codegen.Generator</AssemblyName>
+    <PackageId>YARPCore.Codegen.Generator</PackageId>
+    <Description>Roslyn incremental generator that emits YARPCore dispatcher/client helpers from protobuf descriptor sets.</Description>
+    <PackageTags>yarpc;protobuf;codegen;roslyn;incremental</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageType>Analyzer</PackageType>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Telemetry-less analyzer packaging; includes Polymer runtime dependencies.</PackageReleaseNotes>
+    <PackageReleaseNotes>Telemetry-less analyzer packaging; bundles YARPCore runtime dependencies (namespaces remain Polymer.*).</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,7 +39,7 @@
         <TargetPath>analyzers/dotnet/cs/$(TargetFileName)</TargetPath>
       </_AnalyzerDependency>
       <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)"
-                           Condition="%(ReferenceCopyLocalPaths.Extension) == '.dll' and (%(ReferenceCopyLocalPaths.FileName) == 'Google.Protobuf' or %(ReferenceCopyLocalPaths.FileName) == 'Polymer.Codegen.Protobuf.Core' or %(ReferenceCopyLocalPaths.FileName) == 'Polymer')">
+                           Condition="%(ReferenceCopyLocalPaths.Extension) == '.dll' and (%(ReferenceCopyLocalPaths.FileName) == 'Google.Protobuf' or %(ReferenceCopyLocalPaths.FileName) == 'YARPCore.Codegen.Protobuf.Core' or %(ReferenceCopyLocalPaths.FileName) == 'YARPCore')">
         <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
       </_AnalyzerDependency>
     </ItemGroup>

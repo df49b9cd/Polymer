@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <IsPackable>false</IsPackable>
+    <AssemblyName>YARPCore.Codegen.Protobuf.Core</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

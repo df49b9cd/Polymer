@@ -1,6 +1,6 @@
-# Polymer CLI
+# YARPCore CLI
 
-The `polymer` command-line tool provides a lightweight way to validate dispatcher configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. This mirrors common `yab` workflows while staying aligned with Polymer's configuration and metadata model.
+The `yarpcore` command-line tool provides a lightweight way to validate dispatcher configuration, inspect a running dispatcher, and issue ad-hoc RPCs over HTTP or gRPC. This mirrors common `yab` workflows while staying aligned with Polymer's configuration and metadata model.
 
 ## Installation
 
@@ -19,7 +19,7 @@ The resulting executable is located under `src/Polymer.Cli/bin/<Configuration>/n
 ## Command overview
 
 ```text
-polymer <command> [options]
+yarpcore <command> [options]
 ```
 
 | Command | Purpose |
@@ -29,14 +29,14 @@ polymer <command> [options]
 | `request` | Issue a unary RPC over HTTP or gRPC with configurable metadata and payload sources. |
 | `script run` | Replay a sequence of requests, introspection calls, and delays defined in a JSON automation file. |
 
-Run `polymer <command> --help` for a detailed option list.
+Run `yarpcore <command> --help` for a detailed option list.
 
 ## Workflow examples
 
 ### Validate layered configuration
 
 ```bash
-polymer config validate \
+yarpcore config validate \
   --config docs/reference/configuration/appsettings.json \
   --config docs/reference/configuration/appsettings.Development.json \
   --set polymer:outbounds:ledger:unary:http:0:url=http://127.0.0.1:8081
@@ -47,7 +47,7 @@ The command prints the resolved service name, dispatcher status, procedure count
 ### Inspect a running dispatcher
 
 ```bash
-polymer introspect --url http://localhost:8080/polymer/introspect --format text
+yarpcore introspect --url http://localhost:8080/polymer/introspect --format text
 ```
 
 Switch `--format json` to emit the raw JSON payload for scripting or piping into `jq`.
@@ -57,16 +57,16 @@ Switch `--format json` to emit the raw JSON payload for scripting or piping into
 HTTP example:
 
 ```bash
-polymer request \
+yarpcore request \
   --transport http \
   --url http://localhost:8080/yarpc/v1 \
   --service echo \
   --procedure echo::ping \
   --caller cli-demo \
   --encoding application/json \
-  --body '{"message":"hello from polymer"}'
+  --body '{"message":"hello from yarpcore"}'
 
-polymer request \
+yarpcore request \
   --url http://localhost:8080/yarpc/v1 \
   --service echo \
   --procedure echo::ping \
@@ -79,7 +79,7 @@ The second variant applies the `json:pretty` profile, which auto-populates `Cont
 Binary gRPC example (payload encoded as base64):
 
 ```bash
-polymer request \
+yarpcore request \
   --transport grpc \
   --address http://localhost:9090 \
   --service echo \
@@ -102,7 +102,7 @@ Example end-to-end flow using the bundled echo descriptor:
 ```bash
 dotnet run --project tests/Polymer.YabInterop/Polymer.YabInterop.csproj -- --dump-descriptor docs/reference/cli-scripts/echo.protoset
 
-polymer request \
+yarpcore request \
   --transport grpc \
   --address http://127.0.0.1:9090 \
   --service echo \
@@ -125,7 +125,7 @@ Example script: `docs/reference/cli-scripts/echo-harness.json`
 bash tests/Polymer.YabInterop/run-yab.sh
 
 # In another terminal, replay the scripted scenario
-polymer script run --file docs/reference/cli-scripts/echo-harness.json
+yarpcore script run --file docs/reference/cli-scripts/echo-harness.json
 ```
 
 Each step is typed (`request`, `introspect`, or `delay`) and matches the options exposed by the interactive commands:
@@ -164,7 +164,7 @@ This mirrors common `yab` automation flows, while keeping the payload format ali
 The companion script `docs/reference/cli-scripts/grpc-protobuf.json` exercises the protobuf profile against the gRPC listener. Generate the descriptor once (see above), start the harness in dual mode (`MODE=both bash tests/Polymer.YabInterop/run-yab.sh`), and replay the script:
 
 ```bash
-polymer script run --file docs/reference/cli-scripts/grpc-protobuf.json
+yarpcore script run --file docs/reference/cli-scripts/grpc-protobuf.json
 ```
 
 Stop the harness when you are done (`Ctrl+C`).
@@ -183,16 +183,16 @@ SERVICE=${3:-echo}
 PROCEDURE=${4:-echo::ping}
 BODY=${5:-'{"message":"smoke"}'}
 
-until polymer introspect --url "${ENDPOINT%/yarpc/v1}/polymer/introspect" --timeout 2s >/dev/null 2>&1; do
+until yarpcore introspect --url "${ENDPOINT%/yarpc/v1}/polymer/introspect" --timeout 2s >/dev/null 2>&1; do
   echo "Waiting for dispatcher ..."
   sleep 1
 done
 
 echo "Validating configuration ..."
-polymer config validate --config "$CONFIG"
+yarpcore config validate --config "$CONFIG"
 
 echo "Issuing smoke test ..."
-polymer request \
+yarpcore request \
   --transport http \
   --url "$ENDPOINT" \
   --service "$SERVICE" \
@@ -201,24 +201,24 @@ polymer request \
   --body "$BODY"
 ```
 
-Drop this script into `scripts/polymer-smoke.sh`, mark it executable, and point CI to it after publishing a build. Non-zero exits indicate the dispatcher failed validation or the smoke test RPC.
+Drop this script into `scripts/yarpcore-smoke.sh`, mark it executable, and point CI to it after publishing a build. Non-zero exits indicate the dispatcher failed validation or the smoke test RPC.
 
 ## Install as a .NET tool
 
-`Polymer.Cli` now packs as a .NET global tool. Publish a local package and install it from the generated feed:
+`YARPCore.Cli` packs as a .NET global tool. Publish a local package and install it from the generated feed:
 
 ```bash
 dotnet pack src/Polymer.Cli/Polymer.Cli.csproj -c Release -o artifacts/cli
-dotnet tool install --global Polymer.Cli.Tool --add-source artifacts/cli
+dotnet tool install --global YARPCore.Cli --add-source artifacts/cli
 
-# Available everywhere as `polymer`
-polymer --help
+# Available everywhere as `yarpcore`
+yarpcore --help
 ```
 
 Push the resulting `.nupkg` to your package registry of choice once the version is finalised and trim the `--add-source` flag.
 
 ## Next steps
 
-- Surface profile discovery (`polymer request --profile list`) and user-defined profile files.
+- Surface profile discovery (`yarpcore request --profile list`) and user-defined profile files.
 - Add protobuf descriptor caching to avoid rebuilding sets on every invocation.
 - Publish pre-built descriptor packs for popular demos to simplify quickstarts.

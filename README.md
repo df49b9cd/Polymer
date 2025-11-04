@@ -1,6 +1,8 @@
-# Polymer
+# YARPCore
 
-Polymer is the .NET port of Uber's YARPC runtime, layered on top of Hugo concurrency primitives. It targets transport, middleware, and tooling parity with `yarpc-go` while embracing .NET idioms (Generic Host, System.CommandLine, Roslyn generators).
+YARPCore is the .NET port of Uber's YARPC runtime, layered on top of Hugo concurrency primitives. It targets transport, middleware, and tooling parity with `yarpc-go` while embracing .NET idioms (Generic Host, System.CommandLine, Roslyn generators).
+
+> Note: namespaces remain under `Polymer.*` for now to avoid thrashing source callers. NuGet packages, tooling, and assemblies publish as `YARPCore.*`.
 
 ## Current Status
 
@@ -8,17 +10,17 @@ Polymer is the .NET port of Uber's YARPC runtime, layered on top of Hugo concurr
 - Middleware set for logging, tracing, metrics, deadlines, retries, panic recovery, and rate limiting across every RPC shape.
 - Codec registry with JSON, protobuf, and raw codecs, including alias metadata surfaced through introspection.
 - Peer management with round-robin, fewest-pending, and two-random-choice choosers, circuit breakers, and per-peer metrics.
-- Operator tooling: `/polymer/introspect`, `/healthz`, `/readyz`, the `polymer` CLI, and configuration binder for DI hosting.
+- Operator tooling: `/polymer/introspect`, `/healthz`, `/readyz`, the `yarpcore` CLI, and configuration binder for DI hosting.
 - Protobuf automation via a `protoc` plugin and Roslyn incremental generator that emit dispatcher registration helpers and typed clients.
 - Upcoming: richer diagnostics toggles, sample services, cross-language conformance harnesses, and CI matrix coverage (see `docs/todo.md`).
 
 ## Repository Layout
 
-- `src/Polymer` - core dispatcher, transports, codecs, middleware, peer subsystem, and client helpers.
-- `src/Polymer.Configuration` - `AddPolymerDispatcher`, configuration models, and spec hooks (`ICustomInboundSpec`, etc.).
-- `src/Polymer.Cli` - `polymer` .NET global tool for config validation, introspection, and scripted smoke tests.
-- `src/Polymer.Codegen.Protobuf` - `protoc-gen-polymer-csharp` console plugin.
-- `src/Polymer.Codegen.Protobuf.Generator` - Roslyn incremental generator package (ships Polymer runtime dependencies).
+- `src/Polymer` - builds `YARPCore.dll`; contains dispatcher, transports, codecs, middleware, peer subsystem, and client helpers.
+- `src/Polymer.Configuration` - builds `YARPCore.Configuration.dll`; contains `AddPolymerDispatcher`, configuration models, and spec hooks (`ICustomInboundSpec`, etc.).
+- `src/Polymer.Cli` - builds the `YARPCore.Cli` global tool (`yarpcore` command) for config validation, introspection, and scripted smoke tests.
+- `src/Polymer.Codegen.Protobuf` - builds the `YARPCore.Codegen.Protobuf` console plug-in (`protoc-gen-yarpcore-csharp`).
+- `src/Polymer.Codegen.Protobuf.Generator` - Roslyn incremental generator package (ships YARPCore runtime dependencies).
 - `tests/Polymer.Tests` - xUnit coverage across transports, middleware, peer logic, codecs, configuration, and codegen.
 - `tests/Polymer.YabInterop` - yab-driven HTTP/gRPC interop harness.
 - `docs/` - architecture plan, backlog, and reference guides (streaming, middleware, diagnostics, shadowing, etc.).
@@ -154,24 +156,24 @@ await app.RunAsync();
 
 ## Tooling
 
-- `polymer config validate --config appsettings.json --config appsettings.Development.json`
-- `polymer introspect --url http://127.0.0.1:8080/polymer/introspect --format text`
-- `polymer request --transport grpc --address http://127.0.0.1:9090 --service echo --procedure Ping --profile protobuf:echo.EchoRequest --proto-file descriptors/echo.protoset --body '{"message":"cli"}'`
-- `polymer benchmark --transport http --url http://127.0.0.1:8080/yarpc/v1 --service echo --procedure echo::ping --profile json:pretty --body '{"message":"load"}' --concurrency 20 --requests 500`
-- `polymer script run --file docs/reference/cli-scripts/echo-harness.json --dry-run`
+- `yarpcore config validate --config appsettings.json --config appsettings.Development.json`
+- `yarpcore introspect --url http://127.0.0.1:8080/polymer/introspect --format text`
+- `yarpcore request --transport grpc --address http://127.0.0.1:9090 --service echo --procedure Ping --profile protobuf:echo.EchoRequest --proto-file descriptors/echo.protoset --body '{"message":"cli"}'`
+- `yarpcore benchmark --transport http --url http://127.0.0.1:8080/yarpc/v1 --service echo --procedure echo::ping --profile json:pretty --body '{"message":"load"}' --concurrency 20 --requests 500`
+- `yarpcore script run --file docs/reference/cli-scripts/echo-harness.json --dry-run`
 
 Install locally with:
 
 ```bash
 dotnet pack src/Polymer.Cli/Polymer.Cli.csproj -c Release -o artifacts/cli
-dotnet tool install --global Polymer.Cli.Tool --add-source artifacts/cli
+dotnet tool install --global YARPCore.Cli --add-source artifacts/cli
 ```
 
 See `docs/reference/cli.md` for profiles, protobuf automation, and CI recipes.
 
 ## Protobuf Automation
 
-- `src/Polymer.Codegen.Protobuf` provides `protoc-gen-polymer-csharp`, which emits dispatcher registration helpers (`Register<Service>`), service interfaces, and typed Polymer clients (unary + streaming) with codecs pre-wired.
+- `src/Polymer.Codegen.Protobuf` provides `protoc-gen-yarpcore-csharp`, which emits dispatcher registration helpers (`Register<Service>`), service interfaces, and typed Polymer clients (unary + streaming) with codecs pre-wired.
 - `src/Polymer.Codegen.Protobuf.Generator` packages the same emitter as a Roslyn incremental generator. Reference it as an analyzer, generate descriptor sets via `Grpc.Tools`, and add them to `AdditionalFiles` to light up IntelliSense-friendly clients. See `tests/Polymer.Tests/Projects/ProtobufIncrementalSample`.
 
 ## Observability

@@ -18,8 +18,8 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         {
             AssemblyLoadContext.Default.Resolving += ResolveAssemblyFromDependencies;
             PreloadDependency(directory, "Google.Protobuf");
-            PreloadDependency(directory, "Polymer.Codegen.Protobuf.Core");
-            PreloadDependency(directory, "Polymer");
+            PreloadDependency(directory, "YARPCore.Codegen.Protobuf.Core");
+            PreloadDependency(directory, "YARPCore");
         }
     }
 
@@ -27,7 +27,7 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         id: "POLYPROT001",
         title: "Failed to read descriptor set",
         messageFormat: "Unable to read protobuf descriptor '{0}': {1}",
-        category: "Polymer.Codegen",
+        category: "YARPCore.Codegen",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
@@ -35,7 +35,7 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         id: "POLYPROT002",
         title: "Failed to parse descriptor set",
         messageFormat: "Unable to parse protobuf descriptor '{0}': {1}",
-        category: "Polymer.Codegen",
+        category: "YARPCore.Codegen",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 

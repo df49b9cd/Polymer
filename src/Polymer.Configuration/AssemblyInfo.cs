@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Polymer.Cli")]
-[assembly: InternalsVisibleTo("Polymer.Codegen.Protobuf")]
-[assembly: InternalsVisibleTo("Polymer.Codegen.Protobuf.Generator")]
+[assembly: InternalsVisibleTo("YARPCore.Cli")]
+[assembly: InternalsVisibleTo("YARPCore.Codegen.Protobuf")]
+[assembly: InternalsVisibleTo("YARPCore.Codegen.Generator")]
 [assembly: InternalsVisibleTo("Polymer.Tests")]

@@ -3,16 +3,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PolymerVersion>0.2.0</PolymerVersion>
+    <YARPCoreVersion>0.2.0</YARPCoreVersion>
     <RepositoryUrl>https://github.com/df49b9cd/Polymer</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' != 'false'">
-    <Version>$(PolymerVersion)</Version>
-    <VersionPrefix>$(PolymerVersion)</VersionPrefix>
-    <Authors>Polymer maintainers</Authors>
-    <Company>Polymer</Company>
+    <Version>$(YARPCoreVersion)</Version>
+    <VersionPrefix>$(YARPCoreVersion)</VersionPrefix>
+    <Authors>YARPCore maintainers</Authors>
+    <Company>YARPCore</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/df49b9cd/Polymer</PackageProjectUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

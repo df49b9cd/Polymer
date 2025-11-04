@@ -1,23 +1,23 @@
-# Polymer.Codegen.Protobuf.Generator
+# YARPCore.Codegen.Generator
 
-`Polymer.Codegen.Protobuf.Generator` is the Roslyn incremental generator that powers Polymer's protobuf story. It consumes descriptor sets (`.pb` files) and emits:
+`YARPCore.Codegen.Generator` is the Roslyn incremental generator that powers Polymer's protobuf story. Namespaces remain under `Polymer.*` for now, but the package/assembly ships as `YARPCore.Codegen.Generator`. It consumes descriptor sets (`.pb` files) and emits:
 
 - `Register<Service>` extension methods that wire server implementations into a `Dispatcher`.
 - Strongly typed service interfaces mirroring the protobuf service definition.
 - Typed Polymer clients (`Create<Service>Client`) that wrap dispatcher outbounds with correct codecs for unary + streaming RPCs.
 
-The NuGet package ships the generator plus its runtime dependencies (`Polymer.dll`, `Polymer.Codegen.Protobuf.Core.dll`, `Google.Protobuf.dll`) so consumers do not have to reference the runtime separately.
+The NuGet package ships the generator plus its runtime dependencies (`YARPCore.dll`, `YARPCore.Codegen.Protobuf.Core.dll`, `Google.Protobuf.dll`) so consumers do not have to reference the runtime separately.
 
 ## Using The protoc Plugin
 
-The console project in `src/Polymer.Codegen.Protobuf` builds `protoc-gen-polymer-csharp`. Point `protoc` (or `Grpc.Tools`) at the published binary to generate C# during your build:
+The console project in `src/Polymer.Codegen.Protobuf` builds `protoc-gen-yarpcore-csharp`. Point `protoc` (or `Grpc.Tools`) at the published binary to generate C# during your build:
 
 ```bash
 dotnet publish src/Polymer.Codegen.Protobuf/Polymer.Codegen.Protobuf.csproj -c Release -o artifacts/codegen
 
 protoc \
-  --plugin=protoc-gen-polymer-csharp=artifacts/codegen/Polymer.Codegen.Protobuf \
-  --polymer-csharp_out=Generated \
+  --plugin=protoc-gen-yarpcore-csharp=artifacts/codegen/YARPCore.Codegen.Protobuf \
+  --yarpcore-csharp_out=Generated \
   --proto_path=Protos \
   Protos/test_service.proto
 ```

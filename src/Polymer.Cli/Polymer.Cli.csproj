@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <AssemblyName>Polymer.Cli</AssemblyName>
+    <AssemblyName>YARPCore.Cli</AssemblyName>
     <RootNamespace>Polymer.Cli</RootNamespace>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>polymer</ToolCommandName>
-    <PackageId>Polymer.Cli</PackageId>
-    <Description>Polymer operator CLI for validations, introspection, smoke tests, and benchmarking.</Description>
-    <PackageTags>polymer;cli;yarpc;grpc;http</PackageTags>
+    <ToolCommandName>yarpcore</ToolCommandName>
+    <PackageId>YARPCore.Cli</PackageId>
+    <Description>YARPCore operator CLI for validations, introspection, smoke tests, and benchmarking.</Description>
+    <PackageTags>yarpc;cli;grpc;http</PackageTags>
     <PackageReadmeFile>docs/reference/cli-tool-readme.md</PackageReadmeFile>
   </PropertyGroup>
 

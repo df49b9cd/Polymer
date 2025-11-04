@@ -1,10 +1,10 @@
 # Protobuf Code Generation
 
-Polymer ships a protoc plug-in, `protoc-gen-polymer-csharp`, that generates dispatcher registration helpers and typed clients on top of the runtime `ProtobufCodec`. This document outlines how to run the generator and how to consume the emitted code.
+YARPCore ships a protoc plug-in, `protoc-gen-yarpcore-csharp`, that generates dispatcher registration helpers and typed clients on top of the runtime `ProtobufCodec`. Namespaces remain under `Polymer.*` until the API surface fully migrates, but the published packages/assemblies carry the `YARPCore.*` prefix. This document outlines how to run the generator and how to consume the emitted code.
 
 ## Building the plug-in
 
-The plug-in lives at `src/Polymer.Codegen.Protobuf/`. It is built automatically when you run `dotnet build` for the repository. The compiled assembly can be found under `src/Polymer.Codegen.Protobuf/bin/<Configuration>/net10.0/Polymer.Codegen.Protobuf.dll`.
+The plug-in lives at `src/Polymer.Codegen.Protobuf/`. It is built automatically when you run `dotnet build` for the repository. The compiled assembly can be found under `src/Polymer.Codegen.Protobuf/bin/<Configuration>/net10.0/YARPCore.Codegen.Protobuf.dll`.
 
 If you need a self-contained binary, publish the project:
 
@@ -21,12 +21,12 @@ Because the repo already depends on `Grpc.Tools`, you can add the plug-in invoca
 <ItemGroup>
   <PackageReference Include="Grpc.Tools" Version="2.71.0" />
   <Protobuf Include="Protos/test_service.proto" GrpcServices="None">
-    <Generator>PolymerCSharp</Generator>
+    <Generator>YARPCoreCSharp</Generator>
   </Protobuf>
 </ItemGroup>
 
-<Target Name="PolymerCodegen" BeforeTargets="BeforeCompile">
-  <Exec Command="$(Protobuf_ProtocPath) --plugin=protoc-gen-PolymerCSharp=$(SolutionDir)src/Polymer.Codegen.Protobuf/bin/$(Configuration)/net10.0/Polymer.Codegen.Protobuf.dll --PolymerCSharp_out=$(ProjectDir)Generated $(ProtoRoot)Protos/test_service.proto" />
+<Target Name="YARPCoreCodegen" BeforeTargets="BeforeCompile">
+  <Exec Command="$(Protobuf_ProtocPath) --plugin=protoc-gen-YARPCoreCSharp=$(SolutionDir)src/Polymer.Codegen.Protobuf/bin/$(Configuration)/net10.0/YARPCore.Codegen.Protobuf.dll --YARPCoreCSharp_out=$(ProjectDir)Generated $(ProtoRoot)Protos/test_service.proto" />
 </Target>
 ```
 
@@ -34,8 +34,8 @@ Alternatively, call `protoc` directly:
 
 ```bash
 protoc \
-  --plugin=protoc-gen-polymer-csharp=src/Polymer.Codegen.Protobuf/bin/Debug/net10.0/Polymer.Codegen.Protobuf.dll \
-  --polymer-csharp_out=Generated \
+  --plugin=protoc-gen-yarpcore-csharp=src/Polymer.Codegen.Protobuf/bin/Debug/net10.0/YARPCore.Codegen.Protobuf.dll \
+  --yarpcore-csharp_out=Generated \
   --proto_path=Protos \
   Protos/test_service.proto
 ```
@@ -74,21 +74,21 @@ For projects that already produce [descriptor sets](https://github.com/dotnet/ro
 
    The `Protobuf` item continues to emit DTOs, while the incremental generator consumes the descriptor set to create dispatcher/client helpers.
 
-3. Build the project. MSBuild writes the generated files under `obj/<tfm>/generated/Polymer.Codegen.Protobuf.Generator/...` and the types become available to your project just like the protoc plug-in output.
+3. Build the project. MSBuild writes the generated files under `obj/<tfm>/generated/YARPCore.Codegen.Generator/...` and the types become available to your project just like the protoc plug-in output.
 
 The repository contains a working sample wired this way: `tests/Polymer.Tests/Projects/ProtobufIncrementalSample/`. It uses the `GenerateDescriptorSet` flow above and builds successfully with `dotnet build`.
 
 ## Packaging the incremental generator
 
-`src/Polymer.Codegen.Protobuf.Generator` is configured as an analyzer package. Running `dotnet pack` (or any build because `GeneratePackageOnBuild` is enabled) produces `Polymer.Codegen.Protobuf.Generator.<version>.nupkg` under `bin/<Configuration>/`. The package includes the generator plus its runtime dependencies under `analyzers/dotnet/cs`, so consuming projects only need a single `PackageReference` instead of manual analyzer wiring:
+`src/Polymer.Codegen.Protobuf.Generator` is configured as an analyzer package. Running `dotnet pack` (or any build because `GeneratePackageOnBuild` is enabled) produces `YARPCore.Codegen.Generator.<version>.nupkg` under `bin/<Configuration>/`. The package includes the generator plus its runtime dependencies under `analyzers/dotnet/cs`, so consuming projects only need a single `PackageReference` instead of manual analyzer wiring:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Polymer.Codegen.Protobuf.Generator" Version="0.1.0" PrivateAssets="all" />
+  <PackageReference Include="YARPCore.Codegen.Generator" Version="0.2.0" PrivateAssets="all" />
 </ItemGroup>
 ```
 
-Pre-release builds use the `0.x.y` version band. When Polymer reaches a stable release, align the generator's `VersionPrefix` with the Polymer runtime version in CI before pushing to NuGet (the project file is ready for `dotnet pack` in a release pipeline).
+Pre-release builds use the `0.x.y` version band. When YARPCore reaches a stable release, align the generator's `VersionPrefix` with the runtime version in CI before pushing to NuGet (the project file is ready for `dotnet pack` in a release pipeline).
 
 ### CI/CD
 
