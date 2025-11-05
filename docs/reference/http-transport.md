@@ -231,6 +231,17 @@ choose alternatives:
   automatically builds the correct `ws://`/`wss://` URI even when the inbound
   is advertising HTTP/3.
 
+Set conservative limits when QUIC is enabled:
+
+- `runtime.serverStreamMaxMessageBytes`: 524288 keeps server-stream frames small
+  enough to respect MsQuic’s initial flow-control window.
+- `runtime.duplexMaxFrameBytes`: 16384 matches the new default frame size used by
+  OmniRelay’s WebSocket bridge and avoids overwhelming intermediaries that mirror
+  QUIC buffer behaviour.
+- Add alerts that trigger when `StreamCallContext.CompletionStatus` reports
+  `DeadlineExceeded` more than a handful of times per minute; it is the first
+  signal that downstream clients cannot drain responses fast enough.
+
 ## Server-sent events
 
 Server-stream RPCs use SSE with hardened defaults:

@@ -68,10 +68,10 @@
   - [x] Review current WebSocket consumers and identify ones needing QUIC-compatible alternatives.
   - [x] Prototype HTTP/3 streaming fallback or document mandatory HTTP/1.1 usage where appropriate.
   - [x] Publish guidance for service teams on choosing between WebSockets and HTTP/3 streams.
-- [ ] Confirm streaming/duplex pipelines (pipe-based framing, large payload support) handle QUIC flow control limits; tune frame size when necessary.
-  - [ ] Execute load tests emphasizing large payloads and bidirectional streaming over QUIC.
-  - [ ] Adjust frame sizing or buffering heuristics if MsQuic flow control stalls appear.
-  - [ ] Document recommended streaming limits and alert thresholds.
+- [x] Confirm streaming/duplex pipelines (pipe-based framing, large payload support) handle QUIC flow control limits; tune frame size when necessary.
+  - [x] Execute load tests emphasizing large payloads and bidirectional streaming over QUIC.
+  - [x] Adjust frame sizing or buffering heuristics if MsQuic flow control stalls appear.
+  - [x] Document recommended streaming limits and alert thresholds.
 - [ ] Ensure request/response size limits, header validation, and timeouts map to QUIC semantics; add tests for limits enforcement under packet loss.
   - [ ] Cross-check Kestrel and MsQuic limit mappings for parity with HTTP/1.1/2 settings.
   - [ ] Create chaos tests injecting packet loss to confirm timeouts behave as expected.

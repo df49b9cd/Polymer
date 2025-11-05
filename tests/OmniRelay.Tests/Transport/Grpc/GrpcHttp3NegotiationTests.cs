@@ -14,6 +14,7 @@ using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
+using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Grpc.Interceptors;
@@ -242,6 +243,153 @@ public class GrpcHttp3NegotiationTests
 
         Assert.True(transportProtocols.TryDequeue(out var transportProtocol), "No HTTP protocol was observed by the transport interceptor.");
         Assert.StartsWith("HTTP/2", transportProtocol, StringComparison.Ordinal);
+    }
+
+    [Fact(Timeout = 45_000)]
+    public async Task GrpcInbound_WithHttp3_ServerStreamHandlesLargePayload()
+    {
+        if (!QuicListener.IsSupported)
+        {
+            return;
+        }
+
+        using var certificate = CreateSelfSignedCertificate("CN=omnirelay-grpc-http3-stream");
+
+        var payload = new byte[512 * 1024];
+        RandomNumberGenerator.Fill(payload);
+
+        var port = TestPortAllocator.GetRandomPort();
+        var address = new Uri($"https://127.0.0.1:{port}");
+
+        var runtime = new GrpcServerRuntimeOptions
+        {
+            EnableHttp3 = true
+        };
+
+        var tls = new GrpcServerTlsOptions { Certificate = certificate };
+        var options = new DispatcherOptions("grpc-http3-stream");
+
+        var inbound = new GrpcInbound(
+            [address.ToString()],
+            serverTlsOptions: tls,
+            serverRuntimeOptions: runtime);
+        options.AddLifecycle("grpc-http3-stream-inbound", inbound);
+
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+        dispatcher.Register(new StreamProcedureSpec(
+            "grpc-http3-stream",
+            "grpc-http3-stream::tail",
+            async (request, streamOptions, cancellationToken) =>
+            {
+                var call = GrpcServerStreamCall.Create(request.Meta, new ResponseMeta());
+                await call.WriteAsync(payload, cancellationToken);
+                await call.CompleteAsync(cancellationToken: cancellationToken);
+                return Ok<IStreamCall>(call);
+            }));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+        await WaitForGrpcReadyAsync(address, ct);
+
+        using var handler = CreateHttp3SocketsHandler();
+        using var client = CreateHttp3Client(handler, HttpVersionPolicy.RequestVersionExact);
+        using var channel = GrpcChannel.ForAddress(address, new GrpcChannelOptions { HttpClient = client });
+        var invoker = channel.CreateCallInvoker();
+
+        var method = new Method<byte[], byte[]>(MethodType.ServerStreaming, "grpc-http3-stream", "grpc-http3-stream::tail", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
+
+        try
+        {
+            var streamingCall = invoker.AsyncServerStreamingCall(method, null, new CallOptions(), Array.Empty<byte>());
+            Assert.True(await streamingCall.ResponseStream.MoveNext(ct));
+            var message = streamingCall.ResponseStream.Current;
+            Assert.Equal(payload.Length, message.Length);
+            Assert.True(message.SequenceEqual(payload));
+            Assert.False(await streamingCall.ResponseStream.MoveNext(ct));
+        }
+        finally
+        {
+            await dispatcher.StopAsync(ct);
+        }
+    }
+
+    [Fact(Timeout = 45_000)]
+    public async Task GrpcInbound_WithHttp3_DuplexHandlesLargePayloads()
+    {
+        if (!QuicListener.IsSupported)
+        {
+            return;
+        }
+
+        using var certificate = CreateSelfSignedCertificate("CN=omnirelay-grpc-http3-duplex");
+
+        var payload = new byte[256 * 1024];
+        RandomNumberGenerator.Fill(payload);
+
+        var port = TestPortAllocator.GetRandomPort();
+        var address = new Uri($"https://127.0.0.1:{port}");
+
+        var runtime = new GrpcServerRuntimeOptions
+        {
+            EnableHttp3 = true
+        };
+
+        var tls = new GrpcServerTlsOptions { Certificate = certificate };
+        var options = new DispatcherOptions("grpc-http3-duplex");
+
+        var inbound = new GrpcInbound(
+            [address.ToString()],
+            serverTlsOptions: tls,
+            serverRuntimeOptions: runtime);
+        options.AddLifecycle("grpc-http3-duplex-inbound", inbound);
+
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+        dispatcher.Register(new DuplexProcedureSpec(
+            "grpc-http3-duplex",
+            "grpc-http3-duplex::echo",
+            (request, cancellationToken) =>
+            {
+                var call = DuplexStreamCall.Create(request.Meta, new ResponseMeta());
+                _ = Task.Run(async () =>
+                {
+                    await foreach (var frame in call.RequestReader.ReadAllAsync(cancellationToken))
+                    {
+                        await call.ResponseWriter.WriteAsync(frame, cancellationToken);
+                    }
+
+                    await call.CompleteResponsesAsync(cancellationToken: cancellationToken);
+                }, cancellationToken);
+
+                return ValueTask.FromResult(Ok<IDuplexStreamCall>(call));
+            }));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+        await WaitForGrpcReadyAsync(address, ct);
+
+        using var handler = CreateHttp3SocketsHandler();
+        using var client = CreateHttp3Client(handler, HttpVersionPolicy.RequestVersionExact);
+        using var channel = GrpcChannel.ForAddress(address, new GrpcChannelOptions { HttpClient = client });
+        var invoker = channel.CreateCallInvoker();
+
+        var method = new Method<byte[], byte[]>(MethodType.DuplexStreaming, "grpc-http3-duplex", "grpc-http3-duplex::echo", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
+
+        try
+        {
+            var call = invoker.AsyncDuplexStreamingCall(method, null, new CallOptions());
+            await call.RequestStream.WriteAsync(payload);
+            await call.RequestStream.CompleteAsync();
+
+            Assert.True(await call.ResponseStream.MoveNext(ct));
+            var echo = call.ResponseStream.Current;
+            Assert.Equal(payload.Length, echo.Length);
+            Assert.True(echo.SequenceEqual(payload));
+            Assert.False(await call.ResponseStream.MoveNext(ct));
+        }
+        finally
+        {
+            await dispatcher.StopAsync(ct);
+        }
     }
 
     [Fact(Timeout = 45_000)]

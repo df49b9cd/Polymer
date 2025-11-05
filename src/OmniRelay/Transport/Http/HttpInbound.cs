@@ -41,7 +41,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     private static readonly JsonSerializerOptions IntrospectionSerializerOptions = CreateIntrospectionSerializerOptions();
     private static readonly JsonSerializerOptions HealthSerializerOptions = CreateHealthSerializerOptions();
     private const string RetryAfterHeaderValue = "1";
-    private const int DefaultDuplexFrameBytes = 32 * 1024;
+    private const int DefaultDuplexFrameBytes = 16 * 1024;
 
     public HttpInbound(
         IEnumerable<string> urls,

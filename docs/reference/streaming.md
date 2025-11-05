@@ -179,6 +179,8 @@ Both HTTP and gRPC transports expose runtime options that enforce backpressure a
 
 Timeouts accept `TimeSpan` strings (`"00:00:05"`), ISO 8601 durations, or millisecond integers. Pair the runtime limits with transport middleware (rate limiting, deadlines, retries) to keep long-lived streams healthy.
 
+> **QUIC guidance:** For HTTP/3 listeners, cap server-stream payloads at `serverStreamMaxMessageBytes = 524288` (512&nbsp;KiB) and keep duplex frames under `duplexMaxFrameBytes = 16384` (16&nbsp;KiB). Alert when `StreamCallContext.CompletionStatus` transitions to `DeadlineExceeded` or `Faulted` so operators can spot MsQuic flow-control stalls early.
+
 ## Metadata, Deadlines, and Completion
 
 - `RequestMeta` carries caller, service, procedure, encoding, TTL, and deadline fields. Transports convert TTL/deadline into native timeouts.
