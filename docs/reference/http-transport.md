@@ -216,6 +216,21 @@ that accompanies drained gRPC calls and watch readiness probes flip to
 > required for HTTP/3 clients. Testing has not uncovered any protocol-specific
 > limitations for these endpoints.
 
+### WebSockets in HTTP/3 deployments
+
+Duplex procedures on the HTTP transport still use classic WebSockets. When you
+enable HTTP/3, OmniRelay upgrades the listener to QUIC for unary and streaming
+RPCs (SSE/POST), but the WebSocket handshake remains on HTTP/1.1 (`ws://` or
+`wss://`). This keeps existing clients compatible while QUIC-aware services can
+choose alternatives:
+
+- Prefer gRPC duplex streaming when both sides need QUIC semantics.
+- For HTTP workloads, consider redesigning long-lived chats to use server/client
+  streams (SSE + POST) when the WebSocket fallback is not desirable.
+- If you continue using WebSockets, no extra configuration is required; OmniRelay
+  automatically builds the correct `ws://`/`wss://` URI even when the inbound
+  is advertising HTTP/3.
+
 ## Server-sent events
 
 Server-stream RPCs use SSE with hardened defaults:

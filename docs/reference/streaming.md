@@ -186,6 +186,13 @@ Timeouts accept `TimeSpan` strings (`"00:00:05"`), ISO 8601 durations, or millis
 - Call `CompleteAsync`, `CompleteRequestsAsync`, or `CompleteResponsesAsync` when streams finish. Passing an `Error` propagates canonical status codes to the transport. If you drop the call without completing, the dispatcher records a cancelled completion.
 - Middleware can inspect `StreamCallContext` / `DuplexStreamCallContext` to log message counts, completion state, or propagate trailer metadata.
 
+## WebSockets and HTTP/3
+
+- Server-streaming and client-streaming handlers over HTTP use classic requests (SSE for `StreamCall`, POST bodies for `ClientStream`), so they upgrade cleanly to HTTP/3 when the listener enables QUIC.
+- Bidirectional HTTP streaming relies on a WebSocket upgrade. OmniRelay maps `http://` → `ws://` and `https://` → `wss://`, which keeps the handshake on HTTP/1.1 even when the listener also supports HTTP/3. This is the only place the HTTP transport depends on WebSockets.
+- When services need QUIC-backed duplex flows, direct them to gRPC streaming (`GrpcInbound`/`GrpcOutbound`) or redesign the interaction around HTTP server/client streams. Keep the WebSocket implementation for compatibility with existing clients that expect the HTTP/1.1 transport.
+- Callers do not need extra configuration: WebSocket clients automatically negotiate `wss://` while HTTP/3-aware endpoints continue to serve server/client streams over QUIC.
+
 ## Related Reading
 
 - `tests/OmniRelay.Tests/Transport/GrpcTransportTests.cs` includes end-to-end fixtures for every streaming shape.

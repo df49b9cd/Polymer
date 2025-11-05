@@ -64,10 +64,10 @@
   - [x] Build automated test suite hitting endpoints over all supported protocols.
   - [x] Ensure observability endpoints continue to function without additional client configuration.
   - [x] Record any protocol-specific limitations and create mitigation issues if required.
-- [ ] Revisit WebSocket usage in `HttpInbound`: document that classic WebSockets stay on HTTP/1.1 and confirm duplex scenarios have an HTTP/3-friendly alternative (e.g., HTTP/3 streams or keep HTTP/1.1 fallback).
-  - [ ] Review current WebSocket consumers and identify ones needing QUIC-compatible alternatives.
-  - [ ] Prototype HTTP/3 streaming fallback or document mandatory HTTP/1.1 usage where appropriate.
-  - [ ] Publish guidance for service teams on choosing between WebSockets and HTTP/3 streams.
+- [x] Revisit WebSocket usage in `HttpInbound`: document that classic WebSockets stay on HTTP/1.1 and confirm duplex scenarios have an HTTP/3-friendly alternative (e.g., HTTP/3 streams or keep HTTP/1.1 fallback).
+  - [x] Review current WebSocket consumers and identify ones needing QUIC-compatible alternatives.
+  - [x] Prototype HTTP/3 streaming fallback or document mandatory HTTP/1.1 usage where appropriate.
+  - [x] Publish guidance for service teams on choosing between WebSockets and HTTP/3 streams.
 - [ ] Confirm streaming/duplex pipelines (pipe-based framing, large payload support) handle QUIC flow control limits; tune frame size when necessary.
   - [ ] Execute load tests emphasizing large payloads and bidirectional streaming over QUIC.
   - [ ] Adjust frame sizing or buffering heuristics if MsQuic flow control stalls appear.
