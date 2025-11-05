@@ -812,8 +812,51 @@ internal sealed class DispatcherBuilder
         {
             options.MaxInMemoryDecodeBytes = maxInMem;
         }
+        if (configuration.MaxRequestLineSize is { } maxRequestLine)
+        {
+            options.MaxRequestLineSize = maxRequestLine;
+        }
+        if (configuration.MaxRequestHeadersTotalSize is { } maxRequestHeaders)
+        {
+            options.MaxRequestHeadersTotalSize = maxRequestHeaders;
+        }
+        if (configuration.KeepAliveTimeout is { } keepAliveTimeout)
+        {
+            options.KeepAliveTimeout = keepAliveTimeout;
+        }
+        if (configuration.RequestHeadersTimeout is { } headersTimeout)
+        {
+            options.RequestHeadersTimeout = headersTimeout;
+        }
+        if (configuration.ServerStreamWriteTimeout is { } serverStreamWriteTimeout)
+        {
+            options.ServerStreamWriteTimeout = serverStreamWriteTimeout;
+        }
+        if (configuration.DuplexWriteTimeout is { } duplexWriteTimeout)
+        {
+            options.DuplexWriteTimeout = duplexWriteTimeout;
+        }
+        if (configuration.ServerStreamMaxMessageBytes is { } serverStreamMaxMessageBytes)
+        {
+            options.ServerStreamMaxMessageBytes = serverStreamMaxMessageBytes;
+        }
+        if (configuration.DuplexMaxFrameBytes is { } duplexMaxFrameBytes)
+        {
+            options.DuplexMaxFrameBytes = duplexMaxFrameBytes;
+        }
 
-        return (options.MaxRequestBodySize.HasValue || options.MaxInMemoryDecodeBytes.HasValue) ? options : null;
+        return (options.MaxRequestBodySize.HasValue ||
+                options.MaxInMemoryDecodeBytes.HasValue ||
+                options.MaxRequestLineSize.HasValue ||
+                options.MaxRequestHeadersTotalSize.HasValue ||
+                options.KeepAliveTimeout.HasValue ||
+                options.RequestHeadersTimeout.HasValue ||
+                options.ServerStreamWriteTimeout.HasValue ||
+                options.DuplexWriteTimeout.HasValue ||
+                options.ServerStreamMaxMessageBytes.HasValue ||
+                options.DuplexMaxFrameBytes.HasValue)
+            ? options
+            : null;
     }
 
     private static OmniRelay.Transport.Http.HttpServerTlsOptions? BuildHttpServerTlsOptions(HttpServerTlsConfiguration configuration)

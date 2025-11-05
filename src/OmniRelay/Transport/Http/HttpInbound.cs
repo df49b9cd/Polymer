@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Globalization;
+using System.IO.Pipelines;
 using System.Net.Mime;
 using System.Net.WebSockets;
 using System.Text;
@@ -35,6 +36,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     private static readonly JsonSerializerOptions IntrospectionSerializerOptions = CreateIntrospectionSerializerOptions();
     private static readonly JsonSerializerOptions HealthSerializerOptions = CreateHealthSerializerOptions();
     private const string RetryAfterHeaderValue = "1";
+    private const int DefaultDuplexFrameBytes = 32 * 1024;
 
     public HttpInbound(
         IEnumerable<string> urls,
@@ -96,6 +98,22 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             if (_serverRuntimeOptions?.MaxRequestBodySize is { } maxRequest)
             {
                 options.Limits.MaxRequestBodySize = maxRequest;
+            }
+            if (_serverRuntimeOptions?.MaxRequestLineSize is { } maxRequestLine)
+            {
+                options.Limits.MaxRequestLineSize = maxRequestLine;
+            }
+            if (_serverRuntimeOptions?.MaxRequestHeadersTotalSize is { } maxRequestHeaders)
+            {
+                options.Limits.MaxRequestHeadersTotalSize = maxRequestHeaders;
+            }
+            if (_serverRuntimeOptions?.KeepAliveTimeout is { } keepAliveTimeout)
+            {
+                options.Limits.KeepAliveTimeout = keepAliveTimeout;
+            }
+            if (_serverRuntimeOptions?.RequestHeadersTimeout is { } requestHeadersTimeout)
+            {
+                options.Limits.RequestHeadersTimeout = requestHeadersTimeout;
             }
 
             foreach (var url in _urls)
@@ -572,13 +590,40 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                     context.Response.Headers[header.Key] = header.Value;
                 }
 
-                await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
+                var writer = context.Response.BodyWriter;
+                var writeTimeout = _serverRuntimeOptions?.ServerStreamWriteTimeout;
+                var maxMessageSize = _serverRuntimeOptions?.ServerStreamMaxMessageBytes;
 
-                await foreach (var payload in call.Responses.ReadAllAsync(context.RequestAborted).ConfigureAwait(false))
+                try
                 {
-                    var frame = EncodeSseFrame(payload, responseMeta.Encoding);
-                    await context.Response.BodyWriter.WriteAsync(frame, context.RequestAborted).ConfigureAwait(false);
-                    await context.Response.BodyWriter.FlushAsync(context.RequestAborted).ConfigureAwait(false);
+                    await FlushPipeAsync(writer, context.RequestAborted, writeTimeout).ConfigureAwait(false);
+
+                    await foreach (var payload in call.Responses.ReadAllAsync(context.RequestAborted).ConfigureAwait(false))
+                    {
+                        if (maxMessageSize is { } maxBytes && payload.Length > maxBytes)
+                        {
+                            var error = OmniRelayErrorAdapter.FromStatus(
+                                OmniRelayStatusCode.ResourceExhausted,
+                                "The server stream payload exceeds the configured limit.",
+                                transport: transport);
+                            await call.CompleteAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            context.Abort();
+                            return;
+                        }
+
+                        var frame = EncodeSseFrame(payload, responseMeta.Encoding);
+                        await WritePipeAsync(writer, frame, context.RequestAborted, writeTimeout).ConfigureAwait(false);
+                        await FlushPipeAsync(writer, context.RequestAborted, writeTimeout).ConfigureAwait(false);
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    var error = OmniRelayErrorAdapter.FromStatus(
+                        OmniRelayStatusCode.DeadlineExceeded,
+                        "The server stream write timed out.",
+                        transport: transport);
+                    await call.CompleteAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    context.Abort();
                 }
             }
         }
@@ -642,13 +687,18 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             var socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
 
             var call = callResult.Value;
-            var requestBuffer = new byte[32 * 1024];
+            var configuredFrameLimit = _serverRuntimeOptions?.DuplexMaxFrameBytes;
+            var duplexFrameLimit = configuredFrameLimit.HasValue && configuredFrameLimit.Value > 0
+                ? Math.Min(configuredFrameLimit.Value, int.MaxValue - 1)
+                : DefaultDuplexFrameBytes;
+            var requestBuffer = new byte[duplexFrameLimit + 1];
             using var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+            var duplexWriteTimeout = _serverRuntimeOptions?.DuplexWriteTimeout;
 
             try
             {
-                var requestPump = PumpRequestsAsync(socket, call, requestBuffer, pumpCts.Token);
-                var responsePump = PumpResponsesAsync(socket, call, pumpCts.Token);
+                var requestPump = PumpRequestsAsync(socket, call, requestBuffer, duplexFrameLimit, pumpCts.Token);
+                var responsePump = PumpResponsesAsync(socket, call, duplexFrameLimit, duplexWriteTimeout, pumpCts.Token);
 
                 await Task.WhenAll(requestPump, responsePump).ConfigureAwait(false);
             }
@@ -676,13 +726,13 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 socket.Dispose();
             }
 
-            async Task PumpRequestsAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, CancellationToken cancellationToken)
+            async Task PumpRequestsAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, int frameLimit, CancellationToken cancellationToken)
             {
                 try
                 {
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        var frame = await HttpDuplexProtocol.ReceiveFrameAsync(webSocket, tempBuffer, cancellationToken).ConfigureAwait(false);
+                        var frame = await HttpDuplexProtocol.ReceiveFrameAsync(webSocket, tempBuffer, frameLimit, cancellationToken).ConfigureAwait(false);
 
                         if (frame.MessageType == WebSocketMessageType.Close)
                         {
@@ -723,6 +773,17 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                         }
                     }
                 }
+                catch (InvalidOperationException ex)
+                {
+                    var error = OmniRelayErrorAdapter.FromStatus(
+                        OmniRelayStatusCode.ResourceExhausted,
+                        ex.Message,
+                        transport: transport);
+                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
+                    await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    pumpCts.Cancel();
+                }
                 catch (OperationCanceledException)
                 {
                     var error = OmniRelayErrorAdapter.FromStatus(
@@ -743,18 +804,42 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
             }
 
-            async Task PumpResponsesAsync(WebSocket webSocket, IDuplexStreamCall streamCall, CancellationToken cancellationToken)
+            async Task PumpResponsesAsync(WebSocket webSocket, IDuplexStreamCall streamCall, int frameLimit, TimeSpan? writeTimeout, CancellationToken cancellationToken)
             {
                 try
                 {
                     await foreach (var payload in streamCall.ResponseReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseData, payload, cancellationToken).ConfigureAwait(false);
+                        if (frameLimit > 0 && payload.Length > frameLimit)
+                        {
+                            var error = OmniRelayErrorAdapter.FromStatus(
+                                OmniRelayStatusCode.ResourceExhausted,
+                                "The duplex response payload exceeds the configured limit.",
+                                transport: transport);
+                            await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
+                            await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            pumpCts.Cancel();
+                            return;
+                        }
+
+                        await SendWebSocketFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseData, payload, cancellationToken, writeTimeout).ConfigureAwait(false);
                     }
 
                     var finalMeta = NormalizeResponseMeta(streamCall.ResponseMeta, transport);
                     var completePayload = HttpDuplexProtocol.SerializeResponseMeta(finalMeta);
-                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseComplete, completePayload, CancellationToken.None).ConfigureAwait(false);
+                    await SendWebSocketFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseComplete, completePayload, CancellationToken.None, writeTimeout).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    var error = OmniRelayErrorAdapter.FromStatus(
+                        OmniRelayStatusCode.DeadlineExceeded,
+                        "The duplex response stream write timed out.",
+                        transport: transport);
+                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
+                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    pumpCts.Cancel();
                 }
                 catch (OperationCanceledException)
                 {
@@ -781,6 +866,114 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             CompleteRequest();
         }
     }
+
+    private static async ValueTask WritePipeAsync(PipeWriter writer, ReadOnlyMemory<byte> payload, CancellationToken baseToken, TimeSpan? timeout)
+    {
+        CancellationTokenSource? timeoutCts = null;
+        var token = baseToken;
+
+        if (timeout.HasValue)
+        {
+            timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(baseToken);
+            timeoutCts.CancelAfter(timeout.Value);
+            token = timeoutCts.Token;
+        }
+
+        try
+        {
+            var result = await writer.WriteAsync(payload, token).ConfigureAwait(false);
+            if (result.IsCanceled)
+            {
+                ThrowIfTimedOut(timeout, timeoutCts, baseToken);
+                throw new OperationCanceledException(token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            ThrowIfTimedOut(timeout, timeoutCts, baseToken);
+            throw;
+        }
+        finally
+        {
+            timeoutCts?.Dispose();
+        }
+    }
+
+    private static async ValueTask FlushPipeAsync(PipeWriter writer, CancellationToken baseToken, TimeSpan? timeout)
+    {
+        CancellationTokenSource? timeoutCts = null;
+        var token = baseToken;
+
+        if (timeout.HasValue)
+        {
+            timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(baseToken);
+            timeoutCts.CancelAfter(timeout.Value);
+            token = timeoutCts.Token;
+        }
+
+        try
+        {
+            var result = await writer.FlushAsync(token).ConfigureAwait(false);
+            if (result.IsCanceled)
+            {
+                ThrowIfTimedOut(timeout, timeoutCts, baseToken);
+                throw new OperationCanceledException(token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            ThrowIfTimedOut(timeout, timeoutCts, baseToken);
+            throw;
+        }
+        finally
+        {
+            timeoutCts?.Dispose();
+        }
+    }
+
+    private static async ValueTask SendWebSocketFrameAsync(
+        WebSocket socket,
+        HttpDuplexProtocol.FrameType frameType,
+        ReadOnlyMemory<byte> payload,
+        CancellationToken baseToken,
+        TimeSpan? timeout)
+    {
+        CancellationTokenSource? timeoutCts = null;
+        var token = baseToken;
+
+        if (timeout.HasValue)
+        {
+            timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(baseToken);
+            timeoutCts.CancelAfter(timeout.Value);
+            token = timeoutCts.Token;
+        }
+
+        try
+        {
+            await HttpDuplexProtocol.SendFrameAsync(socket, frameType, payload, token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            ThrowIfTimedOut(timeout, timeoutCts, baseToken);
+            throw;
+        }
+        finally
+        {
+            timeoutCts?.Dispose();
+        }
+    }
+
+    private static void ThrowIfTimedOut(TimeSpan? timeout, CancellationTokenSource? timeoutCts, CancellationToken baseToken)
+    {
+        if (timeout.HasValue &&
+            timeoutCts is not null &&
+            timeoutCts.IsCancellationRequested &&
+            !baseToken.IsCancellationRequested)
+        {
+            throw new TimeoutException();
+        }
+    }
+
     private static ResponseMeta NormalizeResponseMeta(ResponseMeta? meta, string transport)
     {
         meta ??= new ResponseMeta();

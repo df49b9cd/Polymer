@@ -156,7 +156,7 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var frame = await HttpDuplexProtocol.ReceiveFrameAsync(_socket, buffer, cancellationToken).ConfigureAwait(false);
+                var frame = await HttpDuplexProtocol.ReceiveFrameAsync(_socket, buffer, BufferSize - 1, cancellationToken).ConfigureAwait(false);
 
                 if (frame.MessageType == WebSocketMessageType.Close)
                 {

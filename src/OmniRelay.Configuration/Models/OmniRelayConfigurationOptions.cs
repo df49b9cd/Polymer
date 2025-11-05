@@ -87,6 +87,22 @@ public sealed class HttpServerRuntimeConfiguration
     public long? MaxRequestBodySize { get; set; }
 
     public long? MaxInMemoryDecodeBytes { get; set; }
+
+    public int? MaxRequestLineSize { get; set; }
+
+    public int? MaxRequestHeadersTotalSize { get; set; }
+
+    public TimeSpan? KeepAliveTimeout { get; set; }
+
+    public TimeSpan? RequestHeadersTimeout { get; set; }
+
+    public TimeSpan? ServerStreamWriteTimeout { get; set; }
+
+    public TimeSpan? DuplexWriteTimeout { get; set; }
+
+    public int? ServerStreamMaxMessageBytes { get; set; }
+
+    public int? DuplexMaxFrameBytes { get; set; }
 }
 
 public sealed class HttpServerTlsConfiguration

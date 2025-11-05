@@ -283,6 +283,88 @@ namespace OmniRelay.Tests.Transport
 		}
 
 		[Fact(Timeout = 30000)]
+		public async Task ServerStreaming_PayloadAboveLimit_FaultsStream()
+		{
+			var port = TestPortAllocator.GetRandomPort();
+			var baseAddress = new Uri($"http://127.0.0.1:{port}/");
+
+			var options = new DispatcherOptions("stream-limit");
+			var runtime = new HttpServerRuntimeOptions { ServerStreamMaxMessageBytes = 8 };
+			HttpStreamCall? streamCall = null;
+			var httpInbound = new HttpInbound([baseAddress.ToString()], serverRuntimeOptions: runtime);
+			options.AddLifecycle("http-inbound", httpInbound);
+
+			var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+
+			dispatcher.Register(new StreamProcedureSpec(
+				"stream-limit",
+				"stream::oversized",
+				(request, callOptions, cancellationToken) =>
+				{
+					_ = callOptions;
+					var call = HttpStreamCall.CreateServerStream(
+						request.Meta,
+						new ResponseMeta(encoding: "text/plain"));
+					streamCall = call;
+
+					_ = Task.Run(async () =>
+					{
+						try
+						{
+							var payload = Encoding.UTF8.GetBytes("this-payload-is-way-too-long");
+							await call.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+						}
+						catch (OperationCanceledException)
+						{
+							// ignore cancellation when the response aborts
+						}
+					}, cancellationToken);
+
+					return ValueTask.FromResult(Ok<IStreamCall>(call));
+				}));
+
+			var ct = TestContext.Current.CancellationToken;
+			await dispatcher.StartAsync(ct);
+
+			var httpClient = new HttpClient { BaseAddress = baseAddress };
+			var request = new HttpRequestMessage(HttpMethod.Get, "/");
+			request.Headers.Add(HttpTransportHeaders.Procedure, "stream::oversized");
+			request.Headers.Accept.ParseAdd("text/event-stream");
+
+			using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+			Assert.True(response.IsSuccessStatusCode);
+
+			await WaitForCompletionAsync(ct);
+
+			Assert.NotNull(streamCall);
+			Assert.Equal(StreamCompletionStatus.Faulted, streamCall!.Context.CompletionStatus);
+			var completionError = streamCall.Context.CompletionError;
+			Assert.NotNull(completionError);
+			Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(completionError!));
+
+			await dispatcher.StopAsync(ct);
+
+			async Task WaitForCompletionAsync(CancellationToken cancellationToken)
+			{
+				var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+				while (!cancellationToken.IsCancellationRequested)
+				{
+					if (streamCall is not null && streamCall.Context.CompletionStatus != StreamCompletionStatus.None)
+					{
+						return;
+					}
+
+					if (DateTime.UtcNow >= deadline)
+					{
+						throw new TimeoutException("Server stream did not complete.");
+					}
+
+					await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+				}
+			}
+		}
+
+		[Fact(Timeout = 30000)]
 		public async Task DuplexStreaming_OverHttpWebSocket()
 		{
 			var port = TestPortAllocator.GetRandomPort();

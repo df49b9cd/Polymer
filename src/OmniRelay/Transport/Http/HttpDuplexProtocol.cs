@@ -47,6 +47,7 @@ internal static class HttpDuplexProtocol
     internal static async ValueTask<Frame> ReceiveFrameAsync(
         WebSocket socket,
         byte[] buffer,
+        int maxPayloadBytes,
         CancellationToken cancellationToken)
     {
         var position = 0;
@@ -61,8 +62,23 @@ internal static class HttpDuplexProtocol
             }
 
             position += result.Count;
+
+            if (position > buffer.Length)
+            {
+                throw new InvalidOperationException("Duplex frame exceeds the configured maximum size.");
+            }
+
+            if (position > 0 && (position - 1) > maxPayloadBytes)
+            {
+                throw new InvalidOperationException("Duplex frame exceeds the configured maximum size.");
+            }
         }
         while (!result.EndOfMessage && position < buffer.Length);
+
+        if (!result.EndOfMessage && position >= buffer.Length)
+        {
+            throw new InvalidOperationException("Duplex frame exceeds the configured maximum size.");
+        }
 
         if (position == 0)
         {
