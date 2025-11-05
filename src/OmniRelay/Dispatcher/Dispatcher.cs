@@ -252,7 +252,15 @@ public sealed class Dispatcher
 
         if (!_outbounds.TryGetValue(service, out var collection))
         {
-            throw new KeyNotFoundException($"No outbounds registered for service '{service}'.");
+            // Allow access to client middleware even when no outbounds are registered
+            // (useful for tests that inject a custom outbound and only need middleware).
+            collection = new OutboundCollection(
+                service,
+                ImmutableDictionary<string, IUnaryOutbound>.Empty,
+                ImmutableDictionary<string, IOnewayOutbound>.Empty,
+                ImmutableDictionary<string, IStreamOutbound>.Empty,
+                ImmutableDictionary<string, IClientStreamOutbound>.Empty,
+                ImmutableDictionary<string, IDuplexOutbound>.Empty);
         }
 
         return new ClientConfiguration(

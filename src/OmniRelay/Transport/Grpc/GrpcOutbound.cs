@@ -1124,12 +1124,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         {
             handler.EnableMultipleHttp3Connections = true;
 
+            // For TLS over TCP, ensure HTTP/2 ALPN is present. HTTP/3 ALPN is negotiated by MsQuic separately and
+            // should not be added to SslOptions.ApplicationProtocols.
             var applicationProtocols = handler.SslOptions.ApplicationProtocols ??= new List<SslApplicationProtocol>();
-            if (!applicationProtocols.Any(protocol => protocol.Equals(SslApplicationProtocol.Http3)))
-            {
-                applicationProtocols.Add(SslApplicationProtocol.Http3);
-            }
-
             if (!applicationProtocols.Any(protocol => protocol.Equals(SslApplicationProtocol.Http2)))
             {
                 applicationProtocols.Add(SslApplicationProtocol.Http2);
@@ -1139,8 +1136,26 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         // If a specific HTTP version/policy is requested, add a delegating handler to enforce it per-request.
         if (runtimeOptions.RequestVersion is not null || runtimeOptions.VersionPolicy is not null || runtimeOptions.EnableHttp3)
         {
-            var version = runtimeOptions.RequestVersion ?? (runtimeOptions.EnableHttp3 ? HttpVersion.Version30 : null);
-            var versionPolicy = runtimeOptions.VersionPolicy ?? (runtimeOptions.EnableHttp3 ? HttpVersionPolicy.RequestVersionOrHigher : null);
+            Version? version;
+            HttpVersionPolicy? versionPolicy;
+
+            if (runtimeOptions.EnableHttp3 && runtimeOptions.RequestVersion is null)
+            {
+                // Default for gRPC: request HTTP/3 and allow downgrade to HTTP/2 when unavailable.
+                // Use 3.0 + RequestVersionOrLower unless Exact/OrLower was explicitly specified.
+                version = HttpVersion.Version30;
+                versionPolicy = runtimeOptions.VersionPolicy switch
+                {
+                    HttpVersionPolicy.RequestVersionExact => HttpVersionPolicy.RequestVersionExact,
+                    HttpVersionPolicy.RequestVersionOrLower => HttpVersionPolicy.RequestVersionOrLower,
+                    _ => HttpVersionPolicy.RequestVersionOrLower
+                };
+            }
+            else
+            {
+                version = runtimeOptions.RequestVersion;
+                versionPolicy = runtimeOptions.VersionPolicy;
+            }
 
             if (version is not null || versionPolicy is not null)
             {
