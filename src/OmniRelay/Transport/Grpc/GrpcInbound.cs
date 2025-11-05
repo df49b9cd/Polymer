@@ -75,9 +75,9 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
             throw new InvalidOperationException("Dispatcher must be bound before starting the gRPC inbound.");
         }
 
-        var builder = WebApplication.CreateSlimBuilder();
+    var builder = WebApplication.CreateSlimBuilder();
 
-        builder.WebHost.UseKestrel(options =>
+    builder.WebHost.UseKestrel(options =>
         {
             if (_serverRuntimeOptions is { } runtimeOptions)
             {
@@ -127,7 +127,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                     }
                 });
             }
-        }).UseUrls(_urls);
+    });
 
         builder.Services.AddSingleton(_dispatcher);
         builder.Services.AddSingleton<IServiceMethodProvider<GrpcDispatcherService>>(

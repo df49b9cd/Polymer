@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 using OpenTelemetry.Resources;
 using OmniRelay.Configuration.Internal;
 using OmniRelay.Configuration.Models;
@@ -28,6 +29,9 @@ public static class OmniRelayServiceCollectionExtensions
         var (minimumLevel, overrides) = ParseLoggingConfiguration(snapshot.Logging);
 
         services.Configure<OmniRelayConfigurationOptions>(configuration);
+
+    // Ensure HttpClientFactory is available so named HTTP outbounds can be used if configured.
+    services.AddHttpClient();
 
         ConfigureDiagnostics(services, snapshot);
 
@@ -132,6 +136,33 @@ public static class OmniRelayServiceCollectionExtensions
             });
 
             services.AddHostedService<DiagnosticsRegistrationHostedService>();
+        }
+
+        // Enable tracing pipeline if explicitly enabled in configuration (primarily for OTLP export).
+        var tracingEnabled = otelEnabled && (otlpEnabled || (diagnostics.Runtime?.EnableTraceSamplingToggle ?? false));
+        if (tracingEnabled)
+        {
+            openTelemetryBuilder.WithTracing(builder =>
+            {
+                builder.AddSource("OmniRelay.Rpc", "OmniRelay.Transport.Grpc");
+
+                if (otlpEnabled)
+                {
+                    builder.AddOtlpExporter(options =>
+                    {
+                        options.Protocol = ParseOtlpProtocol(otel.Otlp.Protocol);
+                        if (!string.IsNullOrWhiteSpace(otel.Otlp.Endpoint))
+                        {
+                            if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
+                            {
+                                throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
+                            }
+
+                            options.Endpoint = endpoint;
+                        }
+                    });
+                }
+            });
         }
     }
 

@@ -22,6 +22,7 @@ using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 
 namespace OmniRelay.Configuration.Internal;
 
@@ -104,6 +105,16 @@ internal sealed class DispatcherBuilder
             var urls = inbound.Urls
                 .Select((url, position) => ValidateHttpUrl(url, $"http inbound #{index} (entry {position})"))
                 .ToArray();
+
+            // Enforce: HTTP inbound currently supports only HTTP (no TLS termination). Reject HTTPS to avoid
+            // confusing Kestrel startup failures without a certificate being configured.
+            foreach (var url in urls)
+            {
+                if (Uri.TryCreate(url, UriKind.Absolute, out var parsed) && parsed.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new OmniRelayConfigurationException($"HTTP inbound at index {index} uses HTTPS url '{url}', which is not supported. Use 'http://' or configure TLS support for HTTP inbound.");
+                }
+            }
 
             if (urls.Length == 0)
             {
@@ -723,6 +734,9 @@ internal sealed class DispatcherBuilder
             if (addMetrics)
             {
                 var otel = services.AddOpenTelemetry();
+                // Align resource identity with the configured service name for consistent labels.
+                var serviceName = string.IsNullOrWhiteSpace(_options.Service) ? "OmniRelay" : _options.Service!;
+                otel.ConfigureResource(resource => resource.AddService(serviceName: serviceName));
                 otel.WithMetrics(builder =>
                 {
                     builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Transport.Grpc", "OmniRelay.Rpc", "Hugo.Go");
@@ -743,6 +757,13 @@ internal sealed class DispatcherBuilder
                 else
                 {
                     services.AddSingleton<IDiagnosticsRuntime, DiagnosticsRuntimeState>();
+                }
+
+                // Also bridge the root logger factory so inbound logging honors global policies.
+                var rootLoggerFactory = _serviceProvider.GetService<ILoggerFactory>();
+                if (rootLoggerFactory is not null)
+                {
+                    services.AddSingleton(rootLoggerFactory);
                 }
             }
         };
