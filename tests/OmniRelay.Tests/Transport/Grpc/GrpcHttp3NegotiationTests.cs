@@ -450,6 +450,97 @@ public class GrpcHttp3NegotiationTests
         }
     }
 
+    [Fact(Timeout = 60_000)]
+    public async Task GrpcInbound_WithHttp3_KeepAliveMaintainsDuplex()
+    {
+        if (!QuicListener.IsSupported)
+        {
+            return;
+        }
+
+        using var certificate = CreateSelfSignedCertificate("CN=omnirelay-grpc-http3-keepalive");
+
+        var port = TestPortAllocator.GetRandomPort();
+        var address = new Uri($"https://127.0.0.1:{port}");
+
+        var runtime = new GrpcServerRuntimeOptions
+        {
+            EnableHttp3 = true,
+            Http3 = new OmniRelay.Transport.Http.Http3RuntimeOptions
+            {
+                KeepAliveInterval = TimeSpan.FromMilliseconds(500)
+            }
+        };
+
+        var tls = new GrpcServerTlsOptions { Certificate = certificate };
+        var options = new DispatcherOptions("grpc-http3-keepalive");
+
+        var inbound = new GrpcInbound(
+            [address.ToString()],
+            serverTlsOptions: tls,
+            serverRuntimeOptions: runtime);
+        options.AddLifecycle("grpc-http3-keepalive-inbound", inbound);
+
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+        dispatcher.Register(new DuplexProcedureSpec(
+            "grpc-http3-keepalive",
+            "grpc-http3-keepalive::echo",
+            (request, cancellationToken) =>
+            {
+                var call = DuplexStreamCall.Create(request.Meta, new ResponseMeta());
+                _ = Task.Run(async () =>
+                {
+                    await foreach (var frame in call.RequestReader.ReadAllAsync(cancellationToken))
+                    {
+                        await call.ResponseWriter.WriteAsync(frame, cancellationToken);
+                    }
+
+                    await call.CompleteResponsesAsync(cancellationToken: cancellationToken);
+                }, cancellationToken);
+
+                return ValueTask.FromResult(Ok<IDuplexStreamCall>(call));
+            }));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+        await WaitForGrpcReadyAsync(address, ct);
+
+        using var handler = CreateHttp3SocketsHandler();
+        using var client = CreateHttp3Client(handler, HttpVersionPolicy.RequestVersionExact);
+        using var channel = GrpcChannel.ForAddress(address, new GrpcChannelOptions { HttpClient = client });
+        var invoker = channel.CreateCallInvoker();
+        var method = new Method<byte[], byte[]>(MethodType.DuplexStreaming, "grpc-http3-keepalive", "grpc-http3-keepalive::echo", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
+
+        var payload1 = new byte[16 * 1024];
+        RandomNumberGenerator.Fill(payload1);
+        var payload2 = new byte[8 * 1024];
+        RandomNumberGenerator.Fill(payload2);
+
+        try
+        {
+            var call = invoker.AsyncDuplexStreamingCall(method, null, new CallOptions());
+            await call.RequestStream.WriteAsync(payload1, cancellationToken: ct);
+
+            // Wait beyond the server keep-alive interval to ensure the connection is kept alive
+            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+
+            await call.RequestStream.WriteAsync(payload2, cancellationToken: ct);
+            await call.RequestStream.CompleteAsync().WaitAsync(ct);
+
+            Assert.True(await call.ResponseStream.MoveNext(ct));
+            Assert.Equal(payload1.Length, call.ResponseStream.Current.Length);
+
+            Assert.True(await call.ResponseStream.MoveNext(ct));
+            Assert.Equal(payload2.Length, call.ResponseStream.Current.Length);
+
+            Assert.False(await call.ResponseStream.MoveNext(ct));
+        }
+        finally
+        {
+            await dispatcher.StopAsync(ct);
+        }
+    }
+
     [Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Enabled_DrainRejectsNewCallsWithRetryAfter()
     {

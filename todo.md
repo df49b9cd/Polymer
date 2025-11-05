@@ -96,13 +96,13 @@
   - [ ] Validate connection pooling and keep-alive tuning under load using benchmark suite.
   - [ ] Document recommended handler overrides for high-concurrency workloads.
 - [ ] Exercise server keep-alive settings under HTTP/3 and expose MsQuic keep-alive knobs alongside current HTTP/2 configuration.
-  - [ ] Add configuration binding for MsQuic keep-alive options on the server side.
-  - [ ] Stress test long-lived streams verifying keep-alive behavior.
+  - [x] Add configuration binding for MsQuic keep-alive options on the server side.
+  - [x] Stress test long-lived streams verifying keep-alive behavior.
   - [ ] Update operational docs describing keep-alive tuning for HTTP/3 deployments.
 - [ ] Confirm gRPC health checks and draining semantics still produce `StatusCode.Unavailable` with retry metadata.
-  - [ ] Run end-to-end drain tests capturing gRPC status codes over HTTP/3.
-  - [ ] Ensure metadata serialization matches existing HTTP/2 expectations.
-  - [ ] Capture results in SLO/SLA documentation.
+  - [x] Run end-to-end drain tests capturing gRPC status codes over HTTP/3.
+  - [x] Ensure metadata serialization matches existing HTTP/2 expectations.
+  - [x] Capture results in SLO/SLA documentation.
 - [ ] Capture and document any gRPC client library limitations (per language) when connecting over HTTP/3.
   - [ ] Survey officially supported gRPC client libraries for HTTP/3 readiness.
   - [ ] File follow-up issues for unsupported clients or document required workarounds.
