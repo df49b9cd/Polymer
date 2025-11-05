@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net;
 using Grpc.AspNetCore.Server.Model;
 using Grpc.Core;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc.Interceptors;
@@ -76,6 +78,8 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         }
 
     var builder = WebApplication.CreateSlimBuilder();
+    var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
+    var http3Endpoints = enableHttp3 ? new List<string>() : null;
 
     builder.WebHost.UseKestrel(options =>
         {
@@ -92,8 +96,6 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                 }
             }
 
-            var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
-
             foreach (var url in _urls)
             {
                 var uri = new Uri(url, UriKind.Absolute);
@@ -108,6 +110,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                         }
 
                         listenOptions.Protocols = HttpProtocols.Http2 | HttpProtocols.Http3;
+                        http3Endpoints?.Add(url);
                     }
                     else
                     {
@@ -242,6 +245,18 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         _configureServices?.Invoke(builder.Services);
 
         var app = builder.Build();
+
+        if (enableHttp3)
+        {
+            if (http3Endpoints is { Count: > 0 })
+            {
+                app.Logger.LogInformation("gRPC HTTP/3 enabled on {EndpointCount} endpoint(s): {Endpoints}", http3Endpoints.Count, string.Join(", ", http3Endpoints));
+            }
+            else
+            {
+                app.Logger.LogWarning("gRPC HTTP/3 was requested but no HTTPS endpoints were configured; falling back to HTTP/2.");
+            }
+        }
 
         _configureApp?.Invoke(app);
 

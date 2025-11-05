@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO.Pipelines;
 using System.Net.Mime;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Logging;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
@@ -94,6 +96,9 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         }
 
         var builder = WebApplication.CreateSlimBuilder();
+        var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
+        var http3Endpoints = enableHttp3 ? new List<string>() : null;
+
         builder.WebHost.UseKestrel(options =>
         {
             if (_serverRuntimeOptions?.MaxRequestBodySize is { } maxRequest)
@@ -117,8 +122,6 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 options.Limits.RequestHeadersTimeout = requestHeadersTimeout;
             }
 
-            var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
-
             foreach (var url in _urls)
             {
                 var uri = new Uri(url, UriKind.Absolute);
@@ -133,6 +136,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                         }
 
                         listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                        http3Endpoints?.Add(url);
                     }
 
                     if (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
@@ -164,6 +168,18 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         builder.Services.AddSingleton(_dispatcher);
 
         var app = builder.Build();
+
+        if (enableHttp3)
+        {
+            if (http3Endpoints is { Count: > 0 })
+            {
+                app.Logger.LogInformation("HTTP/3 enabled on {EndpointCount} endpoint(s): {Endpoints}", http3Endpoints.Count, string.Join(", ", http3Endpoints));
+            }
+            else
+            {
+                app.Logger.LogWarning("HTTP/3 was requested but no HTTPS endpoints were configured; falling back to HTTP/1.1 and HTTP/2.");
+            }
+        }
 
         app.UseWebSockets();
 

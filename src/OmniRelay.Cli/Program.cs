@@ -1430,7 +1430,9 @@ public static class Program
                         step.BodyFile,
                         step.BodyBase64,
                         step.Url,
-                        addresses).ConfigureAwait(false);
+                        addresses,
+                        enableHttp3: false,
+                        enableGrpcHttp3: false).ConfigureAwait(false);
 
                     if (requestResult != 0)
                     {

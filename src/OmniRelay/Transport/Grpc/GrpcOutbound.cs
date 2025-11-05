@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http;
@@ -1113,7 +1114,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         {
             handler.EnableMultipleHttp3Connections = true;
 
-            var applicationProtocols = handler.SslOptions.ApplicationProtocols;
+            var applicationProtocols = handler.SslOptions.ApplicationProtocols ??= new List<SslApplicationProtocol>();
             if (!applicationProtocols.Any(protocol => protocol.Equals(SslApplicationProtocol.Http3)))
             {
                 applicationProtocols.Add(SslApplicationProtocol.Http3);
