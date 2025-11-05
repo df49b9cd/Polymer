@@ -792,8 +792,12 @@ internal sealed class DispatcherBuilder
         {
             options.MaxRequestBodySize = max;
         }
+        if (configuration.MaxInMemoryDecodeBytes is { } maxInMem)
+        {
+            options.MaxInMemoryDecodeBytes = maxInMem;
+        }
 
-        return options.MaxRequestBodySize.HasValue ? options : null;
+        return (options.MaxRequestBodySize.HasValue || options.MaxInMemoryDecodeBytes.HasValue) ? options : null;
     }
 
     private static OmniRelay.Transport.Http.HttpServerTlsOptions? BuildHttpServerTlsOptions(HttpServerTlsConfiguration configuration)

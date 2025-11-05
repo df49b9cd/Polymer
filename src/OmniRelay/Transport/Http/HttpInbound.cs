@@ -323,6 +323,16 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
             var meta = BuildRequestMeta(dispatcher.ServiceName, procedure!, encoding, context.Request.Headers, transport);
 
+            // Enforce in-memory decode threshold to prevent unbounded buffering for very large bodies.
+            if (_serverRuntimeOptions?.MaxInMemoryDecodeBytes is { } maxInMem &&
+                context.Request.ContentLength is { } contentLen &&
+                contentLen > maxInMem)
+            {
+                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                await WriteErrorAsync(context, "request body exceeds in-memory decode limit", OmniRelayStatusCode.ResourceExhausted, transport).ConfigureAwait(false);
+                return;
+            }
+
             byte[] buffer;
             if (context.Request.ContentLength is > 0)
             {

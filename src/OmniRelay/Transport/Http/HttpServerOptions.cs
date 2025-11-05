@@ -15,4 +15,6 @@ public sealed class HttpServerTlsOptions
 public sealed class HttpServerRuntimeOptions
 {
     public long? MaxRequestBodySize { get; set; }
+
+    public long? MaxInMemoryDecodeBytes { get; set; }
 }

@@ -85,6 +85,8 @@ public sealed class GrpcTelemetryConfiguration
 public sealed class HttpServerRuntimeConfiguration
 {
     public long? MaxRequestBodySize { get; set; }
+
+    public long? MaxInMemoryDecodeBytes { get; set; }
 }
 
 public sealed class HttpServerTlsConfiguration
