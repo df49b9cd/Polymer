@@ -98,6 +98,26 @@ public class OmniRelayConfigurationTests
     }
 
     [Fact]
+    public void AddOmniRelayDispatcher_HttpsInboundWithoutTls_Throws()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["polymer:service"] = "gateway",
+                ["polymer:inbounds:http:0:urls:0"] = "https://127.0.0.1:8443"
+            }!)
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+
+        using var provider = services.BuildServiceProvider();
+        var ex = Assert.Throws<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
+        Assert.Contains("no TLS certificate was configured", ex.Message);
+    }
+
+    [Fact]
     public void AddOmniRelayDispatcher_UsesCustomTransportSpecs()
     {
         var configuration = new ConfigurationBuilder()

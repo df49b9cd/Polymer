@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Net.Mime;
 using System.Net.WebSockets;
@@ -333,20 +334,13 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 return;
             }
 
-            byte[] buffer;
-            if (context.Request.ContentLength is > 0)
+            var (success, payload) = await TryReadRequestBodyAsync(context, transport, _serverRuntimeOptions?.MaxInMemoryDecodeBytes).ConfigureAwait(false);
+            if (!success)
             {
-                buffer = new byte[context.Request.ContentLength.Value];
-                await context.Request.Body.ReadExactlyAsync(buffer.AsMemory(), context.RequestAborted).ConfigureAwait(false);
-            }
-            else
-            {
-                using var memory = new MemoryStream();
-                await context.Request.Body.CopyToAsync(memory, context.RequestAborted).ConfigureAwait(false);
-                buffer = memory.ToArray();
+                return;
             }
 
-            var request = new Request<ReadOnlyMemory<byte>>(meta, buffer);
+            var request = new Request<ReadOnlyMemory<byte>>(meta, payload);
 
             if (dispatcher.TryGetProcedure(procedure!, ProcedureKind.Oneway, out _))
             {
@@ -404,6 +398,76 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         finally
         {
             CompleteRequest();
+        }
+    }
+
+    private static async ValueTask<(bool Success, ReadOnlyMemory<byte> Buffer)> TryReadRequestBodyAsync(HttpContext context, string transport, long? maxInMemory)
+    {
+        if (context.Request.ContentLength is { } contentLength)
+        {
+            if (maxInMemory is { } max && contentLength > max)
+            {
+                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                await WriteErrorAsync(context, "request body exceeds in-memory decode limit", OmniRelayStatusCode.ResourceExhausted, transport).ConfigureAwait(false);
+                return (false, ReadOnlyMemory<byte>.Empty);
+            }
+
+            if (contentLength == 0)
+            {
+                return (true, ReadOnlyMemory<byte>.Empty);
+            }
+
+            if (contentLength > int.MaxValue)
+            {
+                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                await WriteErrorAsync(context, "request body too large", OmniRelayStatusCode.ResourceExhausted, transport).ConfigureAwait(false);
+                return (false, ReadOnlyMemory<byte>.Empty);
+            }
+
+            var buffer = new byte[(int)contentLength];
+            await context.Request.Body.ReadExactlyAsync(buffer.AsMemory(), context.RequestAborted).ConfigureAwait(false);
+            return (true, buffer);
+        }
+
+        const int chunkSize = 81920;
+        long total = 0;
+
+        using var memory = new MemoryStream();
+        var rented = ArrayPool<byte>.Shared.Rent(chunkSize);
+        try
+        {
+            while (true)
+            {
+                var read = await context.Request.Body.ReadAsync(rented.AsMemory(0, chunkSize), context.RequestAborted).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                total += read;
+
+                if (maxInMemory is { } maxBytes && total > maxBytes)
+                {
+                    context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    await WriteErrorAsync(context, "request body exceeds in-memory decode limit", OmniRelayStatusCode.ResourceExhausted, transport).ConfigureAwait(false);
+                    return (false, ReadOnlyMemory<byte>.Empty);
+                }
+
+                if (total > int.MaxValue)
+                {
+                    context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                    await WriteErrorAsync(context, "request body too large", OmniRelayStatusCode.ResourceExhausted, transport).ConfigureAwait(false);
+                    return (false, ReadOnlyMemory<byte>.Empty);
+                }
+
+                memory.Write(rented, 0, read);
+            }
+
+            return (true, memory.ToArray());
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(rented);
         }
     }
 

@@ -115,8 +115,24 @@ internal sealed class DispatcherBuilder
                 ? $"http-inbound:{index}"
                 : inbound.Name!;
 
+            var requiresTls = urls.Any(static url =>
+            {
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                {
+                    return false;
+                }
+
+                return uri.Scheme == Uri.UriSchemeHttps;
+            });
+
             var httpRuntimeOptions = BuildHttpServerRuntimeOptions(inbound.Runtime);
             var httpTlsOptions = BuildHttpServerTlsOptions(inbound.Tls);
+
+            if (requiresTls && httpTlsOptions?.Certificate is null)
+            {
+                throw new OmniRelayConfigurationException(
+                    $"HTTP inbound '{name}' includes HTTPS endpoints but no TLS certificate was configured. Provide inbounds:http:{index}:tls:certificatePath.");
+            }
 
             var configureServices = CreateHttpInboundServiceConfigurator();
             var configureApp = CreateHttpInboundAppConfigurator();
