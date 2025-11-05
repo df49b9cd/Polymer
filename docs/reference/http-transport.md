@@ -135,7 +135,9 @@ Enable the transport per listener via configuration:
       "runtime": {
         "enableHttp3": true,
         "http3": {
-          "enableAltSvc": true
+          "enableAltSvc": true,
+          "maxBidirectionalStreams": 128,
+          "maxUnidirectionalStreams": 32
         }
       },
       "tls": {
@@ -154,9 +156,11 @@ Key behaviours:
   endpoints.
 - `http3.enableAltSvc` controls whether Kestrel emits `Alt-Svc`; it is enabled
   by default so HTTP/1.1 and HTTP/2 clients learn about the HTTP/3 endpoint.
-- Additional knobs (`idleTimeout`, `keepAliveInterval`, and stream limits) are
-  surfaced for future MsQuic tuning. The current runtime ignores them and logs a
-  warning on startup so operators know they are not yet effective.
+- `http3.maxBidirectionalStreams` / `http3.maxUnidirectionalStreams` map
+  directly to MsQuic stream limits and are applied during listener startup.
+- `http3.idleTimeout` and `http3.keepAliveInterval` are accepted for parity
+  with upstream docs. MsQuic does not currently expose those knobs so OmniRelay
+  logs a warning and ignores the values.
 
 Remember that HTTP/3 still falls back to HTTP/2/1.1 when clients or middleboxes
 block UDP 443. Keep your existing HTTP/2 observability in place and monitor the

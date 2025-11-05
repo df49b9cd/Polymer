@@ -1,5 +1,12 @@
+using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
+using System.Net.Quic;
+using System.Net.Security;
 using System.Text.Json;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Xunit;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
@@ -62,6 +69,77 @@ public class HttpInboundLifecycleTests
 
         using var response = await inFlightTask;
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await stopTask;
+    }
+
+    [Fact(Timeout = 45_000)]
+    public async Task StopAsync_WithHttp3Request_PropagatesRetryAfter()
+    {
+        if (!QuicListener.IsSupported)
+        {
+            return;
+        }
+
+        using var certificate = CreateSelfSignedCertificate("CN=omnirelay-http3-lifecycle");
+
+        var port = TestPortAllocator.GetRandomPort();
+        var baseAddress = new Uri($"https://127.0.0.1:{port}/");
+
+        var runtime = new HttpServerRuntimeOptions { EnableHttp3 = true };
+        var tls = new HttpServerTlsOptions { Certificate = certificate };
+
+        var options = new DispatcherOptions("lifecycle-http3");
+        var httpInbound = new HttpInbound([baseAddress.ToString()], serverRuntimeOptions: runtime, serverTlsOptions: tls);
+        options.AddLifecycle("http-inbound-http3", httpInbound);
+
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        dispatcher.Register(new UnaryProcedureSpec(
+            "lifecycle-http3",
+            "test::slow",
+            async (request, token) =>
+            {
+                requestStarted.TrySetResult();
+                await releaseRequest.Task.WaitAsync(token);
+                return Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta()));
+            }));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+
+        using var handler = CreateHttp3Handler();
+        using var httpClient = new HttpClient(handler) { BaseAddress = baseAddress };
+
+        using var initialRequest = CreateRpcRequest("test::slow");
+        initialRequest.Version = HttpVersion.Version30;
+        initialRequest.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        var inFlightTask = httpClient.SendAsync(initialRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+
+        await requestStarted.Task.WaitAsync(ct);
+
+        var stopTask = dispatcher.StopAsync(ct);
+        await Task.Delay(100, ct);
+
+        using var rejectedRequest = CreateRpcRequest("test::slow");
+        rejectedRequest.Version = HttpVersion.Version30;
+        rejectedRequest.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        using var rejectedResponse = await httpClient.SendAsync(rejectedRequest, ct);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, rejectedResponse.StatusCode);
+        Assert.True(rejectedResponse.Headers.TryGetValues("Retry-After", out var retryAfterValues));
+        Assert.Contains("1", retryAfterValues);
+        Assert.Equal(3, rejectedResponse.Version.Major);
+        Assert.False(stopTask.IsCompleted);
+
+        releaseRequest.TrySetResult();
+
+        using var response = await inFlightTask;
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3, response.Version.Major);
 
         await stopTask;
     }
@@ -208,5 +286,43 @@ public class HttpInboundLifecycleTests
         request.Headers.Add(HttpTransportHeaders.Transport, "http");
         request.Content = new ByteArrayContent([]);
         return request;
+    }
+
+    private static SocketsHttpHandler CreateHttp3Handler()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            EnableMultipleHttp3Connections = true,
+            SslOptions =
+            {
+                RemoteCertificateValidationCallback = static (_, _, _, _) => true,
+                EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                ApplicationProtocols = new List<SslApplicationProtocol>
+                {
+                    SslApplicationProtocol.Http3,
+                    SslApplicationProtocol.Http2,
+                    SslApplicationProtocol.Http11
+                }
+            }
+        };
+
+        return handler;
+    }
+
+    private static X509Certificate2 CreateSelfSignedCertificate(string subjectName)
+    {
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest(subjectName, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
+        request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+
+        var sanBuilder = new SubjectAlternativeNameBuilder();
+        sanBuilder.AddDnsName("localhost");
+        sanBuilder.AddIpAddress(IPAddress.Loopback);
+        request.CertificateExtensions.Add(sanBuilder.Build());
+
+        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
     }
 }

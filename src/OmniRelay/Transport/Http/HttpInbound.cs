@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.Quic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Extensions.Logging;
@@ -100,11 +101,36 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
         var http3Endpoints = enableHttp3 ? new List<string>() : null;
         var http3RuntimeOptions = _serverRuntimeOptions?.Http3;
+        var streamLimitUnsupported = false;
         var hasUnsupportedHttp3Tunables =
             http3RuntimeOptions?.IdleTimeout is not null ||
-            http3RuntimeOptions?.KeepAliveInterval is not null ||
-            http3RuntimeOptions?.MaxBidirectionalStreams is not null ||
-            http3RuntimeOptions?.MaxUnidirectionalStreams is not null;
+            http3RuntimeOptions?.KeepAliveInterval is not null;
+
+        if (enableHttp3)
+        {
+            builder.WebHost.UseQuic(quicOptions =>
+            {
+                if (http3RuntimeOptions?.MaxBidirectionalStreams is { } maxBidirectionalStreams)
+                {
+                    if (maxBidirectionalStreams <= 0)
+                    {
+                        throw new InvalidOperationException("HTTP/3 MaxBidirectionalStreams must be greater than zero.");
+                    }
+
+                    streamLimitUnsupported |= !TrySetQuicStreamLimit(quicOptions, "MaxBidirectionalStreamCount", maxBidirectionalStreams);
+                }
+
+                if (http3RuntimeOptions?.MaxUnidirectionalStreams is { } maxUnidirectionalStreams)
+                {
+                    if (maxUnidirectionalStreams <= 0)
+                    {
+                        throw new InvalidOperationException("HTTP/3 MaxUnidirectionalStreams must be greater than zero.");
+                    }
+
+                    streamLimitUnsupported |= !TrySetQuicStreamLimit(quicOptions, "MaxUnidirectionalStreamCount", maxUnidirectionalStreams);
+                }
+            });
+        }
 
         builder.WebHost.UseKestrel(options =>
         {
@@ -206,9 +232,14 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 app.Logger.LogWarning("HTTP/3 was requested but no HTTPS endpoints were configured; falling back to HTTP/1.1 and HTTP/2.");
             }
 
+            if (streamLimitUnsupported)
+            {
+                app.Logger.LogWarning("HTTP/3 stream limit tuning is not supported by the current MsQuic transport; configured values will be ignored.");
+            }
+
             if (hasUnsupportedHttp3Tunables)
             {
-                app.Logger.LogWarning("HTTP/3 keep-alive, idle timeout, or stream tuning options are not yet supported by the current MsQuic transport; configured values will be ignored.");
+                app.Logger.LogWarning("HTTP/3 idle timeout or keep-alive tuning is not yet supported by the current MsQuic transport; configured values will be ignored.");
             }
         }
 
@@ -286,6 +317,25 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
     private static TaskCompletionSource<bool> CreateDrainTcs() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private static bool TrySetQuicStreamLimit(QuicTransportOptions options, string propertyName, int value)
+    {
+        var property = typeof(QuicTransportOptions).GetProperty(propertyName);
+        if (property is null || !property.CanWrite)
+        {
+            return false;
+        }
+
+        try
+        {
+            property.SetValue(options, value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     private bool TryBeginRequest(HttpContext context)
     {
