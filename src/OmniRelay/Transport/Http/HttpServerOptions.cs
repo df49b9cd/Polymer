@@ -36,4 +36,19 @@ public sealed class HttpServerRuntimeOptions
     public int? ServerStreamMaxMessageBytes { get; set; }
 
     public int? DuplexMaxFrameBytes { get; set; }
+
+    public Http3RuntimeOptions? Http3 { get; set; }
+}
+
+public sealed class Http3RuntimeOptions
+{
+    public bool? EnableAltSvc { get; init; }
+
+    public TimeSpan? IdleTimeout { get; init; }
+
+    public TimeSpan? KeepAliveInterval { get; init; }
+
+    public int? MaxBidirectionalStreams { get; init; }
+
+    public int? MaxUnidirectionalStreams { get; init; }
 }

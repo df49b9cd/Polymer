@@ -1,4 +1,5 @@
 using Grpc.Core.Interceptors;
+using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Transport.Grpc;
 
@@ -42,4 +43,6 @@ public sealed record GrpcServerRuntimeOptions
     public int? ServerStreamMaxMessageBytes { get; init; }
 
     public int? DuplexMaxMessageBytes { get; init; }
+
+    public Http3RuntimeOptions? Http3 { get; init; }
 }

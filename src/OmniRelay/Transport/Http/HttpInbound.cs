@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO.Pipelines;
 using System.Net.Mime;
 using System.Net.WebSockets;
+using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -98,6 +99,12 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         var builder = WebApplication.CreateSlimBuilder();
         var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
         var http3Endpoints = enableHttp3 ? new List<string>() : null;
+        var http3RuntimeOptions = _serverRuntimeOptions?.Http3;
+        var hasUnsupportedHttp3Tunables =
+            http3RuntimeOptions?.IdleTimeout is not null ||
+            http3RuntimeOptions?.KeepAliveInterval is not null ||
+            http3RuntimeOptions?.MaxBidirectionalStreams is not null ||
+            http3RuntimeOptions?.MaxUnidirectionalStreams is not null;
 
         builder.WebHost.UseKestrel(options =>
         {
@@ -135,8 +142,22 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                             throw new InvalidOperationException($"HTTP/3 requires HTTPS. Update inbound URL '{url}' to use https:// or disable HTTP/3 for this listener.");
                         }
 
+                        Http3RuntimeGuards.EnsureServerSupport(url, _serverTlsOptions?.Certificate);
+
                         listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                        var enableAltSvc = http3RuntimeOptions?.EnableAltSvc;
+                        listenOptions.DisableAltSvcHeader = enableAltSvc switch
+                        {
+                            true => false,
+                            false => true,
+                            _ => false
+                        };
+
                         http3Endpoints?.Add(url);
+                    }
+                    else
+                    {
+                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                     }
 
                     if (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
@@ -155,6 +176,11 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                         if (_serverTlsOptions.CheckCertificateRevocation is { } checkRevocation)
                         {
                             httpsOptions.CheckCertificateRevocation = checkRevocation;
+                        }
+
+                        if (enableHttp3)
+                        {
+                            httpsOptions.SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;
                         }
 
                         listenOptions.UseHttps(httpsOptions);
@@ -178,6 +204,11 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             else
             {
                 app.Logger.LogWarning("HTTP/3 was requested but no HTTPS endpoints were configured; falling back to HTTP/1.1 and HTTP/2.");
+            }
+
+            if (hasUnsupportedHttp3Tunables)
+            {
+                app.Logger.LogWarning("HTTP/3 keep-alive, idle timeout, or stream tuning options are not yet supported by the current MsQuic transport; configured values will be ignored.");
             }
         }
 

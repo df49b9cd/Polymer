@@ -110,6 +110,58 @@ write timeouts ensure slow consumers are cancelled rather than buffering
 indefinitely in `PipeWriter` or WebSocket queues. Tune the limits alongside the
 gateway/proxy buffer policies referenced above.
 
+## HTTP/3
+
+OmniRelay ships HTTP/3 support behind an explicit feature flag. Enabling it
+adds `HttpProtocols.Http3` alongside the existing HTTP/1.1 + HTTP/2 listeners
+and emits `Alt-Svc` headers so capable clients can upgrade.
+
+Requirements:
+
+- The inbound must bind `https://` URLs and load a certificate that can
+  negotiate TLS 1.3. Certificates missing a private key or pinned to TLS 1.2
+  will fail startup when HTTP/3 is requested.
+- The host OS must expose MsQuic. Windows Server 2022 / Windows 11 ship it by
+  default; Linux nodes must preload `libmsquic` 2.2 or newer. Unsupported
+  platforms (macOS, older Windows builds) now throw before the listener starts.
+
+Enable the transport per listener via configuration:
+
+```jsonc
+"inbounds": {
+  "http": [
+    {
+      "urls": [ "https://0.0.0.0:8443" ],
+      "runtime": {
+        "enableHttp3": true,
+        "http3": {
+          "enableAltSvc": true
+        }
+      },
+      "tls": {
+        "certificatePath": "certs/server.pfx",
+        "certificatePassword": "change-me"
+      }
+    }
+  ]
+}
+```
+
+Key behaviours:
+
+- `enableHttp3` defaults to `false`. When `true`, OmniRelay validates the
+  certificate, verifies TLS 1.3 support, and refuses to bind plain HTTP
+  endpoints.
+- `http3.enableAltSvc` controls whether Kestrel emits `Alt-Svc`; it is enabled
+  by default so HTTP/1.1 and HTTP/2 clients learn about the HTTP/3 endpoint.
+- Additional knobs (`idleTimeout`, `keepAliveInterval`, and stream limits) are
+  surfaced for future MsQuic tuning. The current runtime ignores them and logs a
+  warning on startup so operators know they are not yet effective.
+
+Remember that HTTP/3 still falls back to HTTP/2/1.1 when clients or middleboxes
+block UDP 443. Keep your existing HTTP/2 observability in place and monitor the
+startup logs for any HTTP/3 prerequisites that fail validation.
+
 ## Server-sent events
 
 Server-stream RPCs use SSE with hardened defaults:

@@ -36,21 +36,21 @@
 - [ ] Add an HTTP/3 feature flag in transport configuration (opt-in per listener and environment).
   - [x] Define configuration schema/CLI flags for enabling HTTP/3 per endpoint.
   - [x] Implement runtime toggle that falls back to existing HTTP/1.1+HTTP/2 behavior by default.
-  - [ ] Document configuration usage and defaults in operator guide.
+  - [x] Document configuration usage and defaults in operator guide.
 - [ ] Update `HttpInbound` listeners to use `HttpProtocols.Http1AndHttp2AndHttp3` and validate TLS 1.3 availability before enabling HTTP/3.https://learn.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-9.0#configure-grpc-client-to-use-http3
   - [x] Modify listener setup to request multi-protocol support and add TLS capability checks.
-  - [ ] Add integration tests covering HTTP/1.1, HTTP/2, and HTTP/3 negotiation.
-  - [ ] Gate feature behind the new configuration flag.
+  - [x] Add integration tests covering HTTP/1.1, HTTP/2, and HTTP/3 negotiation.
+  - [x] Gate feature behind the new configuration flag.
 - [ ] Update `GrpcInbound` listeners to allow HTTP/3 (ensure MsQuic handshake succeeds when TLS callbacks are configured).
   - [x] Adjust listener options to include HTTP/3 and audit TLS callbacks for unsupported settings.
   - [ ] Verify MsQuic handshake success with existing interceptors and auth flows.
   - [ ] Add regression tests ensuring HTTP/2-only deployments remain unaffected.
 - [ ] Confirm endpoint configuration sets `ListenOptions.Protocols` and `EnableAltSvc` equivalents so HTTP/3 advertises correctly across all bindings.
-  - [ ] Audit all current listener definitions for missing protocol declarations or alt-svc settings.
+  - [x] Audit all current listener definitions for missing protocol declarations or alt-svc settings.
   - [x] Add validation to startup logging highlighting misconfigured endpoints.
   - [ ] Update configuration samples/templates to include the correct options.
 - [ ] Surface MsQuic-specific tuning knobs (connection idle timeout, stream limits, keep-alive) via runtime options with sensible defaults.
-  - [ ] Design configuration structure mapping MsQuic options to OmniRelay runtime settings.
+  - [x] Design configuration structure mapping MsQuic options to OmniRelay runtime settings.
   - [ ] Implement wiring in Http/Grpc inbound/outbound components.
   - [ ] Provide documentation describing recommended defaults and tuning guidance.
 - [ ] Ensure graceful shutdown/drain logic works for QUIC transports and still signals retry metadata (`retry-after`) consistently.

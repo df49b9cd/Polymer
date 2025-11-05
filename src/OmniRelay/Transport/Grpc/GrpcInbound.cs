@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Net;
+using System.Security.Authentication;
 using Grpc.AspNetCore.Server.Model;
 using Grpc.Core;
 using Microsoft.AspNetCore.Builder;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc.Interceptors;
+using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Transport.Grpc;
 
@@ -77,11 +79,22 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
             throw new InvalidOperationException("Dispatcher must be bound before starting the gRPC inbound.");
         }
 
-    var builder = WebApplication.CreateSlimBuilder();
-    var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
-    var http3Endpoints = enableHttp3 ? new List<string>() : null;
+        var builder = WebApplication.CreateSlimBuilder();
+        var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
+        var http3Endpoints = enableHttp3 ? new List<string>() : null;
+        var http3RuntimeOptions = _serverRuntimeOptions?.Http3;
+        var hasUnsupportedHttp3Tunables =
+            http3RuntimeOptions?.IdleTimeout is not null ||
+            http3RuntimeOptions?.KeepAliveInterval is not null ||
+            http3RuntimeOptions?.MaxBidirectionalStreams is not null ||
+            http3RuntimeOptions?.MaxUnidirectionalStreams is not null;
 
-    builder.WebHost.UseKestrel(options =>
+        if (enableHttp3 && _serverTlsOptions?.Certificate is null)
+        {
+            throw new InvalidOperationException("HTTP/3 requires TLS. Configure a server certificate for the gRPC inbound or disable HTTP/3.");
+        }
+
+        builder.WebHost.UseKestrel(options =>
         {
             if (_serverRuntimeOptions is { } runtimeOptions)
             {
@@ -109,7 +122,17 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                             throw new InvalidOperationException($"HTTP/3 requires HTTPS. Update inbound URL '{url}' to use https:// or disable HTTP/3 for this listener.");
                         }
 
+                        Http3RuntimeGuards.EnsureServerSupport(url, _serverTlsOptions?.Certificate);
+
                         listenOptions.Protocols = HttpProtocols.Http2 | HttpProtocols.Http3;
+                        var enableAltSvc = http3RuntimeOptions?.EnableAltSvc;
+                        listenOptions.DisableAltSvcHeader = enableAltSvc switch
+                        {
+                            true => false,
+                            false => true,
+                            _ => false
+                        };
+
                         http3Endpoints?.Add(url);
                     }
                     else
@@ -119,15 +142,25 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
 
                     if (_serverTlsOptions is { } tlsOptions)
                     {
+                        var enabledProtocols = tlsOptions.EnabledProtocols;
+                        if (enableHttp3 && enabledProtocols is { } specifiedProtocols && (specifiedProtocols & SslProtocols.Tls13) == 0)
+                        {
+                            throw new InvalidOperationException($"HTTP/3 requires TLS 1.3 but the configured protocol set for '{url}' excludes it.");
+                        }
+
                         var httpsOptions = new HttpsConnectionAdapterOptions
                         {
                             ServerCertificate = tlsOptions.Certificate,
                             ClientCertificateMode = tlsOptions.ClientCertificateMode
                         };
 
-                        if (tlsOptions.EnabledProtocols is not null)
+                        if (enableHttp3)
                         {
-                            httpsOptions.SslProtocols = tlsOptions.EnabledProtocols.Value;
+                            httpsOptions.SslProtocols = enabledProtocols ?? (SslProtocols.Tls12 | SslProtocols.Tls13);
+                        }
+                        else if (enabledProtocols is not null)
+                        {
+                            httpsOptions.SslProtocols = enabledProtocols.Value;
                         }
 
                         if (tlsOptions.CheckCertificateRevocation is { } checkRevocation)
@@ -143,9 +176,13 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
 
                         listenOptions.UseHttps(httpsOptions);
                     }
+                    else if (enableHttp3)
+                    {
+                        throw new InvalidOperationException($"HTTP/3 requires HTTPS. Configure TLS for '{url}' or disable HTTP/3 for this listener.");
+                    }
                 });
             }
-    });
+        });
 
         builder.Services.AddSingleton(_dispatcher);
         builder.Services.AddSingleton<IServiceMethodProvider<GrpcDispatcherService>>(
@@ -255,6 +292,11 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
             else
             {
                 app.Logger.LogWarning("gRPC HTTP/3 was requested but no HTTPS endpoints were configured; falling back to HTTP/2.");
+            }
+
+            if (hasUnsupportedHttp3Tunables)
+            {
+                app.Logger.LogWarning("HTTP/3 keep-alive, idle timeout, or stream tuning options are not yet supported by the current MsQuic transport; configured values will be ignored.");
             }
         }
 

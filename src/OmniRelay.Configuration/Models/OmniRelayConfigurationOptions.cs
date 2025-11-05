@@ -72,6 +72,8 @@ public sealed class GrpcServerRuntimeConfiguration
     public int? ServerStreamMaxMessageBytes { get; set; }
 
     public int? DuplexMaxMessageBytes { get; set; }
+
+    public Http3ServerRuntimeConfiguration Http3 { get; init; } = new();
 }
 
 public sealed class GrpcServerTlsConfiguration
@@ -115,6 +117,21 @@ public sealed class HttpServerRuntimeConfiguration
     public int? ServerStreamMaxMessageBytes { get; set; }
 
     public int? DuplexMaxFrameBytes { get; set; }
+
+    public Http3ServerRuntimeConfiguration Http3 { get; init; } = new();
+}
+
+public sealed class Http3ServerRuntimeConfiguration
+{
+    public bool? EnableAltSvc { get; set; }
+
+    public TimeSpan? IdleTimeout { get; set; }
+
+    public TimeSpan? KeepAliveInterval { get; set; }
+
+    public int? MaxBidirectionalStreams { get; set; }
+
+    public int? MaxUnidirectionalStreams { get; set; }
 }
 
 public sealed class HttpServerTlsConfiguration

@@ -869,6 +869,11 @@ internal sealed class DispatcherBuilder
         {
             options.EnableHttp3 = enableHttp3;
         }
+        var http3Options = BuildHttp3RuntimeOptions(configuration.Http3);
+        if (http3Options is not null)
+        {
+            options.Http3 = http3Options;
+        }
         if (configuration.MaxRequestBodySize is { } max)
         {
             options.MaxRequestBodySize = max;
@@ -920,9 +925,39 @@ internal sealed class DispatcherBuilder
                 options.ServerStreamWriteTimeout.HasValue ||
                 options.DuplexWriteTimeout.HasValue ||
                 options.ServerStreamMaxMessageBytes.HasValue ||
-                options.DuplexMaxFrameBytes.HasValue)
+                options.DuplexMaxFrameBytes.HasValue ||
+                options.Http3 is not null)
             ? options
             : null;
+    }
+
+    private static Http3RuntimeOptions? BuildHttp3RuntimeOptions(Http3ServerRuntimeConfiguration configuration)
+    {
+        if (configuration is null)
+        {
+            return null;
+        }
+
+        var hasValue =
+            configuration.EnableAltSvc.HasValue ||
+            configuration.IdleTimeout.HasValue ||
+            configuration.KeepAliveInterval.HasValue ||
+            configuration.MaxBidirectionalStreams.HasValue ||
+            configuration.MaxUnidirectionalStreams.HasValue;
+
+        if (!hasValue)
+        {
+            return null;
+        }
+
+        return new Http3RuntimeOptions
+        {
+            EnableAltSvc = configuration.EnableAltSvc,
+            IdleTimeout = configuration.IdleTimeout,
+            KeepAliveInterval = configuration.KeepAliveInterval,
+            MaxBidirectionalStreams = configuration.MaxBidirectionalStreams,
+            MaxUnidirectionalStreams = configuration.MaxUnidirectionalStreams
+        };
     }
 
     private static OmniRelay.Transport.Http.HttpServerTlsOptions? BuildHttpServerTlsOptions(HttpServerTlsConfiguration configuration)
@@ -1070,6 +1105,7 @@ internal sealed class DispatcherBuilder
 
         var interceptors = ResolveServerInterceptorTypes(configuration.Interceptors);
         var enableHttp3 = configuration.EnableHttp3 ?? false;
+        var http3Options = BuildHttp3RuntimeOptions(configuration.Http3);
         var hasValues =
             enableHttp3 ||
             configuration.MaxReceiveMessageSize.HasValue ||
@@ -1081,7 +1117,8 @@ internal sealed class DispatcherBuilder
             configuration.DuplexWriteTimeout.HasValue ||
             configuration.ServerStreamMaxMessageBytes.HasValue ||
             configuration.DuplexMaxMessageBytes.HasValue ||
-            interceptors.Count > 0;
+            interceptors.Count > 0 ||
+            http3Options is not null;
 
         if (!hasValues)
         {
@@ -1100,7 +1137,8 @@ internal sealed class DispatcherBuilder
             ServerStreamWriteTimeout = configuration.ServerStreamWriteTimeout,
             DuplexWriteTimeout = configuration.DuplexWriteTimeout,
             ServerStreamMaxMessageBytes = configuration.ServerStreamMaxMessageBytes,
-            DuplexMaxMessageBytes = configuration.DuplexMaxMessageBytes
+            DuplexMaxMessageBytes = configuration.DuplexMaxMessageBytes,
+            Http3 = http3Options
         };
     }
 
