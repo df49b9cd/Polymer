@@ -8,6 +8,7 @@ using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 using OmniRelay.Core;
@@ -22,6 +23,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     private readonly string[] _urls;
     private readonly Action<IServiceCollection>? _configureServices;
     private readonly Action<WebApplication>? _configureApp;
+    private readonly HttpServerTlsOptions? _serverTlsOptions;
+    private readonly HttpServerRuntimeOptions? _serverRuntimeOptions;
     private WebApplication? _app;
     private Dispatcher.Dispatcher? _dispatcher;
     private volatile bool _isDraining;
@@ -34,7 +37,9 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     public HttpInbound(
         IEnumerable<string> urls,
         Action<IServiceCollection>? configureServices = null,
-        Action<WebApplication>? configureApp = null)
+        Action<WebApplication>? configureApp = null,
+        HttpServerRuntimeOptions? serverRuntimeOptions = null,
+        HttpServerTlsOptions? serverTlsOptions = null)
     {
         ArgumentNullException.ThrowIfNull(urls);
 
@@ -46,6 +51,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
         _configureServices = configureServices;
         _configureApp = configureApp;
+        _serverRuntimeOptions = serverRuntimeOptions;
+        _serverTlsOptions = serverTlsOptions;
     }
 
     public IReadOnlyCollection<string> Urls =>
@@ -69,7 +76,42 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         }
 
         var builder = WebApplication.CreateSlimBuilder();
-        builder.WebHost.UseKestrel().UseUrls(_urls);
+        builder.WebHost.UseKestrel(options =>
+        {
+            if (_serverRuntimeOptions?.MaxRequestBodySize is { } maxRequest)
+            {
+                options.Limits.MaxRequestBodySize = maxRequest;
+            }
+
+            foreach (var url in _urls)
+            {
+                var uri = new Uri(url, UriKind.Absolute);
+                var host = string.Equals(uri.Host, "*", StringComparison.Ordinal) ? System.Net.IPAddress.Any : System.Net.IPAddress.Parse(uri.Host);
+                options.Listen(host, uri.Port, listenOptions =>
+                {
+                    if (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (_serverTlsOptions?.Certificate is null)
+                        {
+                            throw new InvalidOperationException($"HTTPS binding requested for '{url}' but no HTTP server TLS certificate was configured.");
+                        }
+
+                        var httpsOptions = new HttpsConnectionAdapterOptions
+                        {
+                            ServerCertificate = _serverTlsOptions.Certificate,
+                            ClientCertificateMode = _serverTlsOptions.ClientCertificateMode
+                        };
+
+                        if (_serverTlsOptions.CheckCertificateRevocation is { } checkRevocation)
+                        {
+                            httpsOptions.CheckCertificateRevocation = checkRevocation;
+                        }
+
+                        listenOptions.UseHttps(httpsOptions);
+                    }
+                });
+            }
+        });
 
         builder.Services.AddRouting();
         _configureServices?.Invoke(builder.Services);
@@ -279,7 +321,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
             var encoding = ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType);
 
-            var meta = BuildRequestMeta(dispatcher.ServiceName, procedure!, encoding, context.Request.Headers, transport, context.RequestAborted);
+            var meta = BuildRequestMeta(dispatcher.ServiceName, procedure!, encoding, context.Request.Headers, transport);
 
             byte[] buffer;
             if (context.Request.ContentLength is > 0)
@@ -407,8 +449,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 procedure!,
                 encoding: ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType),
                 headers: context.Request.Headers,
-                transport: transport,
-                cancellationToken: context.RequestAborted);
+                transport: transport);
 
             var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
@@ -434,6 +475,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 context.Response.Headers.CacheControl = "no-cache";
                 context.Response.Headers.Connection = "keep-alive";
                 context.Response.Headers.ContentType = "text/event-stream";
+                context.Response.Headers["X-Accel-Buffering"] = "no";
 
                 var responseMeta = call.ResponseMeta ?? new ResponseMeta();
                 var responseHeaders = responseMeta.Headers ?? [];
@@ -492,8 +534,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 procedure!,
                 encoding: ResolveRequestEncoding(context.Request.Headers, context.Request.ContentType),
                 headers: context.Request.Headers,
-                transport: transport,
-                cancellationToken: context.RequestAborted);
+                transport: transport);
 
             var dispatcherRequest = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
@@ -513,12 +554,11 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
             var call = callResult.Value;
             var requestBuffer = new byte[32 * 1024];
-            var responseBuffer = new byte[32 * 1024];
 
             try
             {
                 var requestPump = PumpRequestsAsync(socket, call, requestBuffer, context.RequestAborted);
-                var responsePump = PumpResponsesAsync(socket, call, responseBuffer, context.RequestAborted);
+                var responsePump = PumpResponsesAsync(socket, call, context.RequestAborted);
 
                 await Task.WhenAll(requestPump, responsePump).ConfigureAwait(false);
             }
@@ -605,7 +645,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
             }
 
-            async Task PumpResponsesAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, CancellationToken cancellationToken)
+            async Task PumpResponsesAsync(WebSocket webSocket, IDuplexStreamCall streamCall, CancellationToken cancellationToken)
             {
                 try
                 {
@@ -691,8 +731,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         string procedure,
         string? encoding,
         IHeaderDictionary headers,
-        string transport,
-        CancellationToken cancellationToken)
+        string transport)
     {
         TimeSpan? ttl = null;
         if (headers.TryGetValue(HttpTransportHeaders.TtlMs, out var ttlValues) &&

@@ -106,16 +106,6 @@ internal sealed class DispatcherBuilder
                 .Select((url, position) => ValidateHttpUrl(url, $"http inbound #{index} (entry {position})"))
                 .ToArray();
 
-            // Enforce: HTTP inbound currently supports only HTTP (no TLS termination). Reject HTTPS to avoid
-            // confusing Kestrel startup failures without a certificate being configured.
-            foreach (var url in urls)
-            {
-                if (Uri.TryCreate(url, UriKind.Absolute, out var parsed) && parsed.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new OmniRelayConfigurationException($"HTTP inbound at index {index} uses HTTPS url '{url}', which is not supported. Use 'http://' or configure TLS support for HTTP inbound.");
-                }
-            }
-
             if (urls.Length == 0)
             {
                 throw new OmniRelayConfigurationException($"HTTP inbound at index {index} resolved to zero valid urls.");
@@ -125,9 +115,12 @@ internal sealed class DispatcherBuilder
                 ? $"http-inbound:{index}"
                 : inbound.Name!;
 
+            var httpRuntimeOptions = BuildHttpServerRuntimeOptions(inbound.Runtime);
+            var httpTlsOptions = BuildHttpServerTlsOptions(inbound.Tls);
+
             var configureServices = CreateHttpInboundServiceConfigurator();
             var configureApp = CreateHttpInboundAppConfigurator();
-            dispatcherOptions.AddLifecycle(name, new HttpInbound(urls, configureServices: configureServices, configureApp: configureApp));
+            dispatcherOptions.AddLifecycle(name, new HttpInbound(urls, configureServices: configureServices, configureApp: configureApp, serverRuntimeOptions: httpRuntimeOptions, serverTlsOptions: httpTlsOptions));
             index++;
         }
     }
@@ -785,6 +778,52 @@ internal sealed class DispatcherBuilder
         }
 
         return normalized;
+    }
+
+    private static OmniRelay.Transport.Http.HttpServerRuntimeOptions? BuildHttpServerRuntimeOptions(HttpServerRuntimeConfiguration configuration)
+    {
+        if (configuration is null)
+        {
+            return null;
+        }
+
+        var options = new OmniRelay.Transport.Http.HttpServerRuntimeOptions();
+        if (configuration.MaxRequestBodySize is { } max)
+        {
+            options.MaxRequestBodySize = max;
+        }
+
+        return options.MaxRequestBodySize.HasValue ? options : null;
+    }
+
+    private static OmniRelay.Transport.Http.HttpServerTlsOptions? BuildHttpServerTlsOptions(HttpServerTlsConfiguration configuration)
+    {
+        if (configuration is null || string.IsNullOrWhiteSpace(configuration.CertificatePath))
+        {
+            return null;
+        }
+
+        var path = ResolvePath(configuration.CertificatePath!);
+        if (!File.Exists(path))
+        {
+            throw new OmniRelayConfigurationException($"HTTP server certificate '{path}' could not be found.");
+        }
+
+        X509Certificate2 certificate;
+#pragma warning disable SYSLIB0057
+        certificate = string.IsNullOrEmpty(configuration.CertificatePassword)
+            ? new X509Certificate2(path)
+            : new X509Certificate2(path, configuration.CertificatePassword);
+#pragma warning restore SYSLIB0057
+
+        var mode = ParseClientCertificateMode(configuration.ClientCertificateMode);
+
+        return new OmniRelay.Transport.Http.HttpServerTlsOptions
+        {
+            Certificate = certificate,
+            ClientCertificateMode = mode,
+            CheckCertificateRevocation = configuration.CheckCertificateRevocation
+        };
     }
 
     private bool ShouldExposePrometheusMetrics()

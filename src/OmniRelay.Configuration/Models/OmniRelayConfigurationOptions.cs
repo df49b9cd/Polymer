@@ -30,6 +30,10 @@ public sealed class HttpInboundConfiguration
     public string? Name { get; set; }
 
     public IList<string> Urls { get; } = [];
+
+    public HttpServerRuntimeConfiguration Runtime { get; init; } = new();
+
+    public HttpServerTlsConfiguration Tls { get; init; } = new();
 }
 
 public sealed class GrpcInboundConfiguration
@@ -76,6 +80,22 @@ public sealed class GrpcTelemetryConfiguration
     public bool? EnableServerLogging { get; set; }
 
     public bool? EnableClientLogging { get; set; }
+}
+
+public sealed class HttpServerRuntimeConfiguration
+{
+    public long? MaxRequestBodySize { get; set; }
+}
+
+public sealed class HttpServerTlsConfiguration
+{
+    public string? CertificatePath { get; set; }
+
+    public string? CertificatePassword { get; set; }
+
+    public string? ClientCertificateMode { get; set; }
+
+    public bool? CheckCertificateRevocation { get; set; }
 }
 
 public sealed class ServiceOutboundConfiguration
