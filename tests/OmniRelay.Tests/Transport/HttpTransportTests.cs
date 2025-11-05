@@ -220,6 +220,69 @@ namespace OmniRelay.Tests.Transport
 		}
 
 		[Fact(Timeout = 30000)]
+		public async Task ServerStreaming_BinaryPayloadsAreBase64Encoded()
+		{
+			var port = TestPortAllocator.GetRandomPort();
+			var baseAddress = new Uri($"http://127.0.0.1:{port}/");
+
+			var options = new DispatcherOptions("stream-b64");
+			var httpInbound = new HttpInbound([baseAddress.ToString()]);
+			options.AddLifecycle("http-inbound", httpInbound);
+
+			var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+
+			dispatcher.Register(new StreamProcedureSpec(
+				"stream-b64",
+				"stream::binary",
+				(request, callOptions, cancellationToken) =>
+				{
+					_ = callOptions;
+					var streamCall = HttpStreamCall.CreateServerStream(
+						request.Meta,
+						new ResponseMeta(encoding: "application/octet-stream"));
+
+					_ = Task.Run(async () =>
+					{
+						try
+						{
+							var payload = new byte[] { 0x00, 0x01, 0x02 };
+							await streamCall.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+						}
+						finally
+						{
+							await streamCall.CompleteAsync().ConfigureAwait(false);
+						}
+					}, cancellationToken);
+
+					return ValueTask.FromResult(Ok<IStreamCall>(streamCall));
+				}));
+
+			var ct = TestContext.Current.CancellationToken;
+			await dispatcher.StartAsync(ct);
+
+			var httpClient = new HttpClient { BaseAddress = baseAddress };
+			var request = new HttpRequestMessage(HttpMethod.Get, "/");
+			request.Headers.Add(HttpTransportHeaders.Procedure, "stream::binary");
+			request.Headers.Accept.ParseAdd("text/event-stream");
+
+			using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+			Assert.True(response.IsSuccessStatusCode);
+
+			using var responseStream = await response.Content.ReadAsStreamAsync(ct);
+			using var reader = new StreamReader(responseStream, Encoding.UTF8);
+
+			var dataLine = await reader.ReadLineAsync(ct);
+			var encodingLine = await reader.ReadLineAsync(ct);
+			var blankLine = await reader.ReadLineAsync(ct);
+
+			Assert.Equal("data: AAEC", dataLine);
+			Assert.Equal("encoding: base64", encodingLine);
+			Assert.Equal(string.Empty, blankLine);
+
+			await dispatcher.StopAsync(ct);
+		}
+
+		[Fact(Timeout = 30000)]
 		public async Task DuplexStreaming_OverHttpWebSocket()
 		{
 			var port = TestPortAllocator.GetRandomPort();

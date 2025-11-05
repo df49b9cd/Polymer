@@ -198,6 +198,7 @@ Active backlog lives in `docs/todo.md`. Near-term focus:
 ## Further Reading
 
 - `docs/plan.md` - architecture deep dive and parity milestones.
+- `docs/reference/http-transport.md` - TLS, proxy placement, SSE behaviour, and tracing guidance for the HTTP transport.
 - `docs/reference/streaming.md` - unary/server/client/duplex streaming guidance.
 - `docs/reference/middleware.md` - composition rules and builder APIs.
 - `docs/reference/errors.md` - status mapping, adapters, and fault helpers.

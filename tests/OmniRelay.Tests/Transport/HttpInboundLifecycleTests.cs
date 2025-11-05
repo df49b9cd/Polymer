@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Xunit;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
@@ -163,6 +164,41 @@ public class HttpInboundLifecycleTests
         Assert.Equal(HttpStatusCode.OK, slowResponse.StatusCode);
 
         await stopTask;
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task IntrospectEndpoint_ReturnsDispatcherSnapshot()
+    {
+        var port = TestPortAllocator.GetRandomPort();
+        var baseAddress = new Uri($"http://127.0.0.1:{port}/");
+
+        var options = new DispatcherOptions("introspect");
+        var httpInbound = new HttpInbound([baseAddress.ToString()]);
+        options.AddLifecycle("http-inbound", httpInbound);
+
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+        dispatcher.Register(new UnaryProcedureSpec(
+            "introspect",
+            "service::ping",
+            (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
+
+        var ct = TestContext.Current.CancellationToken;
+        await dispatcher.StartAsync(ct);
+
+        using var httpClient = new HttpClient { BaseAddress = baseAddress };
+        using var response = await httpClient.GetAsync("/omnirelay/introspect", ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadAsStringAsync(ct);
+        using var document = JsonDocument.Parse(payload);
+        var root = document.RootElement;
+
+        Assert.Equal("introspect", root.GetProperty("service").GetString());
+
+        var unaryProcedures = root.GetProperty("procedures").GetProperty("unary");
+        Assert.Contains(unaryProcedures.EnumerateArray(), element => string.Equals(element.GetProperty("name").GetString(), "service::ping", StringComparison.Ordinal));
+
+        await dispatcher.StopAsync(ct);
     }
 
     private static HttpRequestMessage CreateRpcRequest(string procedure)

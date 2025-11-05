@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json.Serialization;
 using Hugo;
@@ -13,6 +16,7 @@ using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using OmniRelay.Transport.Http;
 using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 using static Hugo.Go;
@@ -153,6 +157,37 @@ public class OmniRelayConfigurationTests
         Assert.True(clientConfig.TryGetUnary("primary", out var outbound));
         var testOutbound = Assert.IsType<TestUnaryOutbound>(outbound);
         Assert.Equal("http://search.internal:8080", testOutbound.Address);
+    }
+
+    [Fact]
+    public void AddOmniRelayDispatcher_UsesNamedHttpClientFactoryClients()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["polymer:service"] = "metrics",
+                ["polymer:inbounds:http:0:urls:0"] = "http://127.0.0.1:8080",
+                ["polymer:outbounds:metrics:unary:http:0:key"] = "primary",
+                ["polymer:outbounds:metrics:unary:http:0:url"] = "http://127.0.0.1:9095",
+                ["polymer:outbounds:metrics:unary:http:0:clientName"] = "metrics"
+            }!)
+            .Build();
+
+        var factory = new RecordingHttpClientFactory();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IHttpClientFactory>(factory);
+        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+
+        using var provider = services.BuildServiceProvider();
+        var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
+
+        var clientConfig = dispatcher.ClientConfig("metrics");
+        Assert.True(clientConfig.TryGetUnary("primary", out var outbound));
+        Assert.IsType<HttpOutbound>(outbound);
+
+        Assert.Equal(new[] { "metrics" }, factory.CreatedNames);
     }
 
     [Fact]
@@ -301,6 +336,23 @@ public class OmniRelayConfigurationTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken = default) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unimplemented, "test")));
+    }
+
+    private sealed class RecordingHttpClientFactory : IHttpClientFactory
+    {
+        public List<string> CreatedNames { get; } = new();
+
+        public HttpClient CreateClient(string name = "")
+        {
+            CreatedNames.Add(name);
+            return new HttpClient(new StubHandler());
+        }
+
+        private sealed class StubHandler : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+                Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        }
     }
 
     private sealed class TestPeerChooserSpec : ICustomPeerChooserSpec
