@@ -21,6 +21,7 @@ using OmniRelay.Core.Peers;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
+using OpenTelemetry.Metrics;
 
 namespace OmniRelay.Configuration.Internal;
 
@@ -113,8 +114,9 @@ internal sealed class DispatcherBuilder
                 ? $"http-inbound:{index}"
                 : inbound.Name!;
 
+            var configureServices = CreateHttpInboundServiceConfigurator();
             var configureApp = CreateHttpInboundAppConfigurator();
-            dispatcherOptions.AddLifecycle(name, new HttpInbound(urls, configureApp: configureApp));
+            dispatcherOptions.AddLifecycle(name, new HttpInbound(urls, configureServices: configureServices, configureApp: configureApp));
             index++;
         }
     }
@@ -676,7 +678,8 @@ internal sealed class DispatcherBuilder
 
         if (ShouldExposePrometheusMetrics())
         {
-            actions.Add(app => app.MapPrometheusScrapingEndpoint());
+            var path = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
+            actions.Add(app => app.MapPrometheusScrapingEndpoint(path));
         }
 
         if (TryGetDiagnosticsControlPlaneOptions(out var controlPlaneOptions))
@@ -696,6 +699,71 @@ internal sealed class DispatcherBuilder
                 action(app);
             }
         };
+    }
+
+    private Action<IServiceCollection>? CreateHttpInboundServiceConfigurator()
+    {
+        // The HTTP inbound hosts its own minimal WebApplication instance with its own DI container.
+        // We may need to register a MeterProvider (for Prometheus scraping) and diagnostics runtime services
+        // (for control-plane endpoints) in that container.
+
+        var addMetrics = ShouldExposePrometheusMetrics();
+        var addControlPlane = TryGetDiagnosticsControlPlaneOptions(out _);
+
+        if (!addMetrics && !addControlPlane)
+        {
+            return null;
+        }
+
+        var scrapePath = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
+        var rootRuntime = _serviceProvider.GetService<IDiagnosticsRuntime>();
+
+        return services =>
+        {
+            if (addMetrics)
+            {
+                var otel = services.AddOpenTelemetry();
+                otel.WithMetrics(builder =>
+                {
+                    builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Transport.Grpc", "OmniRelay.Rpc", "Hugo.Go");
+                    builder.AddPrometheusExporter(options =>
+                    {
+                        options.ScrapeEndpointPath = scrapePath;
+                    });
+                });
+            }
+
+            if (addControlPlane)
+            {
+                // Bridge diagnostics runtime into the inbound DI container so minimal APIs can resolve it from services.
+                if (rootRuntime is not null)
+                {
+                    services.AddSingleton(rootRuntime);
+                }
+                else
+                {
+                    services.AddSingleton<IDiagnosticsRuntime, DiagnosticsRuntimeState>();
+                }
+            }
+        };
+    }
+
+    private static string NormalizeScrapeEndpointPathForInbound(string? path)
+    {
+        // Keep behavior in sync with ServiceCollectionExtensions.NormalizeScrapeEndpointPath
+        // but localize it here for the inbound app.
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "/omnirelay/metrics";
+        }
+
+        var normalized = path.Trim();
+        if (!normalized.StartsWith('/'))
+        {
+            normalized = "/" + normalized;
+        }
+
+        return normalized;
     }
 
     private bool ShouldExposePrometheusMetrics()
@@ -964,7 +1032,7 @@ internal sealed class DispatcherBuilder
         return profiles;
     }
 
-    private void RegisterJsonCodec(
+    private static void RegisterJsonCodec(
         DispatcherOptions dispatcherOptions,
         JsonCodecRegistrationConfiguration registration,
         IDictionary<string, JsonProfileDescriptor> profiles,

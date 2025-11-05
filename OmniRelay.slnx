@@ -1,4 +1,23 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
+    <Project Path="samples\Configuration.Server\Configuration.Server.csproj" Type="Classic C#" />
+    <Project Path="samples\Shadowing.Server\Shadowing.Server.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/samples/DistributedDemo/">
+    <Project Path="samples\DistributedDemo\Audit\Audit.Service.csproj" Type="Classic C#" />
+    <Project Path="samples\DistributedDemo\Gateway\Gateway.csproj" Type="Classic C#" />
+    <Project Path="samples\DistributedDemo\Inventory\Inventory.Service.csproj" Type="Classic C#" />
+    <Project Path="samples\DistributedDemo\Shared\DistributedDemo.Shared.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/SolutionFolder/">
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path=".editorconfig" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/OmniRelay.Cli/OmniRelay.Cli.csproj" />
     <Project Path="src/OmniRelay.Codegen.Protobuf.Core/OmniRelay.Codegen.Protobuf.Core.csproj" />
@@ -6,9 +25,6 @@
     <Project Path="src/OmniRelay.Codegen.Protobuf/OmniRelay.Codegen.Protobuf.csproj" />
     <Project Path="src/OmniRelay.Configuration/OmniRelay.Configuration.csproj" />
     <Project Path="src/OmniRelay/OmniRelay.csproj" />
-  </Folder>
-  <Folder Name="/samples/">
-    <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OmniRelay.Tests/OmniRelay.Tests.csproj" />

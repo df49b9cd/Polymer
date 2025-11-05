@@ -36,7 +36,7 @@ OmniRelay targets `.NET 10` and pulls Hugo, gRPC, and JsonSchema.Net from NuGet.
 
 ## Samples
 
-The `samples/` directory contains runnable projects that focus on different runtime features (manual bootstrap, configuration-driven hosting, tee/shadow outbounds). See `docs/reference/samples.md` for a tour and usage guide.
+The `samples/` directory contains runnable projects that focus on different runtime features (manual bootstrap, configuration-driven hosting, tee/shadow outbounds, multi-service Docker demos). See `docs/reference/samples.md` for a tour and usage guide.
 
 ## Hosting A Dispatcher
 

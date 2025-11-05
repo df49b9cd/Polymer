@@ -34,7 +34,6 @@ public sealed class Dispatcher
     private readonly HttpOutboundMiddlewareRegistry? _httpOutboundMiddlewareRegistry;
     private readonly GrpcClientInterceptorRegistry? _grpcClientInterceptorRegistry;
     private readonly GrpcServerInterceptorRegistry? _grpcServerInterceptorRegistry;
-    private readonly CodecRegistry _codecRegistry;
 
     public Dispatcher(DispatcherOptions options)
     {
@@ -55,7 +54,7 @@ public sealed class Dispatcher
         _outboundStreamMiddleware = [.. options.StreamOutboundMiddleware];
         _outboundClientStreamMiddleware = [.. options.ClientStreamOutboundMiddleware];
         _outboundDuplexMiddleware = [.. options.DuplexOutboundMiddleware];
-        _codecRegistry = new CodecRegistry(_serviceName, options.CodecRegistrations);
+        Codecs = new CodecRegistry(_serviceName, options.CodecRegistrations);
 
         BindDispatcherAwareComponents(_lifecycleDescriptors);
         _httpOutboundMiddlewareRegistry = options.HttpOutboundMiddleware.Build();
@@ -87,7 +86,7 @@ public sealed class Dispatcher
     public IReadOnlyList<IStreamOutboundMiddleware> StreamOutboundMiddleware => _outboundStreamMiddleware;
     public IReadOnlyList<IClientStreamOutboundMiddleware> ClientStreamOutboundMiddleware => _outboundClientStreamMiddleware;
     public IReadOnlyList<IDuplexOutboundMiddleware> DuplexOutboundMiddleware => _outboundDuplexMiddleware;
-    public CodecRegistry Codecs => _codecRegistry;
+    public CodecRegistry Codecs { get; }
 
     public void Register(ProcedureSpec spec)
     {
@@ -363,9 +362,8 @@ public sealed class Dispatcher
 
             var wg = new WaitGroup();
 
-            foreach (var component in _lifecycleStartOrder)
+            foreach (var lifecycle in _lifecycleStartOrder.Select(component => component.Lifecycle))
             {
-                var lifecycle = component.Lifecycle;
                 wg.Go(async token =>
                 {
                     await lifecycle.StartAsync(token).ConfigureAwait(false);

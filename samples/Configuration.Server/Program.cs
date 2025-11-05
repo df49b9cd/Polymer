@@ -1,4 +1,3 @@
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using Hugo;
 using Microsoft.Extensions.Configuration;
@@ -42,31 +41,19 @@ public static class Program
     }
 }
 
-internal sealed class OmniRelayRegistrationHostedService : IHostedService
+internal sealed class OmniRelayRegistrationHostedService(
+    Dispatcher.Dispatcher dispatcher,
+    WeatherService weather,
+    TelemetrySink telemetry,
+    ILogger<OmniRelayRegistrationHostedService> logger)
+    : IHostedService
 {
-    private readonly Dispatcher.Dispatcher _dispatcher;
-    private readonly WeatherService _weather;
-    private readonly TelemetrySink _telemetry;
-    private readonly ILogger<OmniRelayRegistrationHostedService> _logger;
-
-    public OmniRelayRegistrationHostedService(
-        Dispatcher.Dispatcher dispatcher,
-        WeatherService weather,
-        TelemetrySink telemetry,
-        ILogger<OmniRelayRegistrationHostedService> logger)
-    {
-        _dispatcher = dispatcher;
-        _weather = weather;
-        _telemetry = telemetry;
-        _logger = logger;
-    }
-
     public Task StartAsync(CancellationToken cancellationToken)
     {
         RegisterWeatherEndpoints();
         RegisterTelemetryEndpoint();
 
-        _logger.LogInformation("Registered configuration-driven OmniRelay procedures for {Service}.", _dispatcher.ServiceName);
+        logger.LogInformation("Registered configuration-driven OmniRelay procedures for {Service}.", dispatcher.ServiceName);
         return Task.CompletedTask;
     }
 
@@ -74,9 +61,9 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
 
     private void RegisterWeatherEndpoints()
     {
-        if (!_dispatcher.Codecs.TryResolve<WeatherRequest, WeatherResponse>(
+        if (!dispatcher.Codecs.TryResolve<WeatherRequest, WeatherResponse>(
                 ProcedureCodecScope.Inbound,
-                _dispatcher.ServiceName,
+                dispatcher.ServiceName,
                 "weather::current",
                 ProcedureKind.Unary,
                 out var weatherCodec))
@@ -84,9 +71,9 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
             throw new InvalidOperationException("Inbound JSON codec for 'weather::current' was not registered. Ensure appsettings.json encodings are applied.");
         }
 
-        if (!_dispatcher.Codecs.TryResolve<WeatherStreamRequest, WeatherObservation>(
+        if (!dispatcher.Codecs.TryResolve<WeatherStreamRequest, WeatherObservation>(
                 ProcedureCodecScope.Inbound,
-                _dispatcher.ServiceName,
+                dispatcher.ServiceName,
                 "weather::stream",
                 ProcedureKind.Stream,
                 out var streamCodec))
@@ -94,7 +81,7 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
             throw new InvalidOperationException("Inbound JSON codec for 'weather::stream' was not registered. Ensure appsettings.json encodings are applied.");
         }
 
-        _dispatcher.RegisterUnary("weather::current", builder =>
+        dispatcher.RegisterUnary("weather::current", builder =>
         {
             builder.WithEncoding(weatherCodec.Encoding);
             builder.Handle(async (request, cancellationToken) =>
@@ -105,7 +92,7 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
                     return Err<Response<ReadOnlyMemory<byte>>>(decode.Error!);
                 }
 
-                var forecast = _weather.GenerateForecast(decode.Value);
+                var forecast = WeatherService.GenerateForecast(decode.Value);
                 var responseMeta = new ResponseMeta(encoding: weatherCodec.Encoding);
                 var encode = weatherCodec.EncodeResponse(forecast, responseMeta);
                 return encode.IsSuccess
@@ -114,7 +101,7 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
             });
         });
 
-        _dispatcher.RegisterStream("weather::stream", builder =>
+        dispatcher.RegisterStream("weather::stream", builder =>
         {
             builder.WithEncoding(streamCodec.Encoding);
             builder.Handle((request, _, cancellationToken) =>
@@ -124,9 +111,9 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
 
     private void RegisterTelemetryEndpoint()
     {
-        if (!_dispatcher.Codecs.TryResolve<TelemetryEvent, object>(
+        if (!dispatcher.Codecs.TryResolve<TelemetryEvent, object>(
                 ProcedureCodecScope.Inbound,
-                _dispatcher.ServiceName,
+                dispatcher.ServiceName,
                 "telemetry::ingest",
                 ProcedureKind.Oneway,
                 out var telemetryCodec))
@@ -134,7 +121,7 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
             throw new InvalidOperationException("Inbound JSON codec for 'telemetry::ingest' was not registered. Ensure appsettings.json encodings are applied.");
         }
 
-        _dispatcher.RegisterOneway("telemetry::ingest", builder =>
+        dispatcher.RegisterOneway("telemetry::ingest", builder =>
         {
             builder.WithEncoding(telemetryCodec.Encoding);
             builder.Handle((request, cancellationToken) =>
@@ -145,7 +132,7 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
                     return ValueTask.FromResult<Result<OnewayAck>>(Err<OnewayAck>(decode.Error!));
                 }
 
-                _telemetry.Record(request.Meta, decode.Value);
+                telemetry.Record(request.Meta, decode.Value);
                 return ValueTask.FromResult<Result<OnewayAck>>(Ok(OnewayAck.Ack(new ResponseMeta(encoding: telemetryCodec.Encoding))));
             });
         });
@@ -181,7 +168,7 @@ internal sealed class OmniRelayRegistrationHostedService : IHostedService
     {
         try
         {
-            await foreach (var observation in _weather.StreamObservationsAsync(streamRequest, cancellationToken))
+            await foreach (var observation in WeatherService.StreamObservationsAsync(streamRequest, cancellationToken))
             {
                 var encode = codec.EncodeResponse(observation, call.ResponseMeta);
                 if (encode.IsFailure)
@@ -225,7 +212,7 @@ internal sealed class WeatherService
         "Chilly"
     ];
 
-    public WeatherResponse GenerateForecast(WeatherRequest request)
+    public static WeatherResponse GenerateForecast(WeatherRequest request)
     {
         var temperature = Random.Shared.Next(-10, 40);
         var summary = Summaries[Math.Abs(temperature) % Summaries.Length];
@@ -240,7 +227,7 @@ internal sealed class WeatherService
             DateTimeOffset.UtcNow);
     }
 
-    public async IAsyncEnumerable<WeatherObservation> StreamObservationsAsync(
+    public static async IAsyncEnumerable<WeatherObservation> StreamObservationsAsync(
         WeatherStreamRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -265,18 +252,11 @@ internal sealed class WeatherService
     }
 }
 
-internal sealed class TelemetrySink
+internal sealed class TelemetrySink(ILogger<TelemetrySink> logger)
 {
-    private readonly ILogger<TelemetrySink> _logger;
-
-    public TelemetrySink(ILogger<TelemetrySink> logger)
-    {
-        _logger = logger;
-    }
-
     public void Record(RequestMeta meta, TelemetryEvent evt)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "[telemetry] {Level} {Area} ({Transport}/{Procedure}): {Message}",
             evt.Level.ToUpperInvariant(),
             evt.Area,
@@ -286,77 +266,60 @@ internal sealed class TelemetrySink
     }
 }
 
-internal sealed class StartupBannerHostedService : IHostedService
+internal sealed class StartupBannerHostedService(
+    IConfiguration configuration,
+    Dispatcher.Dispatcher dispatcher,
+    ILogger<StartupBannerHostedService> logger)
+    : IHostedService
 {
-    private readonly IConfiguration _configuration;
-    private readonly Dispatcher.Dispatcher _dispatcher;
-    private readonly ILogger<StartupBannerHostedService> _logger;
-
-    public StartupBannerHostedService(
-        IConfiguration configuration,
-        Dispatcher.Dispatcher dispatcher,
-        ILogger<StartupBannerHostedService> logger)
-    {
-        _configuration = configuration;
-        _dispatcher = dispatcher;
-        _logger = logger;
-    }
-
     public Task StartAsync(CancellationToken cancellationToken)
     {
         var httpUrls = string.Join(
             ", ",
-            _configuration.GetSection("omnirelay:inbounds:http").GetChildren()
+            configuration.GetSection("omnirelay:inbounds:http").GetChildren()
                 .SelectMany(section => section.GetSection("urls").Get<string[]>() ?? Array.Empty<string>()));
 
         var grpcUrls = string.Join(
             ", ",
-            _configuration.GetSection("omnirelay:inbounds:grpc").GetChildren()
+            configuration.GetSection("omnirelay:inbounds:grpc").GetChildren()
                 .SelectMany(section => section.GetSection("urls").Get<string[]>() ?? Array.Empty<string>()));
 
-        _logger.LogInformation("OmniRelay configuration sample running as {Service}.", _dispatcher.ServiceName);
+        logger.LogInformation("OmniRelay configuration sample running as {Service}.", dispatcher.ServiceName);
         if (!string.IsNullOrWhiteSpace(httpUrls))
         {
-            _logger.LogInformation(" HTTP inbound bindings: {Urls}", httpUrls);
+            logger.LogInformation(" HTTP inbound bindings: {Urls}", httpUrls);
         }
         if (!string.IsNullOrWhiteSpace(grpcUrls))
         {
-            _logger.LogInformation(" gRPC inbound bindings: {Urls}", grpcUrls);
+            logger.LogInformation(" gRPC inbound bindings: {Urls}", grpcUrls);
         }
 
-        _logger.LogInformation("Press Ctrl+C to exit.");
+        logger.LogInformation("Press Ctrl+C to exit.");
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
-internal sealed class RequestLoggingMiddleware :
+internal sealed class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware> logger) :
     IUnaryInboundMiddleware,
     IOnewayInboundMiddleware,
     IStreamInboundMiddleware
 {
-    private readonly ILogger<RequestLoggingMiddleware> _logger;
-
-    public RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware> logger)
-    {
-        _logger = logger;
-    }
-
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
         UnaryInboundDelegate next)
     {
-        _logger.LogInformation("--> unary {Procedure}", request.Meta.Procedure);
+        logger.LogInformation("--> unary {Procedure}", request.Meta.Procedure);
         var response = await next(request, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccess)
         {
-            _logger.LogInformation("<-- unary {Procedure} OK", request.Meta.Procedure);
+            logger.LogInformation("<-- unary {Procedure} OK", request.Meta.Procedure);
         }
         else
         {
-            _logger.LogWarning("<-- unary {Procedure} ERROR {Message}", request.Meta.Procedure, response.Error?.Message ?? "unknown");
+            logger.LogWarning("<-- unary {Procedure} ERROR {Message}", request.Meta.Procedure, response.Error?.Message ?? "unknown");
         }
 
         return response;
@@ -367,15 +330,15 @@ internal sealed class RequestLoggingMiddleware :
         CancellationToken cancellationToken,
         OnewayInboundDelegate next)
     {
-        _logger.LogInformation("--> oneway {Procedure}", request.Meta.Procedure);
+        logger.LogInformation("--> oneway {Procedure}", request.Meta.Procedure);
         var response = await next(request, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccess)
         {
-            _logger.LogInformation("<-- oneway {Procedure} ack", request.Meta.Procedure);
+            logger.LogInformation("<-- oneway {Procedure} ack", request.Meta.Procedure);
         }
         else
         {
-            _logger.LogWarning("<-- oneway {Procedure} ERROR {Message}", request.Meta.Procedure, response.Error?.Message ?? "unknown");
+            logger.LogWarning("<-- oneway {Procedure} ERROR {Message}", request.Meta.Procedure, response.Error?.Message ?? "unknown");
         }
 
         return response;
@@ -387,15 +350,15 @@ internal sealed class RequestLoggingMiddleware :
         CancellationToken cancellationToken,
         StreamInboundDelegate next)
     {
-        _logger.LogInformation("--> stream {Procedure} ({Direction})", request.Meta.Procedure, options.Direction);
+        logger.LogInformation("--> stream {Procedure} ({Direction})", request.Meta.Procedure, options.Direction);
         var response = await next(request, options, cancellationToken).ConfigureAwait(false);
         if (response.IsSuccess)
         {
-            _logger.LogInformation("<-- stream {Procedure} started", request.Meta.Procedure);
+            logger.LogInformation("<-- stream {Procedure} started", request.Meta.Procedure);
         }
         else
         {
-            _logger.LogWarning("<-- stream {Procedure} ERROR {Message}", request.Meta.Procedure, response.Error?.Message ?? "unknown");
+            logger.LogWarning("<-- stream {Procedure} ERROR {Message}", request.Meta.Procedure, response.Error?.Message ?? "unknown");
         }
 
         return response;

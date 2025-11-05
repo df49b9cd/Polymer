@@ -107,7 +107,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                             ClientCertificateMode = tlsOptions.ClientCertificateMode
                         };
 
-                        if (tlsOptions.EnabledProtocols is { })
+                        if (tlsOptions.EnabledProtocols is not null)
                         {
                             httpsOptions.SslProtocols = tlsOptions.EnabledProtocols.Value;
                         }

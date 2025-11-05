@@ -7,6 +7,7 @@ The repository ships focused sample projects that exercise specific runtime feat
 | Quickstart dispatcher | `samples/Quickstart.Server` | Manual bootstrap | Registers unary/oneway/stream handlers, custom inbound middleware, mixed HTTP + gRPC inbounds. |
 | Configuration host | `samples/Configuration.Server` | `AddOmniRelayDispatcher` + DI | Uses `appsettings.json` to configure transports, diagnostics, middleware, JSON codecs, and a custom outbound spec instantiated via configuration. |
 | Tee shadowing | `samples/Shadowing.Server` | `TeeUnaryOutbound` / `TeeOnewayOutbound` | Mirrors production calls to a shadow stack, shows how to compose typed clients and oneway fan-out while logging both inbound and outbound pipelines. |
+| Distributed demo | `samples/DistributedDemo` | Docker Compose + multi-service topology | Gateway + downstream services communicating via gRPC (Protobuf) and HTTP (JSON), multiple peer choosers, OpenTelemetry collector, and Prometheus scraping. |
 
 ## Quickstart Dispatcher
 
@@ -47,3 +48,16 @@ The repository ships focused sample projects that exercise specific runtime feat
 - Notes:
   - Update the hard-coded endpoints (`http://127.0.0.1:20000`, etc.) to point at real primary/shadow services before exercising the sample.
   - The tee mirror runs asynchronously; failing shadow calls are absorbed while primary responses continue flowing to callers.
+
+## Distributed Demo
+
+- Path: `samples/DistributedDemo`
+- Run: `docker compose up` (from the sample directory)
+- Highlights:
+  - Gateway service uses configuration-driven dispatcher hosting with JSON inbound codecs and Protobuf outbound clients.
+  - Inventory replicas demonstrate gRPC peer choosers (`fewest-pending`) across multiple containers.
+  - Audit service consumes HTTP oneway calls with JSON codecs.
+  - Docker Compose stack provisions an OpenTelemetry collector, Prometheus, and Grafana (preloaded dashboard) for observability; each service exposes `/omnirelay/metrics` for scraping.
+- Notes:
+  - Update the compose file or appsettings if you need to change exposed ports.
+  - Traces are logged by the collector, while Prometheus provides dashboard-ready metrics on `http://localhost:9090`.

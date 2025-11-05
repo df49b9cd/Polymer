@@ -81,20 +81,20 @@ public class GeneratedServiceIntegrationTests
 
     private sealed class TestServiceImpl : TestServiceOmniRelay.ITestService
     {
-        public ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request, CancellationToken cancellationToken)
+        public static ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request, CancellationToken cancellationToken)
         {
             var response = new UnaryResponse { Message = request.Body.Message + "-unary" };
             return new ValueTask<Response<UnaryResponse>>(Response<UnaryResponse>.Create(response, new ResponseMeta(encoding: ProtobufEncoding.Protobuf)));
         }
 
-        public async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken)
+        public static async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken)
         {
             await stream.WriteAsync(new StreamResponse { Value = request.Body.Value + "-stream-1" }, cancellationToken);
             await stream.WriteAsync(new StreamResponse { Value = request.Body.Value + "-stream-2" }, cancellationToken);
             await stream.CompleteAsync(cancellationToken);
         }
 
-        public async ValueTask<Response<UnaryResponse>> ClientStreamAsync(ProtobufCallAdapters.ProtobufClientStreamContext<StreamRequest, UnaryResponse> context, CancellationToken cancellationToken)
+        public static async ValueTask<Response<UnaryResponse>> ClientStreamAsync(ProtobufCallAdapters.ProtobufClientStreamContext<StreamRequest, UnaryResponse> context, CancellationToken cancellationToken)
         {
             var values = new List<string>();
             await foreach (var message in context.ReadAllAsync(cancellationToken))
@@ -106,7 +106,7 @@ public class GeneratedServiceIntegrationTests
             return Response<UnaryResponse>.Create(response, new ResponseMeta(encoding: ProtobufEncoding.Protobuf));
         }
 
-        public async ValueTask DuplexStreamAsync(ProtobufCallAdapters.ProtobufDuplexStreamContext<StreamRequest, StreamResponse> context, CancellationToken cancellationToken)
+        public static async ValueTask DuplexStreamAsync(ProtobufCallAdapters.ProtobufDuplexStreamContext<StreamRequest, StreamResponse> context, CancellationToken cancellationToken)
         {
             await foreach (var message in context.ReadAllAsync(cancellationToken))
             {
