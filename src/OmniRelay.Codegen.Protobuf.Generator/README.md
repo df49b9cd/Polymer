@@ -8,6 +8,16 @@
 
 The NuGet package ships the generator plus its runtime dependencies (`OmniRelay.dll`, `OmniRelay.Codegen.Protobuf.Core.dll`, `Google.Protobuf.dll`) so consumers do not have to reference the runtime separately.
 
+## Selecting HTTP/3-enabled outbounds in generated clients
+
+Generated clients accept an optional outbound key. Bind an outbound in configuration that enables HTTP/3 (for example, `enableHttp3: true`, `requestVersion: "3.0"`, and `versionPolicy: "request-version-or-lower"`) and pass that outbound key to the generated client:
+
+```csharp
+var client = PaymentsOmniRelay.CreatePaymentsClient(dispatcher, service: "payments", outboundKey: "grpc-h3");
+```
+
+This keeps generated code transport-agnostic while letting configuration control HTTP/3 negotiation and fallback.
+
 ## Using The protoc Plugin
 
 The console project in `src/OmniRelay.Codegen.Protobuf` builds `protoc-gen-omnirelay-csharp`. Point `protoc` (or `Grpc.Tools`) at the published binary to generate C# during your build:

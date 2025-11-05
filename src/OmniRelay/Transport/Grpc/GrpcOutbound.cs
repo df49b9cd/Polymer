@@ -1101,13 +1101,6 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             channelOptions.MaxSendMessageSize = maxSend;
         }
 
-        if (runtimeOptions.KeepAlivePingDelay is null &&
-            runtimeOptions.KeepAlivePingTimeout is null &&
-            runtimeOptions.KeepAlivePingPolicy is null)
-        {
-            return;
-        }
-
         if (channelOptions.HttpClient is not null)
         {
             throw new InvalidOperationException("Cannot apply gRPC client runtime options when a custom HttpClient is provided.");
@@ -1153,8 +1146,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                         break;
 
                     case HttpVersionPolicy.RequestVersionOrHigher:
-                        version = HttpVersion.Version11;
-                        versionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+                        // Coerce to 3.0 + OrLower to prefer HTTP/3 and allow downgrade to HTTP/2.
+                        version = HttpVersion.Version30;
+                        versionPolicy = HttpVersionPolicy.RequestVersionOrLower;
                         break;
 
                     case HttpVersionPolicy.RequestVersionOrLower:
