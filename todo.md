@@ -226,4 +226,4 @@
   - [ ] Update codegen README and inline docs with new parameters.
   - [ ] Supply migration guidance for teams regenerating clients.
   - [ ] Announce changes through release communications.
-- [ ] Add runtime guardrails to enforce HTTP/3 only on HTTPS endpoints and emit actionable warnings/logs when falling back to HTTP/1.1/2.
+- [x] Add runtime guardrails to enforce HTTP/3 only on HTTPS endpoints and emit actionable warnings/logs when falling back to HTTP/1.1/2.

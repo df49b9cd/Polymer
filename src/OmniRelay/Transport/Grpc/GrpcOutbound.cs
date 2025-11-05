@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -95,6 +97,14 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             : remoteService;
         _clientTlsOptions = clientTlsOptions;
         _clientRuntimeOptions = clientRuntimeOptions;
+        if (_clientRuntimeOptions?.EnableHttp3 == true)
+        {
+            var invalidEndpoint = _addresses.FirstOrDefault(static uri => !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
+            if (invalidEndpoint is not null)
+            {
+                throw new InvalidOperationException($"HTTP/3 enabled for gRPC outbound '{remoteService}' but address '{invalidEndpoint}' is not HTTPS. Update configuration or disable HTTP/3.");
+            }
+        }
         _compressionOptions = compressionOptions;
         _telemetryOptions = telemetryOptions;
         _peerBreakerOptions = peerCircuitBreakerOptions ?? new PeerCircuitBreakerOptions();

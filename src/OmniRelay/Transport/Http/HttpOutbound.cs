@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
@@ -31,6 +32,11 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         _requestUri = requestUri ?? throw new ArgumentNullException(nameof(requestUri));
         _disposeClient = disposeClient;
         _runtimeOptions = runtimeOptions;
+
+    if (_runtimeOptions?.EnableHttp3 == true && !_requestUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("HTTP/3 requests require HTTPS endpoints. Update the request URI or disable HTTP/3 for this outbound.");
+    }
     }
 
     public ValueTask StartAsync(CancellationToken cancellationToken = default) =>
