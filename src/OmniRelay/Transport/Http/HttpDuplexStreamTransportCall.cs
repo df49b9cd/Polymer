@@ -141,11 +141,8 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            var error = OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.Internal,
-                ex.Message ?? "An error occurred while sending request messages.",
-                transport: _transport,
-                inner: Error.FromException(ex));
+            var omni = OmniRelayErrors.FromException(ex, _transport);
+            var error = omni.Error;
             await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
             await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
         }
@@ -228,11 +225,8 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            await _inner.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.Internal,
-                ex.Message ?? "An error occurred while receiving response messages.",
-                transport: _transport,
-                inner: Error.FromException(ex)), CancellationToken.None).ConfigureAwait(false);
+            var omni = OmniRelayErrors.FromException(ex, _transport);
+            await _inner.CompleteResponsesAsync(omni.Error, CancellationToken.None).ConfigureAwait(false);
         }
     }
 }

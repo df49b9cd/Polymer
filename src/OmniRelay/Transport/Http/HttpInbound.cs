@@ -5,6 +5,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -74,6 +75,19 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         if (_dispatcher is null)
         {
             throw new InvalidOperationException("Dispatcher must be bound before starting the HTTP inbound.");
+        }
+
+        var requiresHttps = _urls.Any(static url =>
+        {
+            var uri = new Uri(url, UriKind.Absolute);
+            return uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+        });
+
+        var missingCertificate = _serverTlsOptions?.Certificate is null;
+
+        if (requiresHttps && missingCertificate)
+        {
+            throw new InvalidOperationException("HTTPS binding requested but no HTTP server TLS certificate was configured.");
         }
 
         var builder = WebApplication.CreateSlimBuilder();
@@ -629,11 +643,12 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
             var call = callResult.Value;
             var requestBuffer = new byte[32 * 1024];
+            using var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
 
             try
             {
-                var requestPump = PumpRequestsAsync(socket, call, requestBuffer, context.RequestAborted);
-                var responsePump = PumpResponsesAsync(socket, call, context.RequestAborted);
+                var requestPump = PumpRequestsAsync(socket, call, requestBuffer, pumpCts.Token);
+                var responsePump = PumpResponsesAsync(socket, call, pumpCts.Token);
 
                 await Task.WhenAll(requestPump, responsePump).ConfigureAwait(false);
             }
@@ -645,11 +660,16 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 {
                     try
                     {
-                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "completed", CancellationToken.None).ConfigureAwait(false);
+                        using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "completed", closeCts.Token).ConfigureAwait(false);
                     }
                     catch (WebSocketException)
                     {
                         // ignore handshake failures during shutdown
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        socket.Abort();
                     }
                 }
 
@@ -685,6 +705,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                                     var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
                                     await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
                                     await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    pumpCts.Cancel();
                                     return;
                                 }
 
@@ -692,6 +713,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                                 {
                                     var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
                                     await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    pumpCts.Cancel();
                                     return;
                                 }
 
@@ -708,15 +730,16 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                         "The client cancelled the request.",
                         transport: transport);
                     await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    pumpCts.Cancel();
                 }
                 catch (Exception ex)
                 {
-                    var error = OmniRelayErrorAdapter.FromStatus(
-                        OmniRelayStatusCode.Internal,
-                        ex.Message ?? "An error occurred while reading the duplex request stream.",
-                        transport: transport,
-                        inner: Error.FromException(ex));
+                    var omni = OmniRelayErrors.FromException(ex, transport);
+                    var error = omni.Error;
+                    await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
                     await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    pumpCts.Cancel();
                 }
             }
 
@@ -741,16 +764,15 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                         transport: transport);
                     await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
                     await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    pumpCts.Cancel();
                 }
                 catch (Exception ex)
                 {
-                    var error = OmniRelayErrorAdapter.FromStatus(
-                        OmniRelayStatusCode.Internal,
-                        ex.Message ?? "An error occurred while writing the duplex response stream.",
-                        transport: transport,
-                        inner: Error.FromException(ex));
+                    var omni = OmniRelayErrors.FromException(ex, transport);
+                    var error = omni.Error;
                     await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
                     await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    pumpCts.Cancel();
                 }
             }
         }

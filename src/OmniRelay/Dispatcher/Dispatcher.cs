@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Hugo;
 using OmniRelay.Core;
@@ -361,16 +362,34 @@ public sealed class Dispatcher
             }
 
             var wg = new WaitGroup();
+            var exceptions = new ConcurrentQueue<Exception>();
 
             foreach (var lifecycle in _lifecycleStartOrder.Select(component => component.Lifecycle))
             {
                 wg.Go(async token =>
                 {
-                    await lifecycle.StartAsync(token).ConfigureAwait(false);
+                    try
+                    {
+                        await lifecycle.StartAsync(token).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        exceptions.Enqueue(ex);
+                    }
                 }, cancellationToken);
             }
 
             await wg.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+            if (!exceptions.IsEmpty)
+            {
+                if (exceptions.Count == 1 && exceptions.TryDequeue(out var single))
+                {
+                    throw single;
+                }
+
+                throw new AggregateException(exceptions);
+            }
             CompleteStart();
         }
         catch
