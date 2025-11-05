@@ -90,6 +90,35 @@ omnirelay request \
 
 Use `--body-file` to stream large payloads directly off disk and `--header key=value` to attach transport headers.
 
+HTTP/3 examples:
+
+- Request HTTP/3 for HTTP endpoints (falls back to HTTP/2/1.1 when unavailable):
+
+```bash
+omnirelay request \
+  --transport http \
+  --http3 \
+  --url https://localhost:8443/yarpc/v1 \
+  --service echo \
+  --procedure echo::ping \
+  --encoding application/json \
+  --body '{"message":"over http/3 when available"}'
+```
+
+- Force HTTP/3 for gRPC (requires HTTPS addresses; the client sets RequestVersion=3.0 and VersionPolicy=RequestVersionOrHigher and will gracefully fall back):
+
+```bash
+omnirelay request \
+  --transport grpc \
+  --grpc-http3 \
+  --address https://127.0.0.1:9091 \
+  --service echo \
+  --procedure Ping \
+  --body-base64 CgxhbHNvIGdycGM=
+```
+
+The same flags are available in `omnirelay benchmark` to validate HTTP/3 performance and fallback behavior under load.
+
 ## Codec-aware profiles
 
 Profiles shortcut common encoding concerns:

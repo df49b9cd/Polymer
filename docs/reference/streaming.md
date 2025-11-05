@@ -181,6 +181,46 @@ Timeouts accept `TimeSpan` strings (`"00:00:05"`), ISO 8601 durations, or millis
 
 > **QUIC guidance:** For HTTP/3 listeners, cap server-stream payloads at `serverStreamMaxMessageBytes = 524288` (512&nbsp;KiB) and keep duplex frames under `duplexMaxFrameBytes = 16384` (16&nbsp;KiB). Alert when `StreamCallContext.CompletionStatus` transitions to `DeadlineExceeded` or `Faulted` so operators can spot MsQuic flow-control stalls early.
 
+## gRPC HTTP/3 client configuration and tuning
+
+OmniRelay’s gRPC client (`GrpcOutbound`) can opt into HTTP/3 while preserving compatibility:
+
+- When `enableHttp3` is true, the client:
+    - Enables QUIC/HTTP/3 ALPN on `SocketsHttpHandler`.
+    - Sets `HttpRequestMessage.Version = 3.0` and `VersionPolicy = RequestVersionOrHigher` via a delegating handler so calls negotiate down to HTTP/2 if needed.
+    - Turns on `SocketsHttpHandler.EnableMultipleHttp3Connections` to avoid queueing at the HTTP/3 connection level under high concurrency.
+- Keep-alive tuning: configure `keepAlivePingDelay` and `keepAlivePingTimeout` on the outbound runtime to keep pools warm during idle periods.
+
+Example appsettings excerpt for a gRPC outbound:
+
+```json
+{
+    "polymer": {
+        "outbounds": {
+            "inventory": {
+                "unary": {
+                    "grpc": [
+                        {
+                            "addresses": [ "https://inventory.internal:9091" ],
+                            "remoteService": "inventory",
+                            "runtime": {
+                                "enableHttp3": true,
+                                "requestVersion": "3.0",
+                                "versionPolicy": "request-version-or-higher",
+                                "keepAlivePingDelay": "00:01:00",
+                                "keepAlivePingTimeout": "00:00:20"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
+```
+
+Benchmarking tip: use `omnirelay benchmark --transport grpc --grpc-http3 ...` to validate concurrency and fallback paths. Track throughput and latency distributions while varying concurrency to confirm multiple HTTP/3 connections are created as expected.
+
 ## Metadata, Deadlines, and Completion
 
 - `RequestMeta` carries caller, service, procedure, encoding, TTL, and deadline fields. Transports convert TTL/deadline into native timeouts.

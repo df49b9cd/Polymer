@@ -37,7 +37,7 @@
   - [x] Define configuration schema/CLI flags for enabling HTTP/3 per endpoint.
   - [x] Implement runtime toggle that falls back to existing HTTP/1.1+HTTP/2 behavior by default.
   - [x] Document configuration usage and defaults in operator guide.
-- [ ] Update `HttpInbound` listeners to use `HttpProtocols.Http1AndHttp2AndHttp3` and validate TLS 1.3 availability before enabling HTTP/3.https://learn.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-9.0#configure-grpc-client-to-use-http3
+- [ ] Update `HttpInbound` listeners to use `HttpProtocols.Http1AndHttp2AndHttp3` and validate TLS 1.3 availability before enabling HTTP/3. See: [docs](https://learn.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-9.0#configure-grpc-client-to-use-http3)
   - [x] Modify listener setup to request multi-protocol support and add TLS capability checks.
   - [x] Add integration tests covering HTTP/1.1, HTTP/2, and HTTP/3 negotiation.
   - [x] Gate feature behind the new configuration flag.
@@ -87,26 +87,26 @@
   - [x] Run interceptor pipeline tests using HTTP/3-enabled test harnesses.
   - [x] Verify compression negotiation and message sizes behave the same as HTTP/2 baseline.
   - [x] Confirm telemetry spans/logs from interceptors include protocol data.
-- [ ] Update `GrpcOutbound`/gRPC-dotnet client construction to opt into HTTP/3 per https://learn.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-9.0#configure-grpc-client-to-use-http3 and expose configuration for disabling when peers lack QUIC.
+- [x] Update `GrpcOutbound`/gRPC-dotnet client construction to opt into HTTP/3 per [docs](https://learn.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-9.0#configure-grpc-client-to-use-http3) and expose configuration for disabling when peers lack QUIC.
   - [x] Implement HTTP/3-aware channel factory with opt-in flags and fallback logic.
   - [x] Expose configuration through appsettings/CLI and ensure defaults remain HTTP/2 for compatibility.
   - [x] Add unit tests verifying correct handler configuration for each mode.
 - [ ] Confirm client handlers set `HttpRequestMessage.VersionPolicy = RequestVersionOrHigher` (or stricter policies) and tune `SocketsHttpHandler` HTTP/3 settings (keep-alive, connection pooling) so call concurrency matches HTTP/2 parity targets.
   - [x] Audit existing handler construction and update to set version policies explicitly.
   - [ ] Validate connection pooling and keep-alive tuning under load using benchmark suite.
-  - [ ] Document recommended handler overrides for high-concurrency workloads.
-- [ ] Exercise server keep-alive settings under HTTP/3 and expose MsQuic keep-alive knobs alongside current HTTP/2 configuration.
+  - [x] Document recommended handler overrides for high-concurrency workloads.
+- [x] Exercise server keep-alive settings under HTTP/3 and expose MsQuic keep-alive knobs alongside current HTTP/2 configuration.
   - [x] Add configuration binding for MsQuic keep-alive options on the server side.
   - [x] Stress test long-lived streams verifying keep-alive behavior.
-  - [ ] Update operational docs describing keep-alive tuning for HTTP/3 deployments.
-- [ ] Confirm gRPC health checks and draining semantics still produce `StatusCode.Unavailable` with retry metadata.
+  - [x] Update operational docs describing keep-alive tuning for HTTP/3 deployments.
+- [x] Confirm gRPC health checks and draining semantics still produce `StatusCode.Unavailable` with retry metadata.
   - [x] Run end-to-end drain tests capturing gRPC status codes over HTTP/3.
   - [x] Ensure metadata serialization matches existing HTTP/2 expectations.
   - [x] Capture results in SLO/SLA documentation.
 - [ ] Capture and document any gRPC client library limitations (per language) when connecting over HTTP/3.
   - [ ] Survey officially supported gRPC client libraries for HTTP/3 readiness.
   - [ ] File follow-up issues for unsupported clients or document required workarounds.
-  - [ ] Publish compatibility table for consumers.
+  - [x] Publish compatibility table for consumers.
 - [ ] Update protobuf code generation templates to emit HTTP/3-aware client/channel wiring (e.g., default `GrpcChannelOptions` with HTTP/3 enabled).
   - [ ] Modify generator templates and runtime helpers to surface HTTP/3 configuration hooks.
   - [ ] Update generated sample projects/tests to cover HTTP/3 channel creation.
