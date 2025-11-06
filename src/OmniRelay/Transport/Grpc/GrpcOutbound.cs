@@ -1136,7 +1136,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             {
                 // Map defaults by policy when HTTP/3 is enabled but no explicit RequestVersion is provided.
                 // - Exact    => 3.0 exact (force HTTP/3)
-                // - OrHigher => 1.1 + OrHigher (negotiate up to HTTP/2/3, fallback compatible)
+                // - OrHigher => leave Version unset + OrHigher (let gRPC default to HTTP/2 and upgrade when appropriate)
                 // - OrLower  => 3.0 + OrLower (prefer HTTP/3 but allow downgrade to HTTP/2)
                 switch (runtimeOptions.VersionPolicy)
                 {
@@ -1146,9 +1146,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                         break;
 
                     case HttpVersionPolicy.RequestVersionOrHigher:
-                        // Coerce to 3.0 + OrLower to prefer HTTP/3 and allow downgrade to HTTP/2.
-                        version = HttpVersion.Version30;
-                        versionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+                        // Allow the gRPC client to use its default (HTTP/2) and negotiate up when possible.
+                        version = null;
+                        versionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
                         break;
 
                     case HttpVersionPolicy.RequestVersionOrLower:
