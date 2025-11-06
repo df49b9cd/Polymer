@@ -40,6 +40,91 @@ curl -X POST \
   http://localhost:5080/yarpc/v1/checkout::create
 ```
 
+### Quick RPC Smoke Tests
+
+Use these commands to confirm the gateway, inventory, and audit services are reachable once the stack is running.
+
+```bash
+# HTTP direct call with curl (JSON request / response)
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "Rpc-Procedure: checkout::create" \
+  -H "Rpc-Caller: smoke-test" \
+  -d '{ "orderId": "smoke-1", "sku": "widget", "quantity": 2, "currency": "USD" }' \
+  http://localhost:5080/yarpc/v1/checkout::create
+
+# OmniRelay CLI request over HTTP (wrap CLI args after --)
+dotnet run \
+  --project src/OmniRelay.Cli/OmniRelay.Cli.csproj -- \
+  request \
+  --transport http \
+  --url http://localhost:5080/yarpc/v1/checkout::create \
+  --service distributed.gateway \
+  --procedure checkout::create \
+  --caller smoke-http \
+  --encoding application/json \
+  --body '{ "orderId": "smoke-2", "sku": "widget", "quantity": 2, "currency": "USD" }'
+
+# OmniRelay CLI request over gRPC
+dotnet run \
+  --project src/OmniRelay.Cli/OmniRelay.Cli.csproj -- \
+  request \
+  --transport grpc \
+  --address http://localhost:5081 \
+  --service distributed.gateway \
+  --procedure checkout::create \
+  --caller smoke-grpc \
+  --encoding application/json \
+  --body '{ "orderId": "smoke-3", "sku": "widget", "quantity": 2, "currency": "USD" }'
+```
+
+### Benchmark with the OmniRelay CLI
+
+`dotnet run` automatically builds the CLI on the fly. Add the `--` separator before CLI arguments so they reach the tool.
+
+Key flags used below:
+- `--concurrency` controls the number of parallel workers.
+- `--duration` and `--warmup` bound the measurement window.
+- `--requests` caps the total measured calls (`0` disables the cap so the test ends when `--duration` elapses).
+- `--rps` throttles aggregate throughput, which is useful to avoid overloading local machines.
+- `--body` accepts templated placeholders (`{{worker}}`, `{{seq}}`) expanded per worker and request.
+
+```bash
+# HTTP (port 5080)
+dotnet run \
+  --project src/OmniRelay.Cli/OmniRelay.Cli.csproj -- \
+  benchmark \
+  --transport http \
+  --url http://localhost:5080/yarpc/v1/checkout::create \
+  --service distributed.gateway \
+  --procedure checkout::create \
+  --caller bench-http \
+  --encoding application/json \
+  --body '{ "orderId": "bench-{{worker}}-{{seq}}", "sku": "widget", "quantity": 2, "currency": "USD" }' \
+  --concurrency 16 \
+  --requests 0 \
+  --duration 30s \
+  --warmup 5s \
+  --rps 200
+
+# gRPC (port 5081)
+dotnet run \
+  --project src/OmniRelay.Cli/OmniRelay.Cli.csproj -- \
+  benchmark \
+  --transport grpc \
+  --address http://localhost:5081 \
+  --service distributed.gateway \
+  --procedure checkout::create \
+  --caller bench-grpc \
+  --encoding application/json \
+  --body '{ "orderId": "bench-{{worker}}-{{seq}}", "sku": "widget", "quantity": 2, "currency": "USD" }' \
+  --concurrency 16 \
+  --requests 0 \
+  --duration 30s \
+  --warmup 5s \
+  --rps 200
+```
+
 The gateway uses JSON inbound codecs, calls inventory via a Protobuf outbound codec, and publishes a JSON oneway audit event. Inventory replicas demonstrate a different peer chooser (`fewest-pending`), so traffic will alternate between `inventory-primary` and `inventory-secondary` as they compete for leases.
 
 ## Observability Stack
