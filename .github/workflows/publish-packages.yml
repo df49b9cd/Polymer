@@ -60,7 +60,16 @@ jobs:
         run: dotnet build OmniRelay.slnx --configuration Release
 
       - name: Test
-        run: dotnet test OmniRelay.slnx --configuration Release --no-build
+        run: dotnet test OmniRelay.slnx --configuration Release --no-build --collect:"XPlat Code Coverage"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: |
+            **/*coverage.cobertura.xml
+          fail_ci_if_error: false
+          verbose: true
 
       - name: Pack artifacts
         run: |
