@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore OmniRelay.slnx
+
+      - name: Build (with binlog)
+        run: |
+          mkdir -p artifacts/build
+          dotnet build OmniRelay.slnx --configuration Release -bl:artifacts/build/build.binlog
+
+      - name: Test (with coverage and TRX)
+        run: |
+          dotnet test OmniRelay.slnx \
+            --configuration Release \
+            --no-build \
+            --collect:"XPlat Code Coverage" \
+            --logger "trx;LogFileName=test-results.trx"
+
+      - name: Gather coverage artifacts
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/coverage
+          shopt -s globstar nullglob
+          for f in **/*coverage.cobertura.xml; do
+            dest="artifacts/coverage/${f//\//_}"
+            cp "$f" "$dest" || true
+          done
+          echo "Collected coverage files:"; ls -la artifacts/coverage || true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: |
+            **/*coverage.cobertura.xml
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-results
+          path: |
+            **/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+      - name: Upload Build Logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: build-logs
+          path: artifacts/build/**
+          if-no-files-found: ignore
+
+      - name: Upload Coverage Artifacts
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage
+          path: artifacts/coverage
+          if-no-files-found: ignore
