@@ -371,7 +371,7 @@ internal sealed class AuditFanoutOutboundSpec : ICustomOutboundSpec
 
     public IUnaryOutbound? CreateUnaryOutbound(IConfigurationSection configuration, IServiceProvider services) => null;
 
-    public IOnewayOutbound? CreateOnewayOutbound(IConfigurationSection configuration, IServiceProvider services)
+    public IOnewayOutbound CreateOnewayOutbound(IConfigurationSection configuration, IServiceProvider services)
     {
         var url = configuration["url"];
         if (string.IsNullOrWhiteSpace(url))

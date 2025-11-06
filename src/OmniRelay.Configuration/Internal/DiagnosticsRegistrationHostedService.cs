@@ -6,13 +6,11 @@ namespace OmniRelay.Configuration.Internal;
 
 internal sealed class DiagnosticsRegistrationHostedService(IMeterFactory? meterFactory = null) : IHostedService
 {
-    private readonly IMeterFactory? _meterFactory = meterFactory;
-
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        if (_meterFactory is not null)
+        if (meterFactory is not null)
         {
-            GoDiagnostics.Configure(_meterFactory);
+            GoDiagnostics.Configure(meterFactory);
         }
 
         return Task.CompletedTask;

@@ -79,7 +79,7 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
         return primaryResult;
     }
 
-    public object? GetOutboundDiagnostics()
+    public object GetOutboundDiagnostics()
     {
         object? primaryDiagnostics = _primary is IOutboundDiagnostic diagnostic
             ? diagnostic.GetOutboundDiagnostics()
@@ -223,7 +223,7 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
         return primaryResult;
     }
 
-    public object? GetOutboundDiagnostics()
+    public object GetOutboundDiagnostics()
     {
         object? primaryDiagnostics = _primary is IOutboundDiagnostic diagnostic
             ? diagnostic.GetOutboundDiagnostics()

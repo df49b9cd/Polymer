@@ -338,7 +338,7 @@ public class OmniRelayConfigurationTests
 
         public string Name => SpecName;
 
-        public IUnaryOutbound? CreateUnaryOutbound(IConfigurationSection configuration, IServiceProvider services)
+        public IUnaryOutbound CreateUnaryOutbound(IConfigurationSection configuration, IServiceProvider services)
         {
             LastAddress = configuration["url"];
             return new TestUnaryOutbound(LastAddress ?? string.Empty);

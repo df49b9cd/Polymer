@@ -511,17 +511,6 @@ public sealed class OmniRelayProtobufGenerator
             builder.AppendLine("}");
         }
 
-        private static string SanitizeIdentifier(string identifier)
-        {
-            var builder = new StringBuilder(identifier.Length);
-            foreach (var ch in identifier)
-            {
-                builder.Append(char.IsLetterOrDigit(ch) ? ch : '_');
-            }
-
-            return builder.ToString();
-        }
-
         private static string ToCamelCase(string identifier)
         {
             if (string.IsNullOrEmpty(identifier))

@@ -73,14 +73,10 @@ public static class OmniRelayServiceCollectionExtensions
     private static void ConfigureDiagnostics(IServiceCollection services, OmniRelayConfigurationOptions options)
     {
         var diagnostics = options.Diagnostics;
-        if (diagnostics is null)
-        {
-            return;
-        }
 
         ConfigureRuntimeDiagnostics(services, diagnostics);
 
-        var otel = diagnostics.OpenTelemetry ?? new OpenTelemetryConfiguration();
+        var otel = diagnostics.OpenTelemetry;
 
         var prometheusEnabled = otel.Prometheus.Enabled ?? true;
         var otlpEnabled = otel.Otlp.Enabled ?? false;
@@ -111,26 +107,28 @@ public static class OmniRelayServiceCollectionExtensions
 
                 if (prometheusEnabled)
                 {
-                    builder.AddPrometheusExporter(options =>
+                    builder.AddPrometheusExporter(prometheusAspNetCoreOptions =>
                     {
-                        options.ScrapeEndpointPath = NormalizeScrapeEndpointPath(otel.Prometheus.ScrapeEndpointPath);
+                        prometheusAspNetCoreOptions.ScrapeEndpointPath = NormalizeScrapeEndpointPath(otel.Prometheus.ScrapeEndpointPath);
                     });
                 }
 
                 if (otlpEnabled)
                 {
-                    builder.AddOtlpExporter(options =>
+                    builder.AddOtlpExporter(otlpExporterOptions =>
                     {
-                        options.Protocol = ParseOtlpProtocol(otel.Otlp.Protocol);
-                        if (!string.IsNullOrWhiteSpace(otel.Otlp.Endpoint))
+                        otlpExporterOptions.Protocol = ParseOtlpProtocol(otel.Otlp.Protocol);
+                        if (string.IsNullOrWhiteSpace(otel.Otlp.Endpoint))
                         {
-                            if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
-                            {
-                                throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
-                            }
-
-                            options.Endpoint = endpoint;
+                            return;
                         }
+
+                        if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
+                        {
+                            throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
+                        }
+
+                        otlpExporterOptions.Endpoint = endpoint;
                     });
                 }
             });
@@ -139,7 +137,7 @@ public static class OmniRelayServiceCollectionExtensions
         }
 
         // Enable tracing pipeline if explicitly enabled in configuration (primarily for OTLP export).
-        var tracingEnabled = otelEnabled && (otlpEnabled || (diagnostics.Runtime?.EnableTraceSamplingToggle ?? false));
+        var tracingEnabled = otelEnabled && (otlpEnabled || (diagnostics.Runtime.EnableTraceSamplingToggle ?? false));
         if (tracingEnabled)
         {
             openTelemetryBuilder.WithTracing(builder =>
@@ -153,18 +151,20 @@ public static class OmniRelayServiceCollectionExtensions
 
                 if (otlpEnabled)
                 {
-                    builder.AddOtlpExporter(options =>
+                    builder.AddOtlpExporter(otlpExporterOptions =>
                     {
-                        options.Protocol = ParseOtlpProtocol(otel.Otlp.Protocol);
-                        if (!string.IsNullOrWhiteSpace(otel.Otlp.Endpoint))
+                        otlpExporterOptions.Protocol = ParseOtlpProtocol(otel.Otlp.Protocol);
+                        if (string.IsNullOrWhiteSpace(otel.Otlp.Endpoint))
                         {
-                            if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
-                            {
-                                throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
-                            }
-
-                            options.Endpoint = endpoint;
+                            return;
                         }
+
+                        if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
+                        {
+                            throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
+                        }
+
+                        otlpExporterOptions.Endpoint = endpoint;
                     });
                 }
             });
@@ -176,10 +176,6 @@ public static class OmniRelayServiceCollectionExtensions
         DiagnosticsConfiguration diagnostics)
     {
         var runtime = diagnostics.Runtime;
-        if (runtime is null)
-        {
-            return;
-        }
 
         var enableLoggingToggle = runtime.EnableLoggingLevelToggle ?? false;
         var enableSamplingToggle = runtime.EnableTraceSamplingToggle ?? false;

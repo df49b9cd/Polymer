@@ -14,13 +14,15 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
     static ProtobufIncrementalGenerator()
     {
         var directory = DependencyDirectory.Value;
-        if (!string.IsNullOrEmpty(directory))
+        if (string.IsNullOrEmpty(directory))
         {
-            AssemblyLoadContext.Default.Resolving += ResolveAssemblyFromDependencies;
-            PreloadDependency(directory, "Google.Protobuf");
-            PreloadDependency(directory, "OmniRelay.Codegen.Protobuf.Core");
-            PreloadDependency(directory, "OmniRelay");
+            return;
         }
+
+        AssemblyLoadContext.Default.Resolving += ResolveAssemblyFromDependencies;
+        PreloadDependency(directory, "Google.Protobuf");
+        PreloadDependency(directory, "OmniRelay.Codegen.Protobuf.Core");
+        PreloadDependency(directory, "OmniRelay");
     }
 
     private static readonly DiagnosticDescriptor DescriptorReadError = new(
@@ -79,7 +81,7 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         });
     }
 
-    private static DescriptorResult? ReadDescriptorSet(string path)
+    private static DescriptorResult ReadDescriptorSet(string path)
     {
 #pragma warning disable RS1035 // Do not do file IO in analyzers
         try
@@ -138,13 +140,15 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         }
 
         var dependencyDirectory = DependencyDirectory.Value;
-        if (!string.IsNullOrEmpty(dependencyDirectory))
+        if (string.IsNullOrEmpty(dependencyDirectory))
         {
-            var candidate = Path.Combine(dependencyDirectory, $"{name.Name}.dll");
-            if (File.Exists(candidate))
-            {
-                return context.LoadFromAssemblyPath(candidate);
-            }
+            return null;
+        }
+
+        var candidate = Path.Combine(dependencyDirectory, $"{name.Name}.dll");
+        if (File.Exists(candidate))
+        {
+            return context.LoadFromAssemblyPath(candidate);
         }
 
         return null;

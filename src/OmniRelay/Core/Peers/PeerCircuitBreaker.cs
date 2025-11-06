@@ -53,26 +53,27 @@ public sealed class PeerCircuitBreaker
     {
         var now = _options.TimeProvider.GetUtcNow();
 
-        if (_suspendedUntil is { } until)
+        if (_suspendedUntil is not { } until)
         {
-            if (until > now)
-            {
-                return false;
-            }
-
-            if (!_isHalfOpen)
-            {
-                EnterHalfOpen();
-            }
-
-            if (_halfOpenAttempts >= _options.HalfOpenMaxAttempts)
-            {
-                return false;
-            }
-
-            _halfOpenAttempts++;
             return true;
         }
+
+        if (until > now)
+        {
+            return false;
+        }
+
+        if (!_isHalfOpen)
+        {
+            EnterHalfOpen();
+        }
+
+        if (_halfOpenAttempts >= _options.HalfOpenMaxAttempts)
+        {
+            return false;
+        }
+
+        _halfOpenAttempts++;
 
         return true;
     }

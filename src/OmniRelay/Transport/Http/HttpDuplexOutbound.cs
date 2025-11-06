@@ -102,7 +102,7 @@ public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutb
         return builder.Uri;
     }
 
-    public object? GetOutboundDiagnostics() =>
+    public object GetOutboundDiagnostics() =>
         new HttpDuplexOutboundSnapshot(_baseAddress);
 }
 

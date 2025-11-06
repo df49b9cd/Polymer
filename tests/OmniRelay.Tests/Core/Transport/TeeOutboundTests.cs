@@ -150,7 +150,7 @@ public class TeeOutboundTests
             return ValueTask.FromResult(_behavior(request));
         }
 
-        public object? GetOutboundDiagnostics() => new { Kind = "stub-unary" };
+        public object GetOutboundDiagnostics() => new { Kind = "stub-unary" };
     }
 
     private sealed class StubOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
@@ -179,6 +179,6 @@ public class TeeOutboundTests
             return ValueTask.FromResult(_behavior(request));
         }
 
-        public object? GetOutboundDiagnostics() => new { Kind = "stub-oneway" };
+        public object GetOutboundDiagnostics() => new { Kind = "stub-oneway" };
     }
 }

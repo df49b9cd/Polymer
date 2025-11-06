@@ -640,7 +640,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
-    public object? GetOutboundDiagnostics()
+    public object GetOutboundDiagnostics()
     {
         var algorithms = _compressionAlgorithms is { Count: > 0 }
             ? _compressionAlgorithms.ToArray()

@@ -343,7 +343,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         CancellationToken cancellationToken) =>
         await CallOnewayAsync(request, cancellationToken).ConfigureAwait(false);
 
-    public object? GetOutboundDiagnostics() =>
+    public object GetOutboundDiagnostics() =>
         new HttpOutboundSnapshot(_requestUri, _disposeClient);
 
     void IHttpOutboundMiddlewareSink.Attach(string service, HttpOutboundMiddlewareRegistry registry)
