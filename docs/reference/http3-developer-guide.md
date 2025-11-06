@@ -49,7 +49,7 @@ Example (HTTP inbound):
 
 ```jsonc
 {
-  "polymer": {
+  "omnirelay": {
     "inbounds": {
       "http": [
         {
@@ -79,7 +79,7 @@ Example (gRPC inbound):
 
 ```jsonc
 {
-  "polymer": {
+  "omnirelay": {
     "inbounds": {
       "grpc": [
         {
@@ -116,7 +116,7 @@ gRPC outbound (GrpcOutbound):
 
 ```jsonc
 {
-  "polymer": {
+  "omnirelay": {
     "outbounds": {
       "ledger": {
         "unary": {
@@ -144,7 +144,7 @@ HTTP outbound (HttpOutbound):
 
 ```jsonc
 {
-  "polymer": {
+  "omnirelay": {
     "outbounds": {
       "audit": {
         "oneway": {

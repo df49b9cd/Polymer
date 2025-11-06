@@ -120,7 +120,7 @@ The HTTP inbound exposes `/omnirelay/introspect`, `/healthz`, and `/readyz`. Int
 ```jsonc
 // appsettings.json
 {
-  "polymer": {
+  "omnirelay": {
     "service": "gateway",
     "inbounds": {
       "http": [{ "urls": [ "http://0.0.0.0:8080" ] }],
@@ -150,7 +150,7 @@ The HTTP inbound exposes `/omnirelay/introspect`, `/healthz`, and `/readyz`. Int
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddLogging();
-builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("polymer"));
+builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
 
 var app = builder.Build();
 await app.RunAsync();

@@ -10,7 +10,7 @@ When hosted with `Host.CreateApplicationBuilder`, these files combine with envir
 
 ```bash
 DOTNET_ENVIRONMENT=Production \
-polymer__outbounds__ledger__unary__grpc__0__addresses__0=http://ledger-c.internal:9090
+omnirelay__outbounds__ledger__unary__grpc__0__addresses__0=http://ledger-c.internal:9090
 ```
 
 See `OmniRelayConfigurationTests` for unit coverage that exercises custom specs and configuration layering.
@@ -23,7 +23,7 @@ Example: enable HTTP/3 for a gRPC outbound and request HTTP/3-or-higher per call
 
 ```json
 {
- "polymer": {
+ "omnirelay": {
   "outbounds": {
    "ledger": {
     "unary": {
@@ -59,7 +59,7 @@ Enable HTTP/3 for `HttpOutbound` with a permissive version policy to allow fallb
 
 ```json
 {
- "polymer": {
+ "omnirelay": {
   "outbounds": {
    "audit": {
     "oneway": {

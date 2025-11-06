@@ -14,7 +14,7 @@ OmniRelay.Configuration binds dispatcher settings from `IConfiguration` sources 
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddLogging();
-builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("polymer"));
+builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
 
 var app = builder.Build();
 await app.RunAsync();

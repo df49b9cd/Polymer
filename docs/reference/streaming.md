@@ -195,7 +195,7 @@ Example appsettings excerpt for a gRPC outbound:
 
 ```json
 {
-    "polymer": {
+    "omnirelay": {
         "outbounds": {
             "inventory": {
                 "unary": {

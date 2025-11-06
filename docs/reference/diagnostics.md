@@ -96,7 +96,7 @@ Each workflow measurement includes metric tags for `workflow.namespace`, `workfl
 
 ```json
 {
-  "polymer": {
+  "omnirelay": {
     "service": "gateway",
     "diagnostics": {
       "openTelemetry": {
