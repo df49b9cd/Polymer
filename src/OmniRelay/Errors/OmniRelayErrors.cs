@@ -3,8 +3,15 @@ using static Hugo.Go;
 
 namespace OmniRelay.Errors;
 
+/// <summary>
+/// Helpers for normalizing exceptions and Hugo <c>Error</c> values to OmniRelay conventions
+/// (status code, transport metadata, retryability) and mapping to/from results.
+/// </summary>
 public static class OmniRelayErrors
 {
+    /// <summary>
+    /// Converts a Hugo <see cref="Error"/> to an <see cref="OmniRelayException"/>, normalizing status and transport.
+    /// </summary>
     public static OmniRelayException FromError(Error error, string? transport = null)
     {
         ArgumentNullException.ThrowIfNull(error);
@@ -20,6 +27,10 @@ public static class OmniRelayErrors
         return new OmniRelayException(status, normalized.Message, normalized, transport, normalized.Cause);
     }
 
+    /// <summary>
+    /// Converts an arbitrary <see cref="Exception"/> to an <see cref="OmniRelayException"/>,
+    /// mapping common cases like cancellations and timeouts.
+    /// </summary>
     public static OmniRelayException FromException(Exception exception, string? transport = null)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -79,9 +90,11 @@ public static class OmniRelayErrors
         return new OmniRelayException(OmniRelayStatusCode.Internal, exception.Message, statusError, transport, exception);
     }
 
+    /// <summary>Checks if the exception represents the given status code.</summary>
     public static bool IsStatus(Exception exception, OmniRelayStatusCode statusCode) =>
         TryGetStatus(exception, out var resolved) && resolved == statusCode;
 
+    /// <summary>Attempts to extract an OmniRelay status code from the exception.</summary>
     public static bool TryGetStatus(Exception exception, out OmniRelayStatusCode statusCode)
     {
         if (exception is OmniRelayException polymerException)
@@ -112,6 +125,7 @@ public static class OmniRelayErrors
         return false;
     }
 
+    /// <summary>Classifies the fault type (client/server) for the given exception.</summary>
     public static OmniRelayFaultType GetFaultType(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -131,9 +145,11 @@ public static class OmniRelayErrors
             : OmniRelayFaultType.Server;
     }
 
+    /// <summary>Classifies the fault type (client/server) for the given status code.</summary>
     public static OmniRelayFaultType GetFaultType(OmniRelayStatusCode statusCode) =>
         OmniRelayStatusFacts.GetFaultType(statusCode);
 
+    /// <summary>Classifies the fault type (client/server) for the given Hugo error.</summary>
     public static OmniRelayFaultType GetFaultType(Error error)
     {
         ArgumentNullException.ThrowIfNull(error);
@@ -147,6 +163,7 @@ public static class OmniRelayErrors
         return OmniRelayStatusFacts.GetFaultType(OmniRelayErrorAdapter.ToStatus(error));
     }
 
+    /// <summary>Determines whether the given exception is retryable.</summary>
     public static bool IsRetryable(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -159,9 +176,11 @@ public static class OmniRelayErrors
         };
     }
 
+    /// <summary>Determines whether the given status code is retryable.</summary>
     public static bool IsRetryable(OmniRelayStatusCode statusCode) =>
         OmniRelayStatusFacts.IsRetryable(statusCode);
 
+    /// <summary>Determines whether the given error is retryable.</summary>
     public static bool IsRetryable(Error error)
     {
         ArgumentNullException.ThrowIfNull(error);
@@ -180,12 +199,15 @@ public static class OmniRelayErrors
         return OmniRelayStatusFacts.IsRetryable(OmniRelayErrorAdapter.ToStatus(error));
     }
 
+    /// <summary>Wraps an exception as a failed Hugo <c>Result&lt;T&gt;</c> with normalized OmniRelay error.</summary>
     public static Result<T> ToResult<T>(Exception exception, string? transport = null) =>
         Err<T>(FromException(exception, transport).Error);
 
+    /// <summary>Creates a failed result from a status and message.</summary>
     public static Result<T> ToResult<T>(OmniRelayStatusCode statusCode, string message, string? transport = null) =>
         Err<T>(OmniRelayErrorAdapter.FromStatus(statusCode, message, transport));
 
+    /// <summary>Wraps an error as a failed result with normalized OmniRelay exception metadata.</summary>
     public static Result<T> ToResult<T>(Error error, string? transport = null) =>
         Err<T>(FromError(error, transport).Error);
 

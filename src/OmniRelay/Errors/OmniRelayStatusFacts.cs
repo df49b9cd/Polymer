@@ -2,6 +2,9 @@ using System.Collections.Immutable;
 
 namespace OmniRelay.Errors;
 
+/// <summary>
+/// Internal mapping for OmniRelay status code classifications, like fault type and retryability.
+/// </summary>
 internal static class OmniRelayStatusFacts
 {
     private static readonly ImmutableDictionary<OmniRelayStatusCode, OmniRelayFaultType> FaultTypes =

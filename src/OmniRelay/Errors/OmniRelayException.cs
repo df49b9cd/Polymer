@@ -2,8 +2,14 @@ using Hugo;
 
 namespace OmniRelay.Errors;
 
+/// <summary>
+/// Exception type representing normalized OmniRelay errors with status code and transport metadata.
+/// </summary>
 public sealed class OmniRelayException : Exception
 {
+    /// <summary>
+    /// Creates a new OmniRelay exception with a status, message, and optional underlying error and transport.
+    /// </summary>
     public OmniRelayException(
         OmniRelayStatusCode statusCode,
         string message,
@@ -21,10 +27,13 @@ public sealed class OmniRelayException : Exception
         Transport = transport ?? TryReadTransport(Error);
     }
 
+    /// <summary>Gets the normalized status code.</summary>
     public OmniRelayStatusCode StatusCode { get; }
 
+    /// <summary>Gets the normalized Hugo <c>Error</c> value.</summary>
     public Error Error { get; }
 
+    /// <summary>Gets the transport name, if known.</summary>
     public string? Transport { get; }
 
     private static Error? NormalizeError(Error? error, OmniRelayStatusCode statusCode, string? transport)

@@ -3,6 +3,9 @@ using Hugo;
 
 namespace OmniRelay.Errors;
 
+/// <summary>
+/// Adapts between OmniRelay status codes and Hugo <c>Error</c> objects with standardized metadata.
+/// </summary>
 public static class OmniRelayErrorAdapter
 {
     internal const string StatusMetadataKey = "yarpcore.status";
@@ -28,6 +31,9 @@ public static class OmniRelayErrorAdapter
         (OmniRelayStatusCode.DataLoss, "data-loss")
     }.ToImmutableDictionary(static tuple => tuple.Item1, static tuple => tuple.Item2);
 
+    /// <summary>
+    /// Creates a Hugo <see cref="Error"/> from an OmniRelay status and message, annotating metadata and transport.
+    /// </summary>
     public static Error FromStatus(
         OmniRelayStatusCode code,
         string message,
@@ -54,6 +60,9 @@ public static class OmniRelayErrorAdapter
         return error;
     }
 
+    /// <summary>
+    /// Maps a Hugo <see cref="Error"/> back to an <see cref="OmniRelayStatusCode"/> using metadata, code, or cause.
+    /// </summary>
     public static OmniRelayStatusCode ToStatus(Error error)
     {
         if (error.TryGetMetadata(StatusMetadataKey, out string? value) &&
@@ -81,6 +90,7 @@ public static class OmniRelayErrorAdapter
         return OmniRelayStatusCode.Unknown;
     }
 
+    /// <summary>Adds standardized status metadata to an error if missing.</summary>
     public static Error WithStatusMetadata(Error error, OmniRelayStatusCode code) =>
         AnnotateCoreMetadata(error, code);
 

@@ -1,5 +1,8 @@
 namespace OmniRelay.Errors;
 
+/// <summary>
+/// Categorizes errors as client or server faults (or unknown).
+/// </summary>
 public enum OmniRelayFaultType
 {
     Unknown = 0,
