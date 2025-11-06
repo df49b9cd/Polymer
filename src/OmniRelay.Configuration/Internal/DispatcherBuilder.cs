@@ -517,10 +517,53 @@ internal sealed class DispatcherBuilder
             throw new OmniRelayConfigurationException($"gRPC outbound for service '{service}' must specify peer addresses.");
         }
 
-        var uris = configuration.Addresses
-            .Select((address, index) => ValidateGrpcUrl(address, $"grpc outbound peer #{index} for service '{service}'"))
-            .Select(value => new Uri(value, UriKind.Absolute))
-            .ToArray();
+        // Build peer URI list and capture per-endpoint H3 capabilities when provided.
+        IReadOnlyDictionary<Uri, bool>? h3Support = null;
+        Uri[] uris;
+
+        if (configuration.Endpoints is { Count: > 0 })
+        {
+            var map = new Dictionary<Uri, bool>();
+            var list = new List<Uri>(configuration.Endpoints.Count);
+            var index = 0;
+            foreach (var ep in configuration.Endpoints)
+            {
+                if (ep is null || string.IsNullOrWhiteSpace(ep.Address))
+                {
+                    index++;
+                    continue;
+                }
+
+                var validated = ValidateGrpcUrl(ep.Address!, $"grpc outbound endpoint #{index} for service '{service}'");
+                var uri = new Uri(validated, UriKind.Absolute);
+                list.Add(uri);
+                var supports = ep.SupportsHttp3 ?? false;
+                // Only consider HTTP/3 support hints for HTTPS endpoints
+                if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                {
+                    supports = false;
+                }
+                map[uri] = supports;
+                index++;
+            }
+
+            // Prefer HTTP/3 capable endpoints first in ordering to improve baseline distribution
+            uris = list
+                .OrderByDescending(u => map.TryGetValue(u, out var s) && s)
+                .ToArray();
+
+            if (map.Count > 0)
+            {
+                h3Support = map;
+            }
+        }
+        else
+        {
+            uris = configuration.Addresses
+                .Select((address, index) => ValidateGrpcUrl(address, $"grpc outbound peer #{index} for service '{service}'"))
+                .Select(value => new Uri(value, UriKind.Absolute))
+                .ToArray();
+        }
 
         var remoteService = string.IsNullOrWhiteSpace(configuration.RemoteService)
             ? service
@@ -549,7 +592,8 @@ internal sealed class DispatcherBuilder
                 peerChooser: chooserFactory,
                 clientRuntimeOptions: runtimeOptions,
                 peerCircuitBreakerOptions: breakerOptions,
-                telemetryOptions: telemetryOptions);
+                telemetryOptions: telemetryOptions,
+                endpointHttp3Support: h3Support);
 
             _grpcOutboundCache[cacheKey] = outboundCached;
             return outboundCached;
@@ -562,7 +606,8 @@ internal sealed class DispatcherBuilder
             peerChooser: chooserFactory,
             clientRuntimeOptions: runtimeOptions,
             peerCircuitBreakerOptions: breakerOptions,
-            telemetryOptions: telemetryOptions);
+            telemetryOptions: telemetryOptions,
+            endpointHttp3Support: h3Support);
     }
 
     private Func<IReadOnlyList<IPeer>, IPeerChooser> CreatePeerChooserFactory(

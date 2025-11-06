@@ -118,10 +118,10 @@
   - [x] Introduce configuration knobs for outbound transports choosing desired HTTP version policy.
   - [x] Implement fallback strategy when upstream HTTP/3 negotiation fails.
   - [x] Add integration tests covering all version modes.
-- [ ] Extend service discovery / routing metadata to prefer HTTP/3 endpoints when available and handle negotiation failures cleanly.
-  - [ ] Update discovery schema to record per-endpoint protocol support.
-  - [ ] Modify routing logic to prioritize HTTP/3 while retaining HTTP/2/1.1 fallback.
-  - [ ] Ensure telemetry records chosen protocol per request for debugging.
+- [x] Extend service discovery / routing metadata to prefer HTTP/3 endpoints when available and handle negotiation failures cleanly.
+  - [x] Update discovery schema to record per-endpoint protocol support.
+  - [x] Modify routing logic to prioritize HTTP/3 while retaining HTTP/2/1.1 fallback.
+  - [x] Ensure telemetry records chosen protocol per request for debugging.
 - [ ] Verify `GrpcOutbound` channel pooling, circuit breaker, and retry logic behave with HTTP/3-only endpoints and surface telemetry when peers fall back to HTTP/2.
   - [ ] Run resilience tests under failure scenarios (transport errors, handshake failures).
   - [ ] Confirm circuit breaker metrics capture HTTP/3-specific failure modes.

@@ -34,8 +34,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private readonly PeerCircuitBreakerOptions _peerBreakerOptions;
     private readonly GrpcTelemetryOptions? _telemetryOptions;
     private readonly Func<IReadOnlyList<IPeer>, IPeerChooser> _peerChooserFactory;
+    private readonly IReadOnlyDictionary<Uri, bool>? _endpointHttp3Support;
     private ImmutableArray<GrpcPeer> _peers = [];
     private IPeerChooser? _peerChooser;
+    private IPeerChooser? _preferredPeerChooser;
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _unaryMethods = new();
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _serverStreamMethods = new();
     private readonly ConcurrentDictionary<string, Method<byte[], byte[]>> _clientStreamMethods = new();
@@ -55,7 +57,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         GrpcClientRuntimeOptions? clientRuntimeOptions = null,
         GrpcCompressionOptions? compressionOptions = null,
         PeerCircuitBreakerOptions? peerCircuitBreakerOptions = null,
-        GrpcTelemetryOptions? telemetryOptions = null)
+        GrpcTelemetryOptions? telemetryOptions = null,
+        IReadOnlyDictionary<Uri, bool>? endpointHttp3Support = null)
         : this(
             [address ?? throw new ArgumentNullException(nameof(address))],
             remoteService,
@@ -65,7 +68,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             clientRuntimeOptions,
             compressionOptions,
             peerCircuitBreakerOptions,
-            telemetryOptions)
+            telemetryOptions,
+            endpointHttp3Support)
     {
     }
 
@@ -78,7 +82,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         GrpcClientRuntimeOptions? clientRuntimeOptions = null,
         GrpcCompressionOptions? compressionOptions = null,
         PeerCircuitBreakerOptions? peerCircuitBreakerOptions = null,
-        GrpcTelemetryOptions? telemetryOptions = null)
+        GrpcTelemetryOptions? telemetryOptions = null,
+        IReadOnlyDictionary<Uri, bool>? endpointHttp3Support = null)
     {
         ArgumentNullException.ThrowIfNull(addresses);
 
@@ -106,7 +111,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             }
         }
         _compressionOptions = compressionOptions;
-        _telemetryOptions = telemetryOptions;
+    _telemetryOptions = telemetryOptions;
+    _endpointHttp3Support = endpointHttp3Support;
         _peerBreakerOptions = peerCircuitBreakerOptions ?? new PeerCircuitBreakerOptions();
         _channelOptions = channelOptions ?? new GrpcChannelOptions
         {
@@ -182,6 +188,18 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         _peers = builder.ToImmutable();
         _peerChooser = _peerChooserFactory(_peers);
 
+        // Build a preferred chooser over HTTP/3-capable peers when hints are available.
+        if (_endpointHttp3Support is { Count: > 0 })
+        {
+            var preferred = _peers
+                .Where(peer => _endpointHttp3Support.TryGetValue(peer.Address, out var s) && s)
+                .ToImmutableArray();
+            if (preferred.Length > 0)
+            {
+                _preferredPeerChooser = _peerChooserFactory(preferred);
+            }
+        }
+
         _started = true;
         return ValueTask.CompletedTask;
     }
@@ -230,10 +248,17 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return Err<Response<ReadOnlyMemory<byte>>>(acquireResult.Error!);
         }
 
-        var (lease, peer) = acquireResult.Value;
+        var (lease, peer, usedPreferred) = acquireResult.Value;
         await using var _ = lease.ConfigureAwait(false);
 
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "unary");
+        if (activity is not null)
+        {
+            activity.SetTag("omnirelay.discovery.preferred_protocol", _clientRuntimeOptions?.EnableHttp3 == true ? "h3" : "any");
+            var supportsH3 = _endpointHttp3Support?.TryGetValue(peer.Address, out var s) == true && s;
+            activity.SetTag("omnirelay.peer.supports_h3", supportsH3);
+            activity.SetTag("omnirelay.discovery.selection", usedPreferred ? "preferred" : "fallback");
+        }
 
         var method = _unaryMethods.GetOrAdd(procedure, CreateUnaryMethod);
         var callOptions = CreateCallOptions(request.Meta, cancellationToken);
@@ -338,10 +363,17 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return Err<OnewayAck>(acquireResult.Error!);
         }
 
-        var (lease, peer) = acquireResult.Value;
+        var (lease, peer, usedPreferred) = acquireResult.Value;
         await using var _ = lease.ConfigureAwait(false);
 
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "oneway");
+        if (activity is not null)
+        {
+            activity.SetTag("omnirelay.discovery.preferred_protocol", _clientRuntimeOptions?.EnableHttp3 == true ? "h3" : "any");
+            var supportsH3 = _endpointHttp3Support?.TryGetValue(peer.Address, out var s) == true && s;
+            activity.SetTag("omnirelay.peer.supports_h3", supportsH3);
+            activity.SetTag("omnirelay.discovery.selection", usedPreferred ? "preferred" : "fallback");
+        }
 
         var method = _unaryMethods.GetOrAdd(procedure, CreateUnaryMethod);
         var callOptions = CreateCallOptions(request.Meta, cancellationToken);
@@ -409,8 +441,15 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return Err<IStreamCall>(acquireResult.Error!);
         }
 
-        var (lease, peer) = acquireResult.Value;
+        var (lease, peer, usedPreferred) = acquireResult.Value;
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "server_stream");
+        if (activity is not null)
+        {
+            activity.SetTag("omnirelay.discovery.preferred_protocol", _clientRuntimeOptions?.EnableHttp3 == true ? "h3" : "any");
+            var supportsH3 = _endpointHttp3Support?.TryGetValue(peer.Address, out var s) == true && s;
+            activity.SetTag("omnirelay.peer.supports_h3", supportsH3);
+            activity.SetTag("omnirelay.discovery.selection", usedPreferred ? "preferred" : "fallback");
+        }
 
         var method = _serverStreamMethods.GetOrAdd(procedure, CreateServerStreamingMethod);
         var callOptions = CreateCallOptions(request.Meta, cancellationToken);
@@ -483,8 +522,15 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return Err<IClientStreamTransportCall>(acquireResult.Error!);
         }
 
-        var (lease, peer) = acquireResult.Value;
+        var (lease, peer, usedPreferred) = acquireResult.Value;
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "client_stream");
+        if (activity is not null)
+        {
+            activity.SetTag("omnirelay.discovery.preferred_protocol", _clientRuntimeOptions?.EnableHttp3 == true ? "h3" : "any");
+            var supportsH3 = _endpointHttp3Support?.TryGetValue(peer.Address, out var s) == true && s;
+            activity.SetTag("omnirelay.peer.supports_h3", supportsH3);
+            activity.SetTag("omnirelay.discovery.selection", usedPreferred ? "preferred" : "fallback");
+        }
 
         var method = _clientStreamMethods.GetOrAdd(procedure, CreateClientStreamingMethod);
         var callOptions = CreateCallOptions(requestMeta, cancellationToken);
@@ -545,8 +591,15 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return Err<IDuplexStreamCall>(acquireResult.Error!);
         }
 
-        var (lease, peer) = acquireResult.Value;
+        var (lease, peer, usedPreferred) = acquireResult.Value;
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "bidi_stream");
+        if (activity is not null)
+        {
+            activity.SetTag("omnirelay.discovery.preferred_protocol", _clientRuntimeOptions?.EnableHttp3 == true ? "h3" : "any");
+            var supportsH3 = _endpointHttp3Support?.TryGetValue(peer.Address, out var s) == true && s;
+            activity.SetTag("omnirelay.peer.supports_h3", supportsH3);
+            activity.SetTag("omnirelay.discovery.selection", usedPreferred ? "preferred" : "fallback");
+        }
 
         var method = _duplexMethods.GetOrAdd(procedure, CreateDuplexStreamingMethod);
         var callOptions = CreateCallOptions(request.Meta, cancellationToken);
@@ -680,7 +733,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         return callOptions;
     }
 
-    private async ValueTask<Result<(PeerLease Lease, GrpcPeer Peer)>> AcquirePeerAsync(RequestMeta meta, CancellationToken cancellationToken)
+    private async ValueTask<Result<(PeerLease Lease, GrpcPeer Peer, bool Preferred)>> AcquirePeerAsync(RequestMeta meta, CancellationToken cancellationToken)
     {
         if (_peerChooser is null)
         {
@@ -688,13 +741,31 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 OmniRelayStatusCode.Unavailable,
                 "gRPC outbound has not been started.",
                 transport: meta.Transport ?? GrpcTransportConstants.TransportName);
-            return Err<(PeerLease, GrpcPeer)>(error);
+            return Err<(PeerLease, GrpcPeer, bool)>(error);
+        }
+
+        // Try preferred chooser first when HTTP/3 is desired and we have preferred peers
+        if (_clientRuntimeOptions?.EnableHttp3 == true && _preferredPeerChooser is not null)
+        {
+            var preferredResult = await _preferredPeerChooser.AcquireAsync(meta, cancellationToken).ConfigureAwait(false);
+            if (preferredResult.IsSuccess)
+            {
+                var preferredLease = preferredResult.Value;
+                if (preferredLease.Peer is not GrpcPeer preferredPeer)
+                {
+                    await preferredLease.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    return Ok((preferredLease, preferredPeer, true));
+                }
+            }
         }
 
         var leaseResult = await _peerChooser.AcquireAsync(meta, cancellationToken).ConfigureAwait(false);
         if (leaseResult.IsFailure)
         {
-            return Err<(PeerLease, GrpcPeer)>(leaseResult.Error!);
+            return Err<(PeerLease, GrpcPeer, bool)>(leaseResult.Error!);
         }
 
         var lease = leaseResult.Value;
@@ -705,10 +776,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 OmniRelayStatusCode.Internal,
                 "Peer chooser returned an incompatible peer instance for gRPC.",
                 transport: meta.Transport ?? GrpcTransportConstants.TransportName);
-            return Err<(PeerLease, GrpcPeer)>(error);
+            return Err<(PeerLease, GrpcPeer, bool)>(error);
         }
 
-        return Ok((lease, grpcPeer));
+        return Ok((lease, grpcPeer, false));
     }
 
     private static DateTime? ResolveDeadline(RequestMeta meta)

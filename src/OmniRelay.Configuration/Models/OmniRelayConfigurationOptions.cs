@@ -191,6 +191,10 @@ public sealed class GrpcOutboundTargetConfiguration
 
     public IList<string> Addresses { get; } = [];
 
+    // Optional richer endpoint entries with protocol capabilities. When specified, this takes
+    // precedence over simple string addresses for routing preference decisions.
+    public IList<GrpcEndpointConfiguration> Endpoints { get; } = [];
+
     public string? RemoteService { get; set; }
 
     public string? PeerChooser { get; set; }
@@ -204,6 +208,15 @@ public sealed class GrpcOutboundTargetConfiguration
     public GrpcClientTlsConfiguration Tls { get; init; } = new();
 
     public GrpcTelemetryConfiguration Telemetry { get; init; } = new();
+}
+
+public sealed class GrpcEndpointConfiguration
+{
+    public string? Address { get; set; }
+
+    // Indicates whether this endpoint is known to support HTTP/3 (QUIC).
+    // When true and the client is configured to enable HTTP/3, routing will prefer these peers.
+    public bool? SupportsHttp3 { get; set; }
 }
 
 public sealed class PeerCircuitBreakerConfiguration
