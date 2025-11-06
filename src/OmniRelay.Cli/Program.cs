@@ -78,9 +78,242 @@ public static class Program
     {
         var command = new Command("config", "Configuration utilities.")
         {
-            CreateConfigValidateCommand()
+            CreateConfigValidateCommand(),
+            CreateConfigScaffoldCommand()
         };
         return command;
+    }
+
+    private static Command CreateConfigScaffoldCommand()
+    {
+        var command = new Command("scaffold", "Generate an example appsettings.json with optional HTTP/3 toggles.");
+
+        var outputOption = new Option<string>("--output")
+        {
+            Description = "Path to write the appsettings file.",
+            DefaultValueFactory = _ => "appsettings.json"
+        };
+        outputOption.Aliases.Add("-o");
+
+        var sectionOption = new Option<string>("--section")
+        {
+            Description = "Root configuration section name.",
+            DefaultValueFactory = _ => DefaultConfigSection
+        };
+
+        var serviceOption = new Option<string>("--service")
+        {
+            Description = "Service name to embed in the scaffolded config.",
+            DefaultValueFactory = _ => "sample"
+        };
+
+        var enableHttp3HttpOption = new Option<bool>("--http3-http")
+        {
+            Description = "Include an HTTPS HTTP inbound with HTTP/3 enabled."
+        };
+
+        var enableHttp3GrpcOption = new Option<bool>("--http3-grpc")
+        {
+            Description = "Include an HTTPS gRPC inbound with HTTP/3 enabled."
+        };
+
+        var includeOutboundOption = new Option<bool>("--include-outbound")
+        {
+            Description = "Include an example outbound with endpoints that indicate HTTP/3 support."
+        };
+
+        var outboundServiceOption = new Option<string>("--outbound-service")
+        {
+            Description = "Name for the example outbound service entry.",
+            DefaultValueFactory = _ => "ledger"
+        };
+
+        command.Add(outputOption);
+        command.Add(sectionOption);
+        command.Add(serviceOption);
+        command.Add(enableHttp3HttpOption);
+        command.Add(enableHttp3GrpcOption);
+        command.Add(includeOutboundOption);
+        command.Add(outboundServiceOption);
+
+        command.SetAction(parseResult =>
+        {
+            var output = parseResult.GetValue(outputOption) ?? "appsettings.json";
+            var section = parseResult.GetValue(sectionOption) ?? DefaultConfigSection;
+            var service = parseResult.GetValue(serviceOption) ?? "sample";
+            var http3Http = parseResult.GetValue(enableHttp3HttpOption);
+            var http3Grpc = parseResult.GetValue(enableHttp3GrpcOption);
+            var includeOutbound = parseResult.GetValue(includeOutboundOption);
+            var outboundService = parseResult.GetValue(outboundServiceOption) ?? "ledger";
+            return RunConfigScaffoldAsync(output, section, service, http3Http, http3Grpc, includeOutbound, outboundService).GetAwaiter().GetResult();
+        });
+
+        return command;
+    }
+
+    private static async Task<int> RunConfigScaffoldAsync(
+        string outputPath,
+        string section,
+        string service,
+        bool includeHttp3HttpInbound,
+        bool includeHttp3GrpcInbound,
+        bool includeOutbound,
+        string outboundService)
+    {
+        try
+        {
+            var scaffold = BuildScaffoldJson(section, service, includeHttp3HttpInbound, includeHttp3GrpcInbound, includeOutbound, outboundService);
+            var directory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            await File.WriteAllTextAsync(outputPath, scaffold, Encoding.UTF8).ConfigureAwait(false);
+            Console.WriteLine($"Wrote configuration scaffold to '{outputPath}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"Failed to write scaffold: {ex.Message}").ConfigureAwait(false);
+            return 1;
+        }
+    }
+
+    private static string BuildScaffoldJson(
+        string section,
+        string service,
+        bool includeHttp3HttpInbound,
+        bool includeHttp3GrpcInbound,
+        bool includeOutbound,
+        string outboundService)
+    {
+        // Minimal baseline with optional HTTP/3 inbounds and example outbound endpoints including supportsHttp3 hints
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+
+        writer.WriteStartObject();
+        writer.WritePropertyName(section);
+        writer.WriteStartObject();
+
+        writer.WriteString("service", service);
+
+        writer.WritePropertyName("inbounds");
+        writer.WriteStartObject();
+
+        writer.WritePropertyName("http");
+        writer.WriteStartArray();
+        // Always include an HTTP listener (non-HTTP3). Add an HTTPS+HTTP3 if requested.
+        writer.WriteStartObject();
+        writer.WritePropertyName("urls");
+        writer.WriteStartArray();
+        writer.WriteStringValue("http://0.0.0.0:8080");
+        writer.WriteEndArray();
+        writer.WritePropertyName("runtime");
+        writer.WriteStartObject();
+        writer.WriteNumber("maxRequestBodySize", 8388608);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+
+        if (includeHttp3HttpInbound)
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("urls");
+            writer.WriteStartArray();
+            writer.WriteStringValue("https://0.0.0.0:8443");
+            writer.WriteEndArray();
+            writer.WritePropertyName("runtime");
+            writer.WriteStartObject();
+            writer.WriteBoolean("enableHttp3", true);
+            writer.WritePropertyName("http3");
+            writer.WriteStartObject();
+            writer.WriteBoolean("enableAltSvc", true);
+            writer.WriteNumber("maxBidirectionalStreams", 128);
+            writer.WriteNumber("maxUnidirectionalStreams", 32);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+            writer.WritePropertyName("tls");
+            writer.WriteStartObject();
+            writer.WriteString("certificatePath", "certs/server.pfx");
+            writer.WriteString("certificatePassword", "change-me");
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+
+        writer.WritePropertyName("grpc");
+        writer.WriteStartArray();
+        // Always include an HTTP/2-only gRPC listener
+        writer.WriteStartObject();
+        writer.WritePropertyName("urls");
+        writer.WriteStartArray();
+        writer.WriteStringValue("http://0.0.0.0:8090");
+        writer.WriteEndArray();
+        writer.WritePropertyName("runtime");
+        writer.WriteStartObject();
+        writer.WriteNumber("maxReceiveMessageSize", 8388608);
+        writer.WriteNumber("maxSendMessageSize", 8388608);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+
+        if (includeHttp3GrpcInbound)
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("urls");
+            writer.WriteStartArray();
+            writer.WriteStringValue("https://0.0.0.0:9091");
+            writer.WriteEndArray();
+            writer.WritePropertyName("runtime");
+            writer.WriteStartObject();
+            writer.WriteBoolean("enableHttp3", true);
+            writer.WriteEndObject();
+            writer.WritePropertyName("tls");
+            writer.WriteStartObject();
+            writer.WriteString("certificatePath", "certs/server.pfx");
+            writer.WriteString("certificatePassword", "change-me");
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray(); // grpc
+        writer.WriteEndObject(); // inbounds
+
+        if (includeOutbound)
+        {
+            writer.WritePropertyName("outbounds");
+            writer.WriteStartObject();
+            writer.WritePropertyName(outboundService);
+            writer.WriteStartObject();
+            writer.WritePropertyName("unary");
+            writer.WriteStartObject();
+            writer.WritePropertyName("grpc");
+            writer.WriteStartArray();
+            writer.WriteStartObject();
+            writer.WritePropertyName("endpoints");
+            writer.WriteStartArray();
+            writer.WriteStartObject();
+            writer.WriteString("address", "https://peer-h3:9091");
+            writer.WriteBoolean("supportsHttp3", true);
+            writer.WriteEndObject();
+            writer.WriteStartObject();
+            writer.WriteString("address", "https://peer-h2:9090");
+            writer.WriteBoolean("supportsHttp3", false);
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+            writer.WriteString("remoteService", outboundService);
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+            writer.WriteEndObject(); // unary
+            writer.WriteEndObject(); // service
+            writer.WriteEndObject(); // outbounds
+        }
+
+        writer.WriteEndObject(); // section
+        writer.WriteEndObject(); // root
+        writer.Flush();
+
+        return Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private static Command CreateScriptCommand()

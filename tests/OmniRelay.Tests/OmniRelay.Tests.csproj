@@ -17,5 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OmniRelay.Configuration/OmniRelay.Configuration.csproj" />
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.Cli/OmniRelay.Cli.csproj" />
   </ItemGroup>
 </Project>

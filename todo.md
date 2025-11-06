@@ -132,8 +132,8 @@
   - [ ] Document exceptions and required configuration per service team.
 - [ ] Update CLI commands (`serve`, `bench`, etc.) to expose HTTP/3 flags and ensure generated configuration includes HTTP/3 endpoints when enabled.
   - [x] Add CLI options and help text describing HTTP/3 usage.
-  - [ ] Ensure CLI-generated configs/appsettings include HTTP/3 toggles.
-  - [ ] Add integration tests for CLI workflows that enable HTTP/3.
+  - [x] Ensure CLI-generated configs/appsettings include HTTP/3 toggles.
+  - [x] Add integration tests for CLI workflows that enable HTTP/3.
 
 ## Compatibility & Rollout
 
