@@ -1,5 +1,8 @@
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// Standardized HTTP transport header names used by OmniRelay for routing, encoding, and error propagation.
+/// </summary>
 public static class HttpTransportHeaders
 {
     public const string Procedure = "Rpc-Procedure";

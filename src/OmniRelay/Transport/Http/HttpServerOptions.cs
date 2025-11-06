@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// TLS configuration for the HTTP inbound server, including the certificate and client certificate policy.
+/// </summary>
 public sealed class HttpServerTlsOptions
 {
     public X509Certificate2? Certificate { get; init; }
@@ -12,6 +15,9 @@ public sealed class HttpServerTlsOptions
     public bool? CheckCertificateRevocation { get; init; }
 }
 
+/// <summary>
+/// Kestrel runtime options for the HTTP inbound server such as request limits and timeouts, with optional HTTP/3 settings.
+/// </summary>
 public sealed class HttpServerRuntimeOptions
 {
     public bool EnableHttp3 { get; set; }
@@ -39,6 +45,9 @@ public sealed class HttpServerRuntimeOptions
     public Http3RuntimeOptions? Http3 { get; set; }
 }
 
+/// <summary>
+/// Additional HTTP/3 (QUIC) runtime tuning options for the inbound server.
+/// </summary>
 public sealed class Http3RuntimeOptions
 {
     public bool? EnableAltSvc { get; init; }

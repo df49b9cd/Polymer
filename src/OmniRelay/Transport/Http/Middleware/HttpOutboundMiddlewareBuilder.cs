@@ -10,6 +10,10 @@ public sealed class HttpOutboundMiddlewareBuilder
     private readonly List<IHttpClientMiddleware> _global = [];
     private readonly Dictionary<string, ServiceBuilder> _services = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Adds a middleware to the global HTTP outbound pipeline.
+    /// </summary>
+    /// <param name="middleware">The middleware to add.</param>
     public void Use(IHttpClientMiddleware middleware)
     {
         ArgumentNullException.ThrowIfNull(middleware);
@@ -17,6 +21,11 @@ public sealed class HttpOutboundMiddlewareBuilder
         _global.Add(middleware);
     }
 
+    /// <summary>
+    /// Begins configuration for a specific service pipeline.
+    /// </summary>
+    /// <param name="service">The service name.</param>
+    /// <returns>A builder to configure service and per-procedure middleware.</returns>
     public HttpOutboundServiceMiddlewareBuilder ForService(string service)
     {
         if (string.IsNullOrWhiteSpace(service))
@@ -140,12 +149,22 @@ public readonly struct HttpOutboundServiceMiddlewareBuilder
         _builder = builder;
     }
 
+    /// <summary>
+    /// Adds middleware to the service-level pipeline.
+    /// </summary>
+    /// <param name="middleware">The middleware to add.</param>
+    /// <returns>The same builder for chaining.</returns>
     public HttpOutboundServiceMiddlewareBuilder Use(IHttpClientMiddleware middleware)
     {
         _builder.Use(middleware);
         return this;
     }
 
+    /// <summary>
+    /// Begins configuration for a specific procedure pipeline.
+    /// </summary>
+    /// <param name="procedure">The procedure name.</param>
+    /// <returns>A builder to configure per-procedure middleware.</returns>
     public HttpOutboundProcedureMiddlewareBuilder ForProcedure(string procedure) =>
         _builder.ForProcedure(procedure);
 }
@@ -159,6 +178,11 @@ public readonly struct HttpOutboundProcedureMiddlewareBuilder
         _middleware = middleware ?? throw new ArgumentNullException(nameof(middleware));
     }
 
+    /// <summary>
+    /// Adds middleware to the procedure-level pipeline.
+    /// </summary>
+    /// <param name="middleware">The middleware to add.</param>
+    /// <returns>The same builder for chaining.</returns>
     public HttpOutboundProcedureMiddlewareBuilder Use(IHttpClientMiddleware middleware)
     {
         ArgumentNullException.ThrowIfNull(middleware);

@@ -8,6 +8,10 @@ using static Hugo.Go;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// Transport-specific wrapper for duplex streaming calls over HTTP WebSockets.
+/// Bridges WebSocket frames to the OmniRelay duplex streaming abstractions.
+/// </summary>
 internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
 {
     private const int BufferSize = 32 * 1024;
@@ -31,6 +35,14 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
     }
 
+    /// <summary>
+    /// Creates a transport-backed duplex stream call using a connected WebSocket.
+    /// </summary>
+    /// <param name="requestMeta">The request metadata.</param>
+    /// <param name="responseMeta">Initial response metadata.</param>
+    /// <param name="socket">The connected WebSocket.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The created duplex stream call or an error.</returns>
     public static async ValueTask<Result<IDuplexStreamCall>> CreateAsync(
         RequestMeta requestMeta,
         ResponseMeta responseMeta,
@@ -62,26 +74,36 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         _responsePump = PumpResponsesAsync(_cts.Token);
     }
 
+    /// <inheritdoc />
     public RequestMeta RequestMeta => _inner.RequestMeta;
 
+    /// <inheritdoc />
     public ResponseMeta ResponseMeta => _inner.ResponseMeta;
 
+    /// <inheritdoc />
     public DuplexStreamCallContext Context => _inner.Context;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _inner.RequestWriter;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _inner.RequestReader;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _inner.ResponseWriter;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
+    /// <inheritdoc />
     public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteRequestsAsync(error, cancellationToken);
 
+    /// <inheritdoc />
     public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteResponsesAsync(error, cancellationToken);
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         await _cts.CancelAsync().ConfigureAwait(false);

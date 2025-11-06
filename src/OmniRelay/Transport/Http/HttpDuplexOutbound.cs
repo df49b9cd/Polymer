@@ -8,14 +8,32 @@ using static Hugo.Go;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// HTTP duplex outbound transport that uses WebSockets to perform bidirectional streaming RPCs.
+/// </summary>
+/// <param name="baseAddress">The HTTP base address that will be converted to a WebSocket endpoint.</param>
 public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutboundDiagnostic
 {
     private readonly Uri _baseAddress = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
 
+    /// <summary>
+    /// Starts the duplex outbound transport. No-op for the WebSocket client implementation.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
+    /// <summary>
+    /// Stops the duplex outbound transport.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public ValueTask StopAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
+    /// <summary>
+    /// Initiates a bidirectional streaming RPC over WebSockets.
+    /// </summary>
+    /// <param name="request">The request metadata and optional initial payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A transport-backed duplex stream call or an error.</returns>
     public async ValueTask<Result<IDuplexStreamCall>> CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default)
@@ -102,8 +120,14 @@ public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutb
         return builder.Uri;
     }
 
+    /// <summary>
+    /// Returns a snapshot of the duplex outbound configuration for diagnostics.
+    /// </summary>
     public object GetOutboundDiagnostics() =>
         new HttpDuplexOutboundSnapshot(_baseAddress);
 }
 
+/// <summary>
+/// Snapshot of the HTTP duplex outbound configuration for diagnostics.
+/// </summary>
 public sealed record HttpDuplexOutboundSnapshot(Uri BaseAddress);

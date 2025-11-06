@@ -6,6 +6,10 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// Internal framing protocol for OmniRelay HTTP duplex streaming over WebSockets.
+/// Handles framing, serialization, and error envelopes.
+/// </summary>
 internal static class HttpDuplexProtocol
 {
     internal enum FrameType : byte
@@ -25,6 +29,13 @@ internal static class HttpDuplexProtocol
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Sends a framed WebSocket message with the specified frame type and payload.
+    /// </summary>
+    /// <param name="socket">The WebSocket connection.</param>
+    /// <param name="frameType">The frame type discriminator.</param>
+    /// <param name="payload">Optional payload to append after the frame byte.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     internal static async ValueTask SendFrameAsync(
         WebSocket socket,
         FrameType frameType,
@@ -41,9 +52,23 @@ internal static class HttpDuplexProtocol
         await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Sends a framed WebSocket message with no payload.
+    /// </summary>
+    /// <param name="socket">The WebSocket connection.</param>
+    /// <param name="frameType">The frame type discriminator.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     internal static ValueTask SendFrameAsync(WebSocket socket, FrameType frameType, CancellationToken cancellationToken) =>
         SendFrameAsync(socket, frameType, ReadOnlyMemory<byte>.Empty, cancellationToken);
 
+    /// <summary>
+    /// Receives a single framed WebSocket message ensuring the payload does not exceed the configured limit.
+    /// </summary>
+    /// <param name="socket">The WebSocket connection.</param>
+    /// <param name="buffer">The buffer to receive into.</param>
+    /// <param name="maxPayloadBytes">Maximum allowed payload size.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The received frame.</returns>
     internal static async ValueTask<Frame> ReceiveFrameAsync(
         WebSocket socket,
         byte[] buffer,
@@ -91,6 +116,11 @@ internal static class HttpDuplexProtocol
         return new Frame(result.MessageType, type, payload);
     }
 
+    /// <summary>
+    /// Serializes an OmniRelay error to a JSON envelope payload.
+    /// </summary>
+    /// <param name="error">The error to serialize.</param>
+    /// <returns>UTF-8 JSON payload.</returns>
     internal static ReadOnlyMemory<byte> CreateErrorPayload(Error error)
     {
         var envelope = new ErrorEnvelope
@@ -103,6 +133,11 @@ internal static class HttpDuplexProtocol
         return JsonSerializer.SerializeToUtf8Bytes(envelope, SerializerOptions);
     }
 
+    /// <summary>
+    /// Serializes response metadata to a JSON envelope payload.
+    /// </summary>
+    /// <param name="meta">The response metadata.</param>
+    /// <returns>UTF-8 JSON payload.</returns>
     internal static ReadOnlyMemory<byte> SerializeResponseMeta(ResponseMeta meta)
     {
         ArgumentNullException.ThrowIfNull(meta);
@@ -120,6 +155,12 @@ internal static class HttpDuplexProtocol
         return JsonSerializer.SerializeToUtf8Bytes(envelope, SerializerOptions);
     }
 
+    /// <summary>
+    /// Deserializes response metadata from a JSON envelope payload.
+    /// </summary>
+    /// <param name="payload">The serialized payload.</param>
+    /// <param name="transport">Transport name fallback.</param>
+    /// <returns>The response metadata.</returns>
     internal static ResponseMeta DeserializeResponseMeta(ReadOnlySpan<byte> payload, string transport)
     {
         if (payload.IsEmpty)
@@ -159,6 +200,12 @@ internal static class HttpDuplexProtocol
         }
     }
 
+    /// <summary>
+    /// Parses an OmniRelay error from a JSON envelope payload.
+    /// </summary>
+    /// <param name="payload">The serialized payload.</param>
+    /// <param name="transport">Transport name for attribution.</param>
+    /// <returns>The error value.</returns>
     internal static Error ParseError(ReadOnlySpan<byte> payload, string transport)
     {
         try

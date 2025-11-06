@@ -25,6 +25,10 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// Hosts the OmniRelay HTTP inbound server exposing RPC endpoints, introspection, and health probes.
+/// Supports HTTP/1.1 and HTTP/2, and can enable HTTP/3 (QUIC) when configured with TLS 1.3.
+/// </summary>
 public sealed class HttpInbound : ILifecycle, IDispatcherAware
 {
     private readonly string[] _urls;
@@ -42,6 +46,14 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     private const string RetryAfterHeaderValue = "1";
     private const int DefaultDuplexFrameBytes = 16 * 1024;
 
+    /// <summary>
+    /// Creates a new HTTP inbound server with optional DI and app configuration hooks.
+    /// </summary>
+    /// <param name="urls">The URLs to bind (http/https).</param>
+    /// <param name="configureServices">Optional service collection configuration.</param>
+    /// <param name="configureApp">Optional application pipeline configuration.</param>
+    /// <param name="serverRuntimeOptions">Kestrel and HTTP/3 runtime options.</param>
+    /// <param name="serverTlsOptions">TLS options including certificate for HTTPS/HTTP/3.</param>
     public HttpInbound(
         IEnumerable<string> urls,
         Action<IServiceCollection>? configureServices = null,
@@ -63,11 +75,22 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         _serverTlsOptions = serverTlsOptions;
     }
 
+    /// <summary>
+    /// Gets the actual bound URLs after the server has started.
+    /// </summary>
     public IReadOnlyCollection<string> Urls =>
         _app?.Urls as IReadOnlyCollection<string> ?? [];
 
+    /// <summary>
+    /// Binds the dispatcher used to route RPC procedures.
+    /// </summary>
+    /// <param name="dispatcher">The dispatcher instance.</param>
     public void Bind(Dispatcher.Dispatcher dispatcher) => _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
+    /// <summary>
+    /// Starts the HTTP server and begins accepting requests.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
         if (_app is not null)
@@ -329,6 +352,10 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         _app = app;
     }
 
+    /// <summary>
+    /// Initiates graceful drain and stops the HTTP server.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         if (_app is null)

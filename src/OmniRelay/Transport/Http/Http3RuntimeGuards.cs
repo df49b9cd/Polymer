@@ -3,6 +3,10 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// Guards that validate environment prerequisites for enabling HTTP/3 (QUIC) on the inbound server.
+/// Ensures MsQuic availability, TLS 1.3 support, and a valid certificate with private key.
+/// </summary>
 internal static class Http3RuntimeGuards
 {
     public static void EnsureServerSupport(string endpointDescription, X509Certificate2? certificate)

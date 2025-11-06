@@ -14,6 +14,10 @@ using static Hugo.Go;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// HTTP outbound transport that issues unary and oneway RPC requests over HTTP/1.1, HTTP/2, or HTTP/3.
+/// Applies per-call middleware and honors <see cref="HttpClientRuntimeOptions"/> for protocol negotiation.
+/// </summary>
 public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDiagnostic, IHttpOutboundMiddlewareSink
 {
     private readonly HttpClient _httpClient;
@@ -25,6 +29,13 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
     private int _middlewareConfigured;
     private ConcurrentDictionary<string, HttpClientMiddlewareDelegate>? _middlewarePipelines;
 
+    /// <summary>
+    /// Creates a new HTTP outbound transport targeting a specific endpoint.
+    /// </summary>
+    /// <param name="httpClient">The HTTP client used to send requests.</param>
+    /// <param name="requestUri">The target URI for outbound RPC requests.</param>
+    /// <param name="disposeClient">Whether to dispose the provided client when the transport stops.</param>
+    /// <param name="runtimeOptions">Optional per-request protocol negotiation and version policy settings.</param>
     public HttpOutbound(HttpClient httpClient, Uri requestUri, bool disposeClient = false, HttpClientRuntimeOptions? runtimeOptions = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -38,9 +49,17 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         }
     }
 
+    /// <summary>
+    /// Starts the outbound transport. No-op for the HTTP client implementation.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public ValueTask StartAsync(CancellationToken cancellationToken = default) =>
         ValueTask.CompletedTask;
 
+    /// <summary>
+    /// Stops the outbound transport, optionally disposing the underlying <see cref="HttpClient"/>.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         if (_disposeClient)
@@ -51,6 +70,12 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs a unary RPC over HTTP.
+    /// </summary>
+    /// <param name="request">The request containing metadata and payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The decoded response or an error.</returns>
     private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallUnaryAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default)
@@ -100,6 +125,12 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         }
     }
 
+    /// <summary>
+    /// Performs a oneway RPC over HTTP.
+    /// </summary>
+    /// <param name="request">The request containing metadata and payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An acknowledgement if the server accepted the request; otherwise an error.</returns>
     private async ValueTask<Result<OnewayAck>> CallOnewayAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default)
@@ -148,6 +179,11 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         }
     }
 
+    /// <summary>
+    /// Builds an <see cref="HttpRequestMessage"/> from the RPC request metadata and body.
+    /// </summary>
+    /// <param name="request">The RPC request.</param>
+    /// <returns>A configured HTTP request message.</returns>
     private HttpRequestMessage BuildHttpRequest(IRequest<ReadOnlyMemory<byte>> request)
     {
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, _requestUri);
@@ -214,6 +250,10 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         return httpRequest;
     }
 
+    /// <summary>
+    /// Applies client runtime options to the outgoing HTTP request for version and policy negotiation.
+    /// </summary>
+    /// <param name="httpRequest">The HTTP request to configure.</param>
     private void ApplyHttpClientRuntimeOptions(HttpRequestMessage httpRequest)
     {
         if (_runtimeOptions is null)
@@ -250,6 +290,11 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         }
     }
 
+    /// <summary>
+    /// Resolves the content type header value from an RPC encoding.
+    /// </summary>
+    /// <param name="encoding">The RPC encoding (e.g., json, raw, protobuf).</param>
+    /// <returns>A media type string or <see langword="null"/> when unknown.</returns>
     private static string? ResolveContentType(string? encoding)
     {
         if (string.IsNullOrEmpty(encoding))
@@ -271,6 +316,11 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         return encoding;
     }
 
+    /// <summary>
+    /// Constructs <see cref="ResponseMeta"/> from HTTP response headers.
+    /// </summary>
+    /// <param name="response">The HTTP response message.</param>
+    /// <returns>Response metadata including encoding, transport, and headers.</returns>
     private static ResponseMeta BuildResponseMeta(HttpResponseMessage response)
     {
         var headers = new List<KeyValuePair<string, string>>();
@@ -300,6 +350,11 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
             headers: headers);
     }
 
+    /// <summary>
+    /// Formats a System.Version to an HTTP protocol label (HTTP/1.0, HTTP/1.1, HTTP/2, HTTP/3).
+    /// </summary>
+    /// <param name="version">The HTTP version.</param>
+    /// <returns>The formatted protocol label.</returns>
     private static string FormatProtocol(Version version)
     {
         if (version is null)
@@ -325,6 +380,13 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         return $"HTTP/{version}";
     }
 
+    /// <summary>
+    /// Attempts to parse a structured OmniRelay error from an HTTP response; falls back to status mapping.
+    /// </summary>
+    /// <param name="response">The HTTP response.</param>
+    /// <param name="transport">The transport name used for error attribution.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A normalized error.</returns>
     private static async Task<Error> ReadErrorAsync(HttpResponseMessage response, string transport, CancellationToken cancellationToken)
     {
         try
@@ -367,19 +429,29 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         return OmniRelayErrorAdapter.FromStatus(fallbackStatus, fallbackMessage, transport: transport);
     }
 
+    /// <inheritdoc />
     async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> IUnaryOutbound.CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken) =>
         await CallUnaryAsync(request, cancellationToken).ConfigureAwait(false);
 
+    /// <inheritdoc />
     async ValueTask<Result<OnewayAck>> IOnewayOutbound.CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken) =>
         await CallOnewayAsync(request, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Returns a snapshot of the outbound transport configuration for diagnostics.
+    /// </summary>
     public object GetOutboundDiagnostics() =>
         new HttpOutboundSnapshot(_requestUri, _disposeClient);
 
+    /// <summary>
+    /// Attaches the middleware registry for the specified service, enabling per-procedure pipelines.
+    /// </summary>
+    /// <param name="service">The service name.</param>
+    /// <param name="registry">The registry of HTTP client middleware.</param>
     void IHttpOutboundMiddlewareSink.Attach(string service, HttpOutboundMiddlewareRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
@@ -394,6 +466,15 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         _middlewarePipelines = new ConcurrentDictionary<string, HttpClientMiddlewareDelegate>(StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Sends the HTTP request through the configured middleware pipeline.
+    /// </summary>
+    /// <param name="httpRequest">The HTTP request.</param>
+    /// <param name="requestMeta">The RPC request metadata.</param>
+    /// <param name="callKind">The call kind (unary or oneway).</param>
+    /// <param name="completionOption">The HTTP completion option.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The HTTP response message.</returns>
     private ValueTask<HttpResponseMessage> SendWithMiddlewareAsync(
         HttpRequestMessage httpRequest,
         RequestMeta requestMeta,
@@ -441,6 +522,12 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
             new(_httpClient.SendAsync(ctx.Request, ctx.CompletionOption, token));
     }
 
+    /// <summary>
+    /// Builds a cache key for middleware pipelines by call kind and procedure.
+    /// </summary>
+    /// <param name="callKind">The call kind.</param>
+    /// <param name="procedure">The optional procedure name.</param>
+    /// <returns>A stable cache key.</returns>
     private static string BuildCacheKey(HttpOutboundCallKind callKind, string? procedure)
     {
         var normalizedProcedure = string.IsNullOrWhiteSpace(procedure) ? string.Empty : procedure!;
@@ -452,4 +539,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
     }
 }
 
+/// <summary>
+/// Snapshot of the HTTP outbound configuration for diagnostics.
+/// </summary>
 public sealed record HttpOutboundSnapshot(Uri RequestUri, bool DisposesClient);

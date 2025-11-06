@@ -3,8 +3,16 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// Maps between OmniRelay status codes and HTTP status codes for inbound and outbound translation.
+/// </summary>
 internal static class HttpStatusMapper
 {
+    /// <summary>
+    /// Converts an <see cref="OmniRelayStatusCode"/> to the corresponding HTTP status code for responses.
+    /// </summary>
+    /// <param name="status">The OmniRelay status.</param>
+    /// <returns>An HTTP status code.</returns>
     public static int ToStatusCode(OmniRelayStatusCode status) => status switch
     {
         OmniRelayStatusCode.InvalidArgument => StatusCodes.Status400BadRequest,
@@ -24,6 +32,11 @@ internal static class HttpStatusMapper
         _ => StatusCodes.Status500InternalServerError
     };
 
+    /// <summary>
+    /// Converts an HTTP status code to an <see cref="OmniRelayStatusCode"/> for error normalization.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code.</param>
+    /// <returns>The corresponding OmniRelay status code.</returns>
     public static OmniRelayStatusCode FromStatusCode(int statusCode) => statusCode switch
     {
         StatusCodes.Status400BadRequest => OmniRelayStatusCode.InvalidArgument,

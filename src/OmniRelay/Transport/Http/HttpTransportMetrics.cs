@@ -2,6 +2,9 @@ using System.Diagnostics.Metrics;
 
 namespace OmniRelay.Transport.Http;
 
+/// <summary>
+/// Internal metrics for the HTTP transport including request counts, durations, and client protocol fallbacks.
+/// </summary>
 internal static class HttpTransportMetrics
 {
     public const string MeterName = "OmniRelay.Transport.Http";
@@ -21,6 +24,14 @@ internal static class HttpTransportMetrics
     public static readonly Counter<long> ClientProtocolFallbacks =
         Meter.CreateCounter<long>("omnirelay.http.client.fallbacks", description: "HTTP client fallbacks when HTTP/3 was desired but a lower protocol was used.");
 
+    /// <summary>
+    /// Creates common metric tags for HTTP requests including RPC attributes and protocol details.
+    /// </summary>
+    /// <param name="service">The RPC service name.</param>
+    /// <param name="procedure">The RPC procedure name.</param>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="protocol">The HTTP protocol label, e.g., HTTP/2 or HTTP/3.</param>
+    /// <returns>An array of metric tags.</returns>
     public static KeyValuePair<string, object?>[] CreateBaseTags(
         string service,
         string procedure,
@@ -55,6 +66,13 @@ internal static class HttpTransportMetrics
         return [.. tags];
     }
 
+    /// <summary>
+    /// Adds response outcome tags to a tag set, optionally appending the HTTP status code.
+    /// </summary>
+    /// <param name="baseTags">The base tag set.</param>
+    /// <param name="httpStatus">Optional HTTP status code.</param>
+    /// <param name="outcome">Outcome label (e.g., success, error, cancelled).</param>
+    /// <returns>A new tag set with outcome tags appended.</returns>
     public static KeyValuePair<string, object?>[] AppendOutcome(
         KeyValuePair<string, object?>[] baseTags,
         int? httpStatus,
@@ -72,6 +90,12 @@ internal static class HttpTransportMetrics
         return tags;
     }
 
+    /// <summary>
+    /// Adds an observed protocol tag to a tag set for client-side fallback analysis.
+    /// </summary>
+    /// <param name="baseTags">The base tag set.</param>
+    /// <param name="observedProtocol">The actual protocol observed, if known.</param>
+    /// <returns>A new tag set with the observed protocol appended.</returns>
     public static KeyValuePair<string, object?>[] AppendObservedProtocol(
         KeyValuePair<string, object?>[] baseTags,
         string? observedProtocol)
