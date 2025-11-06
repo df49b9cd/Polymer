@@ -26,6 +26,9 @@ using OpenTelemetry.Resources;
 
 namespace OmniRelay.Configuration.Internal;
 
+/// <summary>
+/// Builds a configured <see cref="Dispatcher.Dispatcher"/> from bound <see cref="Models.OmniRelayConfigurationOptions"/> and the service provider.
+/// </summary>
 internal sealed class DispatcherBuilder
 {
     private readonly OmniRelayConfigurationOptions _options;
@@ -56,6 +59,7 @@ internal sealed class DispatcherBuilder
             .ToDictionary(spec => spec.Name, StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>Constructs a new dispatcher based on the current options and DI configuration.</summary>
     public Dispatcher.Dispatcher Build()
     {
         var serviceName = _options.Service?.Trim();

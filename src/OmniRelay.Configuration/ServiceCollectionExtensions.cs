@@ -14,8 +14,15 @@ using OpenTelemetry.Trace;
 
 namespace OmniRelay.Configuration;
 
+/// <summary>
+/// Dependency injection extensions to configure and host an OmniRelay dispatcher from IConfiguration.
+/// </summary>
 public static class OmniRelayServiceCollectionExtensions
 {
+    /// <summary>
+    /// Adds and configures an <see cref="Dispatcher.Dispatcher"/> using the provided configuration section.
+    /// Binds options, wires diagnostics, builds the dispatcher, and registers a hosted service to manage its lifecycle.
+    /// </summary>
     public static IServiceCollection AddOmniRelayDispatcher(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);

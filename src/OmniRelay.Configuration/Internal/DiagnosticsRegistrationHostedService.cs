@@ -4,8 +4,12 @@ using Microsoft.Extensions.Hosting;
 
 namespace OmniRelay.Configuration.Internal;
 
+/// <summary>
+/// Hosted service that configures Hugo/Go diagnostics with the application's <see cref="IMeterFactory"/>.
+/// </summary>
 internal sealed class DiagnosticsRegistrationHostedService(IMeterFactory? meterFactory = null) : IHostedService
 {
+    /// <summary>Registers the metrics factory on start.</summary>
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (meterFactory is not null)
@@ -16,5 +20,6 @@ internal sealed class DiagnosticsRegistrationHostedService(IMeterFactory? meterF
         return Task.CompletedTask;
     }
 
+    /// <summary>No-op on stop.</summary>
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

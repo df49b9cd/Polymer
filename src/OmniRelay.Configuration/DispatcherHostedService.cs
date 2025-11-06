@@ -4,11 +4,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace OmniRelay.Configuration;
 
+/// <summary>
+/// Hosted service that starts and stops the OmniRelay dispatcher and logs lifecycle events.
+/// </summary>
 internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, ILogger<DispatcherHostedService>? logger = null) : IHostedService
 {
     private readonly Dispatcher.Dispatcher _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
     private readonly ILogger<DispatcherHostedService> _logger = logger ?? NullLogger<DispatcherHostedService>.Instance;
 
+    /// <summary>Starts the dispatcher.</summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (_logger.IsEnabled(LogLevel.Information))
@@ -24,6 +28,7 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
         }
     }
 
+    /// <summary>Stops the dispatcher.</summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         if (_logger.IsEnabled(LogLevel.Information))

@@ -4,6 +4,9 @@ using OmniRelay.Core.Diagnostics;
 
 namespace OmniRelay.Configuration.Internal;
 
+/// <summary>
+/// In-memory implementation of <see cref="OmniRelay.Core.Diagnostics.IDiagnosticsRuntime"/> backing runtime toggles.
+/// </summary>
 internal sealed class DiagnosticsRuntimeState(
     IOptionsMonitor<LoggerFilterOptions> loggerFilterOptionsMonitor,
     IOptionsMonitorCache<LoggerFilterOptions> loggerFilterOptionsCache)
@@ -14,6 +17,7 @@ internal sealed class DiagnosticsRuntimeState(
     private LogLevel? _overrideMinLevel;
     private double? _traceSamplingProbability;
 
+    /// <summary>Gets the overridden minimum log level, if set.</summary>
     public LogLevel? MinimumLogLevel
     {
         get
@@ -25,6 +29,7 @@ internal sealed class DiagnosticsRuntimeState(
         }
     }
 
+    /// <summary>Gets the trace sampling probability override, if set.</summary>
     public double? TraceSamplingProbability
     {
         get
@@ -36,6 +41,7 @@ internal sealed class DiagnosticsRuntimeState(
         }
     }
 
+    /// <summary>Sets or clears the override for minimum log level.</summary>
     public void SetMinimumLogLevel(LogLevel? level)
     {
         lock (_syncRoot)
@@ -58,6 +64,7 @@ internal sealed class DiagnosticsRuntimeState(
         }
     }
 
+    /// <summary>Sets or clears the trace sampling probability override (0..1).</summary>
     public void SetTraceSamplingProbability(double? probability)
     {
         if (probability is < 0 or > 1)

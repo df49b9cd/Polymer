@@ -1,5 +1,9 @@
 namespace OmniRelay.Configuration.Models;
 
+/// <summary>
+/// Root options bound from configuration to construct a dispatcher, including inbounds, outbounds,
+/// middleware, logging, encodings, and diagnostics.
+/// </summary>
 public sealed class OmniRelayConfigurationOptions
 {
     public string? Service { get; set; }
@@ -18,6 +22,7 @@ public sealed class OmniRelayConfigurationOptions
     public DiagnosticsConfiguration Diagnostics { get; init; } = new();
 }
 
+/// <summary>Inbound transport configuration for HTTP and gRPC servers.</summary>
 public sealed class InboundsConfiguration
 {
     public IList<HttpInboundConfiguration> Http { get; } = [];
@@ -25,6 +30,7 @@ public sealed class InboundsConfiguration
     public IList<GrpcInboundConfiguration> Grpc { get; } = [];
 }
 
+/// <summary>HTTP inbound settings (URLs, runtime, TLS).</summary>
 public sealed class HttpInboundConfiguration
 {
     public string? Name { get; set; }
@@ -36,6 +42,7 @@ public sealed class HttpInboundConfiguration
     public HttpServerTlsConfiguration Tls { get; init; } = new();
 }
 
+/// <summary>gRPC inbound settings (URLs, runtime, TLS, telemetry).</summary>
 public sealed class GrpcInboundConfiguration
 {
     public string? Name { get; set; }
@@ -49,6 +56,7 @@ public sealed class GrpcInboundConfiguration
     public GrpcTelemetryConfiguration Telemetry { get; init; } = new();
 }
 
+/// <summary>gRPC server runtime limits and HTTP/3 tuning options.</summary>
 public sealed class GrpcServerRuntimeConfiguration
 {
     public bool? EnableHttp3 { get; set; }
@@ -76,6 +84,7 @@ public sealed class GrpcServerRuntimeConfiguration
     public Http3ServerRuntimeConfiguration Http3 { get; init; } = new();
 }
 
+/// <summary>TLS configuration for the gRPC server.</summary>
 public sealed class GrpcServerTlsConfiguration
 {
     public string? CertificatePath { get; set; }
@@ -87,6 +96,7 @@ public sealed class GrpcServerTlsConfiguration
     public string? ClientCertificateMode { get; set; }
 }
 
+/// <summary>Enables basic gRPC transport logging for server and client.</summary>
 public sealed class GrpcTelemetryConfiguration
 {
     public bool? EnableServerLogging { get; set; }
@@ -94,6 +104,7 @@ public sealed class GrpcTelemetryConfiguration
     public bool? EnableClientLogging { get; set; }
 }
 
+/// <summary>HTTP server runtime limits and optional HTTP/3 tuning options.</summary>
 public sealed class HttpServerRuntimeConfiguration
 {
     public bool? EnableHttp3 { get; set; }
@@ -121,6 +132,7 @@ public sealed class HttpServerRuntimeConfiguration
     public Http3ServerRuntimeConfiguration Http3 { get; init; } = new();
 }
 
+/// <summary>HTTP/3 (QUIC) specific runtime options for servers.</summary>
 public sealed class Http3ServerRuntimeConfiguration
 {
     public bool? EnableAltSvc { get; set; }
@@ -134,6 +146,7 @@ public sealed class Http3ServerRuntimeConfiguration
     public int? MaxUnidirectionalStreams { get; set; }
 }
 
+/// <summary>TLS configuration for the HTTP server.</summary>
 public sealed class HttpServerTlsConfiguration
 {
     public string? CertificatePath { get; set; }
@@ -145,6 +158,7 @@ public sealed class HttpServerTlsConfiguration
     public bool? CheckCertificateRevocation { get; set; }
 }
 
+/// <summary>Outbound transport sets for a remote service, per RPC shape.</summary>
 public sealed class ServiceOutboundConfiguration
 {
     public RpcOutboundConfiguration? Unary { get; set; }
@@ -158,6 +172,7 @@ public sealed class ServiceOutboundConfiguration
     public RpcOutboundConfiguration? Duplex { get; set; }
 }
 
+/// <summary>Per-shape outbound transport choices (HTTP, gRPC).</summary>
 public sealed class RpcOutboundConfiguration
 {
     public IList<HttpOutboundTargetConfiguration> Http { get; } = [];
@@ -165,6 +180,7 @@ public sealed class RpcOutboundConfiguration
     public IList<GrpcOutboundTargetConfiguration> Grpc { get; } = [];
 }
 
+/// <summary>HTTP outbound binding with optional named HttpClient and runtime options.</summary>
 public sealed class HttpOutboundTargetConfiguration
 {
     public string? Key { get; set; }
@@ -176,6 +192,7 @@ public sealed class HttpOutboundTargetConfiguration
     public HttpClientRuntimeConfiguration Runtime { get; init; } = new();
 }
 
+/// <summary>HTTP client runtime options (HTTP/3 negotiation and version policy).</summary>
 public sealed class HttpClientRuntimeConfiguration
 {
     public bool? EnableHttp3 { get; set; }
@@ -185,6 +202,7 @@ public sealed class HttpClientRuntimeConfiguration
     public string? VersionPolicy { get; set; }
 }
 
+/// <summary>gRPC outbound binding with endpoints, peer configuration, and runtime/tls/telemetry.</summary>
 public sealed class GrpcOutboundTargetConfiguration
 {
     public string? Key { get; set; }
@@ -210,6 +228,7 @@ public sealed class GrpcOutboundTargetConfiguration
     public GrpcTelemetryConfiguration Telemetry { get; init; } = new();
 }
 
+/// <summary>Describes a gRPC endpoint and whether it supports HTTP/3.</summary>
 public sealed class GrpcEndpointConfiguration
 {
     public string? Address { get; set; }
@@ -219,6 +238,7 @@ public sealed class GrpcEndpointConfiguration
     public bool? SupportsHttp3 { get; set; }
 }
 
+/// <summary>Peer circuit breaker configuration values.</summary>
 public sealed class PeerCircuitBreakerConfiguration
 {
     public TimeSpan? BaseDelay { get; set; }
@@ -232,6 +252,7 @@ public sealed class PeerCircuitBreakerConfiguration
     public int? HalfOpenSuccessThreshold { get; set; }
 }
 
+/// <summary>gRPC client runtime limits, keep-alive pings, and interceptor list.</summary>
 public sealed class GrpcClientRuntimeConfiguration
 {
     public bool? EnableHttp3 { get; set; }
@@ -251,6 +272,7 @@ public sealed class GrpcClientRuntimeConfiguration
     public IList<string> Interceptors { get; } = [];
 }
 
+/// <summary>Client TLS settings for gRPC outbounds.</summary>
 public sealed class GrpcClientTlsConfiguration
 {
     public string? CertificatePath { get; set; }
@@ -262,6 +284,7 @@ public sealed class GrpcClientTlsConfiguration
     public bool? AllowUntrustedCertificates { get; set; }
 }
 
+/// <summary>Global inbound and outbound middleware stacks.</summary>
 public sealed class MiddlewareConfiguration
 {
     public MiddlewareStackConfiguration Inbound { get; init; } = new();
@@ -269,6 +292,7 @@ public sealed class MiddlewareConfiguration
     public MiddlewareStackConfiguration Outbound { get; init; } = new();
 }
 
+/// <summary>Procedure-shape specific middleware lists.</summary>
 public sealed class MiddlewareStackConfiguration
 {
     public IList<string> Unary { get; } = [];
@@ -282,6 +306,7 @@ public sealed class MiddlewareStackConfiguration
     public IList<string> Duplex { get; } = [];
 }
 
+/// <summary>Logging level and category overrides.</summary>
 public sealed class LoggingConfiguration
 {
     public string? Level { get; set; }
@@ -290,6 +315,7 @@ public sealed class LoggingConfiguration
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
+/// <summary>Custom peer chooser specification and settings.</summary>
 public sealed class PeerSpecConfiguration
 {
     public string? Spec { get; set; }
@@ -298,11 +324,13 @@ public sealed class PeerSpecConfiguration
         new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 }
 
+/// <summary>Codec configuration for built-in encodings (e.g., JSON).</summary>
 public sealed class EncodingsConfiguration
 {
     public JsonEncodingConfiguration Json { get; init; } = new();
 }
 
+/// <summary>JSON encoding profiles and codec registrations.</summary>
 public sealed class JsonEncodingConfiguration
 {
     public IDictionary<string, JsonSerializerProfileConfiguration> Profiles { get; init; } =
@@ -313,6 +341,7 @@ public sealed class JsonEncodingConfiguration
     public IList<JsonCodecRegistrationConfiguration> Outbound { get; } = [];
 }
 
+/// <summary>Serializer options profile (options, converters, source generation context).</summary>
 public sealed class JsonSerializerProfileConfiguration
 {
     public JsonSerializerOptionsConfiguration Options { get; init; } = new();
@@ -322,6 +351,7 @@ public sealed class JsonSerializerProfileConfiguration
     public string? Context { get; set; }
 }
 
+/// <summary>JSON codec registration describing procedure, types, encoding, and schema.</summary>
 public sealed class JsonCodecRegistrationConfiguration
 {
     public string? Service { get; set; }
@@ -347,6 +377,7 @@ public sealed class JsonCodecRegistrationConfiguration
     public IList<string> Aliases { get; } = [];
 }
 
+/// <summary>Serializer options values and custom converters.</summary>
 public sealed class JsonSerializerOptionsConfiguration
 {
     public bool? PropertyNameCaseInsensitive { get; set; }
