@@ -6,6 +6,8 @@
     <OmniRelayVersion>0.2.0</OmniRelayVersion>
     <RepositoryUrl>https://github.com/df49b9cd/OmniRelay</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <!-- Enable NuGet lock files for deterministic restores across CI and dev machines -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' != 'false'">

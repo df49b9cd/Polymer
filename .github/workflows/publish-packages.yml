@@ -46,8 +46,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore
-        run: dotnet restore OmniRelay.slnx
+      - name: Restore (locked mode)
+        run: dotnet restore OmniRelay.slnx --locked-mode
 
       - name: Determine package version
         id: version
