@@ -4,6 +4,7 @@ using Json.Schema;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
 
@@ -109,6 +110,80 @@ public class DispatcherJsonExtensionsTests
             ProcedureKind.Unary,
             out var outboundCodec));
         Assert.Equal("application/json", outboundCodec.Encoding);
+    }
+
+    [Fact]
+    public async Task RegisterJsonUnary_HandlerExceptionReturnsError()
+    {
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
+
+        ValueTask<Response<JsonEchoResponse>> Handler(JsonUnaryContext _, JsonEchoRequest __) =>
+            throw new InvalidOperationException("boom");
+
+        dispatcher.RegisterJsonUnary<JsonEchoRequest, JsonEchoResponse>("svc::fail", Handler);
+
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new JsonEchoRequest("x"));
+        var meta = new RequestMeta(service: "svc", procedure: "svc::fail", transport: "test");
+        var request = new Request<ReadOnlyMemory<byte>>(meta, payload);
+
+        var result = await dispatcher.InvokeUnaryAsync("svc::fail", request, TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
+        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
+    }
+
+    [Fact]
+    public async Task CreateJsonClient_ReusesExistingCodecWhenUnconfigured()
+    {
+        var options = new DispatcherOptions("svc");
+        var outbound = new RecordingUnaryOutbound();
+        options.AddUnaryOutbound("remote", null, outbound);
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+
+        var serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var codec = new JsonCodec<JsonEchoRequest, JsonEchoResponse>(serializerOptions, "application/json");
+        dispatcher.Codecs.RegisterOutbound("remote", "svc::op", ProcedureKind.Unary, codec);
+
+        var client = dispatcher.CreateJsonClient<JsonEchoRequest, JsonEchoResponse>(
+            "remote",
+            "svc::op",
+            configureCodec: null);
+
+        var meta = new RequestMeta(service: "remote", procedure: "svc::op", transport: "test");
+        var response = await client.CallAsync(new Request<JsonEchoRequest>(meta, new JsonEchoRequest("lane")), TestContext.Current.CancellationToken);
+        Assert.True(response.IsSuccess);
+
+        Assert.True(dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
+            ProcedureCodecScope.Outbound,
+            "remote",
+            "svc::op",
+            ProcedureKind.Unary,
+            out var resolved));
+        Assert.Same(codec, resolved);
+    }
+
+    [Fact]
+    public void CreateJsonClient_RegistersCodecWithAliases()
+    {
+        var options = new DispatcherOptions("svc");
+        var outbound = new RecordingUnaryOutbound();
+        options.AddUnaryOutbound("remote", null, outbound);
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
+
+        var client = dispatcher.CreateJsonClient<JsonEchoRequest, JsonEchoResponse>(
+            "remote",
+            "svc::register",
+            codec => codec.Encoding = "application/json",
+            outboundKey: null,
+            aliases: new[] { "svc::alias" });
+
+        Assert.NotNull(client);
+
+        Assert.True(dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
+            ProcedureCodecScope.Outbound,
+            "remote",
+            "svc::alias",
+            ProcedureKind.Unary,
+            out _));
     }
 
     private sealed record JsonEchoRequest(string Name);

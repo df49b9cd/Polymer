@@ -258,6 +258,25 @@ public class DispatcherTests
     }
 
     [Fact]
+    public void RegisterUnary_BlankName_Throws()
+    {
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
+
+        Assert.Throws<ArgumentException>(() =>
+            dispatcher.RegisterUnary("   ", (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
+    }
+
+    [Fact]
+    public void RegisterUnary_TrimsName()
+    {
+        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
+
+        dispatcher.RegisterUnary(" svc::call  ", (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty))));
+
+        Assert.True(dispatcher.TryGetProcedure("svc::call", ProcedureKind.Unary, out _));
+    }
+
+    [Fact]
     public void RegisterStream_BuilderConfiguresMetadata()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("streaming"));
