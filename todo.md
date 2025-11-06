@@ -91,9 +91,9 @@
   - [x] Implement HTTP/3-aware channel factory with opt-in flags and fallback logic.
   - [x] Expose configuration through appsettings/CLI and ensure defaults remain HTTP/2 for compatibility.
   - [x] Add unit tests verifying correct handler configuration for each mode.
-- [ ] Confirm client handlers set `HttpRequestMessage.VersionPolicy = RequestVersionOrHigher` (or stricter policies) and tune `SocketsHttpHandler` HTTP/3 settings (keep-alive, connection pooling) so call concurrency matches HTTP/2 parity targets.
+- [x] Confirm client handlers set `HttpRequestMessage.VersionPolicy = RequestVersionOrHigher` (or stricter policies) and tune `SocketsHttpHandler` HTTP/3 settings (keep-alive, connection pooling) so call concurrency matches HTTP/2 parity targets.
   - [x] Audit existing handler construction and update to set version policies explicitly.
-  - [ ] Validate connection pooling and keep-alive tuning under load using benchmark suite.
+  - [x] Validate connection pooling and keep-alive tuning under load using benchmark suite.
   - [x] Document recommended handler overrides for high-concurrency workloads.
 - [x] Exercise server keep-alive settings under HTTP/3 and expose MsQuic keep-alive knobs alongside current HTTP/2 configuration.
   - [x] Add configuration binding for MsQuic keep-alive options on the server side.
@@ -103,14 +103,14 @@
   - [x] Run end-to-end drain tests capturing gRPC status codes over HTTP/3.
   - [x] Ensure metadata serialization matches existing HTTP/2 expectations.
   - [x] Capture results in SLO/SLA documentation.
-- [ ] Capture and document any gRPC client library limitations (per language) when connecting over HTTP/3.
-  - [ ] Survey officially supported gRPC client libraries for HTTP/3 readiness.
-  - [ ] File follow-up issues for unsupported clients or document required workarounds.
+- [x] Capture and document any gRPC client library limitations (per language) when connecting over HTTP/3.
+  - [x] Survey officially supported gRPC client libraries for HTTP/3 readiness.
+  - [x] File follow-up issues for unsupported clients or document required workarounds.
   - [x] Publish compatibility table for consumers.
-- [ ] Update protobuf code generation templates to emit HTTP/3-aware client/channel wiring (e.g., default `GrpcChannelOptions` with HTTP/3 enabled).
-  - [ ] Modify generator templates and runtime helpers to surface HTTP/3 configuration hooks.
-  - [ ] Update generated sample projects/tests to cover HTTP/3 channel creation.
-  - [ ] Document generator options and migration guidance.
+- [x] Update protobuf code generation templates to emit HTTP/3-aware client/channel wiring (e.g., default `GrpcChannelOptions` with HTTP/3 enabled).
+  - [x] Modify generator templates and runtime helpers to surface HTTP/3 configuration hooks.
+  - [x] Update generated sample projects/tests to cover HTTP/3 channel creation.
+  - [x] Document generator options and migration guidance.
 
 ## Outbound Calls & YARP Integrations
 
