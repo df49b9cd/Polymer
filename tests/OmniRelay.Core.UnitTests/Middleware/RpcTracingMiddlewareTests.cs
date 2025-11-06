@@ -108,6 +108,31 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact]
+    public async Task OutboundUnary_ExceptionAddsEvent()
+    {
+        using var source = new ActivitySource("test.tracing.exception");
+        var stoppedActivities = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = s => s.Name == "test.tracing.exception",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => stoppedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var mw = new RpcTracingMiddleware(null, new RpcTracingOptions { ActivitySource = source });
+        var meta = new RequestMeta(service: "svc", procedure: "proc");
+        UnaryOutboundDelegate next = (req, ct) => throw new InvalidOperationException("boom");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next).AsTask());
+
+        Assert.Single(stoppedActivities);
+        Assert.Contains(stoppedActivities[0].Events, evt => evt.Name == "exception");
+    }
+
+    [Fact]
     public async Task StreamOutbound_WrapsAndStopsActivity()
     {
         using var source = new ActivitySource("test.tracing.stream");

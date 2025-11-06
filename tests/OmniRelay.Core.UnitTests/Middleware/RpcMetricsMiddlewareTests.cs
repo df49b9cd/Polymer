@@ -91,6 +91,28 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact]
+    public async Task Records_Exception_For_Unary()
+    {
+        using var meter = new Meter("test.rpc.metrics.unary.exception");
+        var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
+        var collector = new Collector(meter, options.MetricPrefix);
+        var middleware = new RpcMetricsMiddleware(options);
+
+        var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
+        UnaryOutboundDelegate next = (req, ct) => throw new InvalidOperationException("boom");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            middleware.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next).AsTask());
+
+        await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, collector.Requests);
+        Assert.Equal(0, collector.Success);
+        Assert.Equal(1, collector.Failure);
+        collector.Listener.Dispose();
+    }
+
+    [Fact]
     public async Task StreamOutbound_DisposeRecordsOutcome()
     {
         using var meter = new Meter("test.rpc.metrics.stream");
@@ -144,6 +166,32 @@ public class RpcMetricsMiddlewareTests
 
         _ = await result.Value.Response;
         await result.Value.DisposeAsync();
+
+        await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, collector.Requests);
+        Assert.Equal(0, collector.Success);
+        Assert.Equal(1, collector.Failure);
+        collector.Listener.Dispose();
+    }
+
+    [Fact]
+    public async Task ClientStreamOutbound_ResponseThrowsRecorded()
+    {
+        using var meter = new Meter("test.rpc.metrics.clientstream.throw");
+        var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
+        var collector = new Collector(meter, options.MetricPrefix);
+        var middleware = new RpcMetricsMiddleware(options);
+
+        var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
+
+        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+            ValueTask.FromResult(Ok<IClientStreamTransportCall>(new ThrowingClientStreamCall(requestMeta)));
+
+        var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
+        Assert.True(result.IsSuccess);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => result.Value.Response);
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
@@ -233,6 +281,16 @@ public class RpcMetricsMiddlewareTests
         Assert.Equal(1, collector.Success);
         Assert.Equal(1, collector.Failure);
         collector.Listener.Dispose();
+    }
+
+    private sealed class ThrowingClientStreamCall(RequestMeta meta) : IClientStreamTransportCall
+    {
+        public RequestMeta RequestMeta { get; } = meta;
+        public ResponseMeta ResponseMeta { get; } = new();
+        public Task<Result<Response<ReadOnlyMemory<byte>>>> Response => Task.FromException<Result<Response<ReadOnlyMemory<byte>>>>(new InvalidOperationException("client stream failure"));
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask CompleteAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class TestClientStreamCall(RequestMeta meta, Result<Response<ReadOnlyMemory<byte>>> response) : IClientStreamTransportCall

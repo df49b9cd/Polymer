@@ -133,4 +133,34 @@ public class RetryMiddlewareTests
         Assert.True(result.IsFailure);
         Assert.Equal(2, attempts);
     }
+
+    [Fact]
+    public async Task ShouldRetryError_OverridesDefaultRetryability()
+    {
+        var options = new RetryOptions
+        {
+            ShouldRetryError = _ => true,
+            Policy = ResultExecutionPolicy.None.WithRetry(ResultRetryPolicy.FixedDelay(maxAttempts: 3, delay: TimeSpan.Zero))
+        };
+        var middleware = new RetryMiddleware(options);
+
+        var attempts = 0;
+        var nonRetryable = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "nope", transport: "test");
+
+        UnaryOutboundDelegate next = (req, ct) =>
+        {
+            attempts++;
+            if (attempts < 3)
+            {
+                return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(nonRetryable));
+            }
+
+            return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        };
+
+        var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, attempts);
+    }
 }

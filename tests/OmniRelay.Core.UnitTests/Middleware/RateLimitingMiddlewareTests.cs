@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
 using Hugo;
@@ -250,6 +251,26 @@ public class RateLimitingMiddlewareTests
         Assert.True(invoked);
     }
 
+    [Fact]
+    public async Task StreamOutbound_DisposeThrows_ReleasesPermit()
+    {
+        using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
+        var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
+        var meta = new RequestMeta(service: "svc");
+
+        StreamOutboundDelegate next = (request, options, ct) =>
+            ValueTask.FromResult(Ok<IStreamCall>(new ThrowingStreamCall(request.Meta)));
+
+        var result = await middleware.InvokeAsync(MakeRequest(meta), new StreamCallOptions(StreamDirection.Server), TestContext.Current.CancellationToken, next);
+        Assert.True(result.IsSuccess);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => result.Value.DisposeAsync().AsTask());
+
+        var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
+        Assert.True(lease.IsAcquired);
+        lease.Dispose();
+    }
+
     private sealed class TestClientStreamCall : IClientStreamTransportCall
     {
         private readonly TaskCompletionSource<Result<Response<ReadOnlyMemory<byte>>>> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -288,5 +309,26 @@ public class RateLimitingMiddlewareTests
 
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class ThrowingStreamCall : IStreamCall
+    {
+        private readonly Channel<ReadOnlyMemory<byte>> _channel = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+
+        public ThrowingStreamCall(RequestMeta meta)
+        {
+            RequestMeta = meta;
+        }
+
+        public StreamDirection Direction => StreamDirection.Server;
+        public RequestMeta RequestMeta { get; }
+        public ResponseMeta ResponseMeta { get; } = new();
+        public StreamCallContext Context { get; } = new(StreamDirection.Server);
+        public ChannelWriter<ReadOnlyMemory<byte>> Requests => _channel.Writer;
+        public ChannelReader<ReadOnlyMemory<byte>> Responses => _channel.Reader;
+
+        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.FromException(new InvalidOperationException("dispose failure"));
     }
 }

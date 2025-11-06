@@ -17,9 +17,16 @@ public class RpcLoggingMiddlewareTests
 {
     private sealed class TestLogger<T> : ILogger<T>
     {
+        private readonly Func<LogLevel, bool> _isEnabled;
+
+        public TestLogger(Func<LogLevel, bool>? isEnabled = null)
+        {
+            _isEnabled = isEnabled ?? (_ => true);
+        }
+
         public ConcurrentQueue<(LogLevel level, string message)> Entries { get; } = new();
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => new Noop();
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public bool IsEnabled(LogLevel logLevel) => _isEnabled(logLevel);
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             => Entries.Enqueue((logLevel, formatter(state, exception)));
         private sealed class Noop : IDisposable { public void Dispose() { } }
@@ -83,5 +90,45 @@ public class RpcLoggingMiddlewareTests
 
         Assert.Equal("boom", exception.Message);
         Assert.Contains(logger.Entries, entry => entry.level >= LogLevel.Warning && entry.message.Contains("threw"));
+    }
+
+    [Fact]
+    public async Task LogsFailure_WhenErrorPredicateAllows()
+    {
+        var logger = new TestLogger<RpcLoggingMiddleware>();
+        var options = new RpcLoggingOptions
+        {
+            ShouldLogRequest = _ => false,
+            ShouldLogError = _ => true
+        };
+        var mw = new RpcLoggingMiddleware(logger, options);
+        var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
+        var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "fail", transport: "http");
+
+        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
+
+        var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
+
+        Assert.True(result.IsFailure);
+        Assert.Contains(logger.Entries, entry => entry.level >= LogLevel.Warning && entry.message.Contains("fail"));
+    }
+
+    [Fact]
+    public async Task ExceptionWithoutLogging_WhenDisabled()
+    {
+        var logger = new TestLogger<RpcLoggingMiddleware>(_ => false);
+        var options = new RpcLoggingOptions
+        {
+            ShouldLogRequest = _ => false,
+            FailureLogLevel = LogLevel.Warning
+        };
+        var mw = new RpcLoggingMiddleware(logger, options);
+        var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
+        UnaryOutboundDelegate next = (req, ct) => throw new InvalidOperationException("boom");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next));
+
+        Assert.Empty(logger.Entries);
     }
 }
