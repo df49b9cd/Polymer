@@ -4,6 +4,10 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Core.Transport;
 
+/// <summary>
+/// Duplex streaming call that provides independent request and response streams
+/// and tracks message counts for metrics.
+/// </summary>
 public sealed class DuplexStreamCall : IDuplexStreamCall
 {
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
@@ -43,25 +47,37 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             () => _context.IncrementResponseMessageCount());
     }
 
+    /// <summary>
+    /// Creates a duplex streaming call instance.
+    /// </summary>
     public static DuplexStreamCall Create(RequestMeta requestMeta, ResponseMeta? responseMeta = null) =>
         new(requestMeta, responseMeta ?? new ResponseMeta());
 
+    /// <inheritdoc />
     public RequestMeta RequestMeta { get; }
 
+    /// <inheritdoc />
     public ResponseMeta ResponseMeta { get; private set; }
 
+    /// <inheritdoc />
     public DuplexStreamCallContext Context => _context;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _requestWriter;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _requests.Reader;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _responseWriter;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _responses.Reader;
 
+    /// <summary>Updates the response metadata.</summary>
     public void SetResponseMeta(ResponseMeta meta) => ResponseMeta = meta ?? new ResponseMeta();
 
+    /// <inheritdoc />
     public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default)
     {
         if (_requestsCompleted)
@@ -76,6 +92,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default)
     {
         if (_responsesCompleted)
@@ -90,6 +107,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         _requests.Writer.TryComplete();

@@ -7,6 +7,9 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core;
 
+/// <summary>
+/// Protobuf codec supporting binary and optional JSON encodings with robust error mapping.
+/// </summary>
 public sealed class ProtobufCodec<TRequest, TResponse>(
     MessageParser<TRequest>? requestParser = null,
     MessageParser<TResponse>? responseParser = null,
@@ -30,10 +33,12 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
     private readonly JsonParser _jsonParser = jsonParser ?? JsonParser.Default;
     private readonly JsonFormatter _jsonFormatter = jsonFormatter ?? JsonFormatter.Default;
 
+    /// <inheritdoc />
     public string Encoding { get; } = string.IsNullOrWhiteSpace(defaultEncoding)
         ? ProtobufEncoding.Protobuf
         : defaultEncoding;
 
+    /// <inheritdoc />
     public Result<byte[]> EncodeRequest(TRequest value, RequestMeta meta)
     {
         ArgumentNullException.ThrowIfNull(meta);
@@ -62,6 +67,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         }
     }
 
+    /// <inheritdoc />
     public Result<TRequest> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta)
     {
         ArgumentNullException.ThrowIfNull(meta);
@@ -97,6 +103,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         }
     }
 
+    /// <inheritdoc />
     public Result<byte[]> EncodeResponse(TResponse value, ResponseMeta meta)
     {
         ArgumentNullException.ThrowIfNull(meta);
@@ -125,6 +132,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         }
     }
 
+    /// <inheritdoc />
     public Result<TResponse> DecodeResponse(ReadOnlyMemory<byte> payload, ResponseMeta meta)
     {
         ArgumentNullException.ThrowIfNull(meta);

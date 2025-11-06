@@ -5,6 +5,9 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Peers;
 
+/// <summary>
+/// Chooses the peer with the fewest in-flight requests, breaking ties randomly.
+/// </summary>
 public sealed class FewestPendingPeerChooser : IPeerChooser
 {
     private readonly ImmutableArray<IPeer> _peers;

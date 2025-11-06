@@ -4,6 +4,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace OmniRelay.Core.Transport;
 
+/// <summary>
+/// Options for tee/shadow outbounds controlling sampling, predicate, and headers.
+/// </summary>
 public sealed class TeeOptions
 {
     public double SampleRate { get; init; } = 1.0;
@@ -22,6 +25,9 @@ public sealed record TeeOutboundDiagnostics(
     string ShadowHeaderName,
     string ShadowHeaderValue);
 
+/// <summary>
+/// Unary outbound that forwards calls to a primary outbound and optionally shadows to a secondary outbound.
+/// </summary>
 public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
 {
     private readonly IUnaryOutbound _primary;
@@ -29,6 +35,9 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
     private readonly TeeOptions _options;
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Creates a tee unary outbound given primary and shadow outbounds.
+    /// </summary>
     public TeeUnaryOutbound(IUnaryOutbound primary, IUnaryOutbound shadow, TeeOptions? options = null)
     {
         _primary = primary ?? throw new ArgumentNullException(nameof(primary));
@@ -44,6 +53,7 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
         _logger = factory.CreateLogger<TeeUnaryOutbound>();
     }
 
+    /// <inheritdoc />
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
         await _primary.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -59,12 +69,14 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         await _shadow.StopAsync(cancellationToken).ConfigureAwait(false);
         await _primary.StopAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default)
@@ -79,6 +91,7 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
         return primaryResult;
     }
 
+    /// <inheritdoc />
     public object GetOutboundDiagnostics()
     {
         object? primaryDiagnostics = _primary is IOutboundDiagnostic diagnostic
@@ -166,6 +179,9 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
     }
 }
 
+/// <summary>
+/// Oneway outbound that forwards calls to a primary outbound and optionally shadows to a secondary outbound.
+/// </summary>
 public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
 {
     private readonly IOnewayOutbound _primary;
@@ -173,6 +189,9 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
     private readonly TeeOptions _options;
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Creates a tee oneway outbound given primary and shadow outbounds.
+    /// </summary>
     public TeeOnewayOutbound(IOnewayOutbound primary, IOnewayOutbound shadow, TeeOptions? options = null)
     {
         _primary = primary ?? throw new ArgumentNullException(nameof(primary));
@@ -188,6 +207,7 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
         _logger = factory.CreateLogger<TeeOnewayOutbound>();
     }
 
+    /// <inheritdoc />
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
         await _primary.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -203,12 +223,14 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         await _shadow.StopAsync(cancellationToken).ConfigureAwait(false);
         await _primary.StopAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<Result<OnewayAck>> CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default)
@@ -223,6 +245,7 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
         return primaryResult;
     }
 
+    /// <inheritdoc />
     public object GetOutboundDiagnostics()
     {
         object? primaryDiagnostics = _primary is IOutboundDiagnostic diagnostic

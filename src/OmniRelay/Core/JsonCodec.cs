@@ -8,6 +8,10 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core;
 
+/// <summary>
+/// JSON codec for encoding/decoding requests and responses, with optional source generator metadata
+/// and JSON Schema validation for request/response payloads.
+/// </summary>
 public sealed class JsonCodec<TRequest, TResponse>(
     JsonSerializerOptions? options = null,
     string encoding = "json",
@@ -23,8 +27,10 @@ public sealed class JsonCodec<TRequest, TResponse>(
     private readonly JsonTypeInfo<TResponse>? _responseTypeInfo = ResolveTypeInfo<TResponse>(serializerContext);
     private readonly EvaluationOptions _schemaEvaluationOptions = new() { OutputFormat = OutputFormat.List };
 
+    /// <inheritdoc />
     public string Encoding { get; } = encoding;
 
+    /// <inheritdoc />
     public Result<byte[]> EncodeRequest(TRequest value, RequestMeta meta)
     {
         try
@@ -55,6 +61,7 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
     }
 
+    /// <inheritdoc />
     public Result<TRequest> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta)
     {
         var schemaError = ValidateSchema(
@@ -91,6 +98,7 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
     }
 
+    /// <inheritdoc />
     public Result<byte[]> EncodeResponse(TResponse value, ResponseMeta meta)
     {
         try
@@ -121,6 +129,7 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
     }
 
+    /// <inheritdoc />
     public Result<TResponse> DecodeResponse(ReadOnlyMemory<byte> payload, ResponseMeta meta)
     {
         var schemaError = ValidateSchema(

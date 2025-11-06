@@ -3,6 +3,9 @@ using Microsoft.Extensions.Logging;
 
 namespace OmniRelay.Core;
 
+/// <summary>
+/// Utilities for producing structured logging scopes for RPC requests.
+/// </summary>
 internal static class RequestLoggingScope
 {
     private static readonly string[] RequestIdHeaderKeys =
@@ -12,6 +15,9 @@ internal static class RequestLoggingScope
         "rpc-request-id"
     ];
 
+    /// <summary>
+    /// Begins a logging scope enriched with RPC and network attributes.
+    /// </summary>
     public static IDisposable? Begin(
         ILogger logger,
         RequestMeta meta,
@@ -26,6 +32,9 @@ internal static class RequestLoggingScope
         return items.Count == 0 ? null : logger.BeginScope(items);
     }
 
+    /// <summary>
+    /// Creates a list of key-value pairs suitable for logging scope enrichment.
+    /// </summary>
     public static IReadOnlyList<KeyValuePair<string, object?>> Create(
         RequestMeta meta,
         ResponseMeta? responseMeta = null,

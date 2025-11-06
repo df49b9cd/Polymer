@@ -5,6 +5,9 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Transport;
 
+/// <summary>
+/// Client-streaming call container that buffers request messages and completes with a unary response.
+/// </summary>
 public sealed class ClientStreamCall : IAsyncDisposable
 {
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
@@ -19,16 +22,23 @@ public sealed class ClientStreamCall : IAsyncDisposable
         ResponseMeta = new ResponseMeta();
     }
 
+    /// <summary>Gets the request metadata.</summary>
     public RequestMeta RequestMeta { get; }
 
+    /// <summary>Gets the response metadata.</summary>
     public ResponseMeta ResponseMeta { get; private set; }
 
+    /// <summary>Gets the request writer channel.</summary>
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
 
     internal ChannelReader<ReadOnlyMemory<byte>> Reader => _requests.Reader;
 
+    /// <summary>Gets the task that completes with the unary response.</summary>
     public Task<Result<Response<ReadOnlyMemory<byte>>>> Response => _completion.Task;
 
+    /// <summary>
+    /// Creates a client-streaming call instance for the given request metadata.
+    /// </summary>
     public static ClientStreamCall Create(RequestMeta meta)
     {
         var requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
@@ -57,6 +67,9 @@ public sealed class ClientStreamCall : IAsyncDisposable
         _completion.TrySetResult(err);
     }
 
+    /// <summary>
+    /// Completes the request writer and optionally propagates an error to the reader.
+    /// </summary>
     public ValueTask CompleteWriterAsync(Error? error = null, CancellationToken cancellationToken = default)
     {
         if (error is null)
@@ -72,6 +85,7 @@ public sealed class ClientStreamCall : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         if (_disposed)

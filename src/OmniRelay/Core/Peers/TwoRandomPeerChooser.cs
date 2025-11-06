@@ -5,6 +5,9 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Peers;
 
+/// <summary>
+/// Chooses two random peers and selects the one with fewer in-flight requests.
+/// </summary>
 public sealed class TwoRandomPeerChooser : IPeerChooser
 {
     private readonly ImmutableArray<IPeer> _peers;

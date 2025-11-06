@@ -5,6 +5,9 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Peers;
 
+/// <summary>
+/// Chooses peers in a round-robin fashion, skipping busy peers.
+/// </summary>
 public sealed class RoundRobinPeerChooser : IPeerChooser
 {
     private readonly ImmutableArray<IPeer> _peers;

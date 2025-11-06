@@ -4,6 +4,9 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Core.Transport;
 
+/// <summary>
+/// Server-streaming call used by transports to emit response messages.
+/// </summary>
 public sealed class ServerStreamCall : IStreamCall
 {
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
@@ -28,29 +31,41 @@ public sealed class ServerStreamCall : IStreamCall
         _requests.Writer.TryComplete();
     }
 
+    /// <summary>
+    /// Creates a server-streaming call instance.
+    /// </summary>
     public static ServerStreamCall Create(RequestMeta requestMeta, ResponseMeta? responseMeta = null) =>
         new(requestMeta, responseMeta ?? new ResponseMeta());
 
+    /// <inheritdoc />
     public StreamDirection Direction => StreamDirection.Server;
 
+    /// <inheritdoc />
     public RequestMeta RequestMeta { get; }
 
+    /// <inheritdoc />
     public ResponseMeta ResponseMeta { get; private set; }
 
+    /// <inheritdoc />
     public StreamCallContext Context => _context;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
 
+    /// <summary>Updates the response metadata.</summary>
     public void SetResponseMeta(ResponseMeta meta) => ResponseMeta = meta ?? new ResponseMeta();
 
+    /// <inheritdoc />
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
     {
         await _responses.Writer.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
         _context.IncrementMessageCount();
     }
 
+    /// <inheritdoc />
     public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
     {
         if (_completed)
@@ -76,6 +91,7 @@ public sealed class ServerStreamCall : IStreamCall
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         _responses.Writer.TryComplete();

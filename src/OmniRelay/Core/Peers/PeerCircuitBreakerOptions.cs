@@ -1,5 +1,8 @@
 namespace OmniRelay.Core.Peers;
 
+/// <summary>
+/// Configuration for the peer circuit breaker behavior and timings.
+/// </summary>
 public sealed class PeerCircuitBreakerOptions
 {
     public TimeSpan BaseDelay { get; init; } = TimeSpan.FromMilliseconds(100);

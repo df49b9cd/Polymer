@@ -26,8 +26,10 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
         Encoding = encoding;
     }
 
+    /// <inheritdoc />
     public string Encoding { get; }
 
+    /// <inheritdoc />
     public Result<byte[]> EncodeRequest(byte[] value, RequestMeta meta)
     {
         if (!IsEncodingPermitted(meta.Encoding))
@@ -43,6 +45,7 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
         return Ok(value ?? []);
     }
 
+    /// <inheritdoc />
     public Result<byte[]> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta)
     {
         if (!IsEncodingPermitted(meta.Encoding))
@@ -58,6 +61,7 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
         return Ok(Normalize(payload));
     }
 
+    /// <inheritdoc />
     public Result<byte[]> EncodeResponse(byte[] value, ResponseMeta meta)
     {
         if (!IsEncodingPermitted(meta.Encoding))
@@ -71,6 +75,7 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
         return Ok(value ?? []);
     }
 
+    /// <inheritdoc />
     public Result<byte[]> DecodeResponse(ReadOnlyMemory<byte> payload, ResponseMeta meta)
     {
         if (!IsEncodingPermitted(meta.Encoding))

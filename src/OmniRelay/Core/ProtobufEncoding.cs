@@ -1,5 +1,8 @@
 namespace OmniRelay.Core;
 
+/// <summary>
+/// Helpers for determining Protobuf and JSON encodings and mapping to media types.
+/// </summary>
 internal static class ProtobufEncoding
 {
     public const string Protobuf = "protobuf";
@@ -12,6 +15,7 @@ internal static class ProtobufEncoding
 
     private static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;
 
+    /// <summary>Determines if the given encoding is a Protobuf/binary variant.</summary>
     public static bool IsBinary(string? encoding)
     {
         if (string.IsNullOrWhiteSpace(encoding))
@@ -26,6 +30,7 @@ internal static class ProtobufEncoding
                Comparer.Equals(encoding, ApplicationGrpcProto);
     }
 
+    /// <summary>Determines if the given encoding is JSON.</summary>
     public static bool IsJson(string? encoding)
     {
         if (string.IsNullOrWhiteSpace(encoding))
@@ -37,6 +42,7 @@ internal static class ProtobufEncoding
                Comparer.Equals(encoding, ApplicationJson);
     }
 
+    /// <summary>Gets a media type for the encoding, when recognizable.</summary>
     public static string? GetMediaType(string? encoding)
     {
         if (string.IsNullOrWhiteSpace(encoding))
@@ -57,6 +63,7 @@ internal static class ProtobufEncoding
         return encoding;
     }
 
+    /// <summary>Normalizes encodings to canonical values (e.g., protobuf, application/json).</summary>
     public static string? Normalize(string? encoding)
     {
         if (string.IsNullOrWhiteSpace(encoding))
