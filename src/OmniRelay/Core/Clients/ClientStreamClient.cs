@@ -66,17 +66,17 @@ public sealed class ClientStreamClient<TRequest, TResponse>
             _response = new Lazy<Task<Response<TResponse>>>(AwaitResponseAsync);
         }
 
-    /// <summary>Gets the request metadata.</summary>
-    public RequestMeta RequestMeta => _meta;
+        /// <summary>Gets the request metadata.</summary>
+        public RequestMeta RequestMeta => _meta;
 
-    /// <summary>Gets the response metadata.</summary>
-    public ResponseMeta ResponseMeta => _transportCall.ResponseMeta;
+        /// <summary>Gets the response metadata.</summary>
+        public ResponseMeta ResponseMeta => _transportCall.ResponseMeta;
 
-    /// <summary>Gets the task that completes with the unary response.</summary>
-    public Task<Response<TResponse>> Response => _response.Value;
+        /// <summary>Gets the task that completes with the unary response.</summary>
+        public Task<Response<TResponse>> Response => _response.Value;
 
-    /// <summary>Writes a typed request message to the stream.</summary>
-    public async ValueTask WriteAsync(TRequest message, CancellationToken cancellationToken = default)
+        /// <summary>Writes a typed request message to the stream.</summary>
+        public async ValueTask WriteAsync(TRequest message, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 

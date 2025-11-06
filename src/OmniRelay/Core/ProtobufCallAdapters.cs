@@ -229,8 +229,8 @@ public static class ProtobufCallAdapters
             _call.SetResponseMeta(_responseMeta);
         }
 
-    /// <summary>Gets or sets the response metadata propagated to the client.</summary>
-    public ResponseMeta ResponseMeta
+        /// <summary>Gets or sets the response metadata propagated to the client.</summary>
+        public ResponseMeta ResponseMeta
         {
             get => _responseMeta;
             set
@@ -240,8 +240,8 @@ public static class ProtobufCallAdapters
             }
         }
 
-    /// <summary>Encodes and writes a typed response message.</summary>
-    public async ValueTask WriteAsync(TResponse message, CancellationToken cancellationToken = default)
+        /// <summary>Encodes and writes a typed response message.</summary>
+        public async ValueTask WriteAsync(TResponse message, CancellationToken cancellationToken = default)
         {
             var encode = _codec.EncodeResponse(message, _responseMeta);
             if (encode.IsFailure)
@@ -282,13 +282,13 @@ public static class ProtobufCallAdapters
             _context = context;
         }
 
-    /// <summary>Gets the request metadata.</summary>
-    public RequestMeta Meta => _context.Meta;
+        /// <summary>Gets the request metadata.</summary>
+        public RequestMeta Meta => _context.Meta;
 
-    /// <summary>
-    /// Iterates and decodes all request messages in the client stream.
-    /// </summary>
-    public async IAsyncEnumerable<TRequest> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Iterates and decodes all request messages in the client stream.
+        /// </summary>
+        public async IAsyncEnumerable<TRequest> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var reader = _context.Requests;
             var transport = Meta.Transport ?? "stream";
@@ -330,11 +330,11 @@ public static class ProtobufCallAdapters
             _transport = transport;
         }
 
-    /// <summary>Gets the request metadata.</summary>
-    public RequestMeta RequestMeta => _call.RequestMeta;
+        /// <summary>Gets the request metadata.</summary>
+        public RequestMeta RequestMeta => _call.RequestMeta;
 
-    /// <summary>Gets or sets the response metadata propagated to the client.</summary>
-    public ResponseMeta ResponseMeta
+        /// <summary>Gets or sets the response metadata propagated to the client.</summary>
+        public ResponseMeta ResponseMeta
         {
             get => _call.ResponseMeta;
             set
@@ -344,10 +344,10 @@ public static class ProtobufCallAdapters
             }
         }
 
-    /// <summary>
-    /// Iterates and decodes all request messages from the duplex request stream.
-    /// </summary>
-    public async IAsyncEnumerable<TRequest> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Iterates and decodes all request messages from the duplex request stream.
+        /// </summary>
+        public async IAsyncEnumerable<TRequest> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var reader = _call.RequestReader;
 
@@ -366,8 +366,8 @@ public static class ProtobufCallAdapters
             }
         }
 
-    /// <summary>Encodes and writes a typed response message to the duplex response stream.</summary>
-    public async ValueTask WriteAsync(TResponse message, CancellationToken cancellationToken = default)
+        /// <summary>Encodes and writes a typed response message to the duplex response stream.</summary>
+        public async ValueTask WriteAsync(TResponse message, CancellationToken cancellationToken = default)
         {
             var encode = _codec.EncodeResponse(message, _call.ResponseMeta);
             if (encode.IsFailure)

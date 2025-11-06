@@ -98,7 +98,7 @@ public class GrpcHttp3DeadlineParityTests
         Assert.Equal(StatusCode.DeadlineExceeded, h2Ex.StatusCode);
 
         // Unblock server and stop
-    block.TrySetCanceled(ct);
+        block.TrySetCanceled(ct);
         await dispatcher.StopAsync(ct);
     }
 

@@ -34,7 +34,7 @@ public class OutboundErrorMappingTests
         await outbound.StartAsync(ct);
 
         var meta = new RequestMeta(service: "svc", procedure: "proc::unary", transport: "http");
-    var call = await ((IUnaryOutbound)outbound).CallAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), ct);
+        var call = await ((IUnaryOutbound)outbound).CallAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), ct);
         Assert.True(call.IsFailure);
         var err = call.Error!;
         Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(err));

@@ -302,7 +302,7 @@ public class GrpcTransportTests
         Assert.False(stopTask.IsCompleted);
 
         releaseRequest.TrySetResult();
-    var response = await inFlightCall.ResponseAsync.WaitAsync(ct);
+        var response = await inFlightCall.ResponseAsync.WaitAsync(ct);
         Assert.Empty(response);
 
         await stopTask;
@@ -434,7 +434,7 @@ public class GrpcTransportTests
         using var channel = GrpcChannel.ForAddress(address);
         var healthClient = new Health.HealthClient(channel);
 
-    var healthy = await healthClient.CheckAsync(new HealthCheckRequest(), cancellationToken: ct).ResponseAsync.WaitAsync(ct);
+        var healthy = await healthClient.CheckAsync(new HealthCheckRequest(), cancellationToken: ct).ResponseAsync.WaitAsync(ct);
         Assert.Equal(HealthCheckResponse.Types.ServingStatus.Serving, healthy.Status);
 
         var method = new Method<byte[], byte[]>(MethodType.Unary, "health", "slow", GrpcMarshallerCache.ByteMarshaller, GrpcMarshallerCache.ByteMarshaller);
@@ -445,11 +445,11 @@ public class GrpcTransportTests
 
         var stopTask = dispatcher.StopAsync(ct);
 
-    var draining = await healthClient.CheckAsync(new HealthCheckRequest(), cancellationToken: ct).ResponseAsync.WaitAsync(ct);
+        var draining = await healthClient.CheckAsync(new HealthCheckRequest(), cancellationToken: ct).ResponseAsync.WaitAsync(ct);
         Assert.Equal(HealthCheckResponse.Types.ServingStatus.NotServing, draining.Status);
 
         releaseRequest.TrySetResult();
-    await inFlightCall.ResponseAsync.WaitAsync(ct);
+        await inFlightCall.ResponseAsync.WaitAsync(ct);
         await stopTask;
     }
 

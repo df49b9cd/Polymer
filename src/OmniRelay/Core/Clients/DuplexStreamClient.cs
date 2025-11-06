@@ -64,20 +64,20 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
             _call = call;
         }
 
-    /// <summary>Gets the request metadata.</summary>
-    public RequestMeta RequestMeta => _meta;
+        /// <summary>Gets the request metadata.</summary>
+        public RequestMeta RequestMeta => _meta;
 
-    /// <summary>Gets the response metadata.</summary>
-    public ResponseMeta ResponseMeta => _call.ResponseMeta;
+        /// <summary>Gets the response metadata.</summary>
+        public ResponseMeta ResponseMeta => _call.ResponseMeta;
 
-    /// <summary>Gets the raw request writer channel.</summary>
-    public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _call.RequestWriter;
+        /// <summary>Gets the raw request writer channel.</summary>
+        public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _call.RequestWriter;
 
-    /// <summary>Gets the raw response reader channel.</summary>
-    public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _call.ResponseReader;
+        /// <summary>Gets the raw response reader channel.</summary>
+        public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _call.ResponseReader;
 
-    /// <summary>Writes a typed request message to the request stream.</summary>
-    public async ValueTask WriteAsync(TRequest message, CancellationToken cancellationToken = default)
+        /// <summary>Writes a typed request message to the request stream.</summary>
+        public async ValueTask WriteAsync(TRequest message, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 

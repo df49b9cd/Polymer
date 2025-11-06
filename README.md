@@ -2,6 +2,15 @@
 
 ![OmniRelay hero](branding/omnirelay-hero.png)
 
+[![Build](https://github.com/df49b9cd/Polymer/actions/workflows/publish-packages.yml/badge.svg?branch=main)](https://github.com/df49b9cd/Polymer/actions/workflows/publish-packages.yml)
+[![codecov](https://codecov.io/gh/df49b9cd/Polymer/branch/main/graph/badge.svg)](https://codecov.io/gh/df49b9cd/OmniRelay)
+[![NuGet OmniRelay](https://img.shields.io/nuget/v/OmniRelay.svg)](https://www.nuget.org/packages/OmniRelay)
+[![NuGet OmniRelay.Configuration](https://img.shields.io/nuget/v/OmniRelay.Configuration.svg)](https://www.nuget.org/packages/OmniRelay.Configuration)
+[![NuGet OmniRelay.Codegen.Protobuf.Core](https://img.shields.io/nuget/v/OmniRelay.Codegen.Protobuf.Core.svg)](https://www.nuget.org/packages/OmniRelay.Codegen.Protobuf.Core)
+[![NuGet OmniRelay.Codegen.Protobuf.Generator](https://img.shields.io/nuget/v/OmniRelay.Codegen.Protobuf.Generator.svg)](https://www.nuget.org/packages/OmniRelay.Codegen.Protobuf.Generator)
+[![License](https://img.shields.io/github/license/df49b9cd/Polymer.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10-blueviolet.svg)](https://dotnet.microsoft.com/)
+
 OmniRelay is the .NET port of Uber's YARPC runtime, layered on top of Hugo concurrency primitives. It targets transport, middleware, and tooling parity with `yarpc-go` while embracing .NET idioms (Generic Host, System.CommandLine, Roslyn generators).
 
 > Namespaces live under `OmniRelay.*`. NuGet packages, tooling, and assemblies publish as `OmniRelay.*`.
