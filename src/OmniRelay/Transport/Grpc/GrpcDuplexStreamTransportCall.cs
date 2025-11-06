@@ -9,6 +9,10 @@ using static Hugo.Go;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Client-side transport for gRPC bidirectional streaming calls implementing <see cref="IDuplexStreamCall"/>.
+/// Bridges gRPC request/response streams to OmniRelay duplex abstractions and records metrics.
+/// </summary>
 internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
 {
     private readonly AsyncDuplexStreamingCall<byte[], byte[]> _call;
@@ -36,6 +40,13 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         _responsePump = PumpResponsesAsync(_cts.Token);
     }
 
+    /// <summary>
+    /// Creates a duplex transport call wrapper from an active gRPC duplex call.
+    /// </summary>
+    /// <param name="requestMeta">The request metadata.</param>
+    /// <param name="call">The active gRPC duplex call.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The created duplex call or an error.</returns>
     public static async ValueTask<Result<IDuplexStreamCall>> CreateAsync(
         RequestMeta requestMeta,
         AsyncDuplexStreamingCall<byte[], byte[]> call,
@@ -60,26 +71,36 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         }
     }
 
+    /// <inheritdoc />
     public RequestMeta RequestMeta => _inner.RequestMeta;
 
+    /// <inheritdoc />
     public ResponseMeta ResponseMeta => _inner.ResponseMeta;
 
+    /// <inheritdoc />
     public DuplexStreamCallContext Context => _inner.Context;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _inner.RequestWriter;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _inner.RequestReader;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _inner.ResponseWriter;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
+    /// <inheritdoc />
     public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteRequestsAsync(error, cancellationToken);
 
+    /// <inheritdoc />
     public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteResponsesAsync(error, cancellationToken);
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         await _cts.CancelAsync().ConfigureAwait(false);

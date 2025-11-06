@@ -3,6 +3,9 @@ using Grpc.Net.Compression;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Compression options for gRPC transport including providers and defaults.
+/// </summary>
 public sealed record GrpcCompressionOptions
 {
     public IReadOnlyList<ICompressionProvider> Providers { get; init; } = [];
@@ -11,6 +14,9 @@ public sealed record GrpcCompressionOptions
 
     public CompressionLevel? DefaultCompressionLevel { get; init; }
 
+    /// <summary>
+    /// Validates that the configured default algorithm has a corresponding registered provider.
+    /// </summary>
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(DefaultAlgorithm))

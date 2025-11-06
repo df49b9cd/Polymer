@@ -4,6 +4,10 @@ using OmniRelay.Core;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Internal metrics for gRPC transport covering client/server unary and streaming operations,
+/// including durations, message counts, and client protocol fallbacks.
+/// </summary>
 internal static class GrpcTransportMetrics
 {
     public const string MeterName = "OmniRelay.Transport.Grpc";
@@ -91,6 +95,9 @@ internal static class GrpcTransportMetrics
     public static readonly Counter<long> ClientProtocolFallbacks =
         Meter.CreateCounter<long>("omnirelay.grpc.client.fallbacks", description: "gRPC client fallbacks when HTTP/3 is enabled but a non-H3 endpoint is selected.");
 
+    /// <summary>
+    /// Creates common metric tags for gRPC calls using request metadata.
+    /// </summary>
     public static KeyValuePair<string, object?>[] CreateBaseTags(RequestMeta meta)
     {
         List<KeyValuePair<string, object?>> tags;
@@ -135,6 +142,9 @@ internal static class GrpcTransportMetrics
         return [.. tags];
     }
 
+    /// <summary>
+    /// Appends gRPC status code to an existing tag set.
+    /// </summary>
     public static KeyValuePair<string, object?>[] AppendStatus(KeyValuePair<string, object?>[] baseTags, StatusCode statusCode)
     {
         var tags = new KeyValuePair<string, object?>[baseTags.Length + 1];
@@ -143,6 +153,9 @@ internal static class GrpcTransportMetrics
         return tags;
     }
 
+    /// <summary>
+    /// Records a client protocol fallback when HTTP/3 was desired but not selected.
+    /// </summary>
     public static void RecordClientFallback(RequestMeta meta, bool http3Desired)
     {
         if (!http3Desired)

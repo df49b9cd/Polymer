@@ -3,6 +3,9 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Runtime options for gRPC clients including protocol, limits, keep-alive, and interceptors.
+/// </summary>
 public sealed record GrpcClientRuntimeOptions
 {
     public bool EnableHttp3 { get; init; }
@@ -24,6 +27,9 @@ public sealed record GrpcClientRuntimeOptions
     public IReadOnlyList<Interceptor> Interceptors { get; init; } = [];
 }
 
+/// <summary>
+/// Runtime options for the gRPC server including message limits, errors, keep-alive, and HTTP/3.
+/// </summary>
 public sealed record GrpcServerRuntimeOptions
 {
     public bool EnableHttp3 { get; init; }

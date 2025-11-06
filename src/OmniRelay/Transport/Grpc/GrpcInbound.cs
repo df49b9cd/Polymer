@@ -17,6 +17,10 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Hosts the OmniRelay gRPC inbound service that dispatches arbitrary procedures via a single gRPC service.
+/// Supports HTTP/2 and can enable HTTP/3 (QUIC) when configured with TLS 1.3.
+/// </summary>
 public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInterceptorSink
 {
     private readonly string[] _urls;
@@ -36,6 +40,16 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
     private const string RetryAfterMetadataName = "retry-after";
     private const string RetryAfterMetadataValue = "1";
 
+    /// <summary>
+    /// Creates a new gRPC inbound server with optional DI and app configuration hooks.
+    /// </summary>
+    /// <param name="urls">The URLs to bind (https required for HTTP/3).</param>
+    /// <param name="configureServices">Optional service collection configuration.</param>
+    /// <param name="configureApp">Optional application pipeline configuration.</param>
+    /// <param name="serverTlsOptions">TLS options including certificate for HTTPS/HTTP/3.</param>
+    /// <param name="serverRuntimeOptions">gRPC server runtime options and HTTP/3 settings.</param>
+    /// <param name="compressionOptions">Optional compression providers and defaults.</param>
+    /// <param name="telemetryOptions">Optional telemetry options such as logging toggles.</param>
     public GrpcInbound(
         IEnumerable<string> urls,
         Action<IServiceCollection>? configureServices = null,
@@ -59,11 +73,22 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         _telemetryOptions = telemetryOptions;
     }
 
+    /// <summary>
+    /// Gets the actual bound URLs after the server has started.
+    /// </summary>
     public IReadOnlyCollection<string> Urls =>
         _app?.Urls as IReadOnlyCollection<string> ?? [];
 
+    /// <summary>
+    /// Binds the dispatcher used to route RPC procedures.
+    /// </summary>
+    /// <param name="dispatcher">The dispatcher instance.</param>
     public void Bind(Dispatcher.Dispatcher dispatcher) => _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
+    /// <summary>
+    /// Starts the gRPC server and begins accepting calls.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
         if (_app is not null)
@@ -464,6 +489,10 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         }
     }
 
+    /// <summary>
+    /// Initiates graceful drain and stops the gRPC server.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         if (_app is null)

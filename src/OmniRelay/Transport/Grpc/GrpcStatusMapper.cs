@@ -3,8 +3,14 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Maps between gRPC <see cref="StatusCode"/> and <see cref="OmniRelayStatusCode"/>.
+/// </summary>
 internal static class GrpcStatusMapper
 {
+    /// <summary>
+    /// Converts gRPC <see cref="Status"/> to an OmniRelay status code.
+    /// </summary>
     public static OmniRelayStatusCode FromStatus(Status status) => status.StatusCode switch
     {
         StatusCode.Cancelled => OmniRelayStatusCode.Cancelled,
@@ -26,6 +32,9 @@ internal static class GrpcStatusMapper
         _ => OmniRelayStatusCode.Unknown
     };
 
+    /// <summary>
+    /// Converts an OmniRelay status code to gRPC <see cref="Status"/> with message.
+    /// </summary>
     public static Status ToStatus(OmniRelayStatusCode statusCode, string message) => statusCode switch
     {
         OmniRelayStatusCode.Cancelled => new Status(StatusCode.Cancelled, message),

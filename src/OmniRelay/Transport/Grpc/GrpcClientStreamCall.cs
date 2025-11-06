@@ -9,6 +9,10 @@ using static Hugo.Go;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Client-side wrapper for gRPC server-streaming calls, adapting them to <see cref="IStreamCall"/>.
+/// Handles response pumping, metrics, and completion semantics.
+/// </summary>
 internal sealed class GrpcClientStreamCall : IStreamCall
 {
     private readonly AsyncServerStreamingCall<byte[]> _call;
@@ -47,6 +51,13 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         _ = PumpResponsesAsync(_cts.Token);
     }
 
+    /// <summary>
+    /// Creates a client stream call wrapper from an active gRPC server-streaming call.
+    /// </summary>
+    /// <param name="requestMeta">The request metadata.</param>
+    /// <param name="call">The active gRPC server-streaming call.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The created stream call or an error.</returns>
     public static async ValueTask<Result<GrpcClientStreamCall>> CreateAsync(
         RequestMeta requestMeta,
         AsyncServerStreamingCall<byte[]> call,
@@ -70,18 +81,25 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         }
     }
 
+    /// <inheritdoc />
     public StreamDirection Direction => StreamDirection.Server;
 
+    /// <inheritdoc />
     public RequestMeta RequestMeta { get; }
 
+    /// <inheritdoc />
     public ResponseMeta ResponseMeta { get; private set; }
 
+    /// <inheritdoc />
     public StreamCallContext Context => _context;
 
+    /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
 
+    /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
 
+    /// <inheritdoc />
     public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
     {
         _cts.Cancel();
@@ -91,6 +109,7 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         await _cts.CancelAsync().ConfigureAwait(false);

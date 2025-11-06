@@ -7,10 +7,16 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Helpers that translate between gRPC metadata and OmniRelay request/response metadata.
+/// </summary>
 internal static class GrpcMetadataAdapter
 {
     private static readonly char[] InvalidHeaderValueCharacters = ['\r', '\n', '\0'];
 
+    /// <summary>
+    /// Builds an OmniRelay <see cref="RequestMeta"/> from gRPC metadata.
+    /// </summary>
     public static RequestMeta BuildRequestMeta(
         string service,
         string procedure,
@@ -66,6 +72,9 @@ internal static class GrpcMetadataAdapter
             headers: headerList);
     }
 
+    /// <summary>
+    /// Creates gRPC request metadata from the OmniRelay <see cref="RequestMeta"/>.
+    /// </summary>
     public static Metadata CreateRequestMetadata(RequestMeta meta)
     {
         var metadata = new Metadata();
@@ -136,6 +145,9 @@ internal static class GrpcMetadataAdapter
         return metadata;
     }
 
+    /// <summary>
+    /// Creates gRPC response headers from the OmniRelay <see cref="ResponseMeta"/>.
+    /// </summary>
     public static Metadata CreateResponseHeaders(ResponseMeta meta)
     {
         var headers = new Metadata();
@@ -152,6 +164,9 @@ internal static class GrpcMetadataAdapter
         return headers;
     }
 
+    /// <summary>
+    /// Combines gRPC headers and trailers into an OmniRelay <see cref="ResponseMeta"/>.
+    /// </summary>
     public static ResponseMeta CreateResponseMeta(
         Metadata? headers,
         Metadata? trailers,
@@ -174,6 +189,9 @@ internal static class GrpcMetadataAdapter
             headers: combined);
     }
 
+    /// <summary>
+    /// Creates gRPC error trailers from an OmniRelay <see cref="Error"/>.
+    /// </summary>
     public static Metadata CreateErrorTrailers(Error error)
     {
         var trailers = new Metadata

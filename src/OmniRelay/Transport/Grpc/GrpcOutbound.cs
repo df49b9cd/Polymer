@@ -18,6 +18,10 @@ using static Hugo.Go;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// gRPC outbound transport supporting unary, oneway, server-streaming, client-streaming, and duplex calls.
+/// Manages peer channels, HTTP/3 preferences, compression, and client interceptors.
+/// </summary>
 public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound, IOutboundDiagnostic, IGrpcClientInterceptorSink
 {
     private readonly IReadOnlyList<Uri> _addresses;
@@ -43,6 +47,19 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private string? _interceptorService;
     private int _interceptorConfigured;
 
+    /// <summary>
+    /// Creates a gRPC outbound transport for a single peer address.
+    /// </summary>
+    /// <param name="address">The gRPC endpoint to target.</param>
+    /// <param name="remoteService">The remote service name (for procedure routing and diagnostics).</param>
+    /// <param name="channelOptions">Optional channel options.</param>
+    /// <param name="clientTlsOptions">Optional client TLS options.</param>
+    /// <param name="peerChooser">Optional peer chooser factory.</param>
+    /// <param name="clientRuntimeOptions">Optional client runtime options (HTTP/3, version policy, limits).</param>
+    /// <param name="compressionOptions">Optional compression providers and defaults.</param>
+    /// <param name="peerCircuitBreakerOptions">Optional per-peer circuit breaker options.</param>
+    /// <param name="telemetryOptions">Optional telemetry/logging options.</param>
+    /// <param name="endpointHttp3Support">Optional hint map indicating per-endpoint HTTP/3 support.</param>
     public GrpcOutbound(
         Uri address,
         string remoteService,
@@ -68,6 +85,19 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
     }
 
+    /// <summary>
+    /// Creates a gRPC outbound transport for multiple peer addresses.
+    /// </summary>
+    /// <param name="addresses">The gRPC endpoints to target.</param>
+    /// <param name="remoteService">The remote service name (for procedure routing and diagnostics).</param>
+    /// <param name="channelOptions">Optional channel options.</param>
+    /// <param name="clientTlsOptions">Optional client TLS options.</param>
+    /// <param name="peerChooser">Optional peer chooser factory.</param>
+    /// <param name="clientRuntimeOptions">Optional client runtime options (HTTP/3, version policy, limits).</param>
+    /// <param name="compressionOptions">Optional compression providers and defaults.</param>
+    /// <param name="peerCircuitBreakerOptions">Optional per-peer circuit breaker options.</param>
+    /// <param name="telemetryOptions">Optional telemetry/logging options.</param>
+    /// <param name="endpointHttp3Support">Optional hint map indicating per-endpoint HTTP/3 support.</param>
     public GrpcOutbound(
         IEnumerable<Uri> addresses,
         string remoteService,
@@ -165,6 +195,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
+    /// <summary>
+    /// Starts the outbound by creating and connecting peer channels.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public ValueTask StartAsync(CancellationToken cancellationToken = default)
     {
         if (_started)
@@ -199,6 +233,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>
+    /// Stops the outbound, disposing peer channels and clearing caches.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         if (!_started)
@@ -221,6 +259,12 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         _duplexMethods.Clear();
     }
 
+    /// <summary>
+    /// Performs a unary RPC using the gRPC client.
+    /// </summary>
+    /// <param name="request">The request containing metadata and payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The response or an error.</returns>
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default)
@@ -419,6 +463,13 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
+    /// <summary>
+    /// Performs a server-streaming RPC and returns a stream call wrapper.
+    /// </summary>
+    /// <param name="request">The request metadata and payload.</param>
+    /// <param name="options">Streaming options; only server-direction is supported.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A stream call for reading response messages or an error.</returns>
     public async ValueTask<Result<IStreamCall>> CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
@@ -504,6 +555,12 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
+    /// <summary>
+    /// Performs a client-streaming RPC and returns a transport call for writing request messages.
+    /// </summary>
+    /// <param name="requestMeta">The initial request metadata.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A client-stream transport call or an error.</returns>
     public async ValueTask<Result<IClientStreamTransportCall>> CallAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken = default)
@@ -574,6 +631,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
+    /// <inheritdoc />
     async ValueTask<Result<IDuplexStreamCall>> IDuplexOutbound.CallAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken)
@@ -654,6 +712,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
+    /// <summary>
+    /// Returns diagnostic information about the outbound configuration and peers.
+    /// </summary>
     public object GetOutboundDiagnostics()
     {
         var algorithms = _compressionAlgorithms is { Count: > 0 }

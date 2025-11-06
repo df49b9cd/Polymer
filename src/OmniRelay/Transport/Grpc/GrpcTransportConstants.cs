@@ -1,5 +1,8 @@
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Constants for gRPC transport header and trailer names and common identifiers.
+/// </summary>
 internal static class GrpcTransportConstants
 {
     public const string ServiceNameHeader = "rpc-service";

@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// TLS configuration for gRPC clients including client certificates and validation callbacks.
+/// </summary>
 public sealed record GrpcClientTlsOptions
 {
     public X509Certificate2Collection ClientCertificates { get; init; } = [];
@@ -18,6 +21,9 @@ public sealed record GrpcClientTlsOptions
     public RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; init; }
 }
 
+/// <summary>
+/// TLS configuration for gRPC servers including certificate, client certificate policy, and protocol set.
+/// </summary>
 public sealed record GrpcServerTlsOptions
 {
     public required X509Certificate2 Certificate { get; init; }

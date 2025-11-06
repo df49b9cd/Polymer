@@ -8,6 +8,10 @@ using static Hugo.Go;
 
 namespace OmniRelay.Transport.Grpc;
 
+/// <summary>
+/// Client-side transport for gRPC client-streaming calls implementing <see cref="IClientStreamTransportCall"/>.
+/// Manages request writes, observes the single response, and records metrics.
+/// </summary>
 internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
 {
     private readonly AsyncClientStreamingCall<byte[], byte[]> _call;
@@ -21,6 +25,12 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
     private int _completed;
     private bool _disposed;
 
+    /// <summary>
+    /// Creates a client-stream transport call bound to an active gRPC call.
+    /// </summary>
+    /// <param name="requestMeta">The request metadata.</param>
+    /// <param name="call">The active gRPC client-streaming call.</param>
+    /// <param name="writeOptions">Optional write options applied per message.</param>
     public GrpcClientStreamTransportCall(
         RequestMeta requestMeta,
         AsyncClientStreamingCall<byte[], byte[]> call,
@@ -35,12 +45,18 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         _ = ObserveResponseAsync();
     }
 
+    /// <inheritdoc />
     public RequestMeta RequestMeta { get; }
 
+    /// <inheritdoc />
     public ResponseMeta ResponseMeta { get; private set; }
 
+    /// <summary>
+    /// Gets the task that completes with the unary response of the client-streaming call.
+    /// </summary>
     public Task<Result<Response<ReadOnlyMemory<byte>>>> Response => _completion.Task;
 
+    /// <inheritdoc />
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(GrpcClientStreamTransportCall));
@@ -78,6 +94,7 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask CompleteAsync(CancellationToken cancellationToken = default)
     {
         if (_disposed || Interlocked.Exchange(ref _completed, 1) == 1)
@@ -111,6 +128,7 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
