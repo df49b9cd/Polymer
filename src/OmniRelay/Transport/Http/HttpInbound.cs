@@ -1151,7 +1151,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
                 catch (Exception ex)
                 {
-                    var actual = UnwrapChannelClosed(ex);
+                    var actual = NormalizeTransportException(ex);
                     var omni = OmniRelayErrors.FromException(actual, transport);
                     var error = omni.Error;
                     await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
@@ -1210,7 +1210,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
                 catch (Exception ex)
                 {
-                    var actual = UnwrapChannelClosed(ex);
+                    var actual = NormalizeTransportException(ex);
                     var omni = OmniRelayErrors.FromException(actual, transport);
                     var error = omni.Error;
                     await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
@@ -1257,16 +1257,19 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         }
     }
 
-    private static Exception UnwrapChannelClosed(Exception exception)
+    private static Exception NormalizeTransportException(Exception exception)
     {
         if (exception is ChannelClosedException channelClosed)
         {
-            if (channelClosed.InnerException is { } inner)
-            {
-                return inner;
-            }
+            return channelClosed.InnerException is { } inner
+                ? NormalizeTransportException(inner)
+                : new OperationCanceledException("The channel was closed.", channelClosed);
+        }
 
-            return new OperationCanceledException("The channel was closed.", channelClosed);
+        if (exception is WebSocketException webSocketException &&
+            webSocketException.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
+        {
+            return new OperationCanceledException("The WebSocket connection closed prematurely.", webSocketException);
         }
 
         return exception;

@@ -163,7 +163,7 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            var actual = UnwrapChannelClosed(ex);
+            var actual = NormalizeTransportException(ex);
             var omni = OmniRelayErrors.FromException(actual, _transport);
             var error = omni.Error;
             await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
@@ -248,22 +248,25 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            var actual = UnwrapChannelClosed(ex);
+            var actual = NormalizeTransportException(ex);
             var omni = OmniRelayErrors.FromException(actual, _transport);
             await _inner.CompleteResponsesAsync(omni.Error, CancellationToken.None).ConfigureAwait(false);
         }
     }
 
-    private static Exception UnwrapChannelClosed(Exception exception)
+    private static Exception NormalizeTransportException(Exception exception)
     {
         if (exception is ChannelClosedException channelClosed)
         {
-            if (channelClosed.InnerException is { } inner)
-            {
-                return inner;
-            }
+            return channelClosed.InnerException is { } inner
+                ? NormalizeTransportException(inner)
+                : new OperationCanceledException("The channel was closed.", channelClosed);
+        }
 
-            return new OperationCanceledException("The channel was closed.", channelClosed);
+        if (exception is WebSocketException webSocketException &&
+            webSocketException.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
+        {
+            return new OperationCanceledException("The WebSocket connection closed prematurely.", webSocketException);
         }
 
         return exception;
