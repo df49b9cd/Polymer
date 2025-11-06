@@ -167,13 +167,13 @@ public class HttpTransportTests
                         for (var index = 0; index < 3; index++)
                         {
                             var payload = Encoding.UTF8.GetBytes($"event-{index}");
-                            await streamCall.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
-                            await Task.Delay(TimeSpan.FromMilliseconds(20), cancellationToken).ConfigureAwait(false);
+                            await streamCall.WriteAsync(payload, cancellationToken);
+                            await Task.Delay(TimeSpan.FromMilliseconds(20), cancellationToken);
                         }
                     }
                     finally
                     {
-                        await streamCall.CompleteAsync().ConfigureAwait(false);
+                        await streamCall.CompleteAsync();
                     }
                 }, cancellationToken);
 
@@ -245,11 +245,11 @@ public class HttpTransportTests
                     try
                     {
                         var payload = new byte[] { 0x00, 0x01, 0x02 };
-                        await streamCall.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                        await streamCall.WriteAsync(payload, cancellationToken);
                     }
                     finally
                     {
-                        await streamCall.CompleteAsync().ConfigureAwait(false);
+                        await streamCall.CompleteAsync();
                     }
                 }, cancellationToken);
 
@@ -311,7 +311,7 @@ public class HttpTransportTests
                     try
                     {
                         var payload = Encoding.UTF8.GetBytes("this-payload-is-way-too-long");
-                        await call.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                        await call.WriteAsync(payload, cancellationToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -358,7 +358,7 @@ public class HttpTransportTests
                     throw new TimeoutException("Server stream did not complete.");
                 }
 
-                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(50, cancellationToken);
             }
         }
     }
@@ -391,12 +391,12 @@ public class HttpTransportTests
                 {
                     try
                     {
-                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken))
                         {
                             var decode = codec.DecodeRequest(payload, request.Meta);
                             if (decode.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken);
                                 return;
                             }
 
@@ -404,21 +404,21 @@ public class HttpTransportTests
                             var responsePayload = codec.EncodeResponse(message, call.ResponseMeta);
                             if (responsePayload.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(responsePayload.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(responsePayload.Error!, cancellationToken);
                                 return;
                             }
 
-                            await call.ResponseWriter.WriteAsync(responsePayload.Value, cancellationToken).ConfigureAwait(false);
+                            await call.ResponseWriter.WriteAsync(responsePayload.Value, cancellationToken);
                         }
 
-                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken);
                     }
                     catch (OperationCanceledException)
                     {
                         await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
                             OmniRelayStatusCode.Cancelled,
                             "cancelled",
-                            transport: "http"), CancellationToken.None).ConfigureAwait(false);
+                            transport: "http"), CancellationToken.None);
                     }
                 }, cancellationToken);
 
@@ -478,11 +478,11 @@ public class HttpTransportTests
                 _ = Task.Run(async () =>
                 {
                     // Avoid coupling to request cancellation to make test deterministic
-                    await Task.Delay(TimeSpan.FromMilliseconds(20), CancellationToken.None).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(20), CancellationToken.None);
                     await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
                         OmniRelayStatusCode.Cancelled,
                         "cancelled",
-                        transport: "http"), CancellationToken.None).ConfigureAwait(false);
+                        transport: "http"), CancellationToken.None);
                 }, CancellationToken.None);
 
                 return ValueTask.FromResult(Ok((IDuplexStreamCall)call));

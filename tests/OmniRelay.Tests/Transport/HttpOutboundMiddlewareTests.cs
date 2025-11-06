@@ -140,7 +140,7 @@ public class HttpOutboundMiddlewareTests
         {
             log.Add(id);
             onInvoke?.Invoke(context);
-            return await next(context, cancellationToken).ConfigureAwait(false);
+            return await next(context, cancellationToken);
         }
     }
 

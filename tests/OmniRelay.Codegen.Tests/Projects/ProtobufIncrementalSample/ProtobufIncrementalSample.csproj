@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <NoWarn>$(NoWarn);CA2007</NoWarn>
   <OutputType>Library</OutputType>
   </PropertyGroup>
 

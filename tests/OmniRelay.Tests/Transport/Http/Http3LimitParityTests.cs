@@ -130,8 +130,8 @@ public class Http3LimitParityTests
             {
                 try
                 {
-                    await stream.WriteAsync(_chunk.AsMemory(), default).ConfigureAwait(false);
-                    await stream.FlushAsync().ConfigureAwait(false);
+                    await stream.WriteAsync(_chunk.AsMemory(), default);
+                    await stream.FlushAsync();
                 }
                 catch (IOException)
                 {
@@ -144,7 +144,7 @@ public class Http3LimitParityTests
 
                 if (_delay > TimeSpan.Zero)
                 {
-                    await Task.Delay(_delay).ConfigureAwait(false);
+                    await Task.Delay(_delay);
                 }
             }
         }

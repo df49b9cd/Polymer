@@ -325,7 +325,7 @@ public class DispatcherTests
             async (context, cancellationToken) =>
             {
                 var totalBytes = 0;
-                await foreach (var payload in context.Requests.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                await foreach (var payload in context.Requests.ReadAllAsync(cancellationToken))
                 {
                     totalBytes += payload.Length;
                 }

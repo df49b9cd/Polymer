@@ -158,17 +158,17 @@ public class GrpcTransportTests
                             var encode = codec.EncodeResponse(response, streamCall.ResponseMeta);
                             if (encode.IsFailure)
                             {
-                                await streamCall.CompleteAsync(encode.Error!).ConfigureAwait(false);
+                                await streamCall.CompleteAsync(encode.Error!);
                                 return;
                             }
 
-                            await streamCall.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
-                            await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                            await streamCall.WriteAsync(encode.Value, cancellationToken);
+                            await Task.Delay(20, cancellationToken);
                         }
                     }
                     finally
                     {
-                        await streamCall.CompleteAsync().ConfigureAwait(false);
+                        await streamCall.CompleteAsync();
                     }
                 }, cancellationToken);
                 serverTasks.Track(backgroundTask);
@@ -245,7 +245,7 @@ public class GrpcTransportTests
                 using var unusedClient = new TcpClient();
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(200));
-                await unusedClient.ConnectAsync("127.0.0.1", unusedPort, timeoutCts.Token).ConfigureAwait(false);
+                await unusedClient.ConnectAsync("127.0.0.1", unusedPort, timeoutCts.Token);
             });
         }
         finally
@@ -493,24 +493,24 @@ public class GrpcTransportTests
                         var first = codec.EncodeResponse(new EchoResponse { Message = "first" }, streamCall.ResponseMeta);
                         if (first.IsFailure)
                         {
-                            await streamCall.CompleteAsync(first.Error!, cancellationToken).ConfigureAwait(false);
+                            await streamCall.CompleteAsync(first.Error!, cancellationToken);
                             return;
                         }
 
-                        await streamCall.WriteAsync(first.Value, cancellationToken).ConfigureAwait(false);
+                        await streamCall.WriteAsync(first.Value, cancellationToken);
 
                         var error = OmniRelayErrorAdapter.FromStatus(
                             OmniRelayStatusCode.Internal,
                             "stream failure",
                             transport: TransportName);
-                        await streamCall.CompleteAsync(error, cancellationToken).ConfigureAwait(false);
+                        await streamCall.CompleteAsync(error, cancellationToken);
                     }
                     catch (Exception ex)
                     {
                         await streamCall.CompleteAsync(OmniRelayErrorAdapter.FromStatus(
                             OmniRelayStatusCode.Internal,
                             ex.Message ?? "unexpected failure",
-                            transport: TransportName), cancellationToken).ConfigureAwait(false);
+                            transport: TransportName), cancellationToken);
                     }
                 }, cancellationToken);
 
@@ -777,7 +777,7 @@ public class GrpcTransportTests
                     try
                     {
                         var payload = Enumerable.Repeat((byte)0x42, 32).ToArray();
-                        await streamCall.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                        await streamCall.WriteAsync(payload, cancellationToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -836,7 +836,7 @@ public class GrpcTransportTests
                 var totalBytes = 0;
                 var reader = context.Requests;
 
-                while (await reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+                while (await reader.WaitToReadAsync(cancellationToken))
                 {
                     while (reader.TryRead(out var payload))
                     {
@@ -913,7 +913,7 @@ public class GrpcTransportTests
             "stream::aggregate",
             async (context, cancellationToken) =>
             {
-                await foreach (var _ in context.Requests.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                await foreach (var _ in context.Requests.ReadAllAsync(cancellationToken))
                 {
                     // Simply drain until cancellation.
                 }
@@ -970,7 +970,7 @@ public class GrpcTransportTests
             async (context, cancellationToken) =>
             {
                 Assert.True(context.Meta.Deadline.HasValue);
-                await foreach (var _ in context.Requests.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                await foreach (var _ in context.Requests.ReadAllAsync(cancellationToken))
                 {
                 }
 
@@ -1027,7 +1027,7 @@ public class GrpcTransportTests
             async (context, cancellationToken) =>
             {
                 var total = 0;
-                await foreach (var payload in context.Requests.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                await foreach (var payload in context.Requests.ReadAllAsync(cancellationToken))
                 {
                     var decode = codec.DecodeRequest(payload, context.Meta);
                     if (decode.IsFailure)
@@ -1099,7 +1099,7 @@ public class GrpcTransportTests
             async (context, cancellationToken) =>
             {
                 var chunks = 0;
-                await foreach (var payload in context.Requests.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                await foreach (var payload in context.Requests.ReadAllAsync(cancellationToken))
                 {
                     var decode = codec.DecodeRequest(payload, context.Meta);
                     if (decode.IsFailure)
@@ -1447,18 +1447,18 @@ public class GrpcTransportTests
                         var handshake = codec.EncodeResponse(new ChatMessage("ready"), call.ResponseMeta);
                         if (handshake.IsFailure)
                         {
-                            await call.CompleteResponsesAsync(handshake.Error!, cancellationToken).ConfigureAwait(false);
+                            await call.CompleteResponsesAsync(handshake.Error!, cancellationToken);
                             return;
                         }
 
-                        await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken).ConfigureAwait(false);
+                        await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken);
 
-                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken))
                         {
                             var decode = codec.DecodeRequest(payload, request.Meta);
                             if (decode.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken);
                                 return;
                             }
 
@@ -1466,21 +1466,21 @@ public class GrpcTransportTests
                             var encode = codec.EncodeResponse(response, call.ResponseMeta);
                             if (encode.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(encode.Error!, cancellationToken);
                                 return;
                             }
 
-                            await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
+                            await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken);
                         }
 
-                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken);
                     }
                     catch (Exception ex)
                     {
                         await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
                             OmniRelayStatusCode.Internal,
                             ex.Message ?? "stream processing failure",
-                            transport: TransportName), cancellationToken).ConfigureAwait(false);
+                            transport: TransportName), cancellationToken);
                     }
                 }, cancellationToken);
 
@@ -1551,7 +1551,7 @@ public class GrpcTransportTests
                     try
                     {
                         var payload = Enumerable.Repeat((byte)0x7A, 64).ToArray();
-                        await call.ResponseWriter.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                        await call.ResponseWriter.WriteAsync(payload, cancellationToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -1616,18 +1616,18 @@ public class GrpcTransportTests
                     var handshake = codec.EncodeResponse(new ChatMessage("ready"), call.ResponseMeta);
                     if (handshake.IsFailure)
                     {
-                        await call.CompleteResponsesAsync(handshake.Error!, cancellationToken).ConfigureAwait(false);
+                        await call.CompleteResponsesAsync(handshake.Error!, cancellationToken);
                         return;
                     }
 
-                    await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken).ConfigureAwait(false);
+                    await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken);
 
-                    await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                    await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken))
                     {
                         var decode = codec.DecodeRequest(payload, request.Meta);
                         if (decode.IsFailure)
                         {
-                            await call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
+                            await call.CompleteResponsesAsync(decode.Error!, cancellationToken);
                             return;
                         }
 
@@ -1635,17 +1635,17 @@ public class GrpcTransportTests
                         var encode = codec.EncodeResponse(response, call.ResponseMeta);
                         if (encode.IsFailure)
                         {
-                            await call.CompleteResponsesAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
+                            await call.CompleteResponsesAsync(encode.Error!, cancellationToken);
                             return;
                         }
 
-                        await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
+                        await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken);
 
                         var error = OmniRelayErrorAdapter.FromStatus(
                             OmniRelayStatusCode.Cancelled,
                             "server cancelled",
                             transport: TransportName);
-                        await call.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
+                        await call.CompleteResponsesAsync(error, cancellationToken);
                         return;
                     }
                 }, cancellationToken);
@@ -1729,18 +1729,18 @@ public class GrpcTransportTests
                         var handshake = codec.EncodeResponse(new ChatMessage("ready"), call.ResponseMeta);
                         if (handshake.IsFailure)
                         {
-                            await call.CompleteResponsesAsync(handshake.Error!, cancellationToken).ConfigureAwait(false);
+                            await call.CompleteResponsesAsync(handshake.Error!, cancellationToken);
                             return;
                         }
 
-                        await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken).ConfigureAwait(false);
+                        await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken);
 
-                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken))
                         {
                             var decode = codec.DecodeRequest(payload, request.Meta);
                             if (decode.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken);
                                 return;
                             }
 
@@ -1748,11 +1748,11 @@ public class GrpcTransportTests
                             var encode = codec.EncodeResponse(response, call.ResponseMeta);
                             if (encode.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(encode.Error!, cancellationToken);
                                 return;
                             }
 
-                            await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
+                            await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken);
                         }
                     }
                     catch (OperationCanceledException)
@@ -1761,7 +1761,7 @@ public class GrpcTransportTests
                     }
                     finally
                     {
-                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken);
                     }
                 }, cancellationToken);
 
@@ -1838,21 +1838,21 @@ public class GrpcTransportTests
                         var handshake = codec.EncodeResponse(new ChatMessage("ready"), call.ResponseMeta);
                         if (handshake.IsFailure)
                         {
-                            await call.CompleteResponsesAsync(handshake.Error!, cancellationToken).ConfigureAwait(false);
+                            await call.CompleteResponsesAsync(handshake.Error!, cancellationToken);
                             return;
                         }
 
-                        await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken).ConfigureAwait(false);
+                        await call.ResponseWriter.WriteAsync(handshake.Value, cancellationToken);
 
-                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                        await foreach (var payload in call.RequestReader.ReadAllAsync(cancellationToken))
                         {
                             index++;
-                            await Task.Delay(15, cancellationToken).ConfigureAwait(false);
+                            await Task.Delay(15, cancellationToken);
 
                             var decode = codec.DecodeRequest(payload, request.Meta);
                             if (decode.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(decode.Error!, cancellationToken);
                                 return;
                             }
 
@@ -1860,21 +1860,21 @@ public class GrpcTransportTests
                             var encode = codec.EncodeResponse(response, call.ResponseMeta);
                             if (encode.IsFailure)
                             {
-                                await call.CompleteResponsesAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
+                                await call.CompleteResponsesAsync(encode.Error!, cancellationToken);
                                 return;
                             }
 
-                            await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
+                            await call.ResponseWriter.WriteAsync(encode.Value, cancellationToken);
                         }
 
-                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken);
                     }
                     catch (Exception ex)
                     {
                         await call.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
                             OmniRelayStatusCode.Internal,
                             ex.Message ?? "flow-control failure",
-                            transport: TransportName), cancellationToken).ConfigureAwait(false);
+                            transport: TransportName), cancellationToken);
                     }
                 }, cancellationToken);
 
@@ -2060,24 +2060,24 @@ public class GrpcTransportTests
                         var encodeResult = codec.EncodeResponse(new EchoResponse { Message = "first" }, streamCall.ResponseMeta);
                         if (encodeResult.IsFailure)
                         {
-                            await streamCall.CompleteAsync(encodeResult.Error!, cancellationToken).ConfigureAwait(false);
+                            await streamCall.CompleteAsync(encodeResult.Error!, cancellationToken);
                             return;
                         }
 
-                        await streamCall.WriteAsync(encodeResult.Value, cancellationToken).ConfigureAwait(false);
+                        await streamCall.WriteAsync(encodeResult.Value, cancellationToken);
 
                         var secondEncode = codec.EncodeResponse(new EchoResponse { Message = "second" }, streamCall.ResponseMeta);
                         if (secondEncode.IsFailure)
                         {
-                            await streamCall.CompleteAsync(secondEncode.Error!, cancellationToken).ConfigureAwait(false);
+                            await streamCall.CompleteAsync(secondEncode.Error!, cancellationToken);
                             return;
                         }
 
-                        await streamCall.WriteAsync(secondEncode.Value, cancellationToken).ConfigureAwait(false);
+                        await streamCall.WriteAsync(secondEncode.Value, cancellationToken);
                     }
                     finally
                     {
-                        await streamCall.CompleteAsync().ConfigureAwait(false);
+                        await streamCall.CompleteAsync();
                     }
                 }, cancellationToken);
 
@@ -2659,10 +2659,9 @@ public class GrpcTransportTests
             {
                 using var client = new TcpClient();
                 await client.ConnectAsync(address.Host, address.Port)
-                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken)
-                            .ConfigureAwait(false);
+                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken);
 
-                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken);
                 return;
             }
             catch (SocketException)
@@ -2674,7 +2673,7 @@ public class GrpcTransportTests
                 // Connection attempt timed out; retry.
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken);
         }
 
         throw new TimeoutException("The gRPC inbound failed to bind within the allotted time.");
@@ -2729,7 +2728,7 @@ public class GrpcTransportTests
 
             try
             {
-                await Task.WhenAll(toAwait).ConfigureAwait(false);
+                await Task.WhenAll(toAwait);
             }
             catch (OperationCanceledException)
             {

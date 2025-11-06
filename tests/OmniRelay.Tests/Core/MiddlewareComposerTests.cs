@@ -99,7 +99,7 @@ public class MiddlewareComposerTests
             UnaryOutboundDelegate next)
         {
             _transcript.Add($"before:{_name}");
-            var result = await next(request, cancellationToken).ConfigureAwait(false);
+            var result = await next(request, cancellationToken);
             _transcript.Add($"after:{_name}");
             return result;
         }
@@ -116,7 +116,7 @@ public class MiddlewareComposerTests
             ClientStreamOutboundDelegate next)
         {
             _transcript.Add($"before:{_name}");
-            var result = await next(requestMeta, cancellationToken).ConfigureAwait(false);
+            var result = await next(requestMeta, cancellationToken);
             _transcript.Add($"after:{_name}");
             return result;
         }

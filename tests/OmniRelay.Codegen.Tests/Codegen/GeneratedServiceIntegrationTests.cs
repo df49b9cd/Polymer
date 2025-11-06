@@ -132,10 +132,9 @@ public class GeneratedServiceIntegrationTests
             {
                 using var client = new TcpClient();
                 await client.ConnectAsync(address.Host, address.Port)
-                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken)
-                            .ConfigureAwait(false);
+                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken);
 
-                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken);
                 return;
             }
             catch (SocketException)
@@ -145,7 +144,7 @@ public class GeneratedServiceIntegrationTests
             {
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken);
         }
 
         throw new TimeoutException("The gRPC inbound failed to bind within the allotted time.");

@@ -93,10 +93,9 @@ public sealed class HttpIntrospectionTests
             {
                 using var client = new TcpClient();
                 await client.ConnectAsync(address.Host, address.Port)
-                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken)
-                            .ConfigureAwait(false);
+                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken);
 
-                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken);
                 return;
             }
             catch (SocketException)
@@ -108,7 +107,7 @@ public sealed class HttpIntrospectionTests
                 // Connection attempt timed out; retry.
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken);
         }
 
         throw new TimeoutException("The HTTP inbound failed to bind within the allotted time.");

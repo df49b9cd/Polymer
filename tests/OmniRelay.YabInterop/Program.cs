@@ -46,7 +46,7 @@ for (var index = 0; index < args.Length; index++)
 
 if (!string.IsNullOrEmpty(descriptorOutput))
 {
-    await WriteDescriptorAsync(descriptorOutput!).ConfigureAwait(false);
+    await WriteDescriptorAsync(descriptorOutput!);
     return;
 }
 
@@ -108,7 +108,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
 
 try
 {
-    await dispatcher.StartAsync(cts.Token).ConfigureAwait(false);
+    await dispatcher.StartAsync(cts.Token);
 
     if (enableHttp)
     {
@@ -124,7 +124,7 @@ try
     {
         try
         {
-            await Task.Delay(TimeSpan.FromSeconds(durationSeconds), cts.Token).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromSeconds(durationSeconds), cts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -133,7 +133,7 @@ try
     }
     else
     {
-        await Task.Delay(Timeout.InfiniteTimeSpan, cts.Token).ConfigureAwait(false);
+        await Task.Delay(Timeout.InfiniteTimeSpan, cts.Token);
     }
 }
 catch (OperationCanceledException)
@@ -142,7 +142,7 @@ catch (OperationCanceledException)
 }
 finally
 {
-    await dispatcher.StopAsync(CancellationToken.None).ConfigureAwait(false);
+    await dispatcher.StopAsync(CancellationToken.None);
 }
 
 static async Task WriteDescriptorAsync(string outputPath)
@@ -158,7 +158,7 @@ static async Task WriteDescriptorAsync(string outputPath)
 
     await using var stream = File.Create(outputPath);
     descriptorSet.WriteTo(stream);
-    await stream.FlushAsync().ConfigureAwait(false);
+    await stream.FlushAsync();
     Console.WriteLine($"Wrote protobuf descriptor to {outputPath}");
 }
 

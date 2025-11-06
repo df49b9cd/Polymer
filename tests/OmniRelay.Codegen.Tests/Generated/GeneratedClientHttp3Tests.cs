@@ -219,7 +219,7 @@ public class GeneratedClientHttp3Tests
             {
                 _observed.Enqueue(httpContext.Request.Protocol);
             }
-            return await continuation(request, context).ConfigureAwait(false);
+            return await continuation(request, context);
         }
     }
 }

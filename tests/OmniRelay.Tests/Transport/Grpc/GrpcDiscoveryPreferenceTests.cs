@@ -132,17 +132,16 @@ public class GrpcDiscoveryPreferenceTests
             {
                 using var client = new System.Net.Sockets.TcpClient();
                 await client.ConnectAsync(address.Host, address.Port)
-                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken)
-                            .ConfigureAwait(false);
+                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken);
 
-                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken);
                 return;
             }
             catch
             {
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken);
         }
 
         throw new TimeoutException("The gRPC inbound failed to bind within the allotted time.");
@@ -176,7 +175,7 @@ public class GrpcDiscoveryPreferenceTests
                 _observed.Enqueue(httpContext.Request.Protocol);
             }
 
-            return await continuation(request, context).ConfigureAwait(false);
+            return await continuation(request, context);
         }
     }
 }
