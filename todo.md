@@ -171,14 +171,14 @@
 
 ## Testing & Validation
 
-- [ ] Add integration tests that exercise HTTP/3 requests using `HttpClient` with `RequestVersionOrHigher` and validate fallback to HTTP/2 when QUIC is disabled.
-  - [ ] Implement test fixtures spinning up HTTP/3-enabled Kestrel instances.
-  - [ ] Write tests covering success, fallback, and failure paths.
-  - [ ] Integrate tests into CI matrix (Windows/Linux).
-- [ ] Add gRPC client/server integration tests that force HTTP/3 (using gRPC-dotnet HTTP/3 configuration) and assert interceptor behavior, deadlines, streaming semantics, and metadata parity.
-  - [ ] Create gRPC test harness exercising unary/streaming calls over HTTP/3.
-  - [ ] Validate interceptors and deadlines behave identically to HTTP/2 baseline.
-  - [ ] Add assertions for metadata and status code parity.
+- [x] Add integration tests that exercise HTTP/3 requests using `HttpClient` with `RequestVersionOrHigher` and validate fallback to HTTP/2 when QUIC is disabled.
+  - [x] Implement test fixtures spinning up HTTP/3-enabled Kestrel instances.
+  - [x] Write tests covering success, fallback, and failure paths.
+  - [x] Integrate tests into CI matrix (Windows/Linux).
+- [x] Add gRPC client/server integration tests that force HTTP/3 (using gRPC-dotnet HTTP/3 configuration) and assert interceptor behavior, deadlines, streaming semantics, and metadata parity.
+  - [x] Create gRPC test harness exercising unary/streaming calls over HTTP/3.
+  - [x] Validate interceptors and deadlines behave identically to HTTP/2 baseline.
+  - [x] Add assertions for metadata and status code parity.
 - [ ] Update protobuf-generated service tests to cover HTTP/3 call paths and ensure generated clients honor HTTP/3 configuration defaults.
   - [ ] Regenerate sample services with updated templates.
   - [ ] Add tests that instantiate generated clients configured for HTTP/3.
