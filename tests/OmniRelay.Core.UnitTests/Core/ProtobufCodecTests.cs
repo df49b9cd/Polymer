@@ -1,4 +1,6 @@
 using System.Text;
+using Google.Protobuf;
+using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
 using OmniRelay.Core;
 using OmniRelay.Errors;
@@ -104,5 +106,97 @@ public class ProtobufCodecTests
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(defaultEncoding: ProtobufEncoding.ApplicationJson);
         Assert.Equal(ProtobufEncoding.ApplicationJson, codec.Encoding);
+    }
+
+    [Fact]
+    public void EncodeRequest_GeneralExceptionReturnsInternal()
+    {
+        var codec = new ProtobufCodec<ThrowingMessage, ThrowingMessage>();
+        var meta = new RequestMeta(service: "svc", procedure: "p", encoding: ProtobufEncoding.Protobuf);
+
+        var result = codec.EncodeRequest(new ThrowingMessage(), meta);
+
+        Assert.True(result.IsFailure);
+        var error = result.Error!;
+        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(error));
+        Assert.Equal("encode-request", error.Metadata["stage"]);
+        Assert.Equal(ProtobufEncoding.Protobuf, error.Metadata["encoding"]);
+    }
+
+    [Fact]
+    public void DecodeRequest_GeneralExceptionReturnsInternal()
+    {
+        var codec = new ProtobufCodec<ThrowingMessage, ThrowingMessage>();
+        var meta = new RequestMeta(service: "svc", procedure: "p", encoding: ProtobufEncoding.Protobuf);
+
+        var result = codec.DecodeRequest(new byte[] { 0x01 }, meta);
+
+        Assert.True(result.IsFailure);
+        var error = result.Error!;
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
+        Assert.Equal("decode-request", error.Metadata["stage"]);
+        Assert.Equal(ProtobufEncoding.Protobuf, error.Metadata["encoding"]);
+        Assert.Equal(typeof(InvalidProtocolBufferException).FullName, error.Metadata["exceptionType"]);
+    }
+
+    [Fact]
+    public void EncodeResponse_RejectsJsonWhenDisabled()
+    {
+        var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: false);
+        var meta = new ResponseMeta { Encoding = ProtobufEncoding.ApplicationJson };
+
+        var result = codec.EncodeResponse(new StringValue { Value = "test" }, meta);
+
+        Assert.True(result.IsFailure);
+        var error = result.Error!;
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
+        Assert.Equal("encode-response", error.Metadata["stage"]);
+        Assert.Equal(ProtobufEncoding.ApplicationJson, error.Metadata["encoding"]);
+    }
+
+    [Fact]
+    public void DecodeResponse_InvalidJsonReturnsInvalidArgument()
+    {
+        var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: true);
+        var meta = new ResponseMeta { Encoding = ProtobufEncoding.ApplicationJson };
+
+        var result = codec.DecodeResponse(Encoding.UTF8.GetBytes("{invalid json"), meta);
+
+        Assert.True(result.IsFailure);
+        var error = result.Error!;
+        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
+        Assert.Equal("decode-response", error.Metadata["stage"]);
+        Assert.Equal(ProtobufEncoding.ApplicationJson, error.Metadata["encoding"]);
+    }
+
+    private sealed class ThrowingMessage : IMessage<ThrowingMessage>
+    {
+        public ThrowingMessage()
+        {
+        }
+
+        public ThrowingMessage(ThrowingMessage other)
+        {
+        }
+
+        public ThrowingMessage Clone() => new ThrowingMessage(this);
+
+        public bool Equals(ThrowingMessage? other) => ReferenceEquals(this, other);
+
+        public override bool Equals(object? obj) => obj is ThrowingMessage;
+
+        public override int GetHashCode() => 0;
+
+        MessageDescriptor IMessage.Descriptor => StringValue.Descriptor;
+
+        public int CalculateSize() => 0;
+
+        public void MergeFrom(ThrowingMessage message)
+        {
+        }
+
+        public void MergeFrom(CodedInputStream input) => throw new Exception("merge failure");
+
+        public void WriteTo(CodedOutputStream output) => throw new Exception("write failure");
     }
 }
