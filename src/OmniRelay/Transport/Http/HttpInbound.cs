@@ -8,6 +8,7 @@ using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Channels;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -1150,7 +1151,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
                 catch (Exception ex)
                 {
-                    var omni = OmniRelayErrors.FromException(ex, transport);
+                    var actual = UnwrapChannelClosed(ex);
+                    var omni = OmniRelayErrors.FromException(actual, transport);
                     var error = omni.Error;
                     await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
                     await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
@@ -1208,7 +1210,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
                 }
                 catch (Exception ex)
                 {
-                    var omni = OmniRelayErrors.FromException(ex, transport);
+                    var actual = UnwrapChannelClosed(ex);
+                    var omni = OmniRelayErrors.FromException(actual, transport);
                     var error = omni.Error;
                     await HttpDuplexProtocol.SendFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
                     await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
@@ -1253,6 +1256,11 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             timeoutCts?.Dispose();
         }
     }
+
+    private static Exception UnwrapChannelClosed(Exception exception) =>
+        exception is ChannelClosedException { InnerException: { } inner }
+            ? inner
+            : exception;
 
     private static async ValueTask FlushPipeAsync(PipeWriter writer, CancellationToken baseToken, TimeSpan? timeout)
     {

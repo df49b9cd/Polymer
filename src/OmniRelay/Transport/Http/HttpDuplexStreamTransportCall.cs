@@ -163,7 +163,8 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            var omni = OmniRelayErrors.FromException(ex, _transport);
+            var actual = UnwrapChannelClosed(ex);
+            var omni = OmniRelayErrors.FromException(actual, _transport);
             var error = omni.Error;
             await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
             await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
@@ -247,8 +248,14 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
         catch (Exception ex)
         {
-            var omni = OmniRelayErrors.FromException(ex, _transport);
+            var actual = UnwrapChannelClosed(ex);
+            var omni = OmniRelayErrors.FromException(actual, _transport);
             await _inner.CompleteResponsesAsync(omni.Error, CancellationToken.None).ConfigureAwait(false);
         }
     }
+
+    private static Exception UnwrapChannelClosed(Exception exception) =>
+        exception is ChannelClosedException { InnerException: { } inner }
+            ? inner
+            : exception;
 }
