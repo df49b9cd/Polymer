@@ -7,3 +7,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("OmniRelay.Tests")]
 [assembly: InternalsVisibleTo("OmniRelay.Codegen.Tests")]
 [assembly: InternalsVisibleTo("OmniRelay.Core.UnitTests")]
+[assembly: InternalsVisibleTo("OmniRelay.Dispatcher.UnitTests")]
