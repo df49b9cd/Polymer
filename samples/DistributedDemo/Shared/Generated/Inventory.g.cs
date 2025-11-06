@@ -82,14 +82,12 @@ namespace DistributedDemo.Inventory.Protos {
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ReserveSkuRequest Clone() {
-      return new ReserveSkuRequest(this);
-    }
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public ReserveSkuRequest Clone() => new ReserveSkuRequest(this);
 
-    /// <summary>Field number for the "sku" field.</summary>
-    public const int SkuFieldNumber = 1;
+        /// <summary>Field number for the "sku" field.</summary>
+        public const int SkuFieldNumber = 1;
     private string sku_ = "";
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -124,13 +122,11 @@ namespace DistributedDemo.Inventory.Protos {
       }
     }
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as ReserveSkuRequest);
-    }
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override bool Equals(object other) => Equals(other as ReserveSkuRequest);
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool Equals(ReserveSkuRequest other) {
       if (ReferenceEquals(other, null)) {
@@ -158,13 +154,11 @@ namespace DistributedDemo.Inventory.Protos {
       return hash;
     }
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override string ToString() => pb::JsonFormatter.ToDiagnosticString(this);
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void WriteTo(pb::CodedOutputStream output) {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -354,14 +348,12 @@ namespace DistributedDemo.Inventory.Protos {
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ReserveSkuResponse Clone() {
-      return new ReserveSkuResponse(this);
-    }
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public ReserveSkuResponse Clone() => new ReserveSkuResponse(this);
 
-    /// <summary>Field number for the "confirmation_id" field.</summary>
-    public const int ConfirmationIdFieldNumber = 1;
+        /// <summary>Field number for the "confirmation_id" field.</summary>
+        public const int ConfirmationIdFieldNumber = 1;
     private string confirmationId_ = "";
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -396,13 +388,11 @@ namespace DistributedDemo.Inventory.Protos {
       }
     }
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as ReserveSkuResponse);
-    }
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override bool Equals(object other) => Equals(other as ReserveSkuResponse);
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool Equals(ReserveSkuResponse other) {
       if (ReferenceEquals(other, null)) {
@@ -430,13 +420,11 @@ namespace DistributedDemo.Inventory.Protos {
       return hash;
     }
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public override string ToString() => pb::JsonFormatter.ToDiagnosticString(this);
 
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void WriteTo(pb::CodedOutputStream output) {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE

@@ -62,10 +62,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
     public IReadOnlyCollection<string> Urls =>
         _app?.Urls as IReadOnlyCollection<string> ?? [];
 
-    public void Bind(Dispatcher.Dispatcher dispatcher)
-    {
-        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
-    }
+    public void Bind(Dispatcher.Dispatcher dispatcher) => _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {

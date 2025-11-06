@@ -243,7 +243,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return Err<Response<ReadOnlyMemory<byte>>>(acquireResult.Error!);
         }
 
-    var (lease, peer, usedPreferred) = acquireResult.Value;
+        var (lease, peer, usedPreferred) = acquireResult.Value;
         await using var _ = lease.ConfigureAwait(false);
 
         using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, "unary");

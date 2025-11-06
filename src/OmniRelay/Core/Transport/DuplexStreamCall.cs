@@ -60,10 +60,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
 
     public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _responses.Reader;
 
-    public void SetResponseMeta(ResponseMeta meta)
-    {
-        ResponseMeta = meta ?? new ResponseMeta();
-    }
+    public void SetResponseMeta(ResponseMeta meta) => ResponseMeta = meta ?? new ResponseMeta();
 
     public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default)
     {

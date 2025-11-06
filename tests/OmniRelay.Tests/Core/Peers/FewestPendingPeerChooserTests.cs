@@ -61,9 +61,6 @@ public sealed class FewestPendingPeerChooserTests
             }
         }
 
-        public void Release(bool success)
-        {
-            Interlocked.Decrement(ref _inflight);
-        }
+        public void Release(bool success) => Interlocked.Decrement(ref _inflight);
     }
 }

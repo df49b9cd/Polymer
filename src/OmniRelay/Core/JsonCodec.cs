@@ -280,14 +280,11 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
     }
 
-    private IReadOnlyDictionary<string, object?> BuildExceptionMetadata(Exception exception, string stage)
+    private IReadOnlyDictionary<string, object?> BuildExceptionMetadata(Exception exception, string stage) => new Dictionary<string, object?>
     {
-        return new Dictionary<string, object?>
-        {
-            ["encoding"] = Encoding,
-            ["stage"] = stage,
-            ["exceptionType"] = exception.GetType().FullName,
-            ["exceptionMessage"] = exception.Message
-        };
-    }
+        ["encoding"] = Encoding,
+        ["stage"] = stage,
+        ["exceptionType"] = exception.GetType().FullName,
+        ["exceptionMessage"] = exception.Message
+    };
 }

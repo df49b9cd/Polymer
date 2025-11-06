@@ -126,11 +126,11 @@ public class Http3OrHigherFallbackTests
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
         };
 
-    // ApplicationProtocols collection is initialized by SslClientAuthenticationOptions
-    _ = options.ApplicationProtocols ?? throw new InvalidOperationException("ApplicationProtocols collection was null.");
-    options.ApplicationProtocols!.Add(SslApplicationProtocol.Http3);
-    options.ApplicationProtocols!.Add(SslApplicationProtocol.Http2);
-    options.ApplicationProtocols!.Add(SslApplicationProtocol.Http11);
+        // ApplicationProtocols collection is initialized by SslClientAuthenticationOptions
+        _ = options.ApplicationProtocols ?? throw new InvalidOperationException("ApplicationProtocols collection was null.");
+        options.ApplicationProtocols!.Add(SslApplicationProtocol.Http3);
+        options.ApplicationProtocols!.Add(SslApplicationProtocol.Http2);
+        options.ApplicationProtocols!.Add(SslApplicationProtocol.Http11);
         return options;
     }
 

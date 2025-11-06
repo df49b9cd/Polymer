@@ -360,10 +360,7 @@ public sealed class RpcMetricsMiddleware :
         }
     }
 
-    private static KeyValuePair<string, object?>[] CreateBaseTags(string direction, string rpcType, RequestMeta meta)
-    {
-        return
-        [
+    private static KeyValuePair<string, object?>[] CreateBaseTags(string direction, string rpcType, RequestMeta meta) => [
             new KeyValuePair<string, object?>("rpc.direction", direction),
             new KeyValuePair<string, object?>("rpc.type", rpcType),
             new KeyValuePair<string, object?>("rpc.service", meta.Service),
@@ -372,7 +369,6 @@ public sealed class RpcMetricsMiddleware :
             new KeyValuePair<string, object?>("rpc.encoding", meta.Encoding ?? "unknown"),
             new KeyValuePair<string, object?>("rpc.caller", meta.Caller ?? string.Empty)
         ];
-    }
 
     private void RecordSuccess(double durationMs, KeyValuePair<string, object?>[] tags)
     {

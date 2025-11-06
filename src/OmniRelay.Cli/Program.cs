@@ -1984,10 +1984,7 @@ public static class Program
         }
     }
 
-    private static void PrintMiddlewareLine(string label, IReadOnlyList<string> inbound, IReadOnlyList<string> outbound)
-    {
-        Console.WriteLine($"  {label}: inbound[{inbound.Count}] outbound[{outbound.Count}]");
-    }
+    private static void PrintMiddlewareLine(string label, IReadOnlyList<string> inbound, IReadOnlyList<string> outbound) => Console.WriteLine($"  {label}: inbound[{inbound.Count}] outbound[{outbound.Count}]");
 
     private static bool TryParseHeaders(IEnumerable<string> values, out List<KeyValuePair<string, string>> headers, out string? error)
     {
@@ -2595,16 +2592,13 @@ public static class Program
         _ => true
     };
 
-    private static bool ReadBoolean(JsonElement element)
+    private static bool ReadBoolean(JsonElement element) => element.ValueKind switch
     {
-        return element.ValueKind switch
-        {
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.String => bool.Parse(element.GetString() ?? "false"),
-            _ => throw new InvalidOperationException("Expected boolean value."),
-        };
-    }
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.String => bool.Parse(element.GetString() ?? "false"),
+        _ => throw new InvalidOperationException("Expected boolean value."),
+    };
 
     private static int ReadInt32(JsonElement element, string fieldName)
     {

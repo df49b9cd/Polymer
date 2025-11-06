@@ -1267,10 +1267,7 @@ internal sealed class DispatcherBuilder
         };
     }
 
-    private void ConfigureEncodings(DispatcherOptions dispatcherOptions)
-    {
-        ConfigureJsonEncodings(dispatcherOptions);
-    }
+    private void ConfigureEncodings(DispatcherOptions dispatcherOptions) => ConfigureJsonEncodings(dispatcherOptions);
 
     private void ConfigureJsonEncodings(DispatcherOptions dispatcherOptions)
     {

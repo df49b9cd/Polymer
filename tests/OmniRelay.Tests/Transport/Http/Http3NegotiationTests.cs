@@ -262,12 +262,10 @@ public class Http3NegotiationTests
         }
     }
 
-    private static SocketsHttpHandler CreateHttp3Handler()
+    private static SocketsHttpHandler CreateHttp3Handler() => new()
     {
-        return new SocketsHttpHandler
-        {
-            AllowAutoRedirect = false,
-            SslOptions =
+        AllowAutoRedirect = false,
+        SslOptions =
             {
                 RemoteCertificateValidationCallback = (_, _, _, _) => true,
                 EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
@@ -278,17 +276,13 @@ public class Http3NegotiationTests
                     SslApplicationProtocol.Http11
                 }
             }
-        };
-    }
+    };
 
-    private static HttpClientHandler CreateHttp11Handler()
+    private static HttpClientHandler CreateHttp11Handler() => new()
     {
-        return new HttpClientHandler
-        {
-            AllowAutoRedirect = false,
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
-        };
-    }
+        AllowAutoRedirect = false,
+        ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+    };
 
     private static X509Certificate2 CreateSelfSigned(string subjectName)
     {

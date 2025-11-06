@@ -18,17 +18,17 @@ public sealed class GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterc
         var methodName = context.Method.FullName;
         var startTimestamp = Stopwatch.GetTimestamp();
 
-    var requestMeta = GrpcLoggingScopeHelper.CreateClientRequestMeta(context);
-    using var scope = RequestLoggingScope.Begin(_logger, requestMeta);
-    var baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
+        var requestMeta = GrpcLoggingScopeHelper.CreateClientRequestMeta(context);
+        using var scope = RequestLoggingScope.Begin(_logger, requestMeta);
+        var baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
             _logger.LogInformation("Starting gRPC client unary call {Method}", methodName);
         }
 
-    var call = continuation(request, context);
-    var responseAsync = LogAsync(call.ResponseAsync, methodName, startTimestamp, baseTags);
+        var call = continuation(request, context);
+        var responseAsync = LogAsync(call.ResponseAsync, methodName, startTimestamp, baseTags);
 
         return new AsyncUnaryCall<TResponse>(
             responseAsync,
@@ -103,9 +103,9 @@ public sealed class GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterc
         var methodName = context.Method;
         var startTimestamp = Stopwatch.GetTimestamp();
 
-    var requestMeta = GrpcLoggingScopeHelper.CreateServerRequestMeta(context);
-    using var scope = RequestLoggingScope.Begin(_logger, requestMeta);
-    var baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
+        var requestMeta = GrpcLoggingScopeHelper.CreateServerRequestMeta(context);
+        using var scope = RequestLoggingScope.Begin(_logger, requestMeta);
+        var baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
 
         if (_logger.IsEnabled(LogLevel.Information))
         {

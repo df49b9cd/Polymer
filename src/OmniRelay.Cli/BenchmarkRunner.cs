@@ -443,10 +443,7 @@ internal static class BenchmarkRunner
             return RequestCallResult.FromFailure(FormatError(result.Error!, "grpc"));
         }
 
-        public async ValueTask DisposeAsync()
-        {
-            await _outbound.StopAsync(CancellationToken.None).ConfigureAwait(false);
-        }
+        public async ValueTask DisposeAsync() => await _outbound.StopAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     private readonly record struct RequestCallResult(bool Success, string? Error)

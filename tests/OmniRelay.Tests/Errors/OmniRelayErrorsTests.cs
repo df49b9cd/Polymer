@@ -47,10 +47,7 @@ public class OmniRelayErrorsTests
     [InlineData(OmniRelayStatusCode.Unimplemented, OmniRelayFaultType.Server)]
     [InlineData(OmniRelayStatusCode.Aborted, OmniRelayFaultType.Client)]
     [InlineData(OmniRelayStatusCode.Unknown, OmniRelayFaultType.Unknown)]
-    public void GetFaultType_ReturnsExpectedClassification(OmniRelayStatusCode status, OmniRelayFaultType expected)
-    {
-        Assert.Equal(expected, OmniRelayErrors.GetFaultType(status));
-    }
+    public void GetFaultType_ReturnsExpectedClassification(OmniRelayStatusCode status, OmniRelayFaultType expected) => Assert.Equal(expected, OmniRelayErrors.GetFaultType(status));
 
     [Fact]
     public void ToResult_StatusProducesFailure()

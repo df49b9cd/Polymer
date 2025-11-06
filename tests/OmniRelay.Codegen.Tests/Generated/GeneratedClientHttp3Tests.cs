@@ -10,13 +10,12 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
-using OmniRelay.Transport.Grpc;
 using OmniRelay.Tests.Protos;
+using OmniRelay.Transport.Grpc;
 using Xunit;
-using Microsoft.Extensions.DependencyInjection;
-
 using static Hugo.Go;
 
 namespace OmniRelay.Tests.Codegen;
@@ -32,7 +31,7 @@ public class GeneratedClientHttp3Tests
         }
 
         using var certificate = CreateSelfSigned("CN=omnirelay-codegen-http3");
-    var port = GetFreeTcpPort();
+        var port = GetFreeTcpPort();
         var address = new Uri($"https://127.0.0.1:{port}");
 
         var observed = new ConcurrentQueue<string>();
@@ -56,7 +55,7 @@ public class GeneratedClientHttp3Tests
         options.AddLifecycle("inbound", inbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
-    OmniRelay.Tests.Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
+        OmniRelay.Tests.Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartAsync(ct);
@@ -93,7 +92,7 @@ public class GeneratedClientHttp3Tests
     public async Task GeneratedClient_Unary_FallsBack_ToHttp2_WhenServerDisablesHttp3()
     {
         using var certificate = CreateSelfSigned("CN=omnirelay-codegen-http2");
-    var port = GetFreeTcpPort();
+        var port = GetFreeTcpPort();
         var address = new Uri($"https://127.0.0.1:{port}");
 
         var observed = new ConcurrentQueue<string>();
@@ -117,7 +116,7 @@ public class GeneratedClientHttp3Tests
         options.AddLifecycle("inbound-h2", inbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
-    OmniRelay.Tests.Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
+        OmniRelay.Tests.Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartAsync(ct);
@@ -159,10 +158,7 @@ public class GeneratedClientHttp3Tests
         public ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request, CancellationToken cancellationToken)
             => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = request.Body.Message }, new ResponseMeta()));
 
-        public async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken)
-        {
-            await stream.WriteAsync(new StreamResponse { Value = request.Body.Value }, cancellationToken);
-        }
+        public async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken) => await stream.WriteAsync(new StreamResponse { Value = request.Body.Value }, cancellationToken);
 
         public ValueTask<Response<UnaryResponse>> ClientStreamAsync(ProtobufCallAdapters.ProtobufClientStreamContext<StreamRequest, UnaryResponse> context, CancellationToken cancellationToken)
             => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = "ok" }, new ResponseMeta()));

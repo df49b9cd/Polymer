@@ -70,9 +70,6 @@ public sealed class RoundRobinPeerChooserTests
             }
         }
 
-        public void Release(bool success)
-        {
-            Interlocked.Decrement(ref _inflight);
-        }
+        public void Release(bool success) => Interlocked.Decrement(ref _inflight);
     }
 }

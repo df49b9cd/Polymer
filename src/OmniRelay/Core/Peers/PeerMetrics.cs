@@ -35,10 +35,7 @@ internal static class PeerMetrics
     private static readonly Counter<long> RetrySucceededCounter =
         Meter.CreateCounter<long>("yarpcore.retry.succeeded", unit: "requests", description: "Requests that succeeded after one or more retries.");
 
-    internal static void RecordLeaseAcquired(RequestMeta meta, string peerIdentifier)
-    {
-        InflightCounter.Add(1, CreatePeerTags(meta, peerIdentifier));
-    }
+    internal static void RecordLeaseAcquired(RequestMeta meta, string peerIdentifier) => InflightCounter.Add(1, CreatePeerTags(meta, peerIdentifier));
 
     internal static void RecordLeaseReleased(RequestMeta meta, string peerIdentifier, bool success, double durationMilliseconds)
     {
@@ -63,10 +60,7 @@ internal static class PeerMetrics
         LeaseRejectedCounter.Add(1, tags);
     }
 
-    internal static void RecordPoolExhausted(RequestMeta meta)
-    {
-        PoolExhaustedCounter.Add(1, CreatePeerTags(meta, peerIdentifier: string.Empty));
-    }
+    internal static void RecordPoolExhausted(RequestMeta meta) => PoolExhaustedCounter.Add(1, CreatePeerTags(meta, peerIdentifier: string.Empty));
 
     internal static void RecordRetryScheduled(RequestMeta meta, Error error, int attempt, TimeSpan? delay)
     {
@@ -79,10 +73,7 @@ internal static class PeerMetrics
         RetryScheduledCounter.Add(1, tags);
     }
 
-    internal static void RecordRetryExhausted(RequestMeta meta, Error error, int attempt)
-    {
-        RetryExhaustedCounter.Add(1, AppendRetryTags(meta, error, attempt));
-    }
+    internal static void RecordRetryExhausted(RequestMeta meta, Error error, int attempt) => RetryExhaustedCounter.Add(1, AppendRetryTags(meta, error, attempt));
 
     internal static void RecordRetrySucceeded(RequestMeta meta, int attempts)
     {
@@ -90,16 +81,12 @@ internal static class PeerMetrics
         RetrySucceededCounter.Add(1, tags);
     }
 
-    private static KeyValuePair<string, object?>[] CreatePeerTags(RequestMeta meta, string peerIdentifier)
-    {
-        return
-        [
+    private static KeyValuePair<string, object?>[] CreatePeerTags(RequestMeta meta, string peerIdentifier) => [
             new KeyValuePair<string, object?>("rpc.service", meta.Service ?? string.Empty),
             new KeyValuePair<string, object?>("rpc.procedure", meta.Procedure ?? string.Empty),
             new KeyValuePair<string, object?>("rpc.transport", meta.Transport ?? string.Empty),
             new KeyValuePair<string, object?>("rpc.peer", peerIdentifier ?? string.Empty)
         ];
-    }
 
     private static KeyValuePair<string, object?>[] AppendRetryTags(RequestMeta meta, Error error, int attempt)
     {

@@ -197,15 +197,12 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         (EncodingKind Kind, string Encoding) resolvedEncoding,
         MessageParser<TMessage> parser,
         MessageDescriptor descriptor)
-        where TMessage : class, IMessage<TMessage>
-    {
-        return resolvedEncoding.Kind switch
+        where TMessage : class, IMessage<TMessage> => resolvedEncoding.Kind switch
         {
             EncodingKind.Binary => parser.ParseFrom(payload.Span),
             EncodingKind.Json => (TMessage)_jsonParser.Parse(System.Text.Encoding.UTF8.GetString(payload.Span), descriptor),
             _ => throw new InvalidOperationException($"Unsupported Protobuf encoding '{resolvedEncoding.Encoding}'.")
         };
-    }
 
     private Result<(EncodingKind Kind, string Encoding)> ResolveEncoding(string? encoding, string stage)
     {

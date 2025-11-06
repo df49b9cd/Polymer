@@ -458,14 +458,11 @@ public class HttpInboundLifecycleTests
         return handler;
     }
 
-    private static HttpClientHandler CreateHttp11Handler()
+    private static HttpClientHandler CreateHttp11Handler() => new()
     {
-        return new HttpClientHandler
-        {
-            AllowAutoRedirect = false,
-            ServerCertificateCustomValidationCallback = static (_, _, _, _) => true
-        };
-    }
+        AllowAutoRedirect = false,
+        ServerCertificateCustomValidationCallback = static (_, _, _, _) => true
+    };
 
     private static X509Certificate2 CreateSelfSignedCertificate(string subjectName)
     {

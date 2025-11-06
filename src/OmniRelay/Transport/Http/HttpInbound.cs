@@ -1,6 +1,6 @@
 using System.Buffers;
-using System.Globalization;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Pipelines;
 using System.Net.Mime;
 using System.Net.WebSockets;
@@ -66,10 +66,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     public IReadOnlyCollection<string> Urls =>
         _app?.Urls as IReadOnlyCollection<string> ?? [];
 
-    public void Bind(Dispatcher.Dispatcher dispatcher)
-    {
-        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
-    }
+    public void Bind(Dispatcher.Dispatcher dispatcher) => _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
     public async ValueTask StartAsync(CancellationToken cancellationToken = default)
     {

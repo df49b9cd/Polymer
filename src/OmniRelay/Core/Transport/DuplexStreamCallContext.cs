@@ -43,15 +43,9 @@ public sealed class DuplexStreamCallContext
         }
     }
 
-    internal void IncrementRequestMessageCount()
-    {
-        Interlocked.Increment(ref _requestMessageCount);
-    }
+    internal void IncrementRequestMessageCount() => Interlocked.Increment(ref _requestMessageCount);
 
-    internal void IncrementResponseMessageCount()
-    {
-        Interlocked.Increment(ref _responseMessageCount);
-    }
+    internal void IncrementResponseMessageCount() => Interlocked.Increment(ref _responseMessageCount);
 
     internal bool TrySetRequestCompletion(StreamCompletionStatus status, Error? error = null)
     {

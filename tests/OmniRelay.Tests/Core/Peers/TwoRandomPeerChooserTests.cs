@@ -62,10 +62,7 @@ public sealed class TwoRandomPeerChooserTests
             }
         }
 
-        public void Release(bool success)
-        {
-            Interlocked.Decrement(ref _inflight);
-        }
+        public void Release(bool success) => Interlocked.Decrement(ref _inflight);
     }
 
     private sealed class DeterministicRandom(params int[] sequence) : Random

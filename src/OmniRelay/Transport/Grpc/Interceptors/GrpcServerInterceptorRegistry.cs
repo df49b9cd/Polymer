@@ -12,7 +12,7 @@ public sealed class GrpcServerInterceptorRegistry
     private readonly ImmutableArray<Interceptor> _global;
     private readonly ImmutableDictionary<string, ImmutableArray<Interceptor>> _procedures;
     private readonly ConcurrentDictionary<string, ImmutableArray<Interceptor>> _cache =
-        new ConcurrentDictionary<string, ImmutableArray<Interceptor>>(StringComparer.OrdinalIgnoreCase);
+        new(StringComparer.OrdinalIgnoreCase);
 
     internal GrpcServerInterceptorRegistry(
         ImmutableArray<Interceptor> global,

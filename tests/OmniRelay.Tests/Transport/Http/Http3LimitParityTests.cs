@@ -84,13 +84,11 @@ public class Http3LimitParityTests
         }
     }
 
-    private static SocketsHttpHandler CreateHttp3Handler()
+    private static SocketsHttpHandler CreateHttp3Handler() => new()
     {
-        return new SocketsHttpHandler
-        {
-            AllowAutoRedirect = false,
-            EnableMultipleHttp3Connections = true,
-            SslOptions =
+        AllowAutoRedirect = false,
+        EnableMultipleHttp3Connections = true,
+        SslOptions =
             {
                 RemoteCertificateValidationCallback = static (_, _, _, _) => true,
                 EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
@@ -101,8 +99,7 @@ public class Http3LimitParityTests
                     SslApplicationProtocol.Http11
                 }
             }
-        };
-    }
+    };
 
     private sealed class SlowChunkedContent : HttpContent
     {
@@ -112,15 +109,8 @@ public class Http3LimitParityTests
 
         public SlowChunkedContent(int chunkSize, int chunkCount, TimeSpan delay)
         {
-            if (chunkSize <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(chunkSize));
-            }
-
-            if (chunkCount <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(chunkCount));
-            }
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(chunkSize);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(chunkCount);
 
             _chunk = new byte[chunkSize];
             RandomNumberGenerator.Fill(_chunk);

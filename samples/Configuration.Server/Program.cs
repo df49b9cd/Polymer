@@ -138,7 +138,7 @@ internal sealed class OmniRelayRegistrationHostedService(
         });
     }
 
-    private async ValueTask<Result<IStreamCall>> HandleWeatherStreamAsync(
+    private static async ValueTask<Result<IStreamCall>> HandleWeatherStreamAsync(
         ICodec<WeatherStreamRequest, WeatherObservation> codec,
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken)
@@ -254,16 +254,13 @@ internal sealed class WeatherService
 
 internal sealed class TelemetrySink(ILogger<TelemetrySink> logger)
 {
-    public void Record(RequestMeta meta, TelemetryEvent evt)
-    {
-        logger.LogInformation(
+    public void Record(RequestMeta meta, TelemetryEvent evt) => logger.LogInformation(
             "[telemetry] {Level} {Area} ({Transport}/{Procedure}): {Message}",
             evt.Level.ToUpperInvariant(),
             evt.Area,
             meta.Transport ?? "unknown",
             meta.Procedure ?? "telemetry::ingest",
             evt.Message);
-    }
 }
 
 internal sealed class StartupBannerHostedService(

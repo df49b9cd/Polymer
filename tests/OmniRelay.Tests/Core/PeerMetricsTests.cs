@@ -33,10 +33,7 @@ public sealed class PeerMetricsTests : IDisposable
         _listener = new MetricListener(_measurements);
     }
 
-    public void Dispose()
-    {
-        _listener.Dispose();
-    }
+    public void Dispose() => _listener.Dispose();
 
     [Fact]
     public async Task LeaseSuccess_RecordsInflightAndSuccessMetrics()
@@ -185,10 +182,7 @@ public sealed class PeerMetricsTests : IDisposable
             _listener.Start();
         }
 
-        public void Dispose()
-        {
-            _listener.Dispose();
-        }
+        public void Dispose() => _listener.Dispose();
     }
 
     private sealed class CapturingPeer(string identifier) : IPeer
@@ -207,10 +201,7 @@ public sealed class PeerMetricsTests : IDisposable
             return true;
         }
 
-        public void Release(bool success)
-        {
-            Interlocked.Decrement(ref _inflight);
-        }
+        public void Release(bool success) => Interlocked.Decrement(ref _inflight);
     }
 
     private sealed class BusyPeer(string identifier) : IPeer

@@ -46,16 +46,13 @@ public sealed class CodecRegistry
         string procedure,
         ProcedureKind kind,
         ICodec<TRequest, TResponse> codec,
-        IEnumerable<string>? aliases = null)
-    {
-        Register(
+        IEnumerable<string>? aliases = null) => Register(
             ProcedureCodecScope.Inbound,
             _localService,
             procedure,
             kind,
             codec,
             aliases);
-    }
 
     /// <summary>
     /// Registers a codec for an outbound procedure on the specified remote service.
@@ -177,10 +174,7 @@ public sealed class CodecRegistry
         string procedure,
         ProcedureKind kind,
         ProcedureCodecDescriptor descriptor,
-        ImmutableArray<string> aliases)
-    {
-        RegisterInternal(scope, service, procedure, kind, descriptor, (IEnumerable<string>)aliases);
-    }
+        ImmutableArray<string> aliases) => RegisterInternal(scope, service, procedure, kind, descriptor, (IEnumerable<string>)aliases);
 
     private void RegisterInternal(
         ProcedureCodecScope scope,

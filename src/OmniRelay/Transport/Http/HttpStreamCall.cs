@@ -45,10 +45,7 @@ public sealed class HttpStreamCall : IStreamCall
 
     public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
 
-    public void SetResponseMeta(ResponseMeta responseMeta)
-    {
-        ResponseMeta = responseMeta ?? new ResponseMeta();
-    }
+    public void SetResponseMeta(ResponseMeta responseMeta) => ResponseMeta = responseMeta ?? new ResponseMeta();
 
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
     {

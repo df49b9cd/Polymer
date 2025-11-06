@@ -73,16 +73,13 @@ public class DiagnosticsRuntimeSamplerTests
         Assert.Equal(SamplingDecision.Drop, result.Decision);
     }
 
-    private static SamplingParameters CreateParameters(ActivityTraceId traceId, ActivityContext parentContext = default)
-    {
-        return new SamplingParameters(
+    private static SamplingParameters CreateParameters(ActivityTraceId traceId, ActivityContext parentContext = default) => new(
             parentContext,
             traceId,
             "test-activity",
             ActivityKind.Server,
             null,
             null);
-    }
 
     private static ActivityTraceId CreateTraceId(byte value)
     {
@@ -121,9 +118,6 @@ public class DiagnosticsRuntimeSamplerTests
         {
         }
 
-        public void SetTraceSamplingProbability(double? probability)
-        {
-            Probability = probability;
-        }
+        public void SetTraceSamplingProbability(double? probability) => Probability = probability;
     }
 }
