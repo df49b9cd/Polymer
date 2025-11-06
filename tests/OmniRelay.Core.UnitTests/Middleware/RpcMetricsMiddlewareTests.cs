@@ -107,13 +107,13 @@ public class RpcMetricsMiddlewareTests
         var success = await middleware.InvokeAsync(request, callOptions, TestContext.Current.CancellationToken, next);
         Assert.True(success.IsSuccess);
 
-        await success.Value.CompleteAsync();
+        await success.Value.CompleteAsync(cancellationToken: TestContext.Current.CancellationToken);
         await success.Value.DisposeAsync();
 
         var failure = await middleware.InvokeAsync(request, callOptions, TestContext.Current.CancellationToken, next);
         Assert.True(failure.IsSuccess);
 
-        await failure.Value.CompleteAsync(Error.Timeout());
+        await failure.Value.CompleteAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await failure.Value.DisposeAsync();
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
@@ -170,7 +170,7 @@ public class RpcMetricsMiddlewareTests
         Assert.True(result.IsSuccess);
 
         await result.Value.CompleteRequestsAsync(Error.Timeout(), TestContext.Current.CancellationToken);
-        await result.Value.CompleteResponsesAsync(Error.Timeout());
+        await result.Value.CompleteResponsesAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await result.Value.DisposeAsync();
 
         await Task.Delay(10, TestContext.Current.CancellationToken);

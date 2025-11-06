@@ -125,7 +125,7 @@ public class RateLimitingMiddlewareTests
         Assert.False(blocked.IsAcquired);
         blocked.Dispose();
 
-        await result.Value.CompleteAsync();
+        await result.Value.CompleteAsync(cancellationToken: TestContext.Current.CancellationToken);
         var response = await result.Value.Response;
         Assert.True(response.IsSuccess);
         await result.Value.DisposeAsync();

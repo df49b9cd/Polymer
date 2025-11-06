@@ -131,7 +131,7 @@ public class RpcTracingMiddlewareTests
         var result = await middleware.InvokeAsync(request, options, TestContext.Current.CancellationToken, next);
         Assert.True(result.IsSuccess);
 
-        await result.Value.CompleteAsync();
+        await result.Value.CompleteAsync(cancellationToken: TestContext.Current.CancellationToken);
         await result.Value.DisposeAsync();
 
         Assert.Single(stoppedActivities);
