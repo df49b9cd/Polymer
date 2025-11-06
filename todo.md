@@ -122,10 +122,10 @@
   - [x] Update discovery schema to record per-endpoint protocol support.
   - [x] Modify routing logic to prioritize HTTP/3 while retaining HTTP/2/1.1 fallback.
   - [x] Ensure telemetry records chosen protocol per request for debugging.
-- [ ] Verify `GrpcOutbound` channel pooling, circuit breaker, and retry logic behave with HTTP/3-only endpoints and surface telemetry when peers fall back to HTTP/2.
-  - [ ] Run resilience tests under failure scenarios (transport errors, handshake failures).
-  - [ ] Confirm circuit breaker metrics capture HTTP/3-specific failure modes.
-  - [ ] Adjust retry policies if QUIC introduces different transient error patterns.
+- [x] Verify `GrpcOutbound` channel pooling, circuit breaker, and retry logic behave with HTTP/3-only endpoints and surface telemetry when peers fall back to HTTP/2.
+  - [x] Run resilience tests under failure scenarios (transport errors, handshake failures).
+  - [x] Confirm circuit breaker metrics capture HTTP/3-specific failure modes.
+  - [x] Adjust retry policies if QUIC introduces different transient error patterns.
 - [ ] Verify upstream proxies and service meshes accept HTTP/3 from OmniRelay; document any services limited to HTTP/2/1.1.
   - [ ] Coordinate with platform teams to enable HTTP/3 ingress/egress configs in meshes (Envoy/Istio/etc.).
   - [ ] Execute smoke tests for representative upstream services.
