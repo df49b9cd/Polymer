@@ -83,6 +83,7 @@ dotnet run \
 `dotnet run` automatically builds the CLI on the fly. Add the `--` separator before CLI arguments so they reach the tool.
 
 Key flags used below:
+
 - `--concurrency` controls the number of parallel workers.
 - `--duration` and `--warmup` bound the measurement window.
 - `--requests` caps the total measured calls (`0` disables the cap so the test ends when `--duration` elapses).
