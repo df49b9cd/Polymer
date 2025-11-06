@@ -202,18 +202,18 @@
 
 ## Documentation & Support
 
-- [ ] Update developer docs to explain how to enable HTTP/3 locally (Windows vs. macOS limitations) and in staging/production.
-  - [ ] Draft documentation sections covering prerequisites, enabling steps, and troubleshooting.
-  - [ ] Add code samples demonstrating HTTP/3 configuration for inbound/outbound paths.
-  - [ ] Review docs with dev rel and publish updates.
-- [ ] Provide FAQ covering common QUIC troubleshooting findings (ALPN mismatch, port reuse behavior, IPv6 nuances).
-  - [ ] Aggregate known issues from troubleshooting guide and internal incidents.
-  - [ ] Produce concise Q&A entries with remediation steps.
-  - [ ] Host FAQ in docs site and link from runbooks.
-- [ ] Outline compatibility matrix of supported client SDKs/protocol features over HTTP/3 to set expectations with consumers.
-  - [ ] Gather compatibility data from platform and client teams.
-  - [ ] Create matrix covering languages, versions, and feature caveats.
-  - [ ] Publish matrix and keep it versioned alongside release notes.
+- [x] Update developer docs to explain how to enable HTTP/3 locally (Windows vs. macOS limitations) and in staging/production.
+  - [x] Draft documentation sections covering prerequisites, enabling steps, and troubleshooting.
+  - [x] Add code samples demonstrating HTTP/3 configuration for inbound/outbound paths.
+  - [x] Review docs with dev rel and publish updates.
+- [x] Provide FAQ covering common QUIC troubleshooting findings (ALPN mismatch, port reuse behavior, IPv6 nuances).
+  - [x] Aggregate known issues from troubleshooting guide and internal incidents.
+  - [x] Produce concise Q&A entries with remediation steps.
+  - [x] Host FAQ in docs site and link from runbooks.
+- [x] Outline compatibility matrix of supported client SDKs/protocol features over HTTP/3 to set expectations with consumers.
+  - [x] Gather compatibility data from platform and client teams.
+  - [x] Create matrix covering languages, versions, and feature caveats.
+  - [x] Publish matrix and keep it versioned alongside release notes.
 - [ ] Add gRPC-specific HTTP/3 guidance (client configuration snippets, known limitations, fallback instructions) for service owners.
   - [ ] Write example configurations for .NET, Java, Go gRPC clients.
   - [ ] Highlight limitations (e.g., language library status) and suggested fallbacks.

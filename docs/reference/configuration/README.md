@@ -52,3 +52,32 @@ Notes:
 - HTTP/3 requires HTTPS endpoints and TLS 1.3-capable certificates. The configuration binder will reject non-HTTPS addresses when `enableHttp3` is true.
 - Behind the scenes the client sets SocketsHttpHandler.EnableMultipleHttp3Connections and adds a delegating handler that applies `RequestVersion = 3.0` and `VersionPolicy = RequestVersionOrHigher` so calls retain HTTP/2/1.1 compatibility.
 - For high concurrency, consider tuning keep-alive pings to keep connections warm and reduce cold-start latency on idle pools.
+
+### HTTP outbound example
+
+Enable HTTP/3 for `HttpOutbound` with a permissive version policy to allow fallback when QUIC isn’t available:
+
+```json
+{
+	"polymer": {
+		"outbounds": {
+			"audit": {
+				"oneway": {
+					"http": [
+						{
+							"url": "https://audit.internal:8443/yarpc/v1/audit::record",
+							"runtime": {
+								"enableHttp3": true,
+								"requestVersion": "3.0",
+								"versionPolicy": "request-version-or-higher"
+							}
+						}
+					]
+				}
+			}
+		}
+	}
+}
+```
+
+The configuration binder enforces HTTPS when `enableHttp3` is true. Requests set `Version=3.0` and `VersionPolicy=RequestVersionOrHigher` so existing HTTP/2/1.1 endpoints continue to work.

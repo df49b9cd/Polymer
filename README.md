@@ -199,9 +199,12 @@ Active backlog lives in `docs/todo.md`. Near-term focus:
 
 - `docs/plan.md` - architecture deep dive and parity milestones.
 - `docs/reference/http-transport.md` - TLS, proxy placement, SSE behaviour, and tracing guidance for the HTTP transport.
+- `docs/reference/http3-developer-guide.md` - enabling HTTP/3 locally and in staging/production with prerequisites and troubleshooting.
+- `docs/reference/http3-faq.md` - HTTP/3/QUIC troubleshooting FAQ (ALPN, UDP, macOS, curl, etc.).
 - `docs/reference/streaming.md` - unary/server/client/duplex streaming guidance.
 - `docs/reference/middleware.md` - composition rules and builder APIs.
 - `docs/reference/errors.md` - status mapping, adapters, and fault helpers.
 - `docs/reference/shadowing.md` - tee/shadow outbounds and sampling controls.
+- `docs/reference/grpc-compatibility.md` - current status of gRPC client HTTP/3 support across languages.
 
 Contributions welcome - capture findings in `docs/todo.md` or open an issue when new gaps surface.

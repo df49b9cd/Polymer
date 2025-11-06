@@ -2,6 +2,8 @@
 
 Goal: Safely revert listeners and clients to HTTP/1.1/2 if HTTP/3 issues arise.
 
+> See also: HTTP/3/QUIC FAQ at `docs/reference/http3-faq.md` for common triage steps.
+
 ## Preconditions
 
 - Access to configuration and deployment pipelines

@@ -193,6 +193,11 @@ header alongside the existing `Rpc-Transport` metadata. Use the pair to align
 metrics across HTTP versions and to confirm downgrade scenarios continue to
 return the standard JSON error envelope and `Retry-After` semantics.
 
+### Related HTTP/3 docs
+
+- [HTTP/3 Developer Guide](./http3-developer-guide.md) — prerequisites, enabling locally and in staging/production, and troubleshooting.
+- [HTTP/3 / QUIC Troubleshooting FAQ](./http3-faq.md) — common issues (ALPN, alt-svc, UDP/443, macOS, curl) and fixes.
+
 ### Runbook: Graceful shutdown with HTTP/3
 
 When a node begins draining (for example, during a rolling deployment), OmniRelay
@@ -201,26 +206,32 @@ same `Retry-After: 1` semantics used for HTTP/1.1 and HTTP/2. Use the following
 checks when validating a drain:
 
 1. Issue a baseline request before the drain:
-   ```bash
+
+  ```bash
    curl --http3 -i https://omnirelay.example.test/rpc -X POST \
      -H 'X-YARPC-Procedure: health::ping'
    ```
+
    Expect `200 OK` and `HTTP/3` in the status line.
 2. Trigger your normal drain mechanism (for example, signal the host to stop or
    remove the instance from the load balancer) and immediately probe again:
-   ```bash
+
+  ```bash
    curl --http3 -i https://omnirelay.example.test/rpc -X POST \
      -H 'X-YARPC-Procedure: health::ping'
    ```
+
    During the drain window the response switches to `HTTP/1.1 503 Service Unavailable`
    or `HTTP/3 503`, and includes `Retry-After: 1`. Existing requests continue to
    completion.
 3. gRPC listeners exhibit the same behaviour. Using the OmniRelay CLI:
-   ```bash
+
+  ```bash
    omnirelay request grpc health::ping \
      --addresses https://omnirelay.example.test:9090 \
      --grpc-http3
    ```
+
    While draining, the CLI reports `StatusCode.Unavailable` and prints the
    `retry-after: 1` trailer.
 
