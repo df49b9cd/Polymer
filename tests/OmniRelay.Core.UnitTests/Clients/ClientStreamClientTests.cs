@@ -8,6 +8,7 @@ using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
+using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
 
@@ -80,5 +81,115 @@ public class ClientStreamClientTests
 
     var response = await session.Response;
     Assert.Equal(Convert.ToBase64String(responseBytes), response.Body.S);
+    }
+
+    [Fact]
+    public async Task StartAsync_PipelineFailure_Throws()
+    {
+        var outbound = Substitute.For<IClientStreamOutbound>();
+        var codec = Substitute.For<ICodec<Req, Res>>();
+        codec.Encoding.Returns("json");
+        outbound.CallAsync(Arg.Any<RequestMeta>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(Err<IClientStreamTransportCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "client"))));
+
+        var client = new ClientStreamClient<Req, Res>(outbound, codec, Array.Empty<IClientStreamOutboundMiddleware>());
+        await Assert.ThrowsAsync<OmniRelayException>(() => client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken).AsTask());
+    }
+
+    [Fact]
+    public async Task WriteAsync_EncodeFailure_Throws()
+    {
+        var outbound = Substitute.For<IClientStreamOutbound>();
+        var codec = Substitute.For<ICodec<Req, Res>>();
+        codec.Encoding.Returns("json");
+        codec.EncodeRequest(Arg.Any<Req>(), Arg.Any<RequestMeta>()).Returns(Err<byte[]>(Error.From("encode", "bad")));
+
+        var meta = new RequestMeta();
+        var transportCall = new TestClientStreamTransportCall(meta);
+        outbound.CallAsync(Arg.Any<RequestMeta>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
+
+        var client = new ClientStreamClient<Req, Res>(outbound, codec, Array.Empty<IClientStreamOutboundMiddleware>());
+        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<OmniRelayException>(() => session.WriteAsync(new Req { V = 1 }, TestContext.Current.CancellationToken).AsTask());
+        Assert.Empty(transportCall.Writes);
+    }
+
+    [Fact]
+    public async Task Response_Failure_Throws()
+    {
+        var outbound = Substitute.For<IClientStreamOutbound>();
+        var codec = Substitute.For<ICodec<Req, Res>>();
+        codec.Encoding.Returns("json");
+        codec.EncodeRequest(Arg.Any<Req>(), Arg.Any<RequestMeta>()).Returns(Ok(new byte[] { 1 }));
+        codec.DecodeResponse(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<ResponseMeta>()).Returns(Ok(new Res()));
+
+        var meta = new RequestMeta();
+        var transportCall = new TestClientStreamTransportCall(meta);
+        outbound.CallAsync(Arg.Any<RequestMeta>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
+
+        var client = new ClientStreamClient<Req, Res>(outbound, codec, Array.Empty<IClientStreamOutboundMiddleware>());
+        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+
+        transportCall.CompleteWith(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "fail", transport: "client")));
+
+        await Assert.ThrowsAsync<OmniRelayException>(() => session.Response);
+    }
+
+    [Fact]
+    public async Task Response_DecodeFailure_Throws()
+    {
+        var outbound = Substitute.For<IClientStreamOutbound>();
+        var codec = Substitute.For<ICodec<Req, Res>>();
+        codec.Encoding.Returns("json");
+        codec.EncodeRequest(Arg.Any<Req>(), Arg.Any<RequestMeta>()).Returns(Ok(new byte[] { 1 }));
+        codec.DecodeResponse(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<ResponseMeta>())
+            .Returns(Err<Res>(Error.From("decode", "bad")));
+
+        var meta = new RequestMeta();
+        var transportCall = new TestClientStreamTransportCall(meta);
+        outbound.CallAsync(Arg.Any<RequestMeta>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
+
+        var client = new ClientStreamClient<Req, Res>(outbound, codec, Array.Empty<IClientStreamOutboundMiddleware>());
+        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+
+        transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(new byte[] { 2 }, new ResponseMeta())));
+
+        await Assert.ThrowsAsync<OmniRelayException>(() => session.Response);
+    }
+
+    [Fact]
+    public async Task StartAsync_SetsEncodingWhenMissing()
+    {
+        var outbound = Substitute.For<IClientStreamOutbound>();
+        var codec = Substitute.For<ICodec<Req, Res>>();
+        codec.Encoding.Returns("proto");
+
+        RequestMeta? capturedMeta = null;
+        codec.EncodeRequest(Arg.Any<Req>(), Arg.Any<RequestMeta>())
+            .Returns(ci =>
+            {
+                capturedMeta = ci.Arg<RequestMeta>();
+                return Ok(new byte[] { 1 });
+            });
+
+        codec.DecodeResponse(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<ResponseMeta>()).Returns(Ok(new Res()));
+
+        var meta = new RequestMeta();
+        var transportCall = new TestClientStreamTransportCall(meta);
+        outbound.CallAsync(Arg.Any<RequestMeta>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
+
+        var client = new ClientStreamClient<Req, Res>(outbound, codec, Array.Empty<IClientStreamOutboundMiddleware>());
+        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        await session.WriteAsync(new Req { V = 5 }, TestContext.Current.CancellationToken);
+        transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(new byte[] { 5 }, new ResponseMeta())));
+        await session.Response;
+
+        Assert.NotNull(capturedMeta);
+        Assert.Equal("proto", capturedMeta!.Encoding);
     }
 }
