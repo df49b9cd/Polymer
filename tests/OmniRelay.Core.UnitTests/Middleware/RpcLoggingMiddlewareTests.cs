@@ -50,4 +50,38 @@ public class RpcLoggingMiddlewareTests
         Assert.True(res.IsFailure);
         Assert.Contains(logger.Entries, e => e.level >= LogLevel.Warning && e.message.Contains("failed"));
     }
+
+    [Fact]
+    public async Task SkipsLogging_WhenPredicatePrevents()
+    {
+        var logger = new TestLogger<RpcLoggingMiddleware>();
+        var options = new RpcLoggingOptions
+        {
+            ShouldLogRequest = _ => false
+        };
+        var mw = new RpcLoggingMiddleware(logger, options);
+        var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
+
+        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(logger.Entries);
+    }
+
+    [Fact]
+    public async Task LogsException_WhenNextThrows()
+    {
+        var logger = new TestLogger<RpcLoggingMiddleware>();
+        var mw = new RpcLoggingMiddleware(logger);
+        var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
+
+        UnaryOutboundDelegate next = (req, ct) => throw new ApplicationException("boom");
+
+        var exception = await Assert.ThrowsAsync<ApplicationException>(async () =>
+            await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next));
+
+        Assert.Equal("boom", exception.Message);
+        Assert.Contains(logger.Entries, entry => entry.level >= LogLevel.Warning && entry.message.Contains("threw"));
+    }
 }
