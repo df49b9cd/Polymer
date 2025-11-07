@@ -43,10 +43,10 @@ Track high-value integration scenarios that prove the dispatcher, transports, co
 
 ## Resiliency & Failure Modes
 
-- [ ] Test graceful shutdown/drain for HTTP and gRPC inbounds with concurrent requests, ensuring Retry-After headers/trailers surface.
-- [ ] Simulate transport failures (peer down, TLS handshake failure, HTTP/3 blocked) and confirm fallback strategies and error metadata.
-- [ ] Drive deadline and cancellation scenarios end-to-end to ensure callers receive the correct statuses and retry hints.
-- [ ] Validate circuit breaker + retry middleware interactions by orchestrating failing peers and recovering traffic.
+- [x] Test graceful shutdown/drain for HTTP and gRPC inbounds with concurrent requests, ensuring Retry-After headers/trailers surface.
+- [x] Simulate transport failures (peer down, TLS handshake failure, HTTP/3 blocked) and confirm fallback strategies and error metadata.
+- [x] Drive deadline and cancellation scenarios end-to-end to ensure callers receive the correct statuses and retry hints.
+- [x] Validate circuit breaker + retry middleware interactions by orchestrating failing peers and recovering traffic.
 
 ## Compatibility & Interop
 
