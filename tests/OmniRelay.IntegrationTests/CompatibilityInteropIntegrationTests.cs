@@ -191,7 +191,7 @@ public sealed class CompatibilityInteropIntegrationTests
         const string procedure = "compat::curl";
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"https://127.0.0.1:{port}/");
-        using var certificate = TestCertificateFactory.CreateSelfSigned($"CN={serviceName}");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate($"CN={serviceName}");
 
         var protocolCapture = CreateCompletionSource<string>();
 

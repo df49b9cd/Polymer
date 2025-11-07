@@ -162,7 +162,7 @@ public class ResiliencyIntegrationTests
     [Fact(Timeout = 60_000)]
     public async Task GrpcOutbound_WithMutualTlsRequirement_SurfacesRetryableMetadata()
     {
-        using var certificate = TestCertificateFactory.CreateSelfSigned("CN=omnirelay-resiliency-handshake");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-resiliency-handshake");
 
         var backendPort = TestPortAllocator.GetRandomPort();
         var backendAddress = new Uri($"https://127.0.0.1:{backendPort}");
@@ -232,7 +232,7 @@ public class ResiliencyIntegrationTests
             return;
         }
 
-        using var certificate = TestCertificateFactory.CreateSelfSigned("CN=omnirelay-h3-fallback");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-h3-fallback");
 
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"https://127.0.0.1:{port}");

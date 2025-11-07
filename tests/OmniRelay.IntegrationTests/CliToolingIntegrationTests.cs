@@ -187,7 +187,7 @@ public sealed class CliToolingIntegrationTests
         using var tempDir = new TempDirectory();
         var configPath = tempDir.Resolve("appsettings.http3.json");
         var serviceName = $"cli-http3-{Guid.NewGuid():N}";
-        using var certificate = TestCertificateFactory.CreateSelfSigned("CN=cli-http3");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=cli-http3");
         var certificatePath = tempDir.Resolve("server-http3.pfx");
         File.WriteAllBytes(certificatePath, certificate.Export(X509ContentType.Pfx, "change-me"));
 

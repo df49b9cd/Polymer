@@ -32,7 +32,7 @@ public class CodegenWorkflowIntegrationTests
             return;
         }
 
-        using var certificate = TestCertificateFactory.CreateSelfSigned("CN=codegen-host-http3");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=codegen-host-http3");
         var certificatePath = PersistCertificate(certificate);
         var address = new Uri($"https://127.0.0.1:{TestPortAllocator.GetRandomPort()}");
         var protocols = new ConcurrentQueue<string>();
@@ -57,7 +57,7 @@ public class CodegenWorkflowIntegrationTests
         using var serverHost = serverBuilder.Build();
         var serverDispatcher = serverHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
         var serviceImpl = (LoopbackTestService)serverHost.Services.GetRequiredService<TestServiceOmniRelay.ITestService>();
-        TestServiceOmniRelay.RegisterTestService(serverDispatcher, serviceImpl);
+        serverDispatcher.RegisterTestService(serviceImpl);
 
         var clientBuilder = Host.CreateApplicationBuilder();
         clientBuilder.Services.AddLogging();
@@ -113,7 +113,7 @@ public class CodegenWorkflowIntegrationTests
             return;
         }
 
-        using var certificate = TestCertificateFactory.CreateSelfSigned("CN=codegen-host-http2");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=codegen-host-http2");
         var certificatePath = PersistCertificate(certificate);
         var address = new Uri($"https://127.0.0.1:{TestPortAllocator.GetRandomPort()}");
         var protocols = new ConcurrentQueue<string>();
@@ -138,7 +138,7 @@ public class CodegenWorkflowIntegrationTests
         using var serverHost = serverBuilder.Build();
         var serverDispatcher = serverHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
         var serviceImpl = (LoopbackTestService)serverHost.Services.GetRequiredService<TestServiceOmniRelay.ITestService>();
-        TestServiceOmniRelay.RegisterTestService(serverDispatcher, serviceImpl);
+        serverDispatcher.RegisterTestService(serviceImpl);
 
         var clientBuilder = Host.CreateApplicationBuilder();
         clientBuilder.Services.AddLogging();
@@ -205,7 +205,7 @@ public class CodegenWorkflowIntegrationTests
         using var serverHost = serverBuilder.Build();
         var serverDispatcher = serverHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
         var serviceImpl = (LoopbackTestService)serverHost.Services.GetRequiredService<TestServiceOmniRelay.ITestService>();
-        TestServiceOmniRelay.RegisterTestService(serverDispatcher, serviceImpl);
+        serverDispatcher.RegisterTestService(serviceImpl);
 
         var clientBuilder = Host.CreateApplicationBuilder();
         clientBuilder.Services.AddLogging();
@@ -305,7 +305,7 @@ public class CodegenWorkflowIntegrationTests
         var serviceImpl = new LoopbackTestService();
 
         RegisterTestServiceManually(manualDispatcher, serviceImpl);
-        TestServiceOmniRelay.RegisterTestService(generatedDispatcher, serviceImpl);
+        generatedDispatcher.RegisterTestService(serviceImpl);
 
         var manualProcedures = manualDispatcher.Introspect().Procedures;
         var generatedProcedures = generatedDispatcher.Introspect().Procedures;

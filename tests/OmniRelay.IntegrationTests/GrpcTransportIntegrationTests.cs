@@ -64,7 +64,7 @@ public class GrpcTransportIntegrationTests
         serverOptions.GrpcInterceptors.UseServer(new RecordingServerInterceptor("server-global", serverLog));
         serverOptions.GrpcInterceptors.ForServerProcedure("UnaryCall").Use(new RecordingServerInterceptor("server-unary", serverLog));
         var serverDispatcher = new Dispatcher.Dispatcher(serverOptions);
-        TestServiceOmniRelay.RegisterTestService(serverDispatcher, serviceImpl);
+        serverDispatcher.RegisterTestService(serviceImpl);
 
         var outbound = new GrpcOutbound(address, ServiceName, clientRuntimeOptions: new GrpcClientRuntimeOptions
         {
@@ -109,7 +109,7 @@ public class GrpcTransportIntegrationTests
             return;
         }
 
-        using var certificate = TestCertificateFactory.CreateSelfSigned("CN=grpc-http3");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=grpc-http3");
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"https://127.0.0.1:{port}");
 
@@ -145,7 +145,7 @@ public class GrpcTransportIntegrationTests
         serverOptions.AddLifecycle("grpc-http3-inbound", inbound);
         serverOptions.GrpcInterceptors.UseServer(new RecordingServerInterceptor("server-http3", serverLog));
         var serverDispatcher = new Dispatcher.Dispatcher(serverOptions);
-        TestServiceOmniRelay.RegisterTestService(serverDispatcher, serviceImpl);
+        serverDispatcher.RegisterTestService(serviceImpl);
 
         var outbound = new GrpcOutbound(
             address,
@@ -188,8 +188,8 @@ public class GrpcTransportIntegrationTests
     [Fact(Timeout = 60_000)]
     public async Task TlsMutualAuthAndAlpnPoliciesAreEnforced()
     {
-        using var serverCert = TestCertificateFactory.CreateSelfSigned("CN=grpc-mtls-server");
-        using var clientCert = TestCertificateFactory.CreateSelfSigned("CN=grpc-mtls-client");
+        using var serverCert = TestCertificateFactory.CreateLoopbackCertificate("CN=grpc-mtls-server");
+        using var clientCert = TestCertificateFactory.CreateLoopbackCertificate("CN=grpc-mtls-client");
 
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"https://127.0.0.1:{port}");
@@ -285,7 +285,7 @@ public class GrpcTransportIntegrationTests
             return;
         }
 
-        using var certificate = TestCertificateFactory.CreateSelfSigned("CN=grpc-http3-logs");
+        using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=grpc-http3-logs");
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"https://127.0.0.1:{port}");
         var observed = new ConcurrentQueue<string>();
@@ -333,7 +333,7 @@ public class GrpcTransportIntegrationTests
         var inbound = new GrpcInbound([address.ToString()]);
         options.AddLifecycle("grpc-generated-inbound", inbound);
         var dispatcher = new Dispatcher.Dispatcher(options);
-        TestServiceOmniRelay.RegisterTestService(dispatcher, new GeneratedTestService());
+        dispatcher.RegisterTestService(new GeneratedTestService());
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartAsync(ct);
