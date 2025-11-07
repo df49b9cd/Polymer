@@ -37,9 +37,9 @@ Track high-value integration scenarios that prove the dispatcher, transports, co
 
 ## Observability & Diagnostics
 
-- [ ] Assert `/omnirelay/introspect`, `/healthz`, and `/readyz` endpoints respond with expected payloads under normal and degraded conditions.
-- [ ] Verify structured logging and metrics emit protocol version, peer selection, and middleware traces in end-to-end scenarios.
-- [ ] Confirm OpenTelemetry spans capture transport attributes (protocol, connection id) and survive through streaming calls.
+- [x] Assert `/omnirelay/introspect`, `/healthz`, and `/readyz` endpoints respond with expected payloads under normal and degraded conditions. (Covered by `ObservabilityDiagnosticsIntegrationTests`)
+- [x] Verify structured logging and metrics emit protocol version, peer selection, and middleware traces in end-to-end scenarios. (`ObservabilityDiagnosticsIntegrationTests`)
+- [x] Confirm OpenTelemetry spans capture transport attributes (protocol, connection id) and survive through streaming calls. (`ObservabilityDiagnosticsIntegrationTests`)
 
 ## Resiliency & Failure Modes
 
