@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
+    <Project Path="samples/MinimalApiBridge/MinimalApiBridge.csproj" />
     <Project Path="samples\Configuration.Server\Configuration.Server.csproj" Type="Classic C#" />
     <Project Path="samples\Shadowing.Server\Shadowing.Server.csproj" Type="Classic C#" />
   </Folder>

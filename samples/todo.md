@@ -2,11 +2,10 @@
 
 Curated backlog of sample projects that demonstrate OmniRelay end-to-end patterns. Each entry highlights the target audience, the runtime slices it exercises, and any critical teaching goals.
 
-## Minimal API Bridge
+## Minimal API Bridge (shipped)
 
-- **Audience:** HTTP-first teams experimenting with OmniRelay.
-- **What to show:** Host OmniRelay alongside ASP.NET Core Minimal APIs, route a couple of controllers into RPC procedures, and reuse the shared DI container for codecs/middleware.
-- **Why it helps:** Mirrors the migration path for teams that cannot refactor everything to RPC on day one; demonstrates a single process serving legacy REST and OmniRelay transports.
+- Implemented at `samples/MinimalApiBridge` with docs in `docs/reference/samples.md`.
+- Demonstrates ASP.NET Core Minimal APIs and OmniRelay sharing the same Generic Host, DI registrations, and handler classes for both REST and RPC traffic.
 
 ## Config-to-Prod Template
 

@@ -5,6 +5,7 @@ The repository ships focused sample projects that exercise specific runtime feat
 | Sample | Path | Focus | Highlights |
 | ------ | ---- | ----- | ---------- |
 | Quickstart dispatcher | `samples/Quickstart.Server` | Manual bootstrap | Registers unary/oneway/stream handlers, custom inbound middleware, mixed HTTP + gRPC inbounds. |
+| Minimal API bridge | `samples/MinimalApiBridge` | ASP.NET Core + OmniRelay | Shared DI container hosts Minimal APIs next to an OmniRelay dispatcher so HTTP controllers and RPC procedures reuse the same handlers, codecs, and middleware. |
 | Configuration host | `samples/Configuration.Server` | `AddOmniRelayDispatcher` + DI | Uses `appsettings.json` to configure transports, diagnostics, middleware, JSON codecs, and a custom outbound spec instantiated via configuration. |
 | Tee shadowing | `samples/Shadowing.Server` | `TeeUnaryOutbound` / `TeeOnewayOutbound` | Mirrors production calls to a shadow stack, shows how to compose typed clients and oneway fan-out while logging both inbound and outbound pipelines. |
 | Distributed demo | `samples/DistributedDemo` | Docker Compose + multi-service topology | Gateway + downstream services communicating via gRPC (Protobuf) and HTTP (JSON), multiple peer choosers, OpenTelemetry collector, and Prometheus scraping. |
@@ -34,6 +35,19 @@ The repository ships focused sample projects that exercise specific runtime feat
 - Notes:
   - Replace the placeholder downstream addresses in `appsettings.json` (`inventory`, `audit`) before running against real services.
   - The sample demonstrates best-effort fire-and-forget telemetry fan-out; production code should apply retry/metrics middleware as appropriate.
+
+## Minimal API Bridge
+
+- Path: `samples/MinimalApiBridge`
+- Run: `dotnet run --project samples/MinimalApiBridge`
+- What it shows:
+  - ASP.NET Core Minimal APIs running side-by-side with an OmniRelay dispatcher inside the same Generic Host.
+  - HTTP controllers (`/api/greetings`, `/api/portfolios`) and OmniRelay procedures (`greetings::say`, `portfolio::rebalance`, `alerts::emit`) reuse the same handler classes and JSON codecs from DI.
+  - A hosted service that starts/stops the dispatcher plus REST endpoints (`/api/dispatcher`) that report transport bindings for quick smoke tests.
+  - Example of bridging existing REST traffic into OmniRelay without rewriting every caller on day one.
+- Notes:
+  - The Minimal API host listens on `http://127.0.0.1:5058` by default; override via `ASPNETCORE_URLS`.
+  - OmniRelay HTTP/gRPC inbounds default to `http://127.0.0.1:7080` and `http://127.0.0.1:7090`; adjust the URIs in `Program.cs` to match your environment.
 
 ## Tee Shadowing Sample
 
