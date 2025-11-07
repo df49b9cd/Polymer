@@ -50,6 +50,6 @@ Track high-value integration scenarios that prove the dispatcher, transports, co
 
 ## Compatibility & Interop
 
-- [ ] Add yab (or grpcurl/curl --http3) harnesses to verify OmniRelay interops with non-.NET clients over HTTP/1.1/2/3.
-- [ ] Ensure proxy/ingress scenarios (Envoy, YARP) forward OmniRelay headers and protocol negotiations correctly.
-- [ ] Capture rolling upgrade / shadow traffic tests to validate tee/shadow metadata routes requests to both clusters with matching responses.
+- [x] Add yab (or grpcurl/curl --http3) harnesses to verify OmniRelay interops with non-.NET clients over HTTP/1.1/2/3. (Covered by `CompatibilityInteropIntegrationTests`)
+- [x] Ensure proxy/ingress scenarios (Envoy, YARP) forward OmniRelay headers and protocol negotiations correctly. (`CompatibilityInteropIntegrationTests`)
+- [x] Capture rolling upgrade / shadow traffic tests to validate tee/shadow metadata routes requests to both clusters with matching responses. (`CompatibilityInteropIntegrationTests`)

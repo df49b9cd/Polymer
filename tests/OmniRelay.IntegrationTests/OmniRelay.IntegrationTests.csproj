@@ -6,12 +6,14 @@
 
   <ItemGroup>
     <PackageReference Include="Hugo" />
+    <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="Grpc.Tools">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Yarp.ReverseProxy" />
     <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -32,5 +34,6 @@
 
   <ItemGroup>
     <Protobuf Include="../OmniRelay.Codegen.Tests/Protos/test_service.proto" Link="Protos/test_service.proto" GrpcServices="None" />
+    <Protobuf Include="../OmniRelay.YabInterop/Protos/echo.proto" Link="Protos/echo.proto" GrpcServices="None" />
   </ItemGroup>
 </Project>

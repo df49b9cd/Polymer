@@ -8,6 +8,12 @@
         "resolved": "6.0.4",
         "contentHash": "lkhqpF8Pu2Y7IiN7OntbsTtdbpR1syMsm2F3IgX6ootA4ffRqWL5jF7XipHuZQTdVuWG/gVAAcf8mjk8Tz0xPg=="
       },
+      "Google.Protobuf": {
+        "type": "Direct",
+        "requested": "[3.33.0, )",
+        "resolved": "3.33.0",
+        "contentHash": "+kIa03YipuiSDeRuZwcDcXS1xBQAFeGLIjuLbgJr2i+TlwBPYAqdnQZJ2SDVzIgDyy+q+n/400WyWyrJ5ZqCgQ=="
+      },
       "Grpc.Tools": {
         "type": "Direct",
         "requested": "[2.76.0, )",
@@ -56,6 +62,15 @@
         "contentHash": "ABdobDsBRs0JV+Ux6t0sM26noKFVbCkGOvU/x/YeShjI4aYH+thZeOGg8k5etju+5Ud4BZfzQEtVfvnAx8G2cg==",
         "dependencies": {
           "xunit.v3.mtp-v1": "[3.2.0]"
+        }
+      },
+      "Yarp.ReverseProxy": {
+        "type": "Direct",
+        "requested": "[2.1.0, )",
+        "resolved": "2.1.0",
+        "contentHash": "VgRuCBxmh5ND4VuFhvIN3AAeoxFhYkS2hNINk6AVCrOVTlpk7OwdrTXi8NHACfqfhDL+/oYCZrF9RxN+yiYnEg==",
+        "dependencies": {
+          "System.IO.Hashing": "7.0.0"
         }
       },
       "Castle.Core": {
@@ -275,6 +290,11 @@
         "resolved": "6.0.0",
         "contentHash": "lcyUiXTsETK2ALsZrX+nWuHSIQeazhqPphLfaRxzdGaG93+0kELqpgEHtwWOlQe7+jSFnKwaCAgL4kjeZCQJnw=="
       },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "7.0.0",
+        "contentHash": "sDnWM0N3AMCa86LrKTWeF3BZLD2sgWyYUc7HL6z4+xyDZNQRwzmxbo4qP2rX2MqC+Sy1/gOSRDah5ltxY5jPxw=="
+      },
       "xunit.analyzers": {
         "type": "Transitive",
         "resolved": "1.25.0",
@@ -363,12 +383,6 @@
           "OpenTelemetry.Exporter.Prometheus.AspNetCore": "[1.13.1-beta.1, )",
           "OpenTelemetry.Extensions.Hosting": "[1.14.0-rc.1, )"
         }
-      },
-      "Google.Protobuf": {
-        "type": "CentralTransitive",
-        "requested": "[3.33.0, )",
-        "resolved": "3.33.0",
-        "contentHash": "+kIa03YipuiSDeRuZwcDcXS1xBQAFeGLIjuLbgJr2i+TlwBPYAqdnQZJ2SDVzIgDyy+q+n/400WyWyrJ5ZqCgQ=="
       },
       "Grpc.AspNetCore.Server": {
         "type": "CentralTransitive",

@@ -6,7 +6,7 @@ namespace OmniRelay.IntegrationTests.Support;
 
 internal static class OmniRelayCliTestHelper
 {
-    private static readonly string RepositoryRoot = ResolveRepositoryRoot();
+    private static readonly string RepositoryRoot = RepositoryPaths.Root;
     private static readonly string CliProjectPath = Path.Combine(RepositoryRoot, "src", "OmniRelay.Cli", "OmniRelay.Cli.csproj");
 
     public static Task<CliResult> RunAsync(IEnumerable<string> arguments, CancellationToken cancellationToken) =>
@@ -81,16 +81,6 @@ internal static class OmniRelayCliTestHelper
         psi.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
         psi.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
         return psi;
-    }
-
-    private static string ResolveRepositoryRoot()
-    {
-        var directory = AppContext.BaseDirectory;
-        for (var i = 0; i < 6; i++)
-        {
-            directory = Directory.GetParent(directory)!.FullName;
-        }
-        return directory;
     }
 
     private static void TryKill(Process process)

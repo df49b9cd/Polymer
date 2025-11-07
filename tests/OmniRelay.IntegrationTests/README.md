@@ -23,6 +23,15 @@ Guidance for running the integration suite locally and in CI, with an emphasis o
 - **Gate HTTP/3-specific tests.** Only enable them on runners that pass the check above. Use an environment flag such as `OMNIRELAY_ENABLE_HTTP3_TESTS=true` in your CI definition and conditionally skip QUIC tests elsewhere.
 - **Document the environment.** Record required OS versions, installation commands, and validation output so future runner images stay compliant.
 
+## External tooling for compatibility tests
+
+The `CompatibilityInteropIntegrationTests` fixture exercises yab/grpcurl/curl clients and an Envoy proxy. These cases are **skipped automatically** when the required executables are missing, but to run them end-to-end ensure the following tools are available on the PATH:
+
+- `yab` (install via `go install go.uber.org/yarpc/yab@latest`).
+- `grpcurl` (install via `go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest` or download a release).
+- `curl` built with HTTP/3 support (`curl --version` should list `HTTP3`).
+- `docker` with access to the running daemon (used to launch an Envoy container). The tests expect Docker to resolve `host.docker.internal`.
+
 ## Running the suite
 
 ```bash
