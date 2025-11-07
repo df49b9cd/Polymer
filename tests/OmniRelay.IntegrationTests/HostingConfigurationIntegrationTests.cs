@@ -149,6 +149,48 @@ public class HostingConfigurationIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
+    public async Task AddOmniRelayDispatcher_StartsMultipleInboundsAndExposesMetadata()
+    {
+        var httpPort = TestPortAllocator.GetRandomPort();
+        var grpcPort = TestPortAllocator.GetRandomPort();
+        var inboundSpec = new RecordingInboundSpec();
+
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["omnirelay:service"] = "multi-inbounds",
+            ["omnirelay:inbounds:http:0:name"] = "http-primary",
+            ["omnirelay:inbounds:http:0:urls:0"] = $"http://127.0.0.1:{httpPort}/",
+            ["omnirelay:inbounds:grpc:0:name"] = "grpc-primary",
+            ["omnirelay:inbounds:grpc:0:urls:0"] = $"http://127.0.0.1:{grpcPort}",
+            ["omnirelay:inbounds:custom:0:spec"] = RecordingInboundSpec.SpecName,
+            ["omnirelay:inbounds:custom:0:name"] = "custom-primary",
+            ["omnirelay:inbounds:custom:0:endpoint"] = "/ws"
+        });
+
+        builder.Services.AddLogging();
+        builder.Services.AddSingleton<ICustomInboundSpec>(inboundSpec);
+        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
+
+        using var host = builder.Build();
+        var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();
+
+        var ct = TestContext.Current.CancellationToken;
+        await host.StartAsync(ct);
+        await host.StopAsync(CancellationToken.None);
+
+        var components = dispatcher.Introspect().Components;
+        Assert.Contains(components, component => component.Name == "http-primary" && component.ComponentType.Contains("HttpInbound", StringComparison.Ordinal));
+        Assert.Contains(components, component => component.Name == "grpc-primary" && component.ComponentType.Contains("GrpcInbound", StringComparison.Ordinal));
+        Assert.Contains(components, component => component.Name == "custom-primary" && component.ComponentType.Contains(nameof(RecordingInboundLifecycle), StringComparison.Ordinal));
+
+        var customLifecycle = inboundSpec.Created.Single(lifecycle => lifecycle.Name == "custom-primary");
+        Assert.True(customLifecycle.Started);
+        Assert.True(customLifecycle.Stopped);
+        Assert.NotNull(customLifecycle.Dispatcher);
+    }
+
+    [Fact(Timeout = 30_000)]
     public void AddOmniRelayDispatcher_UsesCustomTransportSpecs()
     {
         var inboundSpec = new RecordingInboundSpec();
@@ -195,11 +237,14 @@ public class HostingConfigurationIntegrationTests
         public const string SpecName = "test-inbound";
         public string Name => SpecName;
         public string? LastEndpoint { get; private set; }
+        public List<RecordingInboundLifecycle> Created { get; } = new();
 
         public ILifecycle CreateInbound(IConfigurationSection configuration, IServiceProvider services)
         {
             LastEndpoint = configuration["endpoint"];
-            return new RecordingInboundLifecycle(configuration["name"] ?? "custom");
+            var lifecycle = new RecordingInboundLifecycle(configuration["name"] ?? "custom");
+            Created.Add(lifecycle);
+            return lifecycle;
         }
     }
 
@@ -207,10 +252,21 @@ public class HostingConfigurationIntegrationTests
     {
         private readonly string _name = name;
         public Dispatcher.Dispatcher? Dispatcher { get; private set; }
+        public bool Started { get; private set; }
+        public bool Stopped { get; private set; }
+        public string Name => _name;
 
-        public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask StartAsync(CancellationToken cancellationToken = default)
+        {
+            Started = true;
+            return ValueTask.CompletedTask;
+        }
 
-        public ValueTask StopAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask StopAsync(CancellationToken cancellationToken = default)
+        {
+            Stopped = true;
+            return ValueTask.CompletedTask;
+        }
 
         public void Bind(Dispatcher.Dispatcher dispatcher) => Dispatcher = dispatcher;
 

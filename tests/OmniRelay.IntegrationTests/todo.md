@@ -5,7 +5,7 @@ Track high-value integration scenarios that prove the dispatcher, transports, co
 ## Hosting & Configuration
 
 - [x] Host dispatcher via `AddOmniRelayDispatcher` using multiple configuration sources (JSON + environment overlays) and verify the DI graph wires up expected components. (Covered by `HostingConfigurationIntegrationTests`)
-- [ ] Cover multiple inbound definitions (HTTP + gRPC + custom specs) to ensure named lifecycles start/stop and expose introspection metadata.
+- [x] Cover multiple inbound definitions (HTTP + gRPC + custom specs) to ensure named lifecycles start/stop and expose introspection metadata. (`HostingConfigurationIntegrationTests`)
 - [ ] Validate outbound binding for every RPC shape (unary, oneway, server/client/duplex stream) when configured purely through the `omnirelay` section.
 - [ ] Assert feature flags toggle runtime options at startup (HTTP/3 enablement, middleware switches, codec policies).
 
