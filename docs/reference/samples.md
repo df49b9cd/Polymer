@@ -9,6 +9,7 @@ The repository ships focused sample projects that exercise specific runtime feat
 | Streaming analytics lab | `samples/StreamingAnalytics.Lab` | Server/client/duplex streaming | Demonstrates JSON + Protobuf codecs, server/client/duplex handlers, and matching OmniRelay streaming clients that feed ESG/ticker data. |
 | Config-to-prod template | `samples/ConfigToProd.Template` | Layered config + probes | Shows `AddOmniRelayDispatcher` with `appsettings.*`, env overrides, diagnostics toggles, and liveness/readiness endpoints ready for Docker/Kubernetes. |
 | Configuration host | `samples/Configuration.Server` | `AddOmniRelayDispatcher` + DI | Uses `appsettings.json` to configure transports, diagnostics, middleware, JSON codecs, and a custom outbound spec instantiated via configuration. |
+| Codegen + tee rollout | `samples/CodegenTee.Rollout` | Protobuf generator + shadowing | Builds Protobuf contracts via OmniRelay’s generator and mirrors typed client calls to primary + shadow deployments using tee outbounds. |
 | Tee shadowing | `samples/Shadowing.Server` | `TeeUnaryOutbound` / `TeeOnewayOutbound` | Mirrors production calls to a shadow stack, shows how to compose typed clients and oneway fan-out while logging both inbound and outbound pipelines. |
 | Distributed demo | `samples/DistributedDemo` | Docker Compose + multi-service topology | Gateway + downstream services communicating via gRPC (Protobuf) and HTTP (JSON), multiple peer choosers, OpenTelemetry collector, and Prometheus scraping. |
 | Observability & CLI playground | `samples/Observability.CliPlayground` | Diagnostics + scripts | Exposes `/omnirelay/introspect`, `/healthz`, `/readyz`, Prometheus metrics, OpenTelemetry traces, and ships ready-made `omnirelay` CLI scripts. |
@@ -89,6 +90,18 @@ The repository ships focused sample projects that exercise specific runtime feat
 - Notes:
   - Override ports or telemetry settings via `OBS_CLI__` environment variables.
   - Pair the sample with `omnirelay benchmark` to record traces/metrics during load tests.
+
+## Codegen + Tee Rollout Harness
+
+- Path: `samples/CodegenTee.Rollout`
+- Run: `dotnet run --project samples/CodegenTee.Rollout`
+- What it shows:
+  - `risk.proto` compiled into a descriptor set and consumed by `OmniRelay.Codegen.Protobuf.Generator`, emitting the `RiskServiceOmniRelay` interface plus a typed client.
+  - Two in-process risk deployments implementing the generated interface; the harness uses `AddTeeUnaryOutbound` to fan out calls to a shadow deployment while returning the primary response.
+  - Demonstration of reading both primary and shadow responses so platform teams can compare scoring logic before cutover.
+- Notes:
+  - Edit the proto and rebuild to regenerate the OmniRelay bindings automatically.
+  - Replace the in-process outbound implementation with real gRPC outbounds when shadowing actual services.
 
 ## Tee Shadowing Sample
 

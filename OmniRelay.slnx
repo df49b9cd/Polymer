@@ -4,6 +4,7 @@
     <Project Path="samples/MinimalApiBridge/MinimalApiBridge.csproj" />
     <Project Path="samples/StreamingAnalytics.Lab/StreamingAnalytics.Lab.csproj" />
     <Project Path="samples/ConfigToProd.Template/ConfigToProd.Template.csproj" />
+    <Project Path="samples/CodegenTee.Rollout/CodegenTee.Rollout.csproj" />
     <Project Path="samples/Observability.CliPlayground/Observability.CliPlayground.csproj" />
     <Project Path="samples\Configuration.Server\Configuration.Server.csproj" Type="Classic C#" />
     <Project Path="samples\Shadowing.Server\Shadowing.Server.csproj" Type="Classic C#" />

@@ -22,9 +22,8 @@ Curated backlog of sample projects that demonstrate OmniRelay end-to-end pattern
 
 ## Codegen + Tee Rollout Harness
 
-- **Audience:** API platform teams performing migrations.
-- **What to show:** Protobuf contracts compiled via the CLI/`protoc` plugin, Roslyn incremental generator output, typed clients, and tee/shadow outbounds validating a new deployment before cutover.
-- **Why it helps:** Connects code generation, typed clients, and safe rollout mechanics in one place so adopters understand the full toolchain.
+- **Status:** Shipped at `samples/CodegenTee.Rollout`.
+- **Highlights:** Builds `risk.proto` via the OmniRelay generator, registers the generated service, and tees typed client calls to primary + shadow deployments for safe rollout rehearsals.
 
 ## Multi-Tenant Gateway Sample
 
