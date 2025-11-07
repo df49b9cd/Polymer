@@ -11,7 +11,7 @@ Track high-value integration scenarios that prove the dispatcher, transports, co
 
 ## HTTP Transport Coverage
 
-- [ ] Exercise HTTP/1.1, HTTP/2, and HTTP/3 listeners with real TLS certificates, confirming protocol negotiation, alt-svc headers, and upgrade/fallback behavior.
+- [x] Exercise HTTP/1.1, HTTP/2, and HTTP/3 listeners with real TLS certificates, confirming protocol negotiation, alt-svc headers, and upgrade/fallback behavior. (`HttpTransportNegotiationTests`)
 - [ ] Validate request/response headers (Rpc-*) mirror expectations for success and failure paths, including JSON/protobuf payloads.
 - [ ] Test outbound HTTP clients configured for different `HttpVersionPolicy` values, ensuring retries across peers and fallback from HTTP/3 → HTTP/2.
 - [ ] Include SSE/streaming scenarios to ensure chunked bodies and throttling limits work over real sockets.
