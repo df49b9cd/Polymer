@@ -18,10 +18,10 @@ Track high-value integration scenarios that prove the dispatcher, transports, co
 
 ## gRPC Transport Coverage
 
-- [ ] Cover unary and all streaming shapes over HTTP/2 and HTTP/3, asserting metadata, deadlines, and interceptor behaviors.
-- [ ] Verify TLS certificate loading, client authentication modes, and ALPN enforcement.
-- [ ] Ensure MsQuic-specific tuning (stream limits, idle timeout, keep-alive) takes effect or logs warnings as expected.
-- [ ] Run integration tests that use generated protobuf services to confirm server + client stubs honor transport settings.
+- [x] Cover unary and all streaming shapes over HTTP/2 and HTTP/3, asserting metadata, deadlines, and interceptor behaviors.
+- [x] Verify TLS certificate loading, client authentication modes, and ALPN enforcement.
+- [x] Ensure MsQuic-specific tuning (stream limits, idle timeout, keep-alive) takes effect or logs warnings as expected.
+- [x] Run integration tests that use generated protobuf services to confirm server + client stubs honor transport settings.
 
 ## Codegen & Client Workflows
 
