@@ -11,6 +11,7 @@ using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Codecs;
 using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
 using OmniRelay.Transport.Grpc;
@@ -215,6 +216,31 @@ public class HostingConfigurationIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
+    public async Task AddOmniRelayDispatcher_EnableHttp3WithoutHttps_Throws()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["omnirelay:service"] = "http3-guard",
+            ["omnirelay:inbounds:http:0:name"] = "http3-inbound",
+            ["omnirelay:inbounds:http:0:urls:0"] = $"http://127.0.0.1:{TestPortAllocator.GetRandomPort()}/",
+            ["omnirelay:inbounds:http:0:runtime:enableHttp3"] = "true"
+        });
+
+        builder.Services.AddLogging();
+        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
+
+        using var host = builder.Build();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await host.StartAsync(TestContext.Current.CancellationToken);
+        });
+
+        Assert.Contains("HTTP/3 requires HTTPS", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact(Timeout = 30_000)]
     public async Task AddOmniRelayDispatcher_ConfiguresHttpAndGrpcOutboundsWithMiddleware()
     {
         var inboundPort = TestPortAllocator.GetRandomPort();
@@ -290,6 +316,53 @@ public class HostingConfigurationIntegrationTests
             descriptor.Key == "grpc-client" && descriptor.ImplementationType.Contains(nameof(GrpcOutbound), StringComparison.Ordinal));
         Assert.Contains(outboundDescriptor.Duplex, descriptor =>
             descriptor.Key == "grpc-duplex" && descriptor.ImplementationType.Contains(nameof(GrpcOutbound), StringComparison.Ordinal));
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task AddOmniRelayDispatcher_RegistersJsonCodecProfileAndMiddleware()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["omnirelay:service"] = "codec-flags",
+            ["omnirelay:inbounds:http:0:name"] = "http",
+            ["omnirelay:inbounds:http:0:urls:0"] = $"http://127.0.0.1:{TestPortAllocator.GetRandomPort()}/",
+            ["omnirelay:outbounds:codec:unary:http:0:key"] = "primary",
+            ["omnirelay:outbounds:codec:unary:http:0:url"] = $"http://127.0.0.1:{TestPortAllocator.GetRandomPort()}/",
+            ["omnirelay:middleware:outbound:unary:0"] = typeof(RpcTracingMiddleware).AssemblyQualifiedName,
+            ["omnirelay:middleware:inbound:unary:0"] = typeof(RpcMetricsMiddleware).AssemblyQualifiedName,
+            ["omnirelay:encodings:json:profiles:pretty:options:writeIndented"] = "true",
+            ["omnirelay:encodings:json:outbound:0:service"] = "codec",
+            ["omnirelay:encodings:json:outbound:0:procedure"] = "feature::echo",
+            ["omnirelay:encodings:json:outbound:0:kind"] = "Unary",
+            ["omnirelay:encodings:json:outbound:0:requestType"] = typeof(JsonCodecRequest).AssemblyQualifiedName,
+            ["omnirelay:encodings:json:outbound:0:responseType"] = typeof(JsonCodecResponse).AssemblyQualifiedName,
+            ["omnirelay:encodings:json:outbound:0:profile"] = "pretty",
+            ["omnirelay:encodings:json:outbound:0:encoding"] = "application/json;profile=pretty"
+        });
+
+        builder.Services.AddLogging();
+        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
+
+        using var host = builder.Build();
+        var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();
+
+        var ct = TestContext.Current.CancellationToken;
+        await host.StartAsync(ct);
+        await host.StopAsync(CancellationToken.None);
+
+        Assert.Contains(dispatcher.UnaryOutboundMiddleware, middleware => middleware is RpcTracingMiddleware);
+        Assert.Contains(dispatcher.UnaryInboundMiddleware, middleware => middleware is RpcMetricsMiddleware);
+
+        var codecs = dispatcher.Codecs.Snapshot();
+        Assert.Contains(codecs, entry =>
+            entry.Scope == ProcedureCodecScope.Outbound &&
+            string.Equals(entry.Service, "codec", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(entry.Procedure, "feature::echo", StringComparison.OrdinalIgnoreCase) &&
+            entry.Kind == ProcedureKind.Unary &&
+            entry.Descriptor.RequestType == typeof(JsonCodecRequest) &&
+            entry.Descriptor.ResponseType == typeof(JsonCodecResponse) &&
+            entry.Descriptor.Encoding == "application/json;profile=pretty");
     }
 
     [Fact(Timeout = 30_000)]

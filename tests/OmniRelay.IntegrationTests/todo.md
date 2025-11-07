@@ -7,7 +7,7 @@ Track high-value integration scenarios that prove the dispatcher, transports, co
 - [x] Host dispatcher via `AddOmniRelayDispatcher` using multiple configuration sources (JSON + environment overlays) and verify the DI graph wires up expected components. (Covered by `HostingConfigurationIntegrationTests`)
 - [x] Cover multiple inbound definitions (HTTP + gRPC + custom specs) to ensure named lifecycles start/stop and expose introspection metadata. (`HostingConfigurationIntegrationTests`)
 - [x] Validate outbound binding for every RPC shape (unary, oneway, server/client/duplex stream) when configured purely through the `omnirelay` section. (`HostingConfigurationIntegrationTests`)
-- [ ] Assert feature flags toggle runtime options at startup (HTTP/3 enablement, middleware switches, codec policies).
+- [x] Assert feature flags toggle runtime options at startup (HTTP/3 enablement, middleware switches, codec policies). (`HostingConfigurationIntegrationTests`)
 
 ## HTTP Transport Coverage
 
