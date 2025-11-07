@@ -1,10 +1,10 @@
+using NSubstitute;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using Xunit;
 using static Hugo.Go;
-using NSubstitute;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 

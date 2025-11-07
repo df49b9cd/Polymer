@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
-using OmniRelay.Transport.Http;
 using OmniRelay.Tests;
-using static Hugo.Go;
+using OmniRelay.Transport.Http;
 using Xunit;
+using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
 

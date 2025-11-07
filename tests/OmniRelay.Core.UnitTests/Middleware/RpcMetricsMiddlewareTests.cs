@@ -35,13 +35,25 @@ public class RpcMetricsMiddlewareTests
             };
             Listener.SetMeasurementEventCallback<long>((inst, value, tags, state) =>
             {
-                if (inst.Name.EndsWith("requests")) Requests += value;
-                else if (inst.Name.EndsWith("success")) Success += value;
-                else if (inst.Name.EndsWith("failure")) Failure += value;
+                if (inst.Name.EndsWith("requests"))
+                {
+                    Requests += value;
+                }
+                else if (inst.Name.EndsWith("success"))
+                {
+                    Success += value;
+                }
+                else if (inst.Name.EndsWith("failure"))
+                {
+                    Failure += value;
+                }
             });
             Listener.SetMeasurementEventCallback<double>((inst, value, tags, state) =>
             {
-                if (inst.Name.EndsWith("duration")) Durations.Add(value);
+                if (inst.Name.EndsWith("duration"))
+                {
+                    Durations.Add(value);
+                }
             });
             Listener.Start();
         }

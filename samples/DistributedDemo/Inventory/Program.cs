@@ -2,14 +2,14 @@ using DistributedDemo.Inventory.Protos;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using static Hugo.Go;
 
 var instanceName = Environment.GetEnvironmentVariable("INSTANCE_NAME") ?? "primary";

@@ -22,7 +22,7 @@ public class RequestMetaTests
             routingDelegate: "rd",
             timeToLive: TimeSpan.FromSeconds(1),
             deadline: now,
-            headers: [new KeyValuePair<string,string>("h", "v")]);
+            headers: [new KeyValuePair<string, string>("h", "v")]);
 
         Assert.Equal("svc", meta.Service);
         Assert.Equal("proc", meta.Procedure);
@@ -46,7 +46,7 @@ public class RequestMetaTests
         Assert.True(updated.TryGetHeader("x-one", out var v));
         Assert.Equal("1", v);
 
-        var merged = updated.WithHeaders([new KeyValuePair<string,string>("x-ONE", "2"), new("Two", "2")]);
+        var merged = updated.WithHeaders([new KeyValuePair<string, string>("x-ONE", "2"), new("Two", "2")]);
         Assert.True(merged.TryGetHeader("X-One", out var v1));
         Assert.Equal("2", v1);
         Assert.True(merged.TryGetHeader("two", out var v2));

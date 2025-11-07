@@ -1,8 +1,8 @@
 using System.Text.Json;
+using NSubstitute;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
-using NSubstitute;
 using Xunit;
 using static Hugo.Go;
 

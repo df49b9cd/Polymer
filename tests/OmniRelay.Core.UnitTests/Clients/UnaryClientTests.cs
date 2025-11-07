@@ -37,7 +37,7 @@ public class UnaryClientTests
             .Returns(ci => ValueTask.FromResult(Ok(outboundResponse)));
 
         var client = new UnaryClient<Req, Res>(outbound, codec, Array.Empty<IUnaryOutboundMiddleware>());
-    var result = await client.CallAsync(new Request<Req>(meta, req), TestContext.Current.CancellationToken);
+        var result = await client.CallAsync(new Request<Req>(meta, req), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(42, result.Value.Body.Y);
@@ -56,7 +56,7 @@ public class UnaryClientTests
         codec.EncodeRequest(Arg.Any<Req>(), Arg.Any<RequestMeta>()).Returns(Err<byte[]>(err));
 
         var client = new UnaryClient<Req, Res>(outbound, codec, Array.Empty<IUnaryOutboundMiddleware>());
-    var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
+        var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsFailure);
         Assert.Same(err, result.Error);
@@ -75,7 +75,7 @@ public class UnaryClientTests
             .Returns(ci => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(err)));
 
         var client = new UnaryClient<Req, Res>(outbound, codec, Array.Empty<IUnaryOutboundMiddleware>());
-    var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
+        var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsFailure);
         Assert.Same(err, result.Error);

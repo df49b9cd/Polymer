@@ -14,8 +14,8 @@ using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Codecs;
 using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests;
-using OmniRelay.Transport.Http;
 using OmniRelay.Transport.Grpc;
+using OmniRelay.Transport.Http;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests;

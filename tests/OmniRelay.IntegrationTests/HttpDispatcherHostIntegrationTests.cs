@@ -11,8 +11,8 @@ using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
-using static Hugo.Go;
 using Xunit;
+using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
 

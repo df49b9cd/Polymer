@@ -14,10 +14,10 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.Transport.Http;
 using OmniRelay.Tests;
-using static Hugo.Go;
+using OmniRelay.Transport.Http;
 using Xunit;
+using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
 

@@ -79,8 +79,8 @@ public class ClientStreamClientTests
         var finalMeta = new ResponseMeta { Transport = "test" };
         transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(responseBytes, finalMeta)));
 
-    var response = await session.Response;
-    Assert.Equal(Convert.ToBase64String(responseBytes), response.Body.S);
+        var response = await session.Response;
+        Assert.Equal(Convert.ToBase64String(responseBytes), response.Body.S);
     }
 
     [Fact]

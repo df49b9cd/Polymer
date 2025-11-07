@@ -26,7 +26,10 @@ public class ServerStreamCallTests
         await foreach (var payload in call.Responses.ReadAllAsync(TestContext.Current.CancellationToken))
         {
             received.Add(payload.ToArray());
-            if (received.Count == 2) break;
+            if (received.Count == 2)
+            {
+                break;
+            }
         }
 
         Assert.Equal(2, received.Count);

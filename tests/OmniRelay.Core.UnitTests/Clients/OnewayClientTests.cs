@@ -29,7 +29,7 @@ public class OnewayClientTests
             .Returns(ci => ValueTask.FromResult(Ok(OnewayAck.Ack(new ResponseMeta()))));
 
         var client = new OnewayClient<Req>(outbound, codec, Array.Empty<IOnewayOutboundMiddleware>());
-    var result = await client.CallAsync(Request<Req>.Create(new Req { V = "x" }), TestContext.Current.CancellationToken);
+        var result = await client.CallAsync(Request<Req>.Create(new Req { V = "x" }), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         await outbound.Received(1).CallAsync(
@@ -47,7 +47,7 @@ public class OnewayClientTests
         codec.EncodeRequest(Arg.Any<Req>(), Arg.Any<RequestMeta>()).Returns(Err<byte[]>(err));
 
         var client = new OnewayClient<Req>(outbound, codec, Array.Empty<IOnewayOutboundMiddleware>());
-    var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
+        var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
 
         Assert.True(result.IsFailure);
         Assert.Same(err, result.Error);

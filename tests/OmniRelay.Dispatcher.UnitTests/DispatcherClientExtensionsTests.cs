@@ -1,9 +1,9 @@
-using OmniRelay.Core.Clients;
-using OmniRelay.Dispatcher;
-using NSubstitute;
-using OmniRelay.Core.Transport;
-using Xunit;
 using System.Linq;
+using NSubstitute;
+using OmniRelay.Core.Clients;
+using OmniRelay.Core.Transport;
+using OmniRelay.Dispatcher;
+using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 

@@ -34,7 +34,11 @@ public class QuicKestrelEventBridgeTests
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            if (!IsEnabled(logLevel)) return;
+            if (!IsEnabled(logLevel))
+            {
+                return;
+            }
+
             var msg = formatter(state, exception);
             Entries.Enqueue((logLevel, msg, _currentScope.Value));
         }
@@ -81,7 +85,11 @@ public class QuicKestrelEventBridgeTests
         var until = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(2));
         while (DateTime.UtcNow < until)
         {
-            if (predicate()) return;
+            if (predicate())
+            {
+                return;
+            }
+
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
         Assert.True(predicate());
@@ -95,7 +103,7 @@ public class QuicKestrelEventBridgeTests
 
         src.HandshakeError("handshake failure: cert error");
 
-    await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
+        await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
         Assert.True(logger.Entries.TryDequeue(out var entry));
         Assert.Equal(LogLevel.Warning, entry.level);
         Assert.Contains("handshake_failure", entry.message);
@@ -110,7 +118,7 @@ public class QuicKestrelEventBridgeTests
 
         src.PathValidated("path_validated: new path");
 
-    await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
+        await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
         Assert.True(logger.Entries.TryDequeue(out var entry));
         Assert.Equal(LogLevel.Information, entry.level);
         Assert.Contains("migration", entry.message);
@@ -124,7 +132,7 @@ public class QuicKestrelEventBridgeTests
 
         src.Http3Connection("started");
 
-    await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
+        await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
         Assert.True(logger.Entries.TryDequeue(out var entry));
         Assert.Equal(LogLevel.Debug, entry.level);
         Assert.Contains("http3", entry.message);
