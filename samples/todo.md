@@ -27,9 +27,8 @@ Curated backlog of sample projects that demonstrate OmniRelay end-to-end pattern
 
 ## Multi-Tenant Gateway Sample
 
-- **Audience:** SaaS or bank platforms consolidating many services.
-- **What to show:** Dispatcher hosting multiple tenant-specific procedures that read routing metadata, apply per-tenant middleware (quotas, logging), and fan out to isolated peer sets.
-- **Why it helps:** Highlights OmniRelay’s ability to enforce tenant isolation, rate limits, and custom peer choosers without duplicating hosts.
+- **Status:** Shipped at `samples/MultiTenant.Gateway`.
+- **Highlights:** Demonstrates tenant routing via headers, per-tenant quota/logging middleware, and tenant-specific HTTP outbounds.
 
 ## Hybrid Batch + Realtime Runner
 

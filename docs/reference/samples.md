@@ -8,6 +8,7 @@ The repository ships focused sample projects that exercise specific runtime feat
 | Minimal API bridge | `samples/MinimalApiBridge` | ASP.NET Core + OmniRelay | Shared DI container hosts Minimal APIs next to an OmniRelay dispatcher so HTTP controllers and RPC procedures reuse the same handlers, codecs, and middleware. |
 | Streaming analytics lab | `samples/StreamingAnalytics.Lab` | Server/client/duplex streaming | Demonstrates JSON + Protobuf codecs, server/client/duplex handlers, and matching OmniRelay streaming clients that feed ESG/ticker data. |
 | Config-to-prod template | `samples/ConfigToProd.Template` | Layered config + probes | Shows `AddOmniRelayDispatcher` with `appsettings.*`, env overrides, diagnostics toggles, and liveness/readiness endpoints ready for Docker/Kubernetes. |
+| Multi-tenant gateway | `samples/MultiTenant.Gateway` | Tenant-aware routing | Demonstrates per-tenant middleware, quotas, and routing headers that fan out to isolated peer sets without duplicating hosts. |
 | Configuration host | `samples/Configuration.Server` | `AddOmniRelayDispatcher` + DI | Uses `appsettings.json` to configure transports, diagnostics, middleware, JSON codecs, and a custom outbound spec instantiated via configuration. |
 | Codegen + tee rollout | `samples/CodegenTee.Rollout` | Protobuf generator + shadowing | Builds Protobuf contracts via OmniRelay’s generator and mirrors typed client calls to primary + shadow deployments using tee outbounds. |
 | Tee shadowing | `samples/Shadowing.Server` | `TeeUnaryOutbound` / `TeeOnewayOutbound` | Mirrors production calls to a shadow stack, shows how to compose typed clients and oneway fan-out while logging both inbound and outbound pipelines. |
@@ -90,6 +91,18 @@ The repository ships focused sample projects that exercise specific runtime feat
 - Notes:
   - Override ports or telemetry settings via `OBS_CLI__` environment variables.
   - Pair the sample with `omnirelay benchmark` to record traces/metrics during load tests.
+
+## Multi-Tenant Gateway
+
+- Path: `samples/MultiTenant.Gateway`
+- Run: `dotnet run --project samples/MultiTenant.Gateway`
+- What it shows:
+  - Dispatcher hosting multiple tenants identified via `x-tenant-id` headers.
+  - Per-tenant middleware enforcing quotas/logging without duplicating hosts.
+  - Tenant-specific HTTP outbounds so each tenant fans out to its own peer set.
+- Notes:
+  - Update the placeholder HTTP endpoints (`http://localhost:7201` / `7202`) to actual services.
+  - Bind tenant settings from configuration to mirror production environments.
 
 ## Codegen + Tee Rollout Harness
 
