@@ -108,7 +108,7 @@ public sealed class OmniRelayProtobufGenerator
     {
         public FileDescriptorProto File { get; } = file ?? throw new ArgumentNullException(nameof(file));
         public string Namespace { get; } = ns ?? throw new ArgumentNullException(nameof(ns));
-        public IReadOnlyList<ServiceDescriptorProto> Services { get; } = file.Service.ToList();
+        public IReadOnlyList<ServiceDescriptorProto> Services { get; } = [.. file.Service];
         public IReadOnlyDictionary<string, string> TypeNameMap { get; } = BuildTypeNameMap(file);
 
         private static Dictionary<string, string> BuildTypeNameMap(FileDescriptorProto file)

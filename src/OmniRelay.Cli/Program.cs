@@ -3070,7 +3070,7 @@ public static class Program
 
                 try
                 {
-                    var descriptor = BuildFileDescriptor(proto, dependencies.ToArray());
+                    var descriptor = BuildFileDescriptor(proto, [.. dependencies]);
                     descriptors[name] = descriptor;
                     pending.Remove(name);
                     progress = true;

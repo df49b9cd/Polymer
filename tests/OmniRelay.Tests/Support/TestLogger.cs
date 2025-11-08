@@ -14,7 +14,7 @@ internal sealed class TestLogger<T> : ILogger<T>
         if (state is IEnumerable<KeyValuePair<string, object?>> pairs)
         {
             var snapshot = pairs as IReadOnlyList<KeyValuePair<string, object?>>
-                ?? pairs.ToList();
+                ?? [.. pairs];
 
             var previous = _currentScope.Value;
             var scopeState = new ScopeState(snapshot, previous);

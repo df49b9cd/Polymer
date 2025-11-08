@@ -16,7 +16,7 @@ internal static class TestHelpers
     {
         private readonly ConcurrentQueue<string> _events = new();
 
-        public IReadOnlyCollection<string> Events => _events.ToArray();
+        public IReadOnlyCollection<string> Events => [.. _events];
 
         public Dispatcher? BoundDispatcher { get; private set; }
 

@@ -473,7 +473,7 @@ public class ObservabilityDiagnosticsIntegrationTests
             _listener.Start();
         }
 
-        public IReadOnlyCollection<MeasurementRecord> Measurements => _measurements.ToArray();
+        public IReadOnlyCollection<MeasurementRecord> Measurements => [.. _measurements];
 
         public void Dispose() => _listener.Dispose();
     }
@@ -490,7 +490,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         private readonly ConcurrentQueue<LogEntry> _entries = new();
         private IExternalScopeProvider _scopeProvider = new LoggerExternalScopeProvider();
 
-        public IReadOnlyCollection<LogEntry> Entries => _entries.ToArray();
+        public IReadOnlyCollection<LogEntry> Entries => [.. _entries];
 
         public ILogger CreateLogger(string categoryName) => new CapturingLogger(categoryName, _entries, () => _scopeProvider);
 
@@ -538,7 +538,7 @@ public class ObservabilityDiagnosticsIntegrationTests
                 IReadOnlyList<KeyValuePair<string, object?>>? stateItems = null;
                 if (state is IEnumerable<KeyValuePair<string, object?>> statePairs)
                 {
-                    stateItems = statePairs.ToArray();
+                    stateItems = [.. statePairs];
                 }
 
                 var entry = new LogEntry(_category, logLevel, formatter(state, exception), stateItems, scopeItems);

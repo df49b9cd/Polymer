@@ -128,7 +128,7 @@ public sealed class PeerMetricsTests : IDisposable
     }
 
     private IReadOnlyList<MetricMeasurement> GetMeasurements(string instrument) =>
-        _measurements.Where(m => string.Equals(m.Instrument, instrument, StringComparison.Ordinal)).ToArray();
+        [.. _measurements.Where(m => string.Equals(m.Instrument, instrument, StringComparison.Ordinal))];
 
     private static bool HasTag(MetricMeasurement measurement, string key, object? expected)
     {

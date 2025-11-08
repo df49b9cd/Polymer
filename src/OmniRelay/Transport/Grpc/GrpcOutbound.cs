@@ -747,7 +747,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         return new GrpcOutboundSnapshot(
             _remoteService,
-            _addresses.ToArray(),
+            [.. _addresses],
             chooserName,
             _started,
             peers,

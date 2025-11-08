@@ -10,7 +10,7 @@ internal static class OmniRelayCliTestHelper
     private static readonly string CliProjectPath = Path.Combine(RepositoryRoot, "src", "OmniRelay.Cli", "OmniRelay.Cli.csproj");
 
     public static Task<CliResult> RunAsync(IEnumerable<string> arguments, CancellationToken cancellationToken) =>
-        RunCliAsync(arguments.ToArray(), cancellationToken);
+        RunCliAsync([.. arguments], cancellationToken);
 
     public static CliBackgroundProcess StartBackground(IEnumerable<string> arguments)
     {

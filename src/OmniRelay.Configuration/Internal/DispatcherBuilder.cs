@@ -550,9 +550,7 @@ internal sealed class DispatcherBuilder
             }
 
             // Prefer HTTP/3 capable endpoints first in ordering to improve baseline distribution
-            uris = list
-                .OrderByDescending(u => map.TryGetValue(u, out var s) && s)
-                .ToArray();
+            uris = [.. list.OrderByDescending(u => map.TryGetValue(u, out var s) && s)];
 
             if (map.Count > 0)
             {
@@ -561,10 +559,9 @@ internal sealed class DispatcherBuilder
         }
         else
         {
-            uris = configuration.Addresses
+            uris = [.. configuration.Addresses
                 .Select((address, index) => ValidateGrpcUrl(address, $"grpc outbound peer #{index} for service '{service}'"))
-                .Select(value => new Uri(value, UriKind.Absolute))
-                .ToArray();
+                .Select(value => new Uri(value, UriKind.Absolute))];
         }
 
         var remoteService = string.IsNullOrWhiteSpace(configuration.RemoteService)

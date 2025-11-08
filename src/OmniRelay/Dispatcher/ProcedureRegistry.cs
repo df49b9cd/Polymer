@@ -113,7 +113,7 @@ internal sealed class ProcedureRegistry
     {
         lock (_gate)
         {
-            return _procedures.Values.ToArray();
+            return [.. _procedures.Values];
         }
     }
 

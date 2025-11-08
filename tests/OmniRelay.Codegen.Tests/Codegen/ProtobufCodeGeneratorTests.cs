@@ -232,7 +232,7 @@ public class ProtobufCodeGeneratorTests
     {
         public static string Root => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
-        public static string Combine(params string[] segments) => Path.Combine(new[] { Root }.Concat(segments).ToArray());
+        public static string Combine(params string[] segments) => Path.Combine([Root, .. segments]);
     }
 
     private sealed class DescriptorAdditionalText(string path) : AdditionalText
