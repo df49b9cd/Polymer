@@ -34,25 +34,27 @@ internal static class PeerChooserHelpers
     }
 
     /// <summary>
-    /// Computes the delay to wait before retrying peer acquisition.
-    /// Returns <c>false</c> when the deadline has expired or no deadline is available.
+    /// Determines whether the supplied deadline has elapsed.
     /// </summary>
-    public static bool TryGetWaitDelay(DateTimeOffset? deadline, out TimeSpan delay)
+    public static bool HasDeadlineElapsed(DateTimeOffset? deadline) =>
+        deadline is { } value && value <= DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Computes the wait delay respecting the provided deadline or defaults when none is supplied.
+    /// </summary>
+    public static TimeSpan GetWaitDelay(DateTimeOffset? deadline)
     {
         if (deadline is not { } value)
         {
-            delay = TimeSpan.Zero;
-            return false;
+            return DefaultWaitSlice;
         }
 
         var remaining = value - DateTimeOffset.UtcNow;
         if (remaining <= TimeSpan.Zero)
         {
-            delay = TimeSpan.Zero;
-            return false;
+            return TimeSpan.Zero;
         }
 
-        delay = remaining <= DefaultWaitSlice ? remaining : DefaultWaitSlice;
-        return true;
+        return remaining <= DefaultWaitSlice ? remaining : DefaultWaitSlice;
     }
 }

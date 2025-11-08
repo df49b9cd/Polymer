@@ -14,7 +14,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
 {
     private readonly object _lock = new();
     private readonly Dictionary<string, PeerRegistration> _registrations = new(StringComparer.Ordinal);
-    private readonly List<IPeer> _availablePeers = new();
+    private readonly List<IPeer> _availablePeers = [];
     private readonly PeerAvailabilitySignal _availabilitySignal = new();
     private bool _disposed;
 
@@ -27,19 +27,19 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     {
         ArgumentNullException.ThrowIfNull(peers);
 
-        lock (_lock)
+        var desired = new Dictionary<string, IPeer>(StringComparer.Ordinal);
+        foreach (var peer in peers)
         {
-            var desired = new Dictionary<string, IPeer>(StringComparer.Ordinal);
-            foreach (var peer in peers)
+            if (peer is null)
             {
-                if (peer is null)
-                {
-                    continue;
-                }
-
-                desired[peer.Identifier] = peer;
+                continue;
             }
 
+            desired[peer.Identifier] = peer;
+        }
+
+        lock (_lock)
+        {
             foreach (var existing in _registrations.Keys.Except(desired.Keys).ToList())
             {
                 RemovePeerInternal(existing);
@@ -91,25 +91,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
 
         while (true)
         {
-            IPeer? candidate = null;
-
-            lock (_lock)
-            {
-                if (_availablePeers.Count > 0)
-                {
-                    candidate = selector(_availablePeers);
-                }
-            }
-
-            if (candidate is not null)
-            {
-                if (candidate.TryAcquire(cancellationToken))
-                {
-                    return Ok(new PeerLease(candidate, meta));
-                }
-
-                PeerMetrics.RecordLeaseRejected(meta, candidate.Identifier, "busy");
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (!HasPeers())
             {
@@ -120,20 +102,34 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
                 return Err<PeerLease>(unavailable);
             }
 
-            if (!PeerChooserHelpers.TryGetWaitDelay(waitDeadline, out var delay))
+            var attemptResult = TryAcquireFromAvailablePeers(meta, selector, cancellationToken, out var lease);
+            if (attemptResult == AcquisitionAttemptResult.Success && lease is not null)
             {
-                break;
+                return Ok(lease);
             }
 
+            if (attemptResult == AcquisitionAttemptResult.Busy)
+            {
+                PeerMetrics.RecordPoolExhausted(meta);
+                var exhausted = OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.ResourceExhausted,
+                    "All peers are busy.",
+                    transport: meta.Transport ?? "unknown");
+                return Err<PeerLease>(exhausted);
+            }
+
+            if (PeerChooserHelpers.HasDeadlineElapsed(waitDeadline))
+            {
+                var deadlineError = OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.DeadlineExceeded,
+                    "Peer acquisition deadline expired.",
+                    transport: meta.Transport ?? "unknown");
+                return Err<PeerLease>(deadlineError);
+            }
+
+            var delay = PeerChooserHelpers.GetWaitDelay(waitDeadline);
             await _availabilitySignal.WaitAsync(delay, cancellationToken).ConfigureAwait(false);
         }
-
-        PeerMetrics.RecordPoolExhausted(meta);
-        var exhausted = OmniRelayErrorAdapter.FromStatus(
-            OmniRelayStatusCode.ResourceExhausted,
-            "All peers are busy.",
-            transport: meta.Transport ?? "unknown");
-        return Err<PeerLease>(exhausted);
     }
 
     public void NotifyStatusChanged(IPeer peer)
@@ -200,6 +196,72 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         }
     }
 
+    private AcquisitionAttemptResult TryAcquireFromAvailablePeers(
+        RequestMeta meta,
+        Func<IReadOnlyList<IPeer>, IPeer?> selector,
+        CancellationToken cancellationToken,
+        out PeerLease? lease)
+    {
+        lease = null;
+
+        List<IPeer>? snapshot = null;
+        lock (_lock)
+        {
+            if (_availablePeers.Count > 0)
+            {
+                snapshot = [.. _availablePeers];
+            }
+        }
+
+        if (snapshot is null || snapshot.Count == 0)
+        {
+            return AcquisitionAttemptResult.NoAvailablePeers;
+        }
+
+        var candidates = snapshot;
+        var attempted = false;
+
+        while (candidates.Count > 0)
+        {
+            var candidate = selector(candidates);
+            if (candidate is null)
+            {
+                break;
+            }
+
+            if (!RemoveCandidate(candidates, candidate))
+            {
+                continue;
+            }
+
+            attempted = true;
+
+            if (candidate.TryAcquire(cancellationToken))
+            {
+                lease = new PeerLease(candidate, meta);
+                return AcquisitionAttemptResult.Success;
+            }
+
+            PeerMetrics.RecordLeaseRejected(meta, candidate.Identifier, "busy");
+        }
+
+        return attempted ? AcquisitionAttemptResult.Busy : AcquisitionAttemptResult.NoAvailablePeers;
+    }
+
+    private static bool RemoveCandidate(IList<IPeer> peers, IPeer candidate)
+    {
+        for (var i = 0; i < peers.Count; i++)
+        {
+            if (ReferenceEquals(peers[i], candidate))
+            {
+                peers.RemoveAt(i);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void AddPeerInternal(IPeer peer)
     {
         var registration = new PeerRegistration(peer);
@@ -242,5 +304,12 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         public IPeer Peer { get; }
         public IDisposable? Subscription { get; set; }
         public bool IsAvailable { get; set; }
+    }
+
+    private enum AcquisitionAttemptResult
+    {
+        NoAvailablePeers,
+        Busy,
+        Success
     }
 }

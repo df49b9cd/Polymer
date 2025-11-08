@@ -945,7 +945,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             lock (_subscriberLock)
             {
-                _subscribers ??= new HashSet<IPeerSubscriber>();
+                _subscribers ??= [];
                 _subscribers.Add(subscriber);
             }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Hugo;
 using OmniRelay.Errors;
@@ -59,52 +60,54 @@ internal static class PeerMetrics
 
     internal static void RecordLeaseRejected(RequestMeta meta, string peerIdentifier, string reason)
     {
-        var tags = Append(CreatePeerTags(meta, peerIdentifier), new KeyValuePair<string, object?>("peer.rejection_reason", reason));
+        var tags = CreatePeerTags(meta, peerIdentifier);
+        tags.Add("peer.rejection_reason", reason);
         LeaseRejectedCounter.Add(1, tags);
     }
 
-    internal static void RecordPoolExhausted(RequestMeta meta) => PoolExhaustedCounter.Add(1, CreatePeerTags(meta, peerIdentifier: string.Empty));
+    internal static void RecordPoolExhausted(RequestMeta meta) =>
+        PoolExhaustedCounter.Add(1, CreatePeerTags(meta, peerIdentifier: string.Empty));
 
     internal static void RecordRetryScheduled(RequestMeta meta, Error error, int attempt, TimeSpan? delay)
     {
-        var tags = AppendRetryTags(meta, error, attempt);
+        var tags = CreateRetryTags(meta, error, attempt);
         if (delay is { } duration)
         {
-            tags = Append(tags, new KeyValuePair<string, object?>("retry.delay_ms", duration.TotalMilliseconds));
+            tags.Add("retry.delay_ms", duration.TotalMilliseconds);
         }
 
         RetryScheduledCounter.Add(1, tags);
     }
 
-    internal static void RecordRetryExhausted(RequestMeta meta, Error error, int attempt) => RetryExhaustedCounter.Add(1, AppendRetryTags(meta, error, attempt));
+    internal static void RecordRetryExhausted(RequestMeta meta, Error error, int attempt) =>
+        RetryExhaustedCounter.Add(1, CreateRetryTags(meta, error, attempt));
 
     internal static void RecordRetrySucceeded(RequestMeta meta, int attempts)
     {
-        var tags = Append(CreatePeerTags(meta, string.Empty), new KeyValuePair<string, object?>("retry.attempts", attempts));
+        var tags = CreatePeerTags(meta, string.Empty);
+        tags.Add("retry.attempts", attempts);
         RetrySucceededCounter.Add(1, tags);
     }
 
-    private static KeyValuePair<string, object?>[] CreatePeerTags(RequestMeta meta, string peerIdentifier) => [
-            new KeyValuePair<string, object?>("rpc.service", meta.Service ?? string.Empty),
-            new KeyValuePair<string, object?>("rpc.procedure", meta.Procedure ?? string.Empty),
-            new KeyValuePair<string, object?>("rpc.transport", meta.Transport ?? string.Empty),
-            new KeyValuePair<string, object?>("rpc.peer", peerIdentifier ?? string.Empty)
-        ];
-
-    private static KeyValuePair<string, object?>[] AppendRetryTags(RequestMeta meta, Error error, int attempt)
+    private static TagList CreatePeerTags(RequestMeta meta, string peerIdentifier)
     {
-        var tags = CreatePeerTags(meta, string.Empty);
-        var status = OmniRelayErrorAdapter.ToStatus(error);
-        tags = Append(tags, new KeyValuePair<string, object?>("error.status", status.ToString()));
-        tags = Append(tags, new KeyValuePair<string, object?>("retry.attempt", attempt));
+        var tags = new TagList
+        {
+            { "rpc.service", meta.Service ?? string.Empty },
+            { "rpc.procedure", meta.Procedure ?? string.Empty },
+            { "rpc.transport", meta.Transport ?? string.Empty },
+            { "rpc.peer", peerIdentifier ?? string.Empty }
+        };
+
         return tags;
     }
 
-    private static KeyValuePair<string, object?>[] Append(KeyValuePair<string, object?>[] tags, KeyValuePair<string, object?> append)
+    private static TagList CreateRetryTags(RequestMeta meta, Error error, int attempt)
     {
-        var result = new KeyValuePair<string, object?>[tags.Length + 1];
-        Array.Copy(tags, result, tags.Length);
-        result[^1] = append;
-        return result;
+        var tags = CreatePeerTags(meta, string.Empty);
+        var status = OmniRelayErrorAdapter.ToStatus(error);
+        tags.Add("error.status", status.ToString());
+        tags.Add("retry.attempt", attempt);
+        return tags;
     }
 }
