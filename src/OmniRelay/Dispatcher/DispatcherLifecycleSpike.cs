@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Hugo;
+using OmniRelay.Errors;
 using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher;
@@ -19,24 +20,32 @@ public static class DispatcherLifecycleSpike
     {
         var started = new List<string>();
         var stopped = new List<string>();
-        var readiness = Go.MakeChannel<string>();
-        var wg = new WaitGroup();
+        var readiness = MakeChannel<string>();
 
-        foreach (var (step, index) in startSteps.Select((step, index) => (step, index)))
+        using (var group = new ErrGroup(cancellationToken))
         {
-            wg.Go(async token =>
+            foreach (var (step, index) in startSteps.Select((step, index) => (step, index)))
             {
-                await step(token).ConfigureAwait(false);
-                await readiness.Writer.WriteAsync($"start:{index}", token).ConfigureAwait(false);
-            }, cancellationToken);
-        }
+                var label = $"start:{index}";
+                group.Go(async token =>
+                {
+                    await step(token).ConfigureAwait(false);
+                    await readiness.Writer.WriteAsync(label, token).ConfigureAwait(false);
+                });
+            }
 
-        await wg.WaitAsync(cancellationToken).ConfigureAwait(false);
-        readiness.Writer.TryComplete();
+            var waitResult = await group.WaitAsync(cancellationToken).ConfigureAwait(false);
+            readiness.Writer.TryComplete();
 
-        await foreach (var item in readiness.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-        {
-            started.Add(item);
+            await foreach (var item in readiness.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                started.Add(item);
+            }
+
+            if (waitResult.IsFailure && waitResult.Error is { } error)
+            {
+                throw OmniRelayErrors.FromError(error, "dispatcher-lifecycle-spike");
+            }
         }
 
         foreach (var (step, index) in stopSteps.Select((step, index) => (step, index)))

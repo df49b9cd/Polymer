@@ -11,6 +11,7 @@ namespace OmniRelay.Core.Middleware;
 /// </summary>
 public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutboundMiddleware
 {
+    private const string RetryAbortMetadataKey = "omni.retry.abort";
     private readonly RetryOptions _options = options ?? new RetryOptions();
 
     /// <inheritdoc />
@@ -33,15 +34,101 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
         }
 
         var policy = ResolvePolicy(meta);
+
+        if (_options.ShouldRetryError is not null)
+        {
+            return await ExecuteWithCustomPredicateAsync(request, cancellationToken, next, meta, policy).ConfigureAwait(false);
+        }
+
+        return await ExecuteWithPolicyAsync(request, cancellationToken, next, meta, policy).ConfigureAwait(false);
+    }
+
+    private ResultExecutionPolicy ResolvePolicy(RequestMeta meta)
+    {
+        if (_options.PolicySelector is { } selector && selector(meta) is { } selected)
+        {
+            return selected;
+        }
+
+        return _options.Policy ?? ResultExecutionPolicy.None;
+    }
+
+    private bool IsRetryable(Error error)
+    {
+        if (_options.ShouldRetryError is { } predicate)
+        {
+            return predicate(error);
+        }
+
+        return OmniRelayErrors.IsRetryable(error);
+    }
+
+    private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ExecuteWithPolicyAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken,
+        UnaryOutboundDelegate next,
+        RequestMeta meta,
+        ResultExecutionPolicy policy)
+    {
         if (policy.Retry == ResultRetryPolicy.None)
         {
             return await next(request, cancellationToken).ConfigureAwait(false);
         }
 
+        var timeProvider = _options.TimeProvider ?? TimeProvider.System;
+        var attempt = 0;
+
+        var result = await Result.RetryWithPolicyAsync<Response<ReadOnlyMemory<byte>>>(
+            async (_, token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                attempt++;
+                var attemptResult = await next(request, token).ConfigureAwait(false);
+
+                if (attemptResult.IsSuccess && attempt > 1)
+                {
+                    PeerMetrics.RecordRetrySucceeded(meta, attempt);
+                }
+
+                if (attemptResult.IsFailure && !IsRetryable(attemptResult.Error!))
+                {
+                    return Result.Fail<Response<ReadOnlyMemory<byte>>>(WrapNonRetryable(attemptResult.Error!));
+                }
+
+                return attemptResult;
+            },
+            policy,
+            timeProvider,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.IsFailure && TryUnwrapNonRetryable(result.Error!, out var original))
+        {
+            return Result.Fail<Response<ReadOnlyMemory<byte>>>(original);
+        }
+
+        if (result.IsFailure && attempt > 1)
+        {
+            PeerMetrics.RecordRetryExhausted(meta, result.Error!, attempt);
+        }
+
+        return result;
+    }
+
+    private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ExecuteWithCustomPredicateAsync(
+        IRequest<ReadOnlyMemory<byte>> request,
+        CancellationToken cancellationToken,
+        UnaryOutboundDelegate next,
+        RequestMeta meta,
+        ResultExecutionPolicy policy)
+    {
         var retry = policy.Retry ?? ResultRetryPolicy.None;
+        if (retry == ResultRetryPolicy.None)
+        {
+            return await next(request, cancellationToken).ConfigureAwait(false);
+        }
+
         var timeProvider = _options.TimeProvider ?? TimeProvider.System;
         var state = retry.CreateState(timeProvider);
-
         var attempt = 0;
 
         while (true)
@@ -94,23 +181,20 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
         }
     }
 
-    private ResultExecutionPolicy ResolvePolicy(RequestMeta meta)
+    private static Error WrapNonRetryable(Error error) =>
+        Error.Canceled("retry aborted").WithMetadata(RetryAbortMetadataKey, error);
+
+    private static bool TryUnwrapNonRetryable(Error? error, out Error original)
     {
-        if (_options.PolicySelector is { } selector && selector(meta) is { } selected)
+        original = null!;
+        if (error?.Code == ErrorCodes.Canceled &&
+            error.Metadata.TryGetValue(RetryAbortMetadataKey, out var value) &&
+            value is Error typed)
         {
-            return selected;
+            original = typed;
+            return true;
         }
 
-        return _options.Policy ?? ResultExecutionPolicy.None;
-    }
-
-    private bool IsRetryable(Error error)
-    {
-        if (_options.ShouldRetryError is { } predicate)
-        {
-            return predicate(error);
-        }
-
-        return OmniRelayErrors.IsRetryable(error);
+        return false;
     }
 }
