@@ -1,122 +1,64 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Threading.Tasks;
+using System.Linq;
 using Hugo;
-using OmniRelay.Errors;
-using static Hugo.Go;
-
 namespace OmniRelay.Core.Peers;
 
 /// <summary>
 /// Chooses peers in a round-robin fashion, skipping busy peers.
 /// </summary>
-public sealed class RoundRobinPeerChooser : IPeerChooser, IPeerSubscriber
+public sealed class RoundRobinPeerChooser : IPeerChooser
 {
-    private readonly ImmutableArray<IPeer> _peers;
-    private readonly List<IDisposable> _subscriptions = [];
-    private readonly PeerAvailabilitySignal? _availabilitySignal;
-    private bool _disposed;
+    private readonly PeerListCoordinator _coordinator;
     private long _next = -1;
 
     public RoundRobinPeerChooser(params IPeer[] peers)
+        : this(peers is null ? throw new ArgumentNullException(nameof(peers)) : peers.AsEnumerable())
     {
-        ArgumentNullException.ThrowIfNull(peers);
-
-        _peers = [.. peers];
-        _availabilitySignal = InitializeSubscriptions();
     }
 
     public RoundRobinPeerChooser(ImmutableArray<IPeer> peers)
+        : this(peers.AsEnumerable())
     {
-        _peers = peers;
-        _availabilitySignal = InitializeSubscriptions();
     }
 
-    public async ValueTask<Result<PeerLease>> AcquireAsync(RequestMeta meta, CancellationToken cancellationToken = default)
+    public RoundRobinPeerChooser(IEnumerable<IPeer> peers)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (_peers.IsDefaultOrEmpty)
-        {
-            var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "No peers are registered for the requested service.", transport: meta.Transport ?? "unknown");
-            return Err<PeerLease>(error);
-        }
-
-        var waitDeadline = PeerChooserHelpers.ResolveDeadline(meta);
-
-        while (true)
-        {
-            var length = _peers.Length;
-            for (var attempt = 0; attempt < length; attempt++)
-            {
-                var index = Interlocked.Increment(ref _next);
-                var resolved = _peers[(int)(index % length)];
-
-                if (resolved.TryAcquire(cancellationToken))
-                {
-                    return Ok(new PeerLease(resolved, meta));
-                }
-
-                PeerMetrics.RecordLeaseRejected(meta, resolved.Identifier, "busy");
-            }
-
-            if (!PeerChooserHelpers.TryGetWaitDelay(waitDeadline, out var delay))
-            {
-                break;
-            }
-
-            if (_availabilitySignal is { } signal)
-            {
-                await signal.WaitAsync(delay, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-            }
-        }
-
-        PeerMetrics.RecordPoolExhausted(meta);
-        var exhausted = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.ResourceExhausted, "All peers are busy.", transport: meta.Transport ?? "unknown");
-        return Err<PeerLease>(exhausted);
+        ArgumentNullException.ThrowIfNull(peers);
+        var snapshot = peers.ToList();
+        _coordinator = new PeerListCoordinator(snapshot);
     }
 
-    public void NotifyStatusChanged(IPeer peer)
+    public void UpdatePeers(IEnumerable<IPeer> peers)
     {
-        _availabilitySignal?.Signal();
+        ArgumentNullException.ThrowIfNull(peers);
+        _coordinator.UpdatePeers(peers);
     }
+
+    public ValueTask<Result<PeerLease>> AcquireAsync(RequestMeta meta, CancellationToken cancellationToken = default)
+        => _coordinator.AcquireAsync(meta, cancellationToken, SelectPeer);
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-
-        foreach (var subscription in _subscriptions)
-        {
-            subscription.Dispose();
-        }
-
-        _subscriptions.Clear();
-        _availabilitySignal?.Dispose();
+        _coordinator.Dispose();
     }
 
-    private PeerAvailabilitySignal? InitializeSubscriptions()
+    private IPeer? SelectPeer(IReadOnlyList<IPeer> peers)
     {
-        PeerAvailabilitySignal? signal = null;
-        foreach (var peer in _peers)
+        if (peers.Count == 0)
         {
-            if (peer is not IPeerObservable observable)
-            {
-                continue;
-            }
-
-            signal ??= new PeerAvailabilitySignal();
-            _subscriptions.Add(observable.Subscribe(this));
+            return null;
         }
 
-        return signal;
+        var index = Interlocked.Increment(ref _next);
+        var length = peers.Count;
+        var slot = (int)(index % length);
+        if (slot < 0)
+        {
+            slot += length;
+        }
+
+        return peers[slot];
     }
 }

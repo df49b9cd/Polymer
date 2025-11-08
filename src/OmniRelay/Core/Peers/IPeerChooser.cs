@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using Hugo;
 
 namespace OmniRelay.Core.Peers;
@@ -8,6 +8,11 @@ namespace OmniRelay.Core.Peers;
 /// </summary>
 public interface IPeerChooser : IDisposable
 {
+    /// <summary>
+    /// Updates the chooser's peer set. Replaces any existing peers.
+    /// </summary>
+    void UpdatePeers(IEnumerable<IPeer> peers);
+
     /// <summary>
     /// Acquires a lease to a selected peer for the given request metadata.
     /// </summary>

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -390,9 +391,15 @@ public class OmniRelayConfigurationTests
         }
     }
 
-    private sealed class TestPeerChooser(IReadOnlyList<IPeer> peers) : IPeerChooser
+    private sealed class TestPeerChooser(IEnumerable<IPeer> peers) : IPeerChooser
     {
-        private readonly IReadOnlyList<IPeer> _peers = peers;
+        private IReadOnlyList<IPeer> _peers = peers?.ToList() ?? [];
+
+        public void UpdatePeers(IEnumerable<IPeer> peers)
+        {
+            ArgumentNullException.ThrowIfNull(peers);
+            _peers = peers.ToList();
+        }
 
         public ValueTask<Result<PeerLease>> AcquireAsync(RequestMeta meta, CancellationToken cancellationToken = default)
         {
