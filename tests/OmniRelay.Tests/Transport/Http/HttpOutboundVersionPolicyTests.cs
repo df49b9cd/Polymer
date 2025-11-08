@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -19,7 +20,7 @@ namespace OmniRelay.Tests.Transport.Http;
 
 public class HttpOutboundVersionPolicyTests
 {
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpOutbound_WithHttp3Enabled_UsesHttp3()
     {
         if (!QuicListener.IsSupported)
@@ -75,7 +76,7 @@ public class HttpOutboundVersionPolicyTests
         }
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpOutbound_WithOrHigher_ToHttp2Server_DowngradesToHttp2()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-http2-outbound");
@@ -126,7 +127,7 @@ public class HttpOutboundVersionPolicyTests
         }
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpOutbound_WithExactHttp3_ToHttp2Server_Fails()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-http3-exact-outbound");

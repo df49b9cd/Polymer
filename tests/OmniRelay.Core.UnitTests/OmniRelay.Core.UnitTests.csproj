@@ -22,4 +22,9 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../TestSupport/Http3FactAttribute.cs" Link="Support/Http3FactAttribute.cs" />
+    <Compile Include="../TestSupport/Http3TestHelper.cs" Link="Support/Http3TestHelper.cs" />
+  </ItemGroup>
 </Project>

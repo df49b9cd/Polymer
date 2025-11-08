@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -21,7 +22,7 @@ namespace OmniRelay.Tests.Transport.Http;
 
 public class Http3LimitParityTests
 {
-    [Fact(Timeout = 60_000)]
+    [Http3Fact(Timeout = 60_000)]
     public async Task HttpInbound_WithHttp3_ChunkedPayloadOverLimit_Returns429WithProtocolHeader()
     {
         if (!QuicListener.IsSupported)

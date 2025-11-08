@@ -1,8 +1,7 @@
+using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace OmniRelay.IntegrationTests.Support;
-
-using System.Runtime.CompilerServices;
+namespace OmniRelay.TestSupport;
 
 public sealed class Http3FactAttribute : FactAttribute
 {

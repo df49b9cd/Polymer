@@ -1,3 +1,4 @@
+using System;
 using Hugo;
 
 namespace OmniRelay.Core.Peers;
@@ -5,7 +6,7 @@ namespace OmniRelay.Core.Peers;
 /// <summary>
 /// Strategy interface that chooses a peer for a given request.
 /// </summary>
-public interface IPeerChooser
+public interface IPeerChooser : IDisposable
 {
     /// <summary>
     /// Acquires a lease to a selected peer for the given request metadata.

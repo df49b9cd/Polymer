@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -18,7 +19,7 @@ namespace OmniRelay.Tests.Transport.Http;
 
 public class Http3FallbackErrorTests
 {
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task MissingProcedure_Http3AndHttp2ResponsesMatch()
     {
         if (!QuicListener.IsSupported)
@@ -67,7 +68,7 @@ public class Http3FallbackErrorTests
         }
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task MissingProcedure_Http3FallbackToHttp2MatchesPayload()
     {
         if (!QuicListener.IsSupported)

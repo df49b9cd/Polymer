@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Grpc.Interceptors;
@@ -29,7 +30,7 @@ namespace OmniRelay.Tests.Transport.Grpc;
 
 public class GrpcHttp3NegotiationTests
 {
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Enabled_ExecutesInterceptorsOverHttp3()
     {
         if (!QuicListener.IsSupported)
@@ -122,7 +123,7 @@ public class GrpcHttp3NegotiationTests
         Assert.StartsWith("HTTP/3", recordedActivity.GetTagItem("rpc.protocol")?.ToString(), StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Enabled_RunsTransportInterceptorsOverHttp3()
     {
         if (!QuicListener.IsSupported)
@@ -210,7 +211,7 @@ public class GrpcHttp3NegotiationTests
         Assert.StartsWith("HTTP/3", metaProtocol, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Disabled_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)
@@ -297,7 +298,7 @@ public class GrpcHttp3NegotiationTests
         Assert.StartsWith("HTTP/2", metaProtocol, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 45_000, Skip = "HTTP/3 server-stream regression on current .NET runtime causes handler failure. Re-enable when runtime bug is fixed.")]
+    [Http3Fact(Timeout = 45_000, Skip = "HTTP/3 server-stream regression on current .NET runtime causes handler failure. Re-enable when runtime bug is fixed.")]
     public async Task GrpcInbound_WithHttp3_ServerStreamHandlesLargePayload()
     {
         if (!QuicListener.IsSupported)
@@ -367,7 +368,7 @@ public class GrpcHttp3NegotiationTests
         }
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3_DuplexHandlesLargePayloads()
     {
         if (!QuicListener.IsSupported)
@@ -445,7 +446,7 @@ public class GrpcHttp3NegotiationTests
         }
     }
 
-    [Fact(Timeout = 60_000)]
+    [Http3Fact(Timeout = 60_000)]
     public async Task GrpcInbound_WithHttp3_KeepAliveMaintainsDuplex()
     {
         if (!QuicListener.IsSupported)
@@ -535,7 +536,7 @@ public class GrpcHttp3NegotiationTests
         }
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Enabled_DrainRejectsNewCallsWithRetryAfter()
     {
         if (!QuicListener.IsSupported)
@@ -629,7 +630,7 @@ public class GrpcHttp3NegotiationTests
         Assert.StartsWith("HTTP/3", protocol, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Enabled_CompressionNegotiatesGzip()
     {
         if (!QuicListener.IsSupported)
@@ -719,7 +720,7 @@ public class GrpcHttp3NegotiationTests
             value => value.Equals("gzip", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Disabled_CompressionNegotiatesGzip()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-grpc-http2-compression");

@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using Xunit;
@@ -18,7 +19,7 @@ namespace OmniRelay.Tests.Transport.Grpc;
 
 public class GrpcDiscoveryPreferenceTests
 {
-    [Fact(Timeout = 60_000)]
+    [Http3Fact(Timeout = 60_000)]
     public async Task Prefer_Http3_Endpoints_When_Available()
     {
         if (!QuicListener.IsSupported)

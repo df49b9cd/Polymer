@@ -12,6 +12,7 @@ using System.Text.Json;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
 using Xunit;

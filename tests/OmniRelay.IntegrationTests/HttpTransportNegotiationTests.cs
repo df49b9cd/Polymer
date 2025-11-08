@@ -7,6 +7,7 @@ using System.Text;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -207,7 +208,7 @@ public class HttpTransportNegotiationTests
     private static HttpClientHandler CreateHttp11Handler() => new()
     {
         AllowAutoRedirect = false,
-        SslProtocols = SslProtocols.Tls13,
+        SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
         ServerCertificateCustomValidationCallback = static (_, _, _, _) => true
     };
 

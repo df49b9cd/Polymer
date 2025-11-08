@@ -13,6 +13,7 @@ using Grpc.Core.Interceptors;
 using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Protos;
 using OmniRelay.Transport.Grpc;
 using Xunit;
@@ -22,7 +23,7 @@ namespace OmniRelay.Tests.Codegen;
 
 public class GeneratedClientHttp3Tests
 {
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GeneratedClient_Unary_UsesHttp3_WhenEnabled()
     {
         if (!QuicListener.IsSupported)
@@ -88,7 +89,7 @@ public class GeneratedClientHttp3Tests
         Assert.StartsWith("HTTP/3", protocol, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task GeneratedClient_Unary_FallsBack_ToHttp2_WhenServerDisablesHttp3()
     {
         using var certificate = CreateSelfSigned("CN=omnirelay-codegen-http2");

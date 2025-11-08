@@ -9,6 +9,7 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using Xunit;
@@ -19,7 +20,7 @@ namespace OmniRelay.Tests.Transport.Grpc;
 
 public class GrpcHttp3DeadlineParityTests
 {
-    [Fact(Timeout = 30_000)]
+    [Http3Fact(Timeout = 30_000)]
     public async Task Grpc_Http3_DeadlineExceeded_Matches_Http2()
     {
         if (!QuicListener.IsSupported)

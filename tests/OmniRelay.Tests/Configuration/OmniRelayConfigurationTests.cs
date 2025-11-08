@@ -405,6 +405,10 @@ public class OmniRelayConfigurationTests
             peer.TryAcquire(cancellationToken);
             return ValueTask.FromResult(Ok(new PeerLease(peer, meta)));
         }
+
+        public void Dispose()
+        {
+        }
     }
 }
 

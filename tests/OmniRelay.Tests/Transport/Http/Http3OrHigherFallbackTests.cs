@@ -10,6 +10,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -18,7 +19,7 @@ namespace OmniRelay.Tests.Transport.Http;
 
 public class Http3OrHigherFallbackTests
 {
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpInbound_WithHttp3Enabled_RequestVersionOrHigher_UpgradesToHttp3()
     {
         if (!QuicListener.IsSupported)
@@ -67,7 +68,7 @@ public class Http3OrHigherFallbackTests
         }
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpInbound_WithHttp3Disabled_RequestVersionOrHigher_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)

@@ -14,6 +14,7 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -23,7 +24,7 @@ namespace OmniRelay.IntegrationTests;
 
 public class HttpOutboundIntegrationTests
 {
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpOutbound_WithHttp3Preferred_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)

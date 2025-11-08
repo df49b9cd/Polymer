@@ -28,6 +28,8 @@
   <ItemGroup>
     <Compile Include="../OmniRelay.Tests/TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
     <Compile Include="../OmniRelay.Codegen.Tests/Generated/TestService.OmniRelay.g.cs" Link="Support/Generated/TestService.OmniRelay.g.cs" />
+    <Compile Include="../TestSupport/Http3FactAttribute.cs" Link="Support/Http3FactAttribute.cs" />
+    <Compile Include="../TestSupport/Http3TestHelper.cs" Link="Support/Http3TestHelper.cs" />
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
     <ProjectReference Include="../../src/OmniRelay.Configuration/OmniRelay.Configuration.csproj" />
   </ItemGroup>

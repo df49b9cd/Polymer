@@ -13,6 +13,7 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Codecs;
 using OmniRelay.IntegrationTests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;

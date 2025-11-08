@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -73,7 +74,7 @@ public class HttpInboundLifecycleTests
         await stopTask;
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task StopAsync_WithHttp3Request_PropagatesRetryAfter()
     {
         if (!QuicListener.IsSupported)
@@ -142,7 +143,7 @@ public class HttpInboundLifecycleTests
         await stopTask;
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task StopAsync_WithHttp3Fallback_PropagatesRetryAfter()
     {
         if (!QuicListener.IsSupported)
@@ -215,7 +216,7 @@ public class HttpInboundLifecycleTests
         await stopTask;
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpInbound_WithHttp3_ExposesObservabilityEndpoints()
     {
         if (!QuicListener.IsSupported)

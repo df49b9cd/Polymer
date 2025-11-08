@@ -7,6 +7,7 @@ using OmniRelay.Core.Clients;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Peers;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using Xunit;
@@ -17,7 +18,7 @@ namespace OmniRelay.Tests.Transport.Grpc;
 
 public class GrpcOutboundResilienceTests
 {
-    [Fact(Timeout = 60_000)]
+    [Http3Fact(Timeout = 60_000)]
     public async Task Breaker_Trips_On_Http3_Handshake_Failures()
     {
         // Server supports only HTTP/2
@@ -89,7 +90,7 @@ public class GrpcOutboundResilienceTests
         }
     }
 
-    [Fact(Timeout = 30_000)]
+    [Http3Fact(Timeout = 30_000)]
     public async Task Breaker_Trips_On_Transport_Errors_No_Server()
     {
         // No server listening at this HTTPS endpoint

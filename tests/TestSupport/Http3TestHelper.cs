@@ -1,6 +1,6 @@
 using System.Net.Quic;
 
-namespace OmniRelay.IntegrationTests.Support;
+namespace OmniRelay.TestSupport;
 
 internal static class Http3TestHelper
 {

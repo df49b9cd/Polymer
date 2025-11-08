@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Hugo;
@@ -9,10 +10,13 @@ namespace OmniRelay.Core.Peers;
 /// <summary>
 /// Chooses two random peers and selects the one with fewer in-flight requests.
 /// </summary>
-public sealed class TwoRandomPeerChooser : IPeerChooser
+public sealed class TwoRandomPeerChooser : IPeerChooser, IPeerSubscriber
 {
     private readonly ImmutableArray<IPeer> _peers;
+    private readonly List<IDisposable> _subscriptions = [];
+    private readonly PeerAvailabilitySignal? _availabilitySignal;
     private readonly Random _random;
+    private bool _disposed;
 
     public TwoRandomPeerChooser(params IPeer[] peers)
         : this(peers is null ? throw new ArgumentNullException(nameof(peers)) : [.. peers], null)
@@ -28,6 +32,7 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
 
         _peers = peers;
         _random = random ?? Random.Shared;
+        _availabilitySignal = InitializeSubscriptions();
     }
 
     public async ValueTask<Result<PeerLease>> AcquireAsync(RequestMeta meta, CancellationToken cancellationToken = default)
@@ -47,7 +52,14 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
                 break;
             }
 
-            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            if (_availabilitySignal is { } signal)
+            {
+                await signal.WaitAsync(delay, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         PeerMetrics.RecordPoolExhausted(meta);
@@ -134,5 +146,45 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
             "All peers are busy.",
             transport: meta.Transport ?? "unknown");
         return Err<PeerLease>(exhausted);
+    }
+
+    public void NotifyStatusChanged(IPeer peer)
+    {
+        _availabilitySignal?.Signal();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        foreach (var subscription in _subscriptions)
+        {
+            subscription.Dispose();
+        }
+
+        _subscriptions.Clear();
+        _availabilitySignal?.Dispose();
+    }
+
+    private PeerAvailabilitySignal? InitializeSubscriptions()
+    {
+        PeerAvailabilitySignal? signal = null;
+        foreach (var peer in _peers)
+        {
+            if (peer is not IPeerObservable observable)
+            {
+                continue;
+            }
+
+            signal ??= new PeerAvailabilitySignal();
+            _subscriptions.Add(observable.Subscribe(this));
+        }
+
+        return signal;
     }
 }

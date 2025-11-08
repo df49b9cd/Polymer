@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -19,7 +20,7 @@ namespace OmniRelay.Tests.Transport.Http;
 
 public class Http3NegotiationTests
 {
-    [Fact(Timeout = 45000)]
+    [Http3Fact(Timeout = 45000)]
     public async Task HttpInbound_WithHttp3Enabled_AllowsHttp3Requests()
     {
         if (!QuicListener.IsSupported)
@@ -67,7 +68,7 @@ public class Http3NegotiationTests
         }
     }
 
-    [Fact(Timeout = 45_000)]
+    [Http3Fact(Timeout = 45_000)]
     public async Task HttpInbound_WithHttp3_ServerStreamHandlesLargePayload()
     {
         if (!QuicListener.IsSupported)
@@ -159,7 +160,7 @@ public class Http3NegotiationTests
         }
     }
 
-    [Fact(Timeout = 45000)]
+    [Http3Fact(Timeout = 45000)]
     public async Task HttpInbound_WithHttp3Enabled_AllowsHttp1Requests()
     {
         if (!QuicListener.IsSupported)
@@ -207,7 +208,7 @@ public class Http3NegotiationTests
         }
     }
 
-    [Fact(Timeout = 45000)]
+    [Http3Fact(Timeout = 45000)]
     public async Task HttpInbound_WithHttp3Disabled_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)

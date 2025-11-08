@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -249,8 +250,19 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             await peer.DisposeAsync().ConfigureAwait(false);
         }
 
-        _peers = [];
+        var chooser = _peerChooser;
+        var preferredChooser = _preferredPeerChooser;
+
         _peerChooser = null;
+        _preferredPeerChooser = null;
+
+        chooser?.Dispose();
+        if (preferredChooser is not null && !ReferenceEquals(preferredChooser, chooser))
+        {
+            preferredChooser.Dispose();
+        }
+
+        _peers = [];
         _started = false;
 
         _unaryMethods.Clear();
@@ -890,11 +902,13 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         _compositeClientInterceptor = new CompositeClientInterceptor(registry, _interceptorService);
     }
 
-    private sealed class GrpcPeer(Uri address, GrpcOutbound owner, PeerCircuitBreakerOptions breakerOptions) : IPeer, IAsyncDisposable, IPeerTelemetry
+    private sealed class GrpcPeer(Uri address, GrpcOutbound owner, PeerCircuitBreakerOptions breakerOptions) : IPeer, IAsyncDisposable, IPeerTelemetry, IPeerObservable
     {
         private readonly GrpcOutbound _owner = owner ?? throw new ArgumentNullException(nameof(owner));
         private readonly Uri _address = address ?? throw new ArgumentNullException(nameof(address));
         private readonly PeerCircuitBreaker _breaker = new(breakerOptions);
+        private readonly object _subscriberLock = new();
+        private HashSet<IPeerSubscriber>? _subscribers;
         private GrpcChannel? _channel;
         private CallInvoker? _callInvoker;
         private int _inflight;
@@ -924,6 +938,20 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         public long FailureCount => Interlocked.Read(ref _failureCount);
 
         public LatencySnapshot GetLatencySnapshot() => _latencyTracker.Snapshot();
+
+        public IDisposable Subscribe(IPeerSubscriber subscriber)
+        {
+            ArgumentNullException.ThrowIfNull(subscriber);
+
+            lock (_subscriberLock)
+            {
+                _subscribers ??= new HashSet<IPeerSubscriber>();
+                _subscribers.Add(subscriber);
+            }
+
+            subscriber.NotifyStatusChanged(this);
+            return new PeerSubscription(this, subscriber);
+        }
 
         public CallInvoker CallInvoker => _callInvoker ?? throw new InvalidOperationException("Peer has not been started.");
 
@@ -965,6 +993,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             _callInvoker = invoker;
             _state = PeerState.Available;
             _breaker.OnSuccess();
+            NotifySubscribers();
         }
 
         public bool TryAcquire(CancellationToken cancellationToken = default)
@@ -996,6 +1025,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 _lastFailure = DateTimeOffset.UtcNow;
                 _state = _breaker.IsSuspended ? PeerState.Unavailable : PeerState.Available;
             }
+
+            NotifySubscribers();
         }
 
         public void RecordLeaseResult(bool success, double durationMilliseconds)
@@ -1020,7 +1051,70 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             _callInvoker = null;
             _state = PeerState.Unknown;
             _inflight = 0;
+            NotifySubscribers();
             return ValueTask.CompletedTask;
+        }
+
+        private void RemoveSubscriber(IPeerSubscriber subscriber)
+        {
+            lock (_subscriberLock)
+            {
+                if (_subscribers is null)
+                {
+                    return;
+                }
+
+                _subscribers.Remove(subscriber);
+                if (_subscribers.Count == 0)
+                {
+                    _subscribers = null;
+                }
+            }
+        }
+
+        private void NotifySubscribers()
+        {
+            IPeerSubscriber[]? snapshot = null;
+            lock (_subscriberLock)
+            {
+                if (_subscribers is { Count: > 0 })
+                {
+                    snapshot = new IPeerSubscriber[_subscribers.Count];
+                    _subscribers.CopyTo(snapshot);
+                }
+            }
+
+            if (snapshot is null)
+            {
+                return;
+            }
+
+            foreach (var subscriber in snapshot)
+            {
+                subscriber.NotifyStatusChanged(this);
+            }
+        }
+
+        private sealed class PeerSubscription : IDisposable
+        {
+            private GrpcPeer? _owner;
+            private IPeerSubscriber? _subscriber;
+
+            public PeerSubscription(GrpcPeer owner, IPeerSubscriber subscriber)
+            {
+                _owner = owner;
+                _subscriber = subscriber;
+            }
+
+            public void Dispose()
+            {
+                var owner = Interlocked.Exchange(ref _owner, null);
+                var subscriber = Interlocked.Exchange(ref _subscriber, null);
+                if (owner is not null && subscriber is not null)
+                {
+                    owner.RemoveSubscriber(subscriber);
+                }
+            }
         }
 
         private GrpcChannelOptions CloneChannelOptions()
