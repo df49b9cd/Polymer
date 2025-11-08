@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Threading;
 using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
@@ -440,16 +441,20 @@ public sealed class Dispatcher
                 return;
             }
 
+            var startedComponents = new int[_lifecycleStartOrder.Length];
             var wg = new WaitGroup();
             var exceptions = new ConcurrentQueue<Exception>();
 
-            foreach (var lifecycle in _lifecycleStartOrder.Select(component => component.Lifecycle))
+            foreach (var (component, index) in _lifecycleStartOrder.Select((component, index) => (component, index)))
             {
+                var lifecycle = component.Lifecycle;
+
                 wg.Go(async token =>
                 {
                     try
                     {
                         await lifecycle.StartAsync(token).ConfigureAwait(false);
+                        Volatile.Write(ref startedComponents[index], 1);
                     }
                     catch (Exception ex)
                     {
@@ -458,16 +463,38 @@ public sealed class Dispatcher
                 }, cancellationToken);
             }
 
-            await wg.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await wg.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception waitException)
+            {
+                try
+                {
+                    await RollbackStartedComponentsAsync(startedComponents).ConfigureAwait(false);
+                }
+                catch (Exception rollbackException)
+                {
+                    throw new AggregateException(waitException, rollbackException);
+                }
+
+                throw;
+            }
 
             if (!exceptions.IsEmpty)
             {
-                if (exceptions.Count == 1 && exceptions.TryDequeue(out var single))
+                var startException = CreateStartFailureException(exceptions);
+
+                try
                 {
-                    throw single;
+                    await RollbackStartedComponentsAsync(startedComponents).ConfigureAwait(false);
+                }
+                catch (Exception rollbackException)
+                {
+                    throw new AggregateException(startException, rollbackException);
                 }
 
-                throw new AggregateException(exceptions);
+                throw startException;
             }
             CompleteStart();
         }
@@ -507,17 +534,19 @@ public sealed class Dispatcher
             }
         }
 
-        CompleteStop();
-
         if (exceptions.Count == 1)
         {
+            FailStop();
             throw exceptions[0];
         }
 
         if (exceptions.Count > 1)
         {
+            FailStop();
             throw new AggregateException("One or more dispatcher components failed to stop.", exceptions);
         }
+
+        CompleteStop();
     }
 
     /// <summary>
@@ -676,6 +705,8 @@ public sealed class Dispatcher
                 case DispatcherStatus.Stopped:
                     _status = DispatcherStatus.Stopped;
                     return false;
+                case DispatcherStatus.Starting:
+                    throw new InvalidOperationException("Dispatcher is starting. Await StartAsync completion before stopping.");
                 case DispatcherStatus.Stopping:
                     return false;
                 default:
@@ -699,6 +730,63 @@ public sealed class Dispatcher
         {
             _status = DispatcherStatus.Stopped;
         }
+    }
+
+    private void FailStop()
+    {
+        lock (_stateLock)
+        {
+            _status = DispatcherStatus.Running;
+        }
+    }
+
+    private async Task RollbackStartedComponentsAsync(int[] startedComponents)
+    {
+        if (_lifecycleStartOrder.Length == 0 || startedComponents.Length == 0)
+        {
+            return;
+        }
+
+        var rollbackExceptions = new List<Exception>();
+
+        for (var index = _lifecycleStartOrder.Length - 1; index >= 0; index--)
+        {
+            if (Volatile.Read(ref startedComponents[index]) == 0)
+            {
+                continue;
+            }
+
+            var lifecycle = _lifecycleStartOrder[index].Lifecycle;
+
+            try
+            {
+                await lifecycle.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                rollbackExceptions.Add(ex);
+            }
+        }
+
+        if (rollbackExceptions.Count == 1)
+        {
+            throw rollbackExceptions[0];
+        }
+
+        if (rollbackExceptions.Count > 1)
+        {
+            throw new AggregateException("One or more dispatcher components failed to roll back after a start failure.", rollbackExceptions);
+        }
+    }
+
+    private static Exception CreateStartFailureException(ConcurrentQueue<Exception> exceptions)
+    {
+        if (exceptions.Count == 1 && exceptions.TryPeek(out var single))
+        {
+            return single;
+        }
+
+        return new AggregateException(exceptions);
     }
 
     private static ImmutableDictionary<string, OutboundCollection> BuildOutboundCollections(

@@ -61,6 +61,30 @@ public class DispatcherOptionsTests
         Assert.Single(outbounds.Unary);
     }
 
+    [Fact]
+    public void AddUnaryOutbound_TrimsKeys()
+    {
+        var options = new DispatcherOptions("svc");
+        var outbound = Substitute.For<IUnaryOutbound>();
+        options.AddUnaryOutbound("remote", "  primary  ", outbound);
+
+        var dispatcher = new Dispatcher(options);
+        var config = dispatcher.ClientConfig("remote");
+
+        Assert.True(config.TryGetUnary("primary", out var resolved));
+        Assert.Same(outbound, resolved);
+    }
+
+    [Fact]
+    public void AddUnaryOutbound_DuplicateTrimmedKey_Throws()
+    {
+        var options = new DispatcherOptions("svc");
+        options.AddUnaryOutbound("remote", "primary", Substitute.For<IUnaryOutbound>());
+
+        Assert.Throws<InvalidOperationException>(() =>
+            options.AddUnaryOutbound("remote", " primary ", Substitute.For<IUnaryOutbound>()));
+    }
+
     private sealed class CountingLifecycle : ILifecycle
     {
         private int _startCalls;

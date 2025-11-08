@@ -79,7 +79,14 @@ public sealed class OutboundCollection
     public IDuplexOutbound? ResolveDuplex(string? key = null) =>
         _duplex.TryGetValue(NormalizeKey(key), out var outbound) ? outbound : null;
 
-    private static string NormalizeKey(string? key) =>
-        string.IsNullOrWhiteSpace(key) ? DefaultKey : key!;
+    private static string NormalizeKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return DefaultKey;
+        }
+
+        return key!.Trim();
+    }
 
 }

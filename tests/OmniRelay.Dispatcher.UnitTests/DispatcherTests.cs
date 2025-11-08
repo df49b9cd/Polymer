@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using Hugo;
 using NSubstitute;
 using OmniRelay.Core;
@@ -161,6 +162,54 @@ public class DispatcherTests
         await result.Value.DisposeAsync();
     }
 
+    [Fact]
+    public async Task StartAsync_WhenLifecycleFails_StopsPreviouslyStartedComponents()
+    {
+        var options = new DispatcherOptions("svc");
+        var first = new TestHelpers.RecordingLifecycle();
+        options.AddLifecycle("first", first);
+        options.AddLifecycle("second", new ThrowingLifecycle(startThrows: true));
+        var dispatcher = new Dispatcher(options);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("stop", first.Events);
+        Assert.Equal(DispatcherStatus.Stopped, dispatcher.Status);
+    }
+
+    [Fact]
+    public async Task StopAsync_WhenLifecycleFails_DoesNotReportStopped()
+    {
+        var options = new DispatcherOptions("svc");
+        options.AddLifecycle("only", new ThrowingLifecycle(stopThrows: true));
+        var dispatcher = new Dispatcher(options);
+
+        await dispatcher.StartAsync(TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.StopAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
+    }
+
+    [Fact]
+    public async Task StopAsync_WhileStartIsInProgress_Throws()
+    {
+        var options = new DispatcherOptions("svc");
+        var lifecycle = new BlockingLifecycle();
+        options.AddLifecycle("blocking", lifecycle);
+        var dispatcher = new Dispatcher(options);
+
+        var startTask = dispatcher.StartAsync(TestContext.Current.CancellationToken);
+
+        await lifecycle.Started;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.StopAsync(TestContext.Current.CancellationToken));
+
+        lifecycle.Release();
+        await startTask;
+
+        await dispatcher.StopAsync(TestContext.Current.CancellationToken);
+    }
+
     private sealed class RecordingUnaryMiddleware(string name, List<string> sink) : IUnaryInboundMiddleware
     {
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
@@ -171,5 +220,55 @@ public class DispatcherTests
             sink.Add(name);
             return next(request, cancellationToken);
         }
+    }
+
+    private sealed class ThrowingLifecycle : ILifecycle
+    {
+        private readonly bool _startThrows;
+        private readonly bool _stopThrows;
+
+        public ThrowingLifecycle(bool startThrows = false, bool stopThrows = false)
+        {
+            _startThrows = startThrows;
+            _stopThrows = stopThrows;
+        }
+
+        public ValueTask StartAsync(CancellationToken cancellationToken = default)
+        {
+            if (_startThrows)
+            {
+                throw new InvalidOperationException("start failure");
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask StopAsync(CancellationToken cancellationToken = default)
+        {
+            if (_stopThrows)
+            {
+                throw new InvalidOperationException("stop failure");
+            }
+
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class BlockingLifecycle : ILifecycle
+    {
+        private readonly TaskCompletionSource<bool> _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Started => _started.Task;
+
+        public ValueTask StartAsync(CancellationToken cancellationToken = default)
+        {
+            _started.TrySetResult(true);
+            return new ValueTask(_release.Task.WaitAsync(cancellationToken));
+        }
+
+        public void Release() => _release.TrySetResult(true);
+
+        public ValueTask StopAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 }

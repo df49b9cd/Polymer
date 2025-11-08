@@ -335,7 +335,14 @@ public sealed class DispatcherOptions
             return new OutboundCollection(_service, unary, oneway, stream, clientStream, duplex);
         }
 
-        private static string NormalizeKey(string? key) =>
-            string.IsNullOrWhiteSpace(key) ? OutboundCollection.DefaultKey : key!;
+        private static string NormalizeKey(string? key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return OutboundCollection.DefaultKey;
+            }
+
+            return key!.Trim();
+        }
     }
 }

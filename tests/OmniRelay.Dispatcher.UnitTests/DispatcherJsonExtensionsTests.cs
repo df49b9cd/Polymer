@@ -63,4 +63,25 @@ public class DispatcherJsonExtensionsTests
 
         Assert.IsType<Core.Clients.UnaryClient<JsonDocument, JsonDocument>>(client);
     }
+
+    [Fact]
+    public void CreateJsonClient_WithCustomCodecRegistration_IsIdempotent()
+    {
+        var options = new DispatcherOptions("svc");
+        options.AddUnaryOutbound("downstream", null, Substitute.For<IUnaryOutbound>());
+        var dispatcher = new Dispatcher(options);
+        var configureInvocations = 0;
+        Action<JsonCodecBuilder<JsonDocument, JsonDocument>> configure = builder =>
+        {
+            configureInvocations++;
+            builder.Encoding = "application/json";
+        };
+
+        var first = dispatcher.CreateJsonClient<JsonDocument, JsonDocument>("downstream", "echo", configure);
+        var second = dispatcher.CreateJsonClient<JsonDocument, JsonDocument>("downstream", "echo", configure);
+
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Equal(1, configureInvocations);
+    }
 }

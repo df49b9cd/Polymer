@@ -118,8 +118,7 @@ public static class DispatcherJsonExtensions
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
 
-        if (configureCodec is null &&
-            dispatcher.Codecs.TryResolve<TRequest, TResponse>(ProcedureCodecScope.Outbound, service, procedure, ProcedureKind.Unary, out var existing))
+        if (dispatcher.Codecs.TryResolve<TRequest, TResponse>(ProcedureCodecScope.Outbound, service, procedure, ProcedureKind.Unary, out var existing))
         {
             return dispatcher.CreateUnaryClient(service, existing, outboundKey);
         }
