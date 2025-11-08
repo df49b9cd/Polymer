@@ -198,7 +198,7 @@ public class HttpTransportHeaderIntegrationTests
             var body = await response.Content.ReadAsStringAsync(ct);
             using var json = JsonDocument.Parse(body);
             Assert.Equal("invalid payload", json.RootElement.GetProperty("message").GetString());
-            Assert.Equal(nameof(OmniRelayStatusCode.InvalidArgument), json.RootElement.GetProperty("status").GetString());
+            Assert.Equal("INVALID_ARGUMENT", json.RootElement.GetProperty("status").GetString());
             Assert.Equal("invalid-argument", json.RootElement.GetProperty("code").GetString());
         }
         finally
