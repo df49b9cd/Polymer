@@ -16,6 +16,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     private readonly Dictionary<string, PeerRegistration> _registrations = new(StringComparer.Ordinal);
     private readonly List<IPeer> _availablePeers = [];
     private readonly PeerAvailabilitySignal _availabilitySignal = new();
+    private readonly TimeProvider _timeProvider = TimeProvider.System;
     private bool _disposed;
 
     public PeerListCoordinator(IEnumerable<IPeer> peers)
@@ -138,7 +139,20 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
             }
 
             var delay = PeerChooserHelpers.GetWaitDelay(waitDeadline);
-            await _availabilitySignal.WaitAsync(delay, cancellationToken).ConfigureAwait(false);
+            var waitResult = await Go.WithTimeoutAsync(
+                async token =>
+                {
+                    await _availabilitySignal.WaitAsync(delay, token).ConfigureAwait(false);
+                    return Ok(Unit.Value);
+                },
+                delay,
+                _timeProvider,
+                cancellationToken).ConfigureAwait(false);
+
+            if (waitResult.IsFailure && waitResult.Error?.Code == ErrorCodes.Canceled)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
         }
     }
 

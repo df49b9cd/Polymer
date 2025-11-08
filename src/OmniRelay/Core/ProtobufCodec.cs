@@ -43,28 +43,13 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
     {
         ArgumentNullException.ThrowIfNull(meta);
 
-        try
-        {
-            return EncodeMessage(value, meta.Encoding, EncodeRequestStage);
-        }
-        catch (Exception ex) when (ex is InvalidProtocolBufferException or InvalidOperationException)
-        {
-            return Err<byte[]>(CreateError(
-                OmniRelayStatusCode.InvalidArgument,
-                $"Failed to encode Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
-                ex,
-                EncodeRequestStage,
-                meta.Encoding));
-        }
-        catch (Exception ex)
-        {
-            return Err<byte[]>(CreateError(
-                OmniRelayStatusCode.Internal,
-                $"Unexpected error while encoding Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
-                ex,
-                EncodeRequestStage,
-                meta.Encoding));
-        }
+        var procedure = meta.Procedure ?? "unknown";
+        return EncodeMessage(
+            value,
+            meta.Encoding,
+            EncodeRequestStage,
+            () => $"Failed to encode Protobuf request for procedure '{procedure}'.",
+            () => $"Unexpected error while encoding Protobuf request for procedure '{procedure}'.");
     }
 
     /// <inheritdoc />
@@ -72,35 +57,17 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
     {
         ArgumentNullException.ThrowIfNull(meta);
 
-        var resolvedEncoding = ResolveEncoding(meta.Encoding, DecodeRequestStage);
-        if (resolvedEncoding.IsFailure)
-        {
-            return Err<TRequest>(resolvedEncoding.Error!);
-        }
-
-        try
-        {
-            var message = DecodeMessage(payload, resolvedEncoding.Value, _requestParser, _requestDescriptor);
-            return Ok(message);
-        }
-        catch (InvalidProtocolBufferException ex)
-        {
-            return Err<TRequest>(CreateError(
-                OmniRelayStatusCode.InvalidArgument,
-                $"Failed to decode Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
-                ex,
+        var procedure = meta.Procedure ?? "unknown";
+        return ResolveEncoding(meta.Encoding, DecodeRequestStage)
+            .Then(descriptor => DecodeMessage(
+                payload,
+                descriptor,
+                _requestParser,
+                _requestDescriptor,
                 DecodeRequestStage,
+                () => $"Failed to decode Protobuf request for procedure '{procedure}'.",
+                () => $"Unexpected error while decoding Protobuf request for procedure '{procedure}'.",
                 meta.Encoding));
-        }
-        catch (Exception ex)
-        {
-            return Err<TRequest>(CreateError(
-                OmniRelayStatusCode.Internal,
-                $"Unexpected error while decoding Protobuf request for procedure '{meta.Procedure ?? "unknown"}'.",
-                ex,
-                DecodeRequestStage,
-                meta.Encoding));
-        }
     }
 
     /// <inheritdoc />
@@ -108,28 +75,12 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
     {
         ArgumentNullException.ThrowIfNull(meta);
 
-        try
-        {
-            return EncodeMessage(value, meta.Encoding, EncodeResponseStage);
-        }
-        catch (Exception ex) when (ex is InvalidProtocolBufferException or InvalidOperationException)
-        {
-            return Err<byte[]>(CreateError(
-                OmniRelayStatusCode.InvalidArgument,
-                "Failed to encode Protobuf response payload.",
-                ex,
-                EncodeResponseStage,
-                meta.Encoding));
-        }
-        catch (Exception ex)
-        {
-            return Err<byte[]>(CreateError(
-                OmniRelayStatusCode.Internal,
-                "Unexpected error while encoding Protobuf response payload.",
-                ex,
-                EncodeResponseStage,
-                meta.Encoding));
-        }
+        return EncodeMessage(
+            value,
+            meta.Encoding,
+            EncodeResponseStage,
+            () => "Failed to encode Protobuf response payload.",
+            () => "Unexpected error while encoding Protobuf response payload.");
     }
 
     /// <inheritdoc />
@@ -137,80 +88,127 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
     {
         ArgumentNullException.ThrowIfNull(meta);
 
-        var resolvedEncoding = ResolveEncoding(meta.Encoding, DecodeResponseStage);
-        if (resolvedEncoding.IsFailure)
-        {
-            return Err<TResponse>(resolvedEncoding.Error!);
-        }
-
-        try
-        {
-            var message = DecodeMessage(payload, resolvedEncoding.Value, _responseParser, _responseDescriptor);
-            return Ok(message);
-        }
-        catch (InvalidProtocolBufferException ex)
-        {
-            return Err<TResponse>(CreateError(
-                OmniRelayStatusCode.InvalidArgument,
-                "Failed to decode Protobuf response payload.",
-                ex,
+        return ResolveEncoding(meta.Encoding, DecodeResponseStage)
+            .Then(descriptor => DecodeMessage(
+                payload,
+                descriptor,
+                _responseParser,
+                _responseDescriptor,
                 DecodeResponseStage,
+                () => "Failed to decode Protobuf response payload.",
+                () => "Unexpected error while decoding Protobuf response payload.",
                 meta.Encoding));
-        }
-        catch (Exception ex)
-        {
-            return Err<TResponse>(CreateError(
-                OmniRelayStatusCode.Internal,
-                "Unexpected error while decoding Protobuf response payload.",
-                ex,
-                DecodeResponseStage,
-                meta.Encoding));
-        }
     }
 
-    private Result<byte[]> EncodeMessage<TMessage>(TMessage value, string? encoding, string stage)
-        where TMessage : class, IMessage<TMessage>
-    {
-        if (value is null)
-        {
-            return Err<byte[]>(CreateError(
-                OmniRelayStatusCode.InvalidArgument,
-                "Protobuf value cannot be null.",
-                new InvalidOperationException("Value cannot be null."),
-                stage,
-                encoding));
-        }
+    private Result<byte[]> EncodeMessage<TMessage>(
+        TMessage value,
+        string? encoding,
+        string stage,
+        Func<string> invalidMessage,
+        Func<string> unexpectedMessage)
+        where TMessage : class, IMessage<TMessage> =>
+        EnsureValue(value, stage, invalidMessage)
+            .Then(_ => ResolveEncoding(encoding, stage))
+            .Then(descriptor => ConvertMessage(value, descriptor, stage, encoding, invalidMessage, unexpectedMessage));
 
-        var resolvedEncoding = ResolveEncoding(encoding, stage);
-        if (resolvedEncoding.IsFailure)
-        {
-            return Err<byte[]>(resolvedEncoding.Error!);
-        }
-
-        return resolvedEncoding.Value.Kind switch
-        {
-            EncodingKind.Binary => Ok(value.ToByteArray()),
-            EncodingKind.Json => Ok(System.Text.Encoding.UTF8.GetBytes(_jsonFormatter.Format(value))),
-            _ => Err<byte[]>(CreateError(
-                OmniRelayStatusCode.InvalidArgument,
-                $"Unsupported Protobuf encoding '{resolvedEncoding.Value.Encoding}'.",
-                new InvalidOperationException("Unsupported encoding."),
-                stage,
-                resolvedEncoding.Value.Encoding))
-        };
-    }
-
-    private TMessage DecodeMessage<TMessage>(
+    private Result<TMessage> DecodeMessage<TMessage>(
         ReadOnlyMemory<byte> payload,
         (EncodingKind Kind, string Encoding) resolvedEncoding,
         MessageParser<TMessage> parser,
-        MessageDescriptor descriptor)
-        where TMessage : class, IMessage<TMessage> => resolvedEncoding.Kind switch
+        MessageDescriptor descriptor,
+        string stage,
+        Func<string> invalidMessage,
+        Func<string> unexpectedMessage,
+        string? requestedEncoding)
+        where TMessage : class, IMessage<TMessage>
+    {
+        try
         {
-            EncodingKind.Binary => parser.ParseFrom(payload.Span),
-            EncodingKind.Json => (TMessage)_jsonParser.Parse(System.Text.Encoding.UTF8.GetString(payload.Span), descriptor),
-            _ => throw new InvalidOperationException($"Unsupported Protobuf encoding '{resolvedEncoding.Encoding}'.")
-        };
+            var result = resolvedEncoding.Kind switch
+            {
+                EncodingKind.Binary => parser.ParseFrom(payload.Span),
+                EncodingKind.Json => (TMessage)_jsonParser.Parse(System.Text.Encoding.UTF8.GetString(payload.Span), descriptor),
+                _ => throw new InvalidOperationException($"Unsupported Protobuf encoding '{resolvedEncoding.Encoding}'.")
+            };
+
+            return Ok(result);
+        }
+        catch (InvalidProtocolBufferException ex)
+        {
+            return Err<TMessage>(CreateError(
+                OmniRelayStatusCode.InvalidArgument,
+                invalidMessage(),
+                ex,
+                stage,
+                requestedEncoding ?? resolvedEncoding.Encoding));
+        }
+        catch (Exception ex)
+        {
+            return Err<TMessage>(CreateError(
+                OmniRelayStatusCode.Internal,
+                unexpectedMessage(),
+                ex,
+                stage,
+                requestedEncoding ?? resolvedEncoding.Encoding));
+        }
+    }
+
+    private static Result<Unit> EnsureValue<TMessage>(
+        TMessage value,
+        string stage,
+        Func<string> invalidMessage)
+        where TMessage : class =>
+        value is null
+            ? Err<Unit>(CreateError(
+                OmniRelayStatusCode.InvalidArgument,
+                invalidMessage(),
+                new InvalidOperationException("Protobuf value cannot be null."),
+                stage,
+                null))
+            : Ok(Unit.Value);
+
+    private Result<byte[]> ConvertMessage<TMessage>(
+        TMessage value,
+        (EncodingKind Kind, string Encoding) resolvedEncoding,
+        string stage,
+        string? requestedEncoding,
+        Func<string> invalidMessage,
+        Func<string> unexpectedMessage)
+        where TMessage : class, IMessage<TMessage>
+    {
+        try
+        {
+            return resolvedEncoding.Kind switch
+            {
+                EncodingKind.Binary => Ok(value!.ToByteArray()),
+                EncodingKind.Json => Ok(System.Text.Encoding.UTF8.GetBytes(_jsonFormatter.Format(value!))),
+                _ => Err<byte[]>(CreateError(
+                    OmniRelayStatusCode.InvalidArgument,
+                    invalidMessage(),
+                    new InvalidOperationException("Unsupported Protobuf encoding."),
+                    stage,
+                    resolvedEncoding.Encoding))
+            };
+        }
+        catch (InvalidProtocolBufferException ex)
+        {
+            return Err<byte[]>(CreateError(
+                OmniRelayStatusCode.InvalidArgument,
+                invalidMessage(),
+                ex,
+                stage,
+                requestedEncoding ?? resolvedEncoding.Encoding));
+        }
+        catch (Exception ex)
+        {
+            return Err<byte[]>(CreateError(
+                OmniRelayStatusCode.Internal,
+                unexpectedMessage(),
+                ex,
+                stage,
+                requestedEncoding ?? resolvedEncoding.Encoding));
+        }
+    }
 
     private Result<(EncodingKind Kind, string Encoding)> ResolveEncoding(string? encoding, string stage)
     {

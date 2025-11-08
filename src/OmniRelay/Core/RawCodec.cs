@@ -32,65 +32,67 @@ public sealed class RawCodec : ICodec<byte[], byte[]>
     /// <inheritdoc />
     public Result<byte[]> EncodeRequest(byte[] value, RequestMeta meta)
     {
-        if (!IsEncodingPermitted(meta.Encoding))
-        {
-            return FailInvalidEncoding<byte[]>(
+        ArgumentNullException.ThrowIfNull(meta);
+
+        return EnsureEncodingAllowed(
+                meta.Encoding,
                 stage: "encode-request",
                 context: "request",
-                actual: meta.Encoding,
                 service: meta.Service,
-                procedure: meta.Procedure);
-        }
-
-        return Ok(value ?? []);
+                procedure: meta.Procedure)
+            .Map(_ => value ?? []);
     }
 
     /// <inheritdoc />
     public Result<byte[]> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta)
     {
-        if (!IsEncodingPermitted(meta.Encoding))
-        {
-            return FailInvalidEncoding<byte[]>(
+        ArgumentNullException.ThrowIfNull(meta);
+
+        return EnsureEncodingAllowed(
+                meta.Encoding,
                 stage: "decode-request",
                 context: "request",
-                actual: meta.Encoding,
                 service: meta.Service,
-                procedure: meta.Procedure);
-        }
-
-        return Ok(Normalize(payload));
+                procedure: meta.Procedure)
+            .Map(_ => Normalize(payload));
     }
 
     /// <inheritdoc />
     public Result<byte[]> EncodeResponse(byte[] value, ResponseMeta meta)
     {
-        if (!IsEncodingPermitted(meta.Encoding))
-        {
-            return FailInvalidEncoding<byte[]>(
-                stage: "encode-response",
-                context: "response",
-                actual: meta.Encoding);
-        }
+        ArgumentNullException.ThrowIfNull(meta);
 
-        return Ok(value ?? []);
+        return EnsureEncodingAllowed(
+                meta.Encoding,
+                stage: "encode-response",
+                context: "response")
+            .Map(_ => value ?? []);
     }
 
     /// <inheritdoc />
     public Result<byte[]> DecodeResponse(ReadOnlyMemory<byte> payload, ResponseMeta meta)
     {
-        if (!IsEncodingPermitted(meta.Encoding))
-        {
-            return FailInvalidEncoding<byte[]>(
-                stage: "decode-response",
-                context: "response",
-                actual: meta.Encoding);
-        }
+        ArgumentNullException.ThrowIfNull(meta);
 
-        return Ok(Normalize(payload));
+        return EnsureEncodingAllowed(
+                meta.Encoding,
+                stage: "decode-response",
+                context: "response")
+            .Map(_ => Normalize(payload));
     }
 
     private bool IsEncodingPermitted(string? declaredEncoding) =>
         declaredEncoding is null || _comparer.Equals(declaredEncoding, Encoding);
+
+    private Result<Unit> EnsureEncodingAllowed(
+        string? declaredEncoding,
+        string stage,
+        string context,
+        string? service = null,
+        string? procedure = null) =>
+        IsEncodingPermitted(declaredEncoding)
+            ? Ok(Unit.Value)
+            : FailInvalidEncoding<Unit>(stage, context, declaredEncoding, service, procedure);
 
     private Result<T> FailInvalidEncoding<T>(
         string stage,
