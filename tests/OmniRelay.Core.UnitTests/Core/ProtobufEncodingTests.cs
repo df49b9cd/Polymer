@@ -5,7 +5,7 @@ namespace OmniRelay.Core.UnitTests.Core;
 
 public class ProtobufEncodingTests
 {
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("protobuf", true)]
     [InlineData("application/x-protobuf", true)]
     [InlineData("application/protobuf", true)]
@@ -20,7 +20,7 @@ public class ProtobufEncodingTests
         Assert.Equal(expected, ProtobufEncoding.IsBinary(encoding));
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("json", true)]
     [InlineData("application/json", true)]
     [InlineData("protobuf", false)]
@@ -30,7 +30,7 @@ public class ProtobufEncodingTests
         Assert.Equal(expected, ProtobufEncoding.IsJson(encoding));
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("protobuf", ProtobufEncoding.ApplicationProtobuf)]
     [InlineData("application/json", ProtobufEncoding.ApplicationJson)]
     [InlineData("application/xml", "application/xml")]
@@ -41,7 +41,7 @@ public class ProtobufEncodingTests
         Assert.Equal(expected, ProtobufEncoding.GetMediaType(input));
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("application/json", ProtobufEncoding.ApplicationJson)]
     [InlineData("json", ProtobufEncoding.ApplicationJson)]
     [InlineData("application/grpc", ProtobufEncoding.Protobuf)]

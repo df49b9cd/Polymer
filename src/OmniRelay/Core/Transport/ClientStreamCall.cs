@@ -41,7 +41,7 @@ public sealed class ClientStreamCall : IAsyncDisposable
     /// </summary>
     public static ClientStreamCall Create(RequestMeta meta)
     {
-        var requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        var requests = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false,

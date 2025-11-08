@@ -17,7 +17,7 @@ public class DeadlineMiddlewareTests
 {
     private static IRequest<ReadOnlyMemory<byte>> MakeReq(RequestMeta meta) => new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task PastDeadline_FailsImmediately()
     {
         var mw = new DeadlineMiddleware();
@@ -29,7 +29,7 @@ public class DeadlineMiddlewareTests
         Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(res.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task TtlBelowLeadTime_FailsImmediately()
     {
         var mw = new DeadlineMiddleware(new DeadlineOptions { MinimumLeadTime = TimeSpan.FromSeconds(5) });
@@ -41,7 +41,7 @@ public class DeadlineMiddlewareTests
         Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(res.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task FutureDeadline_LinksCancellationToken()
     {
         var mw = new DeadlineMiddleware();
@@ -60,7 +60,7 @@ public class DeadlineMiddlewareTests
         Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(res.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ZeroTimeToLive_FailsImmediately()
     {
         var mw = new DeadlineMiddleware();
@@ -73,7 +73,7 @@ public class DeadlineMiddlewareTests
         Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task AllShapes_WithoutDeadline_InvokeNext()
     {
         var mw = new DeadlineMiddleware();
@@ -105,7 +105,7 @@ public class DeadlineMiddlewareTests
         Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, duplexInbound)).IsSuccess);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ExceptionPath_AddsExceptionMetadata()
     {
         var mw = new DeadlineMiddleware();

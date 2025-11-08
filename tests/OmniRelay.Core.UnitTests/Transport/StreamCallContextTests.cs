@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 
 public class StreamCallContextTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Increment_And_Complete_Tracks_State()
     {
         var ctx = new StreamCallContext(StreamDirection.Server);

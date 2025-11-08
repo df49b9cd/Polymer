@@ -20,7 +20,7 @@ public class StreamClientTests
     public sealed class Req { public int V { get; init; } }
     public sealed class Res { public string? S { get; init; } }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_Yields_Decoded_Responses()
     {
         var outbound = Substitute.For<IStreamOutbound>();
@@ -60,7 +60,7 @@ public class StreamClientTests
         Assert.Equal(Convert.ToBase64String(new byte[] { 4, 5 }), results[1].Body.S);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_EncodeFailure_Throws_OmniRelayException()
     {
         var outbound = Substitute.For<IStreamOutbound>();
@@ -79,7 +79,7 @@ public class StreamClientTests
         });
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_PipelineFailure_Throws()
     {
         var outbound = Substitute.For<IStreamOutbound>();
@@ -101,7 +101,7 @@ public class StreamClientTests
         });
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_DecodeFailure_CompletesStreamAndThrows()
     {
         var outbound = Substitute.For<IStreamOutbound>();
@@ -133,7 +133,7 @@ public class StreamClientTests
         Assert.NotNull(call.Context.CompletionError);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_SetsEncodingWhenMissing()
     {
         var outbound = Substitute.For<IStreamOutbound>();

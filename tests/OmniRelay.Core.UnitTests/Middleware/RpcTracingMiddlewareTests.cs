@@ -27,7 +27,7 @@ public class RpcTracingMiddlewareTests
         public void SetTraceSamplingProbability(double? probability) => TraceSamplingProbability = probability;
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task OutboundUnary_InjectsTraceparent()
     {
         using var source = new ActivitySource("test.tracing");
@@ -51,7 +51,7 @@ public class RpcTracingMiddlewareTests
         Assert.True(res.IsSuccess);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task InboundUnary_ExtractsParent_WhenPresent()
     {
         using var source = new ActivitySource("test.tracing");
@@ -80,7 +80,7 @@ public class RpcTracingMiddlewareTests
         Assert.Equal(parent.TraceId, captured!.TraceId);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task SamplingProbabilityZero_DisablesActivity()
     {
         using var source = new ActivitySource("test.tracing");
@@ -107,7 +107,7 @@ public class RpcTracingMiddlewareTests
         Assert.Null(captured);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task OutboundUnary_ExceptionAddsEvent()
     {
         using var source = new ActivitySource("test.tracing.exception");
@@ -132,7 +132,7 @@ public class RpcTracingMiddlewareTests
         Assert.Contains(stoppedActivities[0].Events, evt => evt.Name == "exception");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamOutbound_WrapsAndStopsActivity()
     {
         using var source = new ActivitySource("test.tracing.stream");
@@ -163,7 +163,7 @@ public class RpcTracingMiddlewareTests
         Assert.Equal(ActivityStatusCode.Ok, stoppedActivities[0].Status);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamOutbound_FailureSetsActivityError()
     {
         using var source = new ActivitySource("test.tracing.clientstream");
@@ -203,7 +203,7 @@ public class RpcTracingMiddlewareTests
         Assert.Equal("fail", stoppedActivities[0].GetTagItem("rpc.error_message"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task OnewayOutbound_FailureRecordsError()
     {
         using var source = new ActivitySource("test.tracing.oneway");
@@ -231,7 +231,7 @@ public class RpcTracingMiddlewareTests
         Assert.Equal("fail", stoppedActivities[0].GetTagItem("rpc.error_message"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DuplexOutbound_ErrorOnCompletionStopsActivity()
     {
         using var source = new ActivitySource("test.tracing.duplex");
@@ -262,7 +262,7 @@ public class RpcTracingMiddlewareTests
         Assert.Equal(ActivityStatusCode.Error, stoppedActivities[0].Status);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamInbound_SetsSuccessStatus()
     {
         using var source = new ActivitySource("test.tracing.clientstream.in");

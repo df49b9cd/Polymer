@@ -17,7 +17,7 @@ public class TeeOutboundsTests
 {
     private static IRequest<ReadOnlyMemory<byte>> MakeRequest() => new Request<ReadOnlyMemory<byte>>(new RequestMeta(service: "svc", procedure: "proc"), new byte[] { 1, 2, 3 });
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task TeeUnary_Shadow_On_Success_With_Header()
     {
         var primary = Substitute.For<IUnaryOutbound>();
@@ -52,7 +52,7 @@ public class TeeOutboundsTests
         Assert.Equal("true", val);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task TeeUnary_Shadow_On_Failure_When_Allowed()
     {
         var primary = Substitute.For<IUnaryOutbound>();
@@ -84,7 +84,7 @@ public class TeeOutboundsTests
         Assert.Equal(req.Meta.Service, captured.Meta.Service);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task TeeUnary_SampleRateZero_DisablesShadow()
     {
         var primary = Substitute.For<IUnaryOutbound>();
@@ -106,7 +106,7 @@ public class TeeOutboundsTests
         await shadow.DidNotReceive().CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task TeeOneway_Shadow_Predicate_Blocks()
     {
         var primary = Substitute.For<IOnewayOutbound>();
@@ -130,7 +130,7 @@ public class TeeOutboundsTests
         await shadow.DidNotReceive().CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Diagnostics_Aggregates_Children()
     {
         var primary = Substitute.For<IUnaryOutbound, IOutboundDiagnostic>();
@@ -145,7 +145,7 @@ public class TeeOutboundsTests
         Assert.Equal("rpc-shadow", diag.ShadowHeaderName);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TeeOptions_InvalidSampleRate_Throws()
     {
         var primary = Substitute.For<IUnaryOutbound>();
@@ -156,7 +156,7 @@ public class TeeOutboundsTests
         Assert.Contains("Sample rate must be between 0.0 and 1.0 inclusive.", ex.Message);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task TeeUnary_StartAsync_ShadowFails_PrimaryStopped()
     {
         var primary = Substitute.For<IUnaryOutbound>();
@@ -171,7 +171,7 @@ public class TeeOutboundsTests
         await primary.Received(1).StopAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task TeeUnary_BlankHeaderName_DoesNotModifyHeaders()
     {
         var primary = Substitute.For<IUnaryOutbound>();

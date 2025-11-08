@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Core;
 
 public class RequestMetaTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_SetsProperties_And_Defaults()
     {
         var now = DateTimeOffset.UtcNow;
@@ -38,7 +38,7 @@ public class RequestMetaTests
         Assert.Equal("v", hv);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void WithHeader_And_WithHeaders_Merge_CaseInsensitive()
     {
         var meta = new RequestMeta(service: "svc");

@@ -14,7 +14,7 @@ namespace OmniRelay.Core.UnitTests.Middleware;
 
 public class MiddlewareComposerTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeUnaryOutbound_ChainsInConfiguredOrder()
     {
         var order = new List<string>();
@@ -36,7 +36,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:unary-out", "m2:unary-out", "m3:unary-out", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Compose_ReturnsTerminal_WhenNullOrEmpty()
     {
         var meta = new RequestMeta(service: "svc");
@@ -82,7 +82,7 @@ public class MiddlewareComposerTests
         Assert.Same(duplexOut, MiddlewareComposer.ComposeDuplexOutbound([], duplexOut));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeUnaryInbound_Chains()
     {
         var order = new List<string>();
@@ -101,7 +101,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:unary-in", "m2:unary-in", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeOnewayOutbound_Chains()
     {
         var order = new List<string>();
@@ -120,7 +120,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:oneway-out", "m2:oneway-out", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeOnewayInbound_Chains()
     {
         var order = new List<string>();
@@ -139,7 +139,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:oneway-in", "m2:oneway-in", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeStreamOutbound_Chains()
     {
         var order = new List<string>();
@@ -159,7 +159,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:stream-out", "m2:stream-out", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeStreamInbound_Chains()
     {
         var order = new List<string>();
@@ -179,7 +179,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:stream-in", "m2:stream-in", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeClientStreamInbound_Chains()
     {
         var order = new List<string>();
@@ -199,7 +199,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:client-stream-in", "m2:client-stream-in", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeClientStreamOutbound_Chains()
     {
         var order = new List<string>();
@@ -218,7 +218,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:client-stream-out", "m2:client-stream-out", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeDuplexInbound_Chains()
     {
         var order = new List<string>();
@@ -237,7 +237,7 @@ public class MiddlewareComposerTests
         Assert.Equal(new[] { "m1:duplex-in", "m2:duplex-in", "terminal" }, order);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ComposeDuplexOutbound_Chains()
     {
         var order = new List<string>();

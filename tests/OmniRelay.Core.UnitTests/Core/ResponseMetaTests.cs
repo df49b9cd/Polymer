@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Core;
 
 public class ResponseMetaTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void WithHeader_AddsOrUpdates_Header_CaseInsensitive()
     {
         var meta = new ResponseMeta(encoding: "json");
@@ -20,7 +20,7 @@ public class ResponseMetaTests
         Assert.Equal("2", v2);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void WithHeaders_Merges_Existing()
     {
         var meta = new ResponseMeta(encoding: "json").WithHeader("a", "1");

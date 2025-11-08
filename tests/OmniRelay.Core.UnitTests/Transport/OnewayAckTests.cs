@@ -5,14 +5,14 @@ namespace OmniRelay.Core.UnitTests.Transport;
 
 public class OnewayAckTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Ack_Defaults_Meta_WhenNull()
     {
         var ack = OnewayAck.Ack();
         Assert.NotNull(ack.Meta);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Ack_Uses_Provided_Meta()
     {
         var meta = new ResponseMeta(encoding: "json");

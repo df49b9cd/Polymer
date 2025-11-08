@@ -10,7 +10,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 
 public class DuplexStreamCallTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CompleteRequestsAndResponses_SetStatuses()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");

@@ -17,7 +17,7 @@ public class AsyncDisposableHelpersTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task AsAsyncDisposable_AssignsOutAndReturnsInstance()
     {
         var dummy = new DummyAsyncDisposable();

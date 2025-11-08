@@ -17,7 +17,7 @@ public class UnaryClientTests
     public sealed class Req { public int X { get; init; } }
     public sealed class Res { public int Y { get; init; } }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_Success_Encodes_InvokesOutbound_Decodes()
     {
         var outbound = Substitute.For<IUnaryOutbound>();
@@ -46,7 +46,7 @@ public class UnaryClientTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_Encode_Failure_Propagates()
     {
         var outbound = Substitute.For<IUnaryOutbound>();
@@ -63,7 +63,7 @@ public class UnaryClientTests
         await outbound.DidNotReceive().CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_Outbound_Failure_Propagates()
     {
         var outbound = Substitute.For<IUnaryOutbound>();
@@ -81,7 +81,7 @@ public class UnaryClientTests
         Assert.Same(err, result.Error);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_Decode_Failure_Propagates()
     {
         var outbound = Substitute.For<IUnaryOutbound>();

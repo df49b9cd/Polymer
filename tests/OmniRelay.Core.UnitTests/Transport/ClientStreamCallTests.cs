@@ -13,7 +13,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 
 public class ClientStreamCallTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Write_Read_Complete_Response_Success()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");
@@ -39,7 +39,7 @@ public class ClientStreamCallTests
         Assert.Equal(resMeta, call.ResponseMeta);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CompleteWithError_Propagates()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");

@@ -55,7 +55,7 @@ public class ClientStreamClientTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Start_Write_Complete_Response_Decode_Succeeds()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
@@ -83,7 +83,7 @@ public class ClientStreamClientTests
         Assert.Equal(Convert.ToBase64String(responseBytes), response.Body.S);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StartAsync_PipelineFailure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
@@ -96,7 +96,7 @@ public class ClientStreamClientTests
         await Assert.ThrowsAsync<OmniRelayException>(() => client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken).AsTask());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task WriteAsync_EncodeFailure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
@@ -116,7 +116,7 @@ public class ClientStreamClientTests
         Assert.Empty(transportCall.Writes);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Response_Failure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
@@ -138,7 +138,7 @@ public class ClientStreamClientTests
         await Assert.ThrowsAsync<OmniRelayException>(() => session.Response);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Response_DecodeFailure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
@@ -161,7 +161,7 @@ public class ClientStreamClientTests
         await Assert.ThrowsAsync<OmniRelayException>(() => session.Response);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StartAsync_SetsEncodingWhenMissing()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();

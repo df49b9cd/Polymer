@@ -15,13 +15,13 @@ public class FewestPendingPeerChooserTests
 {
     private static RequestMeta Meta() => new RequestMeta(service: "svc", transport: "http");
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RequiresAtLeastOnePeer()
     {
         Assert.Throws<ArgumentException>(() => new FewestPendingPeerChooser(Array.Empty<IPeer>()));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ChoosesPeerWithLowestInflight()
     {
         var high = Substitute.For<IPeer>(); high.Identifier.Returns("high"); high.Status.Returns(new PeerStatus(PeerState.Available, 10, null, null)); high.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
@@ -34,7 +34,7 @@ public class FewestPendingPeerChooserTests
         await res.Value.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task WhenTie_PicksOneOfBest()
     {
         var a = Substitute.For<IPeer>(); a.Identifier.Returns("a"); a.Status.Returns(new PeerStatus(PeerState.Available, 2, null, null)); a.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
@@ -48,7 +48,7 @@ public class FewestPendingPeerChooserTests
         await res.Value.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task AllUnavailable_ReturnsExhausted()
     {
         var ua = Substitute.For<IPeer>(); ua.Identifier.Returns("ua"); ua.Status.Returns(new PeerStatus(PeerState.Unavailable, 0, null, null));
@@ -59,7 +59,7 @@ public class FewestPendingPeerChooserTests
         Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task SelectedPeerRejects_ReturnsExhausted()
     {
         var p = Substitute.For<IPeer>(); p.Identifier.Returns("p"); p.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);

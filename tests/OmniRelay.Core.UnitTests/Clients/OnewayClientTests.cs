@@ -16,7 +16,7 @@ public class OnewayClientTests
 {
     public sealed class Req { public string? V { get; init; } }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_Success_Encodes_InvokesOutbound()
     {
         var outbound = Substitute.For<IOnewayOutbound>();
@@ -37,7 +37,7 @@ public class OnewayClientTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CallAsync_Encode_Failure_Propagates()
     {
         var outbound = Substitute.For<IOnewayOutbound>();

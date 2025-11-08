@@ -18,7 +18,7 @@ public class RateLimitingMiddlewareTests
     private static IRequest<ReadOnlyMemory<byte>> MakeRequest(RequestMeta meta) =>
         new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Unary_WhenNoPermits_ReturnsResourceExhausted()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -36,7 +36,7 @@ public class RateLimitingMiddlewareTests
         preLease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamOutbound_Success_ReleasesPermitOnDispose()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -61,7 +61,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamOutbound_Failure_ReleasesPermitImmediately()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -80,7 +80,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamOutbound_CompletionWithError_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -106,7 +106,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamOutbound_Success_ReleasesPermitOnDispose()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -136,7 +136,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamOutbound_ResponseFailure_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -163,7 +163,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamOutbound_Failure_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -181,7 +181,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DuplexOutbound_Success_ReleasesPermitOnDispose()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -205,7 +205,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DuplexOutbound_CompletionFailure_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
@@ -226,7 +226,7 @@ public class RateLimitingMiddlewareTests
         lease.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task LimiterSelectorReturningNull_SkipsRateLimiting()
     {
         var options = new RateLimitingOptions
@@ -251,7 +251,7 @@ public class RateLimitingMiddlewareTests
         Assert.True(invoked);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamOutbound_DisposeThrows_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });

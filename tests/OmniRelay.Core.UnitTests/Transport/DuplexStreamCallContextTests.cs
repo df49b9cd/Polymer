@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 
 public class DuplexStreamCallContextTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Tracks_Request_And_Response()
     {
         var ctx = new DuplexStreamCallContext();

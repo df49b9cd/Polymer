@@ -15,7 +15,7 @@ public class PeerCircuitBreakerTests
         public void Advance(TimeSpan by) => _now = _now.Add(by);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void SuspendsAfterFailures_ThenHalfOpen()
     {
         var tp = new FakeTimeProvider(DateTimeOffset.UtcNow);
@@ -40,7 +40,7 @@ public class PeerCircuitBreakerTests
         Assert.True(cb.TryEnter()); // open again
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void HalfOpenFailure_Resuspends()
     {
         var tp = new FakeTimeProvider(DateTimeOffset.UtcNow);

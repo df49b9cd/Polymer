@@ -14,7 +14,7 @@ public class TwoRandomPeerChooserTests
 {
     private static RequestMeta Meta() => new RequestMeta(service: "svc", transport: "http");
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task SinglePeer_Path()
     {
         var p = Substitute.For<IPeer>(); p.Identifier.Returns("p"); p.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
@@ -25,7 +25,7 @@ public class TwoRandomPeerChooserTests
         await res.Value.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task PicksLowerInflightOfTwo()
     {
         var a = Substitute.For<IPeer>(); a.Identifier.Returns("a"); a.Status.Returns(new PeerStatus(PeerState.Available, 5, null, null)); a.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
@@ -37,7 +37,7 @@ public class TwoRandomPeerChooserTests
         await res.Value.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Reject_ReturnsExhausted()
     {
         var a = Substitute.For<IPeer>(); a.Identifier.Returns("a"); a.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); a.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);

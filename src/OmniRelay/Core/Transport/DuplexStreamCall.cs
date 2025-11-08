@@ -24,7 +24,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         ResponseMeta = responseMeta ?? new ResponseMeta();
         _context = new DuplexStreamCallContext();
 
-        _requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        _requests = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
             SingleWriter = false,
             SingleReader = false,
@@ -35,7 +35,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             _requests.Writer,
             () => _context.IncrementRequestMessageCount());
 
-        _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
             SingleWriter = false,
             SingleReader = false,

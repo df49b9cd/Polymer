@@ -4,7 +4,7 @@ namespace OmniRelay.Core.UnitTests;
 
 public class SmokeTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void It_Works()
     {
         Assert.True(true);

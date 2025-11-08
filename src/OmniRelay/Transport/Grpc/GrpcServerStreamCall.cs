@@ -30,14 +30,14 @@ public sealed class GrpcServerStreamCall : IStreamCall
         _context = new StreamCallContext(StreamDirection.Server);
         _baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
 
-        _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false,
             AllowSynchronousContinuations = false
         });
 
-        _requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+        _requests = Go.MakeChannel<ReadOnlyMemory<byte>>();
         _requests.Writer.TryComplete();
     }
 

@@ -10,7 +10,7 @@ namespace OmniRelay.Core.UnitTests.Core;
 
 public class ProtobufCodecTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeDecodeRequest_UsesBinaryEncodingByDefault()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
@@ -26,7 +26,7 @@ public class ProtobufCodecTests
         Assert.Equal(payload.Value, decoded.Value.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_ReturnsError_WhenValueNull()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
@@ -40,7 +40,7 @@ public class ProtobufCodecTests
         Assert.Equal("encode-request", error.Metadata["stage"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_ReturnsError_WhenEncodingUnsupported()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: false);
@@ -55,7 +55,7 @@ public class ProtobufCodecTests
         Assert.Equal("xml", error.Metadata["encoding"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_ReturnsInvalidArgument_WhenPayloadCorrupted()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
@@ -70,7 +70,7 @@ public class ProtobufCodecTests
         Assert.Equal("decode-request", error.Metadata["stage"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeDecodeResponse_SupportsJsonEncoding()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: true);
@@ -86,7 +86,7 @@ public class ProtobufCodecTests
         Assert.Equal(payload.Value, decoded.Value.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_ReturnsError_WhenJsonEncodingDisabled()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: false);
@@ -101,14 +101,14 @@ public class ProtobufCodecTests
         Assert.Equal(ProtobufEncoding.ApplicationJson, error.Metadata["encoding"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_AllowsCustomDefaultEncoding()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(defaultEncoding: ProtobufEncoding.ApplicationJson);
         Assert.Equal(ProtobufEncoding.ApplicationJson, codec.Encoding);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_GeneralExceptionReturnsInternal()
     {
         var codec = new ProtobufCodec<ThrowingMessage, ThrowingMessage>();
@@ -123,7 +123,7 @@ public class ProtobufCodecTests
         Assert.Equal(ProtobufEncoding.Protobuf, error.Metadata["encoding"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_GeneralExceptionReturnsInternal()
     {
         var codec = new ProtobufCodec<ThrowingMessage, ThrowingMessage>();
@@ -139,7 +139,7 @@ public class ProtobufCodecTests
         Assert.Equal(typeof(InvalidProtocolBufferException).FullName, error.Metadata["exceptionType"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeResponse_RejectsJsonWhenDisabled()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: false);
@@ -154,7 +154,7 @@ public class ProtobufCodecTests
         Assert.Equal(ProtobufEncoding.ApplicationJson, error.Metadata["encoding"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_InvalidJsonReturnsInvalidArgument()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: true);

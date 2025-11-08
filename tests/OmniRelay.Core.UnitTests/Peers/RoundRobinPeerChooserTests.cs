@@ -15,7 +15,7 @@ public class RoundRobinPeerChooserTests
 {
     private static RequestMeta Meta() => new RequestMeta(service: "svc", transport: "http");
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task EmptyPeers_ReturnsUnavailable()
     {
         var chooser = new RoundRobinPeerChooser(System.Collections.Immutable.ImmutableArray<IPeer>.Empty);
@@ -24,7 +24,7 @@ public class RoundRobinPeerChooserTests
         Assert.Equal(OmniRelayStatusCode.Unavailable, OmniRelayErrorAdapter.ToStatus(res.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Acquires_From_First_Available()
     {
         var p1 = Substitute.For<IPeer>();
@@ -44,7 +44,7 @@ public class RoundRobinPeerChooserTests
         await res.Value.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task AllBusy_ReturnsResourceExhausted()
     {
         var p1 = Substitute.For<IPeer>(); p1.Identifier.Returns("p1"); p1.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p1.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);

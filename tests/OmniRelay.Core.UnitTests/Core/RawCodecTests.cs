@@ -6,7 +6,7 @@ namespace OmniRelay.Core.UnitTests.Core;
 
 public class RawCodecTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_AllowsNullEncoding()
     {
         var codec = new RawCodec();
@@ -19,7 +19,7 @@ public class RawCodecTests
         Assert.Same(payload, result.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_FailsWhenEncodingDoesNotMatch()
     {
         var codec = new RawCodec();
@@ -38,7 +38,7 @@ public class RawCodecTests
         Assert.Equal("json", error.Metadata["actualEncoding"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_ReusesUnderlyingArray_WhenSegmentCoversWholeBuffer()
     {
         var codec = new RawCodec();
@@ -52,7 +52,7 @@ public class RawCodecTests
         Assert.Same(buffer, result.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_CopiesSegment_WhenArrayOffsetPresent()
     {
         var codec = new RawCodec();
@@ -67,7 +67,7 @@ public class RawCodecTests
         Assert.Equal(new byte[] { 2, 3 }, result.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeResponse_ReturnsEmptyArray_WhenValueNull()
     {
         var codec = new RawCodec();
@@ -79,7 +79,7 @@ public class RawCodecTests
         Assert.Empty(result.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_FailsWhenEncodingMismatch()
     {
         var codec = new RawCodec("custom");
@@ -96,7 +96,7 @@ public class RawCodecTests
         Assert.Equal("unexpected", error.Metadata["actualEncoding"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_ThrowsForInvalidEncoding()
     {
         Assert.Throws<ArgumentException>(() => new RawCodec(" "));

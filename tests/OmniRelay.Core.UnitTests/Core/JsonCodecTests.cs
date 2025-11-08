@@ -32,7 +32,7 @@ public class JsonCodecTests
             throw new NotSupportedException("Write should not be used in this converter.");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeDecode_RoundTrips_WithDefaultOptions()
     {
         var codec = new JsonCodec<TestPayload, TestPayload>();
@@ -56,7 +56,7 @@ public class JsonCodecTests
         Assert.Equal(payload, responseDecoded.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_ReportsSchemaViolations()
     {
         var schema = new JsonSchemaBuilder()
@@ -85,7 +85,7 @@ public class JsonCodecTests
         Assert.Contains(errors, e => e.Contains("required", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_ReturnsInvalidArgument_OnMalformedJson()
     {
         var codec = new JsonCodec<TestPayload, TestPayload>();
@@ -103,7 +103,7 @@ public class JsonCodecTests
         Assert.Contains("Json", exceptionType);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_ReturnsSchemaParseFailure_ForInvalidJson()
     {
         var schema = new JsonSchemaBuilder()
@@ -129,7 +129,7 @@ public class JsonCodecTests
         Assert.Contains("Json", exceptionType);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_ReturnsInternalError_WhenConverterThrows()
     {
         var options = new JsonSerializerOptions();
@@ -149,7 +149,7 @@ public class JsonCodecTests
         Assert.Equal(typeof(InvalidOperationException).FullName, error.Metadata["exceptionType"]);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_ReturnsInternalError_WhenConverterThrows()
     {
         var options = new JsonSerializerOptions();

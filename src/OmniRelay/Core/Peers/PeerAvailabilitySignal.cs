@@ -1,5 +1,7 @@
 using System.Threading;
 using System.Threading.Channels;
+using Hugo;
+using static Hugo.Go;
 
 namespace OmniRelay.Core.Peers;
 
@@ -8,12 +10,19 @@ namespace OmniRelay.Core.Peers;
 /// </summary>
 internal sealed class PeerAvailabilitySignal : IDisposable
 {
-    private readonly Channel<bool> _channel = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+    private readonly Channel<bool> _channel;
+    private readonly TimeProvider _timeProvider;
+
+    public PeerAvailabilitySignal(TimeProvider? timeProvider = null)
     {
-        SingleReader = false,
-        SingleWriter = false,
-        FullMode = BoundedChannelFullMode.DropOldest
-    });
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _channel = Go.MakeChannel<bool>(new BoundedChannelOptions(1)
+        {
+            SingleReader = false,
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.DropOldest
+        });
+    }
 
     public void Signal()
     {
@@ -27,19 +36,32 @@ internal sealed class PeerAvailabilitySignal : IDisposable
             return;
         }
 
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(timeout);
+        var waitResult = await Go.WithTimeoutAsync(
+            async token =>
+            {
+                try
+                {
+                    await _channel.Reader.ReadAsync(token).ConfigureAwait(false);
+                    return Ok(true);
+                }
+                catch (ChannelClosedException)
+                {
+                    return Ok(true);
+                }
+            },
+            timeout,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
 
-        try
+        if (waitResult.IsFailure)
         {
-            await _channel.Reader.ReadAsync(timeoutCts.Token).ConfigureAwait(false);
-        }
-        catch (ChannelClosedException)
-        {
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            // Timeout elapsed without a signal; swallow to let the caller re-evaluate deadlines.
+            if (waitResult.Error?.Code == ErrorCodes.Canceled)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            // Timeout or other transient errors should simply let the caller re-evaluate.
+            return;
         }
     }
 

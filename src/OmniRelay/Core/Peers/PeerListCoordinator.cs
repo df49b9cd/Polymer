@@ -118,6 +118,16 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
                 return Err<PeerLease>(exhausted);
             }
 
+            if (attemptResult == AcquisitionAttemptResult.NoAvailablePeers)
+            {
+                PeerMetrics.RecordPoolExhausted(meta);
+                var unavailable = OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.ResourceExhausted,
+                    "No peers are currently available.",
+                    transport: meta.Transport ?? "unknown");
+                return Err<PeerLease>(unavailable);
+            }
+
             if (PeerChooserHelpers.HasDeadlineElapsed(waitDeadline))
             {
                 var deadlineError = OmniRelayErrorAdapter.FromStatus(

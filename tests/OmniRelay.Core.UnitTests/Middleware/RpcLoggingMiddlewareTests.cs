@@ -32,7 +32,7 @@ public class RpcLoggingMiddlewareTests
         private sealed class Noop : IDisposable { public void Dispose() { } }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task LogsSuccess_OnUnaryOutbound()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -45,7 +45,7 @@ public class RpcLoggingMiddlewareTests
         Assert.Contains(logger.Entries, e => e.level >= LogLevel.Information && e.message.Contains("outbound unary"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task LogsFailure_OnUnaryOutbound()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -58,7 +58,7 @@ public class RpcLoggingMiddlewareTests
         Assert.Contains(logger.Entries, e => e.level >= LogLevel.Warning && e.message.Contains("failed"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task SkipsLogging_WhenPredicatePrevents()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -76,7 +76,7 @@ public class RpcLoggingMiddlewareTests
         Assert.Empty(logger.Entries);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task LogsException_WhenNextThrows()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -92,7 +92,7 @@ public class RpcLoggingMiddlewareTests
         Assert.Contains(logger.Entries, entry => entry.level >= LogLevel.Warning && entry.message.Contains("threw"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task LogsFailure_WhenErrorPredicateAllows()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -113,7 +113,7 @@ public class RpcLoggingMiddlewareTests
         Assert.Contains(logger.Entries, entry => entry.level >= LogLevel.Warning && entry.message.Contains("fail"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ExceptionWithoutLogging_WhenDisabled()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>(_ => false);

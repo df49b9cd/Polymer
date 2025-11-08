@@ -9,7 +9,7 @@ namespace OmniRelay.Core.UnitTests.Core;
 
 public class RequestLoggingScopePeerTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Create_AddsPeerFromActivityAndHeaders()
     {
         var meta = new RequestMeta(service: "svc", transport: "http")

@@ -6,7 +6,7 @@ namespace OmniRelay.Core.UnitTests.Peers;
 
 public class PeerStatusTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Unknown_HasExpectedDefaults()
     {
         var s = PeerStatus.Unknown;
@@ -16,7 +16,7 @@ public class PeerStatusTests
         Assert.Null(s.LastSuccess);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Ctor_Sets_Properties()
     {
         var now = DateTimeOffset.UtcNow;

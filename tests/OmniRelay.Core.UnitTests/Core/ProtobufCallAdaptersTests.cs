@@ -17,7 +17,7 @@ public class ProtobufCallAdaptersTests
     private static RequestMeta CreateRequestMeta(ProtobufCodec<StringValue, StringValue> codec) =>
         new(service: "svc", procedure: "rpc", transport: "grpc", encoding: codec.Encoding);
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryHandler_SuccessfullyEncodesResponse()
     {
         var codec = CreateCodec();
@@ -44,7 +44,7 @@ public class ProtobufCallAdaptersTests
         Assert.Equal("PING", decoded.Value.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryHandler_ReturnsDecodeErrorWithoutInvokingHandler()
     {
         var codec = CreateCodec();
@@ -67,7 +67,7 @@ public class ProtobufCallAdaptersTests
         Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryHandler_HandlerExceptionReturnsInternalError()
     {
         var codec = CreateCodec();
@@ -85,7 +85,7 @@ public class ProtobufCallAdaptersTests
         Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ServerStreamHandler_WritesMessagesAndPropagatesMetadata()
     {
         var codec = CreateCodec();
@@ -117,7 +117,7 @@ public class ProtobufCallAdaptersTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ServerStreamHandler_HandlerExceptionCompletesWithError()
     {
         var codec = CreateCodec();
@@ -140,7 +140,7 @@ public class ProtobufCallAdaptersTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ServerStreamWriter_WriteAsyncEncodingFailureCompletesWithError()
     {
         var codec = CreateCodec();
@@ -167,7 +167,7 @@ public class ProtobufCallAdaptersTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamContext_ReadAllAsync_DecodesMessages()
     {
         var codec = CreateCodec();
@@ -190,7 +190,7 @@ public class ProtobufCallAdaptersTests
         Assert.Equal(new[] { "one", "two" }, messages);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamContext_ReadAllAsync_InvalidPayloadThrows()
     {
         var codec = CreateCodec();
@@ -212,7 +212,7 @@ public class ProtobufCallAdaptersTests
         Assert.Equal(OmniRelayStatusCode.InvalidArgument, ex.StatusCode);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamHandler_EncodesResponse()
     {
         var codec = CreateCodec();
@@ -249,7 +249,7 @@ public class ProtobufCallAdaptersTests
         Assert.Equal("a,b", decoded.Value.Value);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamHandler_HandlerExceptionReturnsInternalError()
     {
         var codec = CreateCodec();
@@ -268,7 +268,7 @@ public class ProtobufCallAdaptersTests
         Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DuplexHandler_ReadsAndWritesMessages()
     {
         var codec = CreateCodec();
@@ -305,7 +305,7 @@ public class ProtobufCallAdaptersTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DuplexHandler_HandlerExceptionCompletesWithError()
     {
         var codec = CreateCodec();
@@ -326,7 +326,7 @@ public class ProtobufCallAdaptersTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DuplexContext_WriteAsyncEncodingFailureCompletesWithError()
     {
         var codec = CreateCodec();

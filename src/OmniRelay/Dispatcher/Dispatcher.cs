@@ -442,59 +442,51 @@ public sealed class Dispatcher
             }
 
             var startedComponents = new int[_lifecycleStartOrder.Length];
-            var wg = new WaitGroup();
             var exceptions = new ConcurrentQueue<Exception>();
+
+            using var group = new ErrGroup(cancellationToken);
 
             foreach (var (component, index) in _lifecycleStartOrder.Select((component, index) => (component, index)))
             {
                 var lifecycle = component.Lifecycle;
 
-                wg.Go(async token =>
+                group.Go(async token =>
                 {
                     try
                     {
                         await lifecycle.StartAsync(token).ConfigureAwait(false);
                         Volatile.Write(ref startedComponents[index], 1);
+                        return Result.Ok(Unit.Value);
                     }
                     catch (Exception ex)
                     {
                         exceptions.Enqueue(ex);
+                        throw;
                     }
-                }, cancellationToken);
+                });
             }
 
-            try
-            {
-                await wg.WaitAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception waitException)
-            {
-                try
-                {
-                    await RollbackStartedComponentsAsync(startedComponents).ConfigureAwait(false);
-                }
-                catch (Exception rollbackException)
-                {
-                    throw new AggregateException(waitException, rollbackException);
-                }
+            var waitResult = await group.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-                throw;
-            }
-
-            if (!exceptions.IsEmpty)
+            if (!exceptions.IsEmpty || waitResult.IsFailure)
             {
-                var startException = CreateStartFailureException(exceptions);
+                var startException = CreateStartFailureException(exceptions, group.Error);
 
                 try
                 {
                     await RollbackStartedComponentsAsync(startedComponents).ConfigureAwait(false);
                 }
-                catch (Exception rollbackException)
+                catch (Exception rollbackException) when (startException is not null)
                 {
                     throw new AggregateException(startException, rollbackException);
                 }
 
-                throw startException;
+                if (startException is not null)
+                {
+                    throw startException;
+                }
+
+                throw new InvalidOperationException("One or more dispatcher components failed to start.");
             }
             CompleteStart();
         }
@@ -779,14 +771,26 @@ public sealed class Dispatcher
         }
     }
 
-    private static Exception CreateStartFailureException(ConcurrentQueue<Exception> exceptions)
+    private static Exception? CreateStartFailureException(ConcurrentQueue<Exception> exceptions, Error? groupError)
     {
-        if (exceptions.Count == 1 && exceptions.TryPeek(out var single))
+        if (!exceptions.IsEmpty)
         {
-            return single;
+            return exceptions.Count == 1 && exceptions.TryPeek(out var single)
+                ? single
+                : new AggregateException(exceptions);
         }
 
-        return new AggregateException(exceptions);
+        if (groupError?.Cause is not null)
+        {
+            return groupError.Cause;
+        }
+
+        if (groupError is not null)
+        {
+            return new InvalidOperationException(groupError.ToString());
+        }
+
+        return null;
     }
 
     private static ImmutableDictionary<string, OutboundCollection> BuildOutboundCollections(

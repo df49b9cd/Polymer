@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 
 public class ClientStreamRequestContextTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Holds_Meta_And_Requests()
     {
         var meta = new RequestMeta(service: "svc");

@@ -22,14 +22,14 @@ public sealed class HttpStreamCall : IStreamCall
         ResponseMeta = responseMeta ?? new ResponseMeta();
         _context = new StreamCallContext(StreamDirection.Server);
 
-        _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false,
             AllowSynchronousContinuations = false
         });
 
-        _requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+        _requests = Go.MakeChannel<ReadOnlyMemory<byte>>();
         _requests.Writer.TryComplete(); // Server streaming does not consume client payloads.
     }
 

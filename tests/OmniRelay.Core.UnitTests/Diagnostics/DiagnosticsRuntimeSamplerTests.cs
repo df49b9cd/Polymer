@@ -30,7 +30,7 @@ public class DiagnosticsRuntimeSamplerTests
         public void SetTraceSamplingProbability(double? probability) => TraceSamplingProbability = probability;
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void NullRuntime_UsesFallback()
     {
         var fallback = new AlwaysOffSampler();
@@ -39,7 +39,7 @@ public class DiagnosticsRuntimeSamplerTests
         Assert.Equal(SamplingDecision.Drop, result.Decision);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void NullProbability_UsesFallback()
     {
         var runtime = new TestRuntime();
@@ -50,7 +50,7 @@ public class DiagnosticsRuntimeSamplerTests
         Assert.Equal(SamplingDecision.RecordAndSample, result.Decision);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ProbabilityZero_Drops_UnlessRecordedParentOrLink()
     {
         var runtime = new TestRuntime();
@@ -72,7 +72,7 @@ public class DiagnosticsRuntimeSamplerTests
         Assert.Equal(SamplingDecision.RecordAndSample, result3.Decision);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ProbabilityOneOrMore_UsesFallback()
     {
         var runtime = new TestRuntime();
@@ -83,7 +83,7 @@ public class DiagnosticsRuntimeSamplerTests
         Assert.Equal(SamplingDecision.Drop, result.Decision);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RatioSampler_IsCached_PerProbability()
     {
         var runtime = new TestRuntime();

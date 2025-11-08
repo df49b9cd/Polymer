@@ -32,36 +32,29 @@ public static class DispatcherJsonExtensions
         async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Wrapper(IRequest<ReadOnlyMemory<byte>> rawRequest, CancellationToken cancellationToken)
         {
             var decode = codec.DecodeRequest(rawRequest.Body, rawRequest.Meta);
-            if (decode.IsFailure)
-            {
-                return Err<Response<ReadOnlyMemory<byte>>>(decode.Error!);
-            }
 
-            Response<TResponse> typedResponse;
+            var handlerResult = await decode
+                .ThenAsync(async (typedRequest, token) =>
+                {
+                    try
+                    {
+                        var context = new JsonUnaryContext(dispatcher, rawRequest.Meta, token);
+                        var response = await handler(context, typedRequest).ConfigureAwait(false);
+                        return Result.Ok(response);
+                    }
+                    catch (Exception ex)
+                    {
+                        return OmniRelayErrors.ToResult<Response<TResponse>>(ex, rawRequest.Meta.Transport ?? "json");
+                    }
+                }, cancellationToken)
+                .ConfigureAwait(false);
 
-            try
+            return handlerResult.Then(typedResponse =>
             {
-                var context = new JsonUnaryContext(dispatcher, rawRequest.Meta, cancellationToken);
-                typedResponse = await handler(context, decode.Value).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                return OmniRelayErrors.ToResult<Response<ReadOnlyMemory<byte>>>(ex, rawRequest.Meta.Transport ?? "json");
-            }
-
-            var responseMeta = typedResponse.Meta;
-            if (string.IsNullOrWhiteSpace(responseMeta.Encoding))
-            {
-                responseMeta = responseMeta with { Encoding = codec.Encoding };
-            }
-
-            var encode = codec.EncodeResponse(typedResponse.Body, responseMeta);
-            if (encode.IsFailure)
-            {
-                return Err<Response<ReadOnlyMemory<byte>>>(encode.Error!);
-            }
-
-            return Ok(Response<ReadOnlyMemory<byte>>.Create(encode.Value, responseMeta));
+                var responseMeta = EnsureEncoding(typedResponse.Meta, codec.Encoding);
+                return codec.EncodeResponse(typedResponse.Body, responseMeta)
+                    .Map(payload => Response<ReadOnlyMemory<byte>>.Create(payload, responseMeta));
+            });
         }
 
         dispatcher.RegisterUnary(name, builder =>
@@ -134,6 +127,16 @@ public static class DispatcherJsonExtensions
         var builder = new JsonCodecBuilder<TRequest, TResponse>();
         configureCodec?.Invoke(builder);
         return builder.Build();
+    }
+
+    private static ResponseMeta EnsureEncoding(ResponseMeta meta, string encoding)
+    {
+        if (!string.IsNullOrWhiteSpace(meta.Encoding))
+        {
+            return meta;
+        }
+
+        return meta with { Encoding = encoding };
     }
 }
 

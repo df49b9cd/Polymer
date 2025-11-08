@@ -59,7 +59,7 @@ public class RpcMetricsMiddlewareTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Records_Success_And_Duration_For_Unary()
     {
         using var meter = new Meter("test.rpc.metrics.unary.success");
@@ -81,7 +81,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Records_Failure_For_Unary()
     {
         using var meter = new Meter("test.rpc.metrics.unary.failure");
@@ -102,7 +102,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Records_Exception_For_Unary()
     {
         using var meter = new Meter("test.rpc.metrics.unary.exception");
@@ -124,7 +124,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamOutbound_DisposeRecordsOutcome()
     {
         using var meter = new Meter("test.rpc.metrics.stream");
@@ -157,7 +157,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamOutbound_ResponseFailureRecorded()
     {
         using var meter = new Meter("test.rpc.metrics.clientstream");
@@ -187,7 +187,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamOutbound_ResponseThrowsRecorded()
     {
         using var meter = new Meter("test.rpc.metrics.clientstream.throw");
@@ -213,7 +213,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DuplexOutbound_CompletingWithErrorRecordsFailure()
     {
         using var meter = new Meter("test.rpc.metrics.duplex");
@@ -241,7 +241,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task OnewayOutbound_RecordsMetrics()
     {
         using var meter = new Meter("test.rpc.metrics.oneway");
@@ -268,7 +268,7 @@ public class RpcMetricsMiddlewareTests
         collector.Listener.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamInbound_RecordsSuccessAndFailure()
     {
         using var meter = new Meter("test.rpc.metrics.clientstream.inbound");

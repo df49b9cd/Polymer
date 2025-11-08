@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Hugo;
+using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher;
 
@@ -18,7 +19,7 @@ public static class DispatcherLifecycleSpike
     {
         var started = new List<string>();
         var stopped = new List<string>();
-        var readiness = Channel.CreateUnbounded<string>();
+        var readiness = Go.MakeChannel<string>();
         var wg = new WaitGroup();
 
         foreach (var (step, index) in startSteps.Select((step, index) => (step, index)))

@@ -20,7 +20,7 @@ public class DuplexStreamClientTests
     public sealed class Req { public int A { get; init; } }
     public sealed class Res { public int B { get; init; } }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StartAsync_Writes_Encodes_And_Reads_Decoded_Responses()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
@@ -54,7 +54,7 @@ public class DuplexStreamClientTests
         Assert.Equal(4, received[1].Body.B);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StartAsync_PipelineFailure_Throws()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
@@ -67,7 +67,7 @@ public class DuplexStreamClientTests
         await Assert.ThrowsAsync<OmniRelayException>(() => client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken).AsTask());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task WriteAsync_EncodeFailure_Throws()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
@@ -86,7 +86,7 @@ public class DuplexStreamClientTests
         Assert.Equal(0, duplex.Context.RequestMessageCount);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ReadResponsesAsync_DecodeFailure_CompletesStreamAndThrows()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
@@ -117,7 +117,7 @@ public class DuplexStreamClientTests
         Assert.NotNull(duplex.Context.ResponseCompletionError);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StartAsync_SetsEncodingWhenMissing()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
