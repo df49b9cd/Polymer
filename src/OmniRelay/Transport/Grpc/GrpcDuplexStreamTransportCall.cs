@@ -124,18 +124,27 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
 
         if (_pumpGroup is not null)
         {
+            var hasPumpResult = false;
+            Result<Unit> pumpResult = default;
+
             try
             {
-                await _pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                pumpResult = await _pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                hasPumpResult = true;
             }
-            catch
+            catch (Exception ex)
             {
-                // ignored
+                HandlePumpGroupFailure(Error.FromException(ex));
             }
             finally
             {
                 _pumpGroup.Dispose();
                 _pumpGroup = null;
+            }
+
+            if (hasPumpResult && pumpResult.IsFailure && pumpResult.Error is { } pumpError)
+            {
+                HandlePumpGroupFailure(pumpError);
             }
         }
 
@@ -242,5 +251,13 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         GrpcTransportMetrics.ClientDuplexDuration.Record(elapsed, tags);
         GrpcTransportMetrics.ClientDuplexRequestCount.Record(_requestCount, tags);
         GrpcTransportMetrics.ClientDuplexResponseCount.Record(_responseCount, tags);
+    }
+
+    private void HandlePumpGroupFailure(Error pumpError)
+    {
+        var status = GrpcStatusMapper.ToStatus(
+            OmniRelayErrorAdapter.ToStatus(pumpError),
+            pumpError.Message ?? "The duplex stream pumps failed.");
+        RecordCompletion(status.StatusCode);
     }
 }

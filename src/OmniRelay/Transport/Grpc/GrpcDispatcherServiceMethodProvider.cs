@@ -578,8 +578,13 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         return Ok(Unit.Value);
                     });
 
-                    await pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    var pumpResult = await pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     pumpFailure?.Throw();
+
+                    if (pumpResult.IsFailure && pumpResult.Error is { } pumpError)
+                    {
+                        HandlePumpResultFailure(pumpError);
+                    }
 
                     async Task PumpRequestsAsync(CancellationToken token)
                     {
@@ -750,6 +755,18 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                             CapturePumpFailure(rpcException);
                             return;
                         }
+                    }
+
+                    void HandlePumpResultFailure(Error pumpError)
+                    {
+                        var exception = OmniRelayErrors.FromError(pumpError, GrpcTransportConstants.TransportName);
+                        var status = GrpcStatusMapper.ToStatus(exception.StatusCode, exception.Message);
+                        var trailers = GrpcMetadataAdapter.CreateErrorTrailers(exception.Error);
+                        var rpcException = new RpcException(status, trailers);
+                        activityHasError = true;
+                        GrpcTransportDiagnostics.RecordException(activity, rpcException, status.StatusCode, status.Detail);
+                        RecordServerDuplexMetrics(status.StatusCode);
+                        throw rpcException;
                     }
 
                     if (!activityHasError)
