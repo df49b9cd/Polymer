@@ -139,16 +139,34 @@ services.AddPrioritizedChannel<Job>(priorityLevels: 3, builder => builder
 
 ## Task queue leasing
 
-`TaskQueue<T>` layers cooperative leasing semantics on top of channels. Producers enqueue work items, workers lease them for a configurable duration, and can heartbeat, complete, or fail each lease. Options configure buffer size, lease duration, heartbeat cadence, sweep interval, requeue delay, and maximum delivery attempts.
+`TaskQueue<T>` layers cooperative leasing semantics on top of channels. Producers enqueue work items, workers lease them for a configurable duration, and can heartbeat, complete, or fail each lease. Options configure queue naming, buffer size, lease duration, heartbeat cadence, sweep interval, requeue delay, maximum delivery attempts, and optional backpressure callbacks.
 
 ### TaskQueue usage
 
 ```csharp
 var options = new TaskQueueOptions
 {
+    Name = "telemetry-queue",
     LeaseDuration = TimeSpan.FromSeconds(10),
     HeartbeatInterval = TimeSpan.FromSeconds(2),
-    RequeueDelay = TimeSpan.FromMilliseconds(250)
+    RequeueDelay = TimeSpan.FromMilliseconds(250),
+    Backpressure = new TaskQueueBackpressureOptions
+    {
+        HighWatermark = 256,
+        LowWatermark = 64,
+        Cooldown = TimeSpan.FromSeconds(5),
+        StateChanged = state =>
+        {
+            if (state.IsActive)
+            {
+                logger.LogWarning("Throttling appends at depth {Depth}", state.PendingCount);
+            }
+            else
+            {
+                logger.LogInformation("Backpressure cleared at depth {Depth}", state.PendingCount);
+            }
+        }
+    }
 };
 
 await using var queue = new TaskQueue<Job>(options);
@@ -158,6 +176,7 @@ var lease = await queue.LeaseAsync(ct);
 
 try
 {
+    logger.LogDebug("Ownership token {Token}", lease.OwnershipToken);
     await ProcessAsync(lease.Value, ct);
     await lease.CompleteAsync(ct);
 }
@@ -167,11 +186,42 @@ catch (Exception ex)
 }
 ```
 
+When draining a node for maintenance, capture the outstanding work and restore it on the new process:
+
+```csharp
+IReadOnlyList<TaskQueuePendingItem<Job>> pending = await queue.DrainPendingItemsAsync(ct);
+await durableStore.SaveAsync(pending, ct);
+
+// Later, or on another instance
+await queue.RestorePendingItemsAsync(await durableStore.LoadAsync(ct), ct);
+```
+
 ### TaskQueue notes
 
 - Heartbeats extend the lease without handing work to another worker while still respecting `HeartbeatInterval` throttling.
 - `FailAsync` captures the provided `Error`, increments the attempt, and either requeues or dead-letters when `MaxDeliveryAttempts` is exceeded.
 - Expired leases are detected by a background sweep and automatically requeued with an `error.taskqueue.lease_expired` payload.
+- Every lease exposes a monotonic `OwnershipToken` (`sequence`, `attempt`, `leaseId`) that you can log or persist as a fencing token.
+- `DrainPendingItemsAsync`/`RestorePendingItemsAsync` make rolling upgrades safe by snapshotting in-flight work without losing metadata.
+- Configure `TaskQueueBackpressureOptions` to receive callbacks when `PendingCount` crosses high/low watermarks and throttle producers proactively.
+
+### Task queue health checks
+
+Hook `TaskQueueHealthCheck<T>` into ASP.NET Core health probes to block rollouts whenever backlog exceeds a threshold:
+
+```csharp
+builder.Services.AddTaskQueueHealthCheck<Job>(
+    name: "job-queue",
+    queueFactory: sp => sp.GetRequiredService<TaskQueue<Job>>(),
+    configure: options =>
+    {
+        options.PendingDegradedThreshold = 512;
+        options.PendingUnhealthyThreshold = 1024;
+        options.ActiveLeaseDegradedThreshold = 32;
+    });
+```
+
+Expose `/health/ready` via `app.MapHealthChecks` so orchestrators wait for pending work to drain before terminating replicas.
 
 ### TaskQueueChannelAdapter usage
 
@@ -237,6 +287,7 @@ if (complete.IsFailure)
 - `Wrap(TaskQueueLease<T>)` adapts existing leases (for example those surfaced by `TaskQueueChannelAdapter`) into `SafeTaskQueueLease<T>` instances.
 - `DisposeAsync` optionally disposes the underlying queue when `ownsQueue` is `true`.
 - `SafeTaskQueueLease<T>` methods (`CompleteAsync`, `HeartbeatAsync`, `FailAsync`) return `Result<Unit>` and normalise cancellations and inactive lease states to `error.taskqueue.lease_inactive`.
+- `SafeTaskQueueLease<T>` surfaces the underlying `SequenceId` and `OwnershipToken` so producers/consumers can log the same fencing metadata as the raw lease.
 
 ## Select helpers
 
@@ -325,7 +376,7 @@ var tick = await ticker.ReadAsync(ct);
 
 These helpers keep workflow-style orchestrations deterministic across replays by persisting decisions externally.
 
-- `VersionGate` records version markers for long-lived change management. Call `Require(changeId, minVersion, maxVersion)` to retrieve the persisted version or create one deterministically. Supply a custom provider when you need to phase rollouts.
+- `VersionGate` records version markers for long-lived change management using optimistic inserts. Call `Require(changeId, minVersion, maxVersion)` to retrieve the persisted version or create one deterministically. Supply a custom provider when you need to phase rollouts; concurrent writers that lose the insert return `error.version.conflict` so callers can fallback.
 - `DeterministicEffectStore` captures side-effect results once and replays them. Use a durable implementation of `IDeterministicStateStore` in production and the provided `InMemoryDeterministicStateStore` inside tests.
 
 ### VersionGate usage

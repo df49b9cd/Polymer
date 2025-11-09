@@ -15,7 +15,7 @@ Deterministic coordination stitches together version markers and replay-safe sid
 
 ## Components
 
-- `VersionGate` records an immutable version decision per change identifier.
+- `VersionGate` records an immutable version decision per change identifier using optimistic inserts (`IDeterministicStateStore.TryAdd`). Concurrent writers that lose the CAS receive `error.version.conflict` metadata so callers can retry or fallback deterministically.
 - `DeterministicEffectStore` captures idempotent side effects keyed by change/version/scope.
 - `DeterministicGate` combines both to execute code paths safely across replays.
 
@@ -90,6 +90,7 @@ Use these codes to build observability dashboards or to drive automated replay d
 ## Observability
 
 - Instrument `GoDiagnostics` to emit `workflow.*` metrics and activity tags. Replay counts flow through the `workflow.replay.count` histogram while logical clock increments surface under `workflow.logical.clock`.
+- `DeterministicGate` and `DeterministicEffectStore` emit `Deterministic.*` activities (for example `version_gate.require`, `workflow.execute`, `effect.capture`) so OmniRelay/SHOW HISTORY views can correlate commits with queue events.
 - When a deterministic branch fails, propagate `Result<T>.Error.Metadata` into logs or tracing scopes. Keys include `changeId`, `version`, `minVersion`, `maxVersion`, and the scoped `stepId` from `DeterministicWorkflowContext.CreateEffectId`.
 - Attach `Result<T>.Error.Metadata` to structured logs so OTLP/Prometheus pipelines can slice failures by change/version. For example, enrich Serilog scopes with `@error.Metadata` and configure OpenTelemetry resource attributes from the same payload.
 - Combine `DeterministicWorkflowContext.Metadata` with `WorkflowExecutionContext` to correlate deterministic steps with workflow executions. The latter already exports tags like `workflow.namespace`, `workflow.id`, and `workflow.logical_clock` for activity traces.

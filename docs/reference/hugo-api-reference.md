@@ -60,7 +60,7 @@ All factory methods ultimately increment success/failure counters through `GoDia
 
 `Functional` is a static class housing the “railway oriented” fluent API. Extensions exist in synchronous and asynchronous forms and return `Result<T>` (or tasks of results) so they compose naturally.
 
-- Execution flow: `Then`, `ThenAsync` overloads (sync→sync, sync→async, async→sync, async→async) plus `Recover`, `RecoverAsync` and `Finally`, `FinallyAsync`. As of Hugo v1.4.3, all async helpers ship ValueTask-friendly variants (`*ValueTaskAsync`) so both delegates and `ValueTask<Result<T>>` sources compose without allocating extra tasks.
+- Execution flow: `Then`, `ThenAsync` overloads (sync→sync, sync→async, async→sync, async→async) plus `Recover`, `RecoverAsync` and `Finally`, `FinallyAsync`. All async helpers now ship ValueTask-friendly variants (`*ValueTaskAsync`) so both delegates and `ValueTask<Result<T>>` sources compose without allocating extra tasks.
 - Mapping: `Map`, `MapAsync` (sync source/async mapper), `Tap`, `TapAsync`, and aliases `Tee`, `TeeAsync`.
 - Validation: `Ensure`, `EnsureAsync`, LINQ integration (`Select`, `SelectMany`, `Where`).
 - Side-effects: `OnSuccess`/`OnSuccessAsync`, `OnFailure`/`OnFailureAsync`, `TapError`/`TapErrorAsync`.
@@ -137,12 +137,17 @@ Hugo follows the `.NET Channels` guidance published at [learn.microsoft.com/dotn
 
 | Type | Description |
 | --- | --- |
-| `TaskQueueOptions` | Immutable configuration: `Capacity`, `LeaseDuration`, `HeartbeatInterval`, `LeaseSweepInterval`, `RequeueDelay`, `MaxDeliveryAttempts`. Validation enforces positive/ non-negative ranges. |
-| `TaskQueue<T>` | Channel-backed cooperative lease queue. Key members: `EnqueueAsync`, `LeaseAsync`, `PendingCount`, `ActiveLeaseCount`, and `DisposeAsync`. Internally tracks leases, heartbeats, requeues, and dead-letter routing while emitting `taskqueue.*` metrics. |
-| `TaskQueueLease<T>` | Represents an active lease. Use `Value`, `Attempt`, `EnqueuedAt`, `LastError`. Methods: `CompleteAsync`, `HeartbeatAsync`, `FailAsync(Error error, bool requeue = true)`. Multiple invocations throw when the lease is no longer active. |
+| `TaskQueueOptions` | Immutable configuration: `Name`, `Capacity`, `LeaseDuration`, `HeartbeatInterval`, `LeaseSweepInterval`, `RequeueDelay`, `MaxDeliveryAttempts`, plus optional `Backpressure` callbacks. Validation enforces positive/ non-negative ranges. |
+| `TaskQueue<T>` | Channel-backed cooperative lease queue. Key members: `EnqueueAsync`, `LeaseAsync`, `PendingCount`, `ActiveLeaseCount`, `DrainPendingItemsAsync`, `RestorePendingItemsAsync`, and `DisposeAsync`. Internally tracks leases, heartbeats, backpressure, requeues, and dead-letter routing while emitting `taskqueue.*` metrics/activities. |
+| `TaskQueueLease<T>` | Represents an active lease. Use `Value`, `Attempt`, `EnqueuedAt`, `LastError`, `SequenceId`, and `OwnershipToken`. Methods: `CompleteAsync`, `HeartbeatAsync`, `FailAsync(Error error, bool requeue = true)`. Multiple invocations throw when the lease is no longer active. |
 | `SafeTaskQueueWrapper<T>` | Result-friendly adapter over `TaskQueue<T>`. Methods `EnqueueAsync`, `LeaseAsync`, `Wrap`, `DisposeAsync`. Converts cancellation, disposal, and invalid operations into structured `Error` codes (for example `error.taskqueue.disposed`). Optional `ownsQueue` flag disposes the underlying queue on teardown. |
-| `SafeTaskQueueLease<T>` | Lightweight wrapper around `TaskQueueLease<T>` that returns `Result<Unit>` from `CompleteAsync`, `HeartbeatAsync`, and `FailAsync`. Normalises inactive leases to `error.taskqueue.lease_inactive` and captures cancellation metadata. |
-| `TaskQueueDeadLetterContext<T>` | Payload delivered to dead-letter handlers when the queue cannot retry an item. |
+| `SafeTaskQueueLease<T>` | Lightweight wrapper around `TaskQueueLease<T>` that returns `Result<Unit>` from `CompleteAsync`, `HeartbeatAsync`, and `FailAsync`. Normalises inactive leases to `error.taskqueue.lease_inactive`, exposes `SequenceId` / `OwnershipToken`, and captures cancellation metadata. |
+| `TaskQueueDeadLetterContext<T>` | Payload delivered to dead-letter handlers when the queue cannot retry an item. Includes `Value`, `Error`, `Attempt`, `EnqueuedAt`, `SequenceId`, and the last `OwnershipToken`. |
+| `TaskQueueOwnershipToken` | Monotonic lease identifier composed of `SequenceId`, `Attempt`, and the active `LeaseId`. Useful as a fencing token for metadata stores. |
+| `TaskQueuePendingItem<T>` | Serializable snapshot captured by `DrainPendingItemsAsync`. Contains the payload, attempt, timestamps, last error, and ownership token so work can be restored losslessly. |
+| `TaskQueueBackpressureOptions` | Optional configuration attached to `TaskQueueOptions`. Configure `HighWatermark`, `LowWatermark`, `Cooldown`, and `StateChanged(TaskQueueBackpressureState state)` to drive throttling decisions. |
+| `TaskQueueBackpressureState` | Immutable payload delivered to backpressure callbacks containing `IsActive`, `PendingCount`, and `ObservedAt`. |
+| `TaskQueueHealthCheck<T>` / `TaskQueueHealthCheckOptions` | Health check implementation for queues. Register via `services.AddTaskQueueHealthCheck<T>(...)` to expose `/health` probes keyed off pending/active thresholds. |
 | `TaskQueueChannelAdapter<T>` | Bridges `TaskQueue<T>` into a `Channel<TaskQueueLease<T>>`. Static `Create` accepts the queue, optional channel, concurrency (number of background lease pumps), and ownership flag. Properties `Reader`, `Queue`; `DisposeAsync` stops pumps and optionally disposes the queue. |
 
 Task queue internals honour cancellation tokens, propagate `Error.Canceled`, and surface lease expirations via `error.taskqueue.lease_expired` with metadata for `attempt`, `enqueuedAt`, and `expiredAt`.
@@ -167,7 +172,7 @@ When configured, select operations record attempts, completions, timeouts, cance
 | `DeterministicRecord` | Immutable container storing `Kind`, `Version`, `RecordedAt`, and payload (`ReadOnlyMemory<byte>`). |
 | `InMemoryDeterministicStateStore` | Concurrent dictionary-backed store suitable for testing. |
 | `DeterministicEffectStore` | Executes side-effects once and replays stored `Result<T>` values. `CaptureAsync` overloads accept async sync delegates; stored payloads validate type names and rehydrate successes or errors. |
-| `VersionGate` | Records or retrieves version markers. `Require` accepts `changeId`, `[minVersion, maxVersion]`, and optional initial version provider. Returns `Result<VersionDecision>` (with `IsNew` flag and `RecordedAt`). Errors carry metadata describing conflicts. |
+| `VersionGate` | Records or retrieves version markers using optimistic inserts (`IDeterministicStateStore.TryAdd`). `Require` accepts `changeId`, `[minVersion, maxVersion]`, and optional initial version provider. Returns `Result<VersionDecision>` (`IsNew`, `RecordedAt`). Concurrent writers that lose the CAS receive `error.version.conflict`. |
 | `VersionDecision` / `VersionGateContext` | Data carriers consumed by higher-level orchestration. |
 | `DeterministicGate` | Coordinates version decisions with effect capture. `ExecuteAsync` overloads choose between `legacy` and `upgraded` flows (or custom `Func<VersionDecision, CancellationToken, Task<Result<T>>>`). The nested `DeterministicWorkflowBuilder<TResult>` supports version-specific branches plus fallback logic. |
 | `DeterministicGate.DeterministicWorkflowContext` | Provides per-step helpers, including `CaptureAsync` to persist deterministic effects with scoped IDs (`changeId::v{version}::{stepId}`). |
