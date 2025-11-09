@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Hugo;
+using static Hugo.Go;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -40,8 +41,8 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
     private WebApplication? _app;
     private Dispatcher.Dispatcher? _dispatcher;
     private volatile bool _isDraining;
-    private int _activeRequests;
-    private Channel<bool> _drainSignal = CreateDrainSignal();
+    private readonly WaitGroup _activeRequests = new();
+    private int _activeRequestCount;
     private static readonly JsonSerializerOptions IntrospectionSerializerOptions = CreateIntrospectionSerializerOptions();
     private static readonly JsonSerializerOptions HealthSerializerOptions = CreateHealthSerializerOptions();
     private const string RetryAfterHeaderValue = "1";
@@ -366,19 +367,13 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
         _isDraining = true;
 
-        SignalDrainIfComplete();
-
         try
         {
-            await WaitForDrainAsync(cancellationToken).ConfigureAwait(false);
+            await _activeRequests.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             // fall through for fast shutdown
-        }
-        catch (ChannelClosedException)
-        {
-            // drain signal already satisfied
         }
 
         try
@@ -393,8 +388,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
         await _app.DisposeAsync().ConfigureAwait(false);
         _app = null;
         _isDraining = false;
-        Interlocked.Exchange(ref _activeRequests, 0);
-        _drainSignal = CreateDrainSignal();
+        Interlocked.Exchange(ref _activeRequestCount, 0);
     }
 
     private static JsonSerializerOptions CreateIntrospectionSerializerOptions()
@@ -415,28 +409,6 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             WriteIndented = false,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
-
-    private static Channel<bool> CreateDrainSignal() =>
-        Go.MakeChannel<bool>(new BoundedChannelOptions(1)
-        {
-            SingleReader = true,
-            SingleWriter = true,
-            AllowSynchronousContinuations = false
-        });
-
-    private Task WaitForDrainAsync(CancellationToken cancellationToken) =>
-        _drainSignal.Reader.ReadAsync(cancellationToken).AsTask();
-
-    private void SignalDrainIfComplete()
-    {
-        if (_isDraining && Volatile.Read(ref _activeRequests) == 0)
-        {
-            if (_drainSignal.Writer.TryWrite(true))
-            {
-                _drainSignal.Writer.TryComplete();
-            }
-        }
-    }
 
     private static bool TrySetQuicOption(QuicTransportOptions options, string propertyName, object value)
     {
@@ -466,14 +438,15 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             return false;
         }
 
-        Interlocked.Increment(ref _activeRequests);
+        _activeRequests.Add(1);
+        Interlocked.Increment(ref _activeRequestCount);
         return true;
     }
 
     private void CompleteRequest()
     {
-        Interlocked.Decrement(ref _activeRequests);
-        SignalDrainIfComplete();
+        _activeRequests.Done();
+        Interlocked.Decrement(ref _activeRequestCount);
     }
 
     private async Task HandleIntrospectAsync(HttpContext context)
@@ -546,7 +519,7 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
             status = healthy ? "ok" : "unavailable",
             mode = readiness ? "ready" : "live",
             issues = issues.Count == 0 ? [] : issues.ToArray(),
-            activeRequests = Math.Max(Volatile.Read(ref _activeRequests), 0),
+            activeRequests = Math.Max(Volatile.Read(ref _activeRequestCount), 0),
             draining = _isDraining
         };
 
@@ -1063,10 +1036,25 @@ public sealed class HttpInbound : ILifecycle, IDispatcherAware
 
             try
             {
-                var requestPump = PumpRequestsAsync(socket, call, requestBuffer, duplexFrameLimit, pumpCts.Token);
-                var responsePump = PumpResponsesAsync(socket, call, duplexFrameLimit, duplexWriteTimeout, pumpCts.Token);
+                using var pumpGroup = new ErrGroup(pumpCts.Token);
 
-                await Task.WhenAll(requestPump, responsePump).ConfigureAwait(false);
+                pumpGroup.Go(async token =>
+                {
+                    await PumpRequestsAsync(socket, call, requestBuffer, duplexFrameLimit, token).ConfigureAwait(false);
+                    return Ok(Unit.Value);
+                });
+
+                pumpGroup.Go(async token =>
+                {
+                    await PumpResponsesAsync(socket, call, duplexFrameLimit, duplexWriteTimeout, token).ConfigureAwait(false);
+                    return Ok(Unit.Value);
+                });
+
+                var pumpResult = await pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                if (pumpResult.IsFailure && pumpResult.Error is { } pumpError)
+                {
+                    throw new ResultException(pumpError);
+                }
             }
             finally
             {

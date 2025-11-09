@@ -907,7 +907,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         private readonly GrpcOutbound _owner = owner ?? throw new ArgumentNullException(nameof(owner));
         private readonly Uri _address = address ?? throw new ArgumentNullException(nameof(address));
         private readonly PeerCircuitBreaker _breaker = new(breakerOptions);
-        private readonly object _subscriberLock = new();
+        private readonly Hugo.RwMutex _subscriberMutex = new();
         private HashSet<IPeerSubscriber>? _subscribers;
         private GrpcChannel? _channel;
         private CallInvoker? _callInvoker;
@@ -943,11 +943,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         {
             ArgumentNullException.ThrowIfNull(subscriber);
 
-            lock (_subscriberLock)
-            {
-                _subscribers ??= [];
-                _subscribers.Add(subscriber);
-            }
+            using var scope = _subscriberMutex.EnterWriteScope();
+            _subscribers ??= [];
+            _subscribers.Add(subscriber);
 
             subscriber.NotifyStatusChanged(this);
             return new PeerSubscription(this, subscriber);
@@ -1057,31 +1055,27 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         private void RemoveSubscriber(IPeerSubscriber subscriber)
         {
-            lock (_subscriberLock)
+            using var scope = _subscriberMutex.EnterWriteScope();
+            if (_subscribers is null)
             {
-                if (_subscribers is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                _subscribers.Remove(subscriber);
-                if (_subscribers.Count == 0)
-                {
-                    _subscribers = null;
-                }
+            _subscribers.Remove(subscriber);
+            if (_subscribers.Count == 0)
+            {
+                _subscribers = null;
             }
         }
 
         private void NotifySubscribers()
         {
             IPeerSubscriber[]? snapshot = null;
-            lock (_subscriberLock)
+            using var scope = _subscriberMutex.EnterReadScope();
+            if (_subscribers is { Count: > 0 })
             {
-                if (_subscribers is { Count: > 0 })
-                {
-                    snapshot = new IPeerSubscriber[_subscribers.Count];
-                    _subscribers.CopyTo(snapshot);
-                }
+                snapshot = new IPeerSubscriber[_subscribers.Count];
+                _subscribers.CopyTo(snapshot);
             }
 
             if (snapshot is null)
@@ -1147,7 +1141,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private sealed class LatencyTracker
     {
         private readonly double[] _buffer;
-        private readonly Lock _lock = new();
+        private readonly Hugo.Mutex _mutex = new();
         private int _count;
         private int _nextIndex;
         private double _sum;
@@ -1168,53 +1162,49 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             var value = Math.Max(0, durationMilliseconds);
 
-            lock (_lock)
+            using var scope = _mutex.EnterScope();
+            if (_count == _buffer.Length)
             {
-                if (_count == _buffer.Length)
-                {
-                    _sum -= _buffer[_nextIndex];
-                }
-                else
-                {
-                    _count++;
-                }
-
-                _buffer[_nextIndex] = value;
-                _sum += value;
-                _nextIndex = (_nextIndex + 1) % _buffer.Length;
+                _sum -= _buffer[_nextIndex];
             }
+            else
+            {
+                _count++;
+            }
+
+            _buffer[_nextIndex] = value;
+            _sum += value;
+            _nextIndex = (_nextIndex + 1) % _buffer.Length;
         }
 
         public LatencySnapshot Snapshot()
         {
-            lock (_lock)
+            using var scope = _mutex.EnterScope();
+            if (_count == 0)
             {
-                if (_count == 0)
-                {
-                    return LatencySnapshot.Empty;
-                }
-
-                var samples = new double[_count];
-                if (_count == _buffer.Length)
-                {
-                    for (var i = 0; i < _count; i++)
-                    {
-                        var index = (_nextIndex + i) % _buffer.Length;
-                        samples[i] = _buffer[index];
-                    }
-                }
-                else
-                {
-                    Array.Copy(_buffer, samples, _count);
-                }
-
-                Array.Sort(samples);
-                var average = _sum / _count;
-                var p50 = CalculatePercentile(samples, 0.50);
-                var p90 = CalculatePercentile(samples, 0.90);
-                var p99 = CalculatePercentile(samples, 0.99);
-                return new LatencySnapshot(average, p50, p90, p99);
+                return LatencySnapshot.Empty;
             }
+
+            var samples = new double[_count];
+            if (_count == _buffer.Length)
+            {
+                for (var i = 0; i < _count; i++)
+                {
+                    var index = (_nextIndex + i) % _buffer.Length;
+                    samples[i] = _buffer[index];
+                }
+            }
+            else
+            {
+                Array.Copy(_buffer, samples, _count);
+            }
+
+            Array.Sort(samples);
+            var average = _sum / _count;
+            var p50 = CalculatePercentile(samples, 0.50);
+            var p90 = CalculatePercentile(samples, 0.90);
+            var p99 = CalculatePercentile(samples, 0.99);
+            return new LatencySnapshot(average, p50, p90, p99);
         }
 
         private static double CalculatePercentile(double[] samples, double percentile)
