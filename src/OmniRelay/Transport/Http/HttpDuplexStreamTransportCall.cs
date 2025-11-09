@@ -122,18 +122,27 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
 
         if (_pumpGroup is not null)
         {
+            var hasPumpResult = false;
+            Result<Unit> pumpResult = default;
+
             try
             {
-                await _pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                pumpResult = await _pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                hasPumpResult = true;
             }
-            catch
+            catch (Exception ex)
             {
-                // swallow pump completion errors
+                await HandlePumpGroupFailureAsync(Error.FromException(ex)).ConfigureAwait(false);
             }
             finally
             {
                 _pumpGroup.Dispose();
                 _pumpGroup = null;
+            }
+
+            if (hasPumpResult && pumpResult.IsFailure && pumpResult.Error is { } pumpError)
+            {
+                await HandlePumpGroupFailureAsync(pumpError).ConfigureAwait(false);
             }
         }
 
@@ -284,5 +293,11 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
 
         return exception;
+    }
+
+    private async ValueTask HandlePumpGroupFailureAsync(Error pumpError)
+    {
+        await _inner.CompleteRequestsAsync(pumpError, CancellationToken.None).ConfigureAwait(false);
+        await _inner.CompleteResponsesAsync(pumpError, CancellationToken.None).ConfigureAwait(false);
     }
 }
