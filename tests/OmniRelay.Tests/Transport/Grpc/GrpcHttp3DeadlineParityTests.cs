@@ -52,7 +52,7 @@ public class GrpcHttp3DeadlineParityTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         // HTTP/3 client with tight deadline
@@ -101,7 +101,7 @@ public class GrpcHttp3DeadlineParityTests
 
         // Unblock server and stop
         block.TrySetCanceled(ct);
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     private static async Task WaitForGrpcReadyAsync(Uri address, CancellationToken cancellationToken)

@@ -47,7 +47,7 @@ public class Http3NegotiationTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -64,7 +64,7 @@ public class Http3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -105,7 +105,7 @@ public class Http3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -156,7 +156,7 @@ public class Http3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -187,7 +187,7 @@ public class Http3NegotiationTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -204,7 +204,7 @@ public class Http3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -235,7 +235,7 @@ public class Http3NegotiationTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -252,7 +252,7 @@ public class Http3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 

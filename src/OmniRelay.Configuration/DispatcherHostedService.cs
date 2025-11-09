@@ -1,3 +1,4 @@
+using Hugo;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,7 +21,11 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
             _logger.LogInformation("Starting OmniRelay dispatcher for service {ServiceName}", _dispatcher.ServiceName);
         }
 
-        await _dispatcher.StartAsync(cancellationToken).ConfigureAwait(false);
+        var startResult = await _dispatcher.StartAsync(cancellationToken).ConfigureAwait(false);
+        if (startResult.IsFailure)
+        {
+            throw new ResultException(startResult.Error!);
+        }
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
@@ -36,7 +41,11 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
             _logger.LogInformation("Stopping OmniRelay dispatcher for service {ServiceName}", _dispatcher.ServiceName);
         }
 
-        await _dispatcher.StopAsync(cancellationToken).ConfigureAwait(false);
+        var stopResult = await _dispatcher.StopAsync(cancellationToken).ConfigureAwait(false);
+        if (stopResult.IsFailure)
+        {
+            throw new ResultException(stopResult.Error!);
+        }
 
         if (_logger.IsEnabled(LogLevel.Information))
         {

@@ -57,7 +57,7 @@ public class HttpStreamingIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -93,7 +93,7 @@ public class HttpStreamingIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 
@@ -136,7 +136,7 @@ public class HttpStreamingIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -174,7 +174,7 @@ public class HttpStreamingIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 

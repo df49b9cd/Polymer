@@ -28,7 +28,7 @@ public static class Program
             shutdown.Cancel();
         };
 
-        await runtime.Dispatcher.StartAsync().ConfigureAwait(false);
+        await runtime.Dispatcher.StartOrThrowAsync().ConfigureAwait(false);
         Console.WriteLine("Streaming Analytics Lab dispatcher ready.");
         Console.WriteLine($" gRPC inbound: {string.Join(", ", runtime.GrpcInbound.Urls)}");
         Console.WriteLine("Press Ctrl+C to stop.");
@@ -44,7 +44,7 @@ public static class Program
         }
 
         Console.WriteLine("Shutting down dispatcher...");
-        await runtime.Dispatcher.StopAsync().ConfigureAwait(false);
+        await runtime.Dispatcher.StopOrThrowAsync().ConfigureAwait(false);
         Console.WriteLine("Streaming Analytics Lab stopped.");
     }
 }

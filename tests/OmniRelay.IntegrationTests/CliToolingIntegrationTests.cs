@@ -109,7 +109,7 @@ public sealed class CliToolingIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -173,7 +173,7 @@ public sealed class CliToolingIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 

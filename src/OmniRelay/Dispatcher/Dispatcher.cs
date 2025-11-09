@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using Hugo;
 using Hugo.Policies;
@@ -432,20 +433,24 @@ public sealed class Dispatcher
     /// <summary>
     /// Starts all dispatcher lifecycle components in parallel.
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<Result<Unit>> StartAsync(CancellationToken cancellationToken = default)
     {
-        BeginStart();
+        var begin = TryBeginStart();
+        if (begin.IsFailure)
+        {
+            return begin;
+        }
 
         try
         {
             if (_lifecycleStartOrder.Length == 0)
             {
                 CompleteStart();
-                return;
+                return Ok(Unit.Value);
             }
 
             var startedComponents = new int[_lifecycleStartOrder.Length];
-            var exceptions = new ConcurrentQueue<Exception>();
+            var errors = new ConcurrentQueue<Error>();
 
             using var group = new ErrGroup(cancellationToken);
 
@@ -467,57 +472,79 @@ public sealed class Dispatcher
                         return startResult;
                     }
 
-                    exceptions.Enqueue(CreateLifecycleException(startResult.Error!));
+                    if (startResult.Error is not null)
+                    {
+                        errors.Enqueue(startResult.Error);
+                    }
+
                     return startResult;
                 });
             }
 
             var waitResult = await group.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-            if (!exceptions.IsEmpty || waitResult.IsFailure)
+            if (!errors.IsEmpty || waitResult.IsFailure)
             {
-                var startException = CreateStartFailureException(exceptions, group.Error);
-
-                try
+                lock (_stateLock)
                 {
-                    await RollbackStartedComponentsAsync(startedComponents).ConfigureAwait(false);
-                }
-                catch (Exception rollbackException) when (startException is not null)
-                {
-                    throw new AggregateException(startException, rollbackException);
+                    _status = DispatcherStatus.Stopped;
                 }
 
-                if (startException is not null)
+                var startError = CreateStartFailureError(errors, group.Error ?? waitResult.Error);
+
+                var rollbackResult = await RollbackStartedComponentsAsync(startedComponents).ConfigureAwait(false);
+                if (rollbackResult.IsFailure)
                 {
-                    throw startException;
+                    if (startError is not null)
+                    {
+                        var aggregate = AggregateErrors(
+                            "Dispatcher start failed and rollback reported additional errors.",
+                            new[] { startError, rollbackResult.Error! });
+                        return Err<Unit>(aggregate);
+                    }
+
+                    return rollbackResult;
                 }
 
-                throw new InvalidOperationException("One or more dispatcher components failed to start.");
+                if (startError is not null)
+                {
+                    return Err<Unit>(startError);
+                }
+
+                return Err<Unit>(CreateDispatcherError("One or more dispatcher components failed to start.", OmniRelayStatusCode.Internal));
             }
+
             CompleteStart();
+            return Ok(Unit.Value);
         }
-        catch
+        catch (Exception ex)
         {
             lock (_stateLock)
             {
                 _status = DispatcherStatus.Stopped;
             }
 
-            throw;
+            return OmniRelayErrors.ToResult<Unit>(ex, "dispatcher");
         }
     }
 
     /// <summary>
     /// Stops all dispatcher lifecycle components in reverse start order.
     /// </summary>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<Result<Unit>> StopAsync(CancellationToken cancellationToken = default)
     {
-        if (!BeginStop())
+        var stopDecision = TryBeginStop();
+        if (stopDecision.IsFailure)
         {
-            return;
+            return Err<Unit>(stopDecision.Error!);
         }
 
-        var exceptions = new ConcurrentQueue<Exception>();
+        if (!stopDecision.Value)
+        {
+            return Ok(Unit.Value);
+        }
+
+        var errors = new ConcurrentQueue<Error>();
         var waitGroup = new WaitGroup();
 
         for (var index = _lifecycleStartOrder.Length - 1; index >= 0; index--)
@@ -532,9 +559,9 @@ public sealed class Dispatcher
                     _stopRetryPolicy,
                     token).ConfigureAwait(false);
 
-                if (stopResult.IsFailure)
+                if (stopResult.IsFailure && stopResult.Error is not null)
                 {
-                    exceptions.Enqueue(CreateLifecycleException(stopResult.Error!));
+                    errors.Enqueue(stopResult.Error);
                 }
             }, cancellationToken);
         }
@@ -548,20 +575,20 @@ public sealed class Dispatcher
             // Fast shutdown requested; proceed with whatever completed.
         }
 
-        var errors = exceptions.ToArray();
-        if (errors.Length == 1)
+        if (!errors.IsEmpty)
         {
             FailStop();
-            throw errors[0];
-        }
+            var errorArray = errors.ToArray();
+            if (errorArray.Length == 1)
+            {
+                return Err<Unit>(errorArray[0]);
+            }
 
-        if (errors.Length > 1)
-        {
-            FailStop();
-            throw new AggregateException("One or more dispatcher components failed to stop.", errors);
+            return Err<Unit>(AggregateErrors("One or more dispatcher components failed to stop.", errorArray));
         }
 
         CompleteStop();
+        return Ok(Unit.Value);
     }
 
     /// <summary>
@@ -735,44 +762,48 @@ public sealed class Dispatcher
         }
     }
 
-    private void BeginStart()
+    private Result<Unit> TryBeginStart()
     {
         lock (_stateLock)
         {
-            switch (_status)
+            return _status switch
             {
-                case DispatcherStatus.Created:
-                case DispatcherStatus.Stopped:
-                    _status = DispatcherStatus.Starting;
-                    return;
-                case DispatcherStatus.Starting:
-                case DispatcherStatus.Running:
-                    throw new InvalidOperationException("Dispatcher is already running or starting.");
-                case DispatcherStatus.Stopping:
-                    throw new InvalidOperationException("Dispatcher is stopping.");
-                default:
-                    throw new InvalidOperationException($"Dispatcher cannot start from state {_status}.");
+                DispatcherStatus.Created or DispatcherStatus.Stopped => SetStatus(DispatcherStatus.Starting),
+                DispatcherStatus.Starting or DispatcherStatus.Running => Err<Unit>(CreateDispatcherError("Dispatcher is already running or starting.", OmniRelayStatusCode.FailedPrecondition)),
+                DispatcherStatus.Stopping => Err<Unit>(CreateDispatcherError("Dispatcher is stopping.", OmniRelayStatusCode.FailedPrecondition)),
+                _ => Err<Unit>(CreateDispatcherError($"Dispatcher cannot start from state {_status}.", OmniRelayStatusCode.FailedPrecondition))
+            };
+
+            Result<Unit> SetStatus(DispatcherStatus newStatus)
+            {
+                _status = newStatus;
+                return Ok(Unit.Value);
             }
         }
     }
 
-    private bool BeginStop()
+    private Result<bool> TryBeginStop()
     {
         lock (_stateLock)
         {
-            switch (_status)
+            return _status switch
             {
-                case DispatcherStatus.Created:
-                case DispatcherStatus.Stopped:
-                    _status = DispatcherStatus.Stopped;
-                    return false;
-                case DispatcherStatus.Starting:
-                    throw new InvalidOperationException("Dispatcher is starting. Await StartAsync completion before stopping.");
-                case DispatcherStatus.Stopping:
-                    return false;
-                default:
-                    _status = DispatcherStatus.Stopping;
-                    return true;
+                DispatcherStatus.Created or DispatcherStatus.Stopped => ReturnAndSet(DispatcherStatus.Stopped, false),
+                DispatcherStatus.Starting => Err<bool>(CreateDispatcherError("Dispatcher is starting. Await StartAsync completion before stopping.", OmniRelayStatusCode.FailedPrecondition)),
+                DispatcherStatus.Stopping => Ok(false),
+                _ => SetStopping()
+            };
+
+            Result<bool> ReturnAndSet(DispatcherStatus newStatus, bool value)
+            {
+                _status = newStatus;
+                return Ok(value);
+            }
+
+            Result<bool> SetStopping()
+            {
+                _status = DispatcherStatus.Stopping;
+                return Ok(true);
             }
         }
     }
@@ -801,14 +832,36 @@ public sealed class Dispatcher
         }
     }
 
-    private async Task RollbackStartedComponentsAsync(int[] startedComponents)
+    private static Error CreateDispatcherError(string message, OmniRelayStatusCode status = OmniRelayStatusCode.Internal) =>
+        OmniRelayErrorAdapter.FromStatus(status, message, transport: "dispatcher");
+
+    private static Error AggregateErrors(string message, IEnumerable<Error> errors)
+    {
+        var aggregate = new AggregateException(message, errors.Select(static error => new ResultException(error)));
+        return OmniRelayErrors.ToResult<Unit>(aggregate, "dispatcher").Error!;
+    }
+
+    private static Error? CreateStartFailureError(ConcurrentQueue<Error> errors, Error? groupError)
+    {
+        if (!errors.IsEmpty)
+        {
+            var snapshots = errors.ToArray();
+            return snapshots.Length == 1
+                ? snapshots[0]
+                : AggregateErrors("One or more dispatcher components failed to start.", snapshots);
+        }
+
+        return groupError;
+    }
+
+    private async Task<Result<Unit>> RollbackStartedComponentsAsync(int[] startedComponents)
     {
         if (_lifecycleStartOrder.Length == 0 || startedComponents.Length == 0)
         {
-            return;
+            return Ok(Unit.Value);
         }
 
-        var rollbackExceptions = new List<Exception>();
+        var rollbackErrors = new List<Error>();
 
         for (var index = _lifecycleStartOrder.Length - 1; index >= 0; index--)
         {
@@ -828,51 +881,21 @@ public sealed class Dispatcher
 
             if (rollbackResult.IsFailure && rollbackResult.Error is not null)
             {
-                rollbackExceptions.Add(CreateLifecycleException(rollbackResult.Error));
+                rollbackErrors.Add(rollbackResult.Error);
             }
         }
 
-        if (rollbackExceptions.Count == 1)
+        if (rollbackErrors.Count == 1)
         {
-            throw rollbackExceptions[0];
+            return Err<Unit>(rollbackErrors[0]);
         }
 
-        if (rollbackExceptions.Count > 1)
+        if (rollbackErrors.Count > 1)
         {
-            throw new AggregateException("One or more dispatcher components failed to roll back after a start failure.", rollbackExceptions);
-        }
-    }
-
-    private static Exception? CreateStartFailureException(ConcurrentQueue<Exception> exceptions, Error? groupError)
-    {
-        if (!exceptions.IsEmpty)
-        {
-            return exceptions.Count == 1 && exceptions.TryPeek(out var single)
-                ? single
-                : new AggregateException(exceptions);
+            return Err<Unit>(AggregateErrors("One or more dispatcher components failed to roll back after a start failure.", rollbackErrors));
         }
 
-        if (groupError?.Cause is not null)
-        {
-            return groupError.Cause;
-        }
-
-        if (groupError is not null)
-        {
-            return new InvalidOperationException(groupError.ToString());
-        }
-
-        return null;
-    }
-
-    private static Exception CreateLifecycleException(Error error)
-    {
-        if (error.Cause is Exception cause)
-        {
-            return cause;
-        }
-
-        return new ResultException(error);
+        return Ok(Unit.Value);
     }
 
     private static ImmutableDictionary<string, OutboundCollection> BuildOutboundCollections(

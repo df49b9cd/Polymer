@@ -30,13 +30,13 @@ public class DuplexBadRequestTests
             (request, ct) => ValueTask.FromResult(Hugo.Go.Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unimplemented, "not implemented", transport: "http")))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "chat::echo");
         using var response = await httpClient.GetAsync("/", ct);
         Assert.Equal(HttpStatusCode.NotAcceptable, response.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 }

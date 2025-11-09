@@ -90,7 +90,7 @@ public class GrpcHttp3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionExact);
@@ -107,7 +107,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the interceptor.");
@@ -181,7 +181,7 @@ public class GrpcHttp3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionExact);
@@ -198,7 +198,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(runtimeProtocols.TryDequeue(out var runtimeProtocol), "No HTTP protocol was observed by the runtime interceptor.");
@@ -268,7 +268,7 @@ public class GrpcHttp3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionOrLower);
@@ -285,7 +285,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the interceptor.");
@@ -344,7 +344,7 @@ public class GrpcHttp3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionExact);
@@ -364,7 +364,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -419,7 +419,7 @@ public class GrpcHttp3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionExact);
@@ -442,7 +442,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -498,7 +498,7 @@ public class GrpcHttp3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionExact);
@@ -532,7 +532,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -585,7 +585,7 @@ public class GrpcHttp3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionExact);
@@ -600,7 +600,7 @@ public class GrpcHttp3NegotiationTests
             var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
             await requestStarted.Task.WaitAsync(ct);
 
-            stopTask = dispatcher.StopAsync(ct);
+            stopTask = dispatcher.StopOrThrowAsync(ct);
             await Task.Delay(100, ct);
 
             var rejectedCall = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
@@ -622,7 +622,7 @@ public class GrpcHttp3NegotiationTests
             }
             else
             {
-                await dispatcher.StopAsync(ct);
+                await dispatcher.StopOrThrowAsync(ct);
             }
         }
 
@@ -683,7 +683,7 @@ public class GrpcHttp3NegotiationTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionExact);
@@ -711,7 +711,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(acceptEncodings.TryDequeue(out var negotiated), "No grpc-accept-encoding header was observed.");
@@ -768,7 +768,7 @@ public class GrpcHttp3NegotiationTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var handler = CreateHttp3Handler(HttpVersionPolicy.RequestVersionOrLower);
@@ -796,7 +796,7 @@ public class GrpcHttp3NegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(acceptEncodings.TryDequeue(out var negotiated), "No grpc-accept-encoding header was observed.");

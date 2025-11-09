@@ -56,7 +56,7 @@ public class HttpOutboundIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await remoteDispatcher.StartAsync(ct);
+        await remoteDispatcher.StartOrThrowAsync(ct);
         await WaitForEndpointReadyAsync(remoteAddress, ct);
 
         using var handler = CreateHttp3SocketsHandler();
@@ -74,7 +74,7 @@ public class HttpOutboundIntegrationTests
         var codec = new JsonCodec<PingRequest, PingResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         var client = dispatcher.CreateUnaryClient<PingRequest, PingResponse>("runtime-remote", codec);
 
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -94,8 +94,8 @@ public class HttpOutboundIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
-            await remoteDispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
+            await remoteDispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 
@@ -140,8 +140,8 @@ public class HttpOutboundIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await peer1Dispatcher.StartAsync(ct);
-        await peer2Dispatcher.StartAsync(ct);
+        await peer1Dispatcher.StartOrThrowAsync(ct);
+        await peer2Dispatcher.StartOrThrowAsync(ct);
 
         using var peer1Client = new HttpClient { BaseAddress = peer1Address };
         using var peer2Client = new HttpClient { BaseAddress = peer2Address };
@@ -157,7 +157,7 @@ public class HttpOutboundIntegrationTests
         var codec = new JsonCodec<PingRequest, PingResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         var client = dispatcher.CreateUnaryClient<PingRequest, PingResponse>("failover-remote", codec);
 
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -176,9 +176,9 @@ public class HttpOutboundIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
-            await peer1Dispatcher.StopAsync(CancellationToken.None);
-            await peer2Dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
+            await peer1Dispatcher.StopOrThrowAsync(CancellationToken.None);
+            await peer2Dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 

@@ -33,7 +33,7 @@ public sealed class HttpIntrospectionTests
             encoding: "application/json"));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForHttpReadyAsync(baseAddress, ct);
 
         try
@@ -72,7 +72,7 @@ public sealed class HttpIntrospectionTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 

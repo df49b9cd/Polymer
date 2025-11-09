@@ -24,13 +24,13 @@ public class DispatcherTests
 
         var ct = TestContext.Current.CancellationToken;
 
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
         Assert.Equal(1, lifecycle.StartCalls);
         Assert.Equal(0, lifecycle.StopCalls);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
 
         Assert.Equal(DispatcherStatus.Stopped, dispatcher.Status);
         Assert.Equal(1, lifecycle.StopCalls);
@@ -411,7 +411,7 @@ public class DispatcherTests
         Assert.Empty(beforeStart.Middleware.OutboundDuplex);
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         var snapshot = dispatcher.Introspect();
 
@@ -425,7 +425,7 @@ public class DispatcherTests
         Assert.Empty(snapshot.Middleware.InboundDuplex);
         Assert.Empty(snapshot.Middleware.OutboundDuplex);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
 
         var afterStop = dispatcher.Introspect();
         Assert.Equal(DispatcherStatus.Stopped, afterStop.Status);

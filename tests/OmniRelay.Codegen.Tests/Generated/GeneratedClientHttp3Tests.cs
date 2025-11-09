@@ -59,7 +59,7 @@ public class GeneratedClientHttp3Tests
         Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         // Outbound with HTTP/3 enabled
@@ -82,7 +82,7 @@ public class GeneratedClientHttp3Tests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(observed.TryDequeue(out var protocol), "No protocol captured.");
@@ -120,7 +120,7 @@ public class GeneratedClientHttp3Tests
         Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         // Outbound desires HTTP/3 but should fall back
@@ -147,7 +147,7 @@ public class GeneratedClientHttp3Tests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(observed.TryDequeue(out var protocol), "No protocol captured.");

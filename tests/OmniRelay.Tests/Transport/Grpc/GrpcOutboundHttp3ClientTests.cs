@@ -70,7 +70,7 @@ public class GrpcOutboundHttp3ClientTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(
@@ -94,7 +94,7 @@ public class GrpcOutboundHttp3ClientTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the server interceptor.");
@@ -138,7 +138,7 @@ public class GrpcOutboundHttp3ClientTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(
@@ -162,7 +162,7 @@ public class GrpcOutboundHttp3ClientTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the server interceptor.");
@@ -191,7 +191,7 @@ public class GrpcOutboundHttp3ClientTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(
@@ -216,7 +216,7 @@ public class GrpcOutboundHttp3ClientTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 

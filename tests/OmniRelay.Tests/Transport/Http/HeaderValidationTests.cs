@@ -28,7 +28,7 @@ public class HeaderValidationTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         using var content = new ByteArrayContent([]);
@@ -36,6 +36,6 @@ public class HeaderValidationTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 }

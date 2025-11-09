@@ -46,7 +46,7 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "test::slow");
@@ -56,7 +56,7 @@ public class HttpInboundLifecycleTests
 
         await requestStarted.Task.WaitAsync(ct);
 
-        var stopTask = dispatcher.StopAsync(ct);
+        var stopTask = dispatcher.StopOrThrowAsync(ct);
 
         await Task.Delay(100, ct);
 
@@ -107,7 +107,7 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForHttpReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
@@ -117,7 +117,7 @@ public class HttpInboundLifecycleTests
         var inFlightTask = httpClient.PostAsync("/", new ByteArrayContent([]), ct);
         await requestStarted.Task.WaitAsync(ct);
 
-        var stopTask = dispatcher.StopAsync(ct);
+        var stopTask = dispatcher.StopOrThrowAsync(ct);
         Assert.False(stopTask.IsCompleted);
 
         releaseRequest.TrySetResult();
@@ -129,7 +129,7 @@ public class HttpInboundLifecycleTests
 
         await stopTask.ConfigureAwait(false);
 
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForHttpReadyAsync(baseAddress, ct);
 
         using (var secondResponse = await httpClient.PostAsync("/", new ByteArrayContent([]), ct).ConfigureAwait(false))
@@ -139,7 +139,7 @@ public class HttpInboundLifecycleTests
 
         Assert.Equal(2, Volatile.Read(ref requestCount));
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -178,7 +178,7 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var handler = CreateHttp3Handler();
         using var httpClient = new HttpClient(handler) { BaseAddress = baseAddress };
@@ -191,7 +191,7 @@ public class HttpInboundLifecycleTests
 
         await requestStarted.Task.WaitAsync(ct);
 
-        var stopTask = dispatcher.StopAsync(ct);
+        var stopTask = dispatcher.StopOrThrowAsync(ct);
         await Task.Delay(100, ct);
 
         using var rejectedResponse = await httpClient.PostAsync("/", new ByteArrayContent([]), ct);
@@ -247,7 +247,7 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var handler = CreateHttp3Handler();
         using var httpClient = new HttpClient(handler) { BaseAddress = baseAddress };
@@ -260,7 +260,7 @@ public class HttpInboundLifecycleTests
 
         await requestStarted.Task.WaitAsync(ct);
 
-        var stopTask = dispatcher.StopAsync(ct);
+        var stopTask = dispatcher.StopOrThrowAsync(ct);
         await Task.Delay(100, ct);
 
         using var rejectedResponse = await httpClient.PostAsync("/", new ByteArrayContent([]), ct);
@@ -311,7 +311,7 @@ public class HttpInboundLifecycleTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -349,7 +349,7 @@ public class HttpInboundLifecycleTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -379,7 +379,7 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "test::slow");
@@ -390,9 +390,8 @@ public class HttpInboundLifecycleTests
         await requestStarted.Task.WaitAsync(ct);
 
         using var stopCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-        var stopTask = dispatcher.StopAsync(stopCts.Token);
-
-        await stopTask;
+        var stopResult = await dispatcher.StopAsync(stopCts.Token);
+        Assert.True(stopResult.IsSuccess);
         releaseRequest.TrySetResult();
 
         await Assert.ThrowsAnyAsync<Exception>(async () => await inFlightTask);
@@ -415,7 +414,7 @@ public class HttpInboundLifecycleTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
 
@@ -444,7 +443,7 @@ public class HttpInboundLifecycleTests
 
         await slowStarted.Task.WaitAsync(ct);
 
-        var stopTask = dispatcher.StopAsync(ct);
+        var stopTask = dispatcher.StopOrThrowAsync(ct);
 
         using var drainingReadiness = await httpClient.GetAsync("/readyz", ct);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, drainingReadiness.StatusCode);
@@ -473,7 +472,7 @@ public class HttpInboundLifecycleTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         using var response = await httpClient.GetAsync("/omnirelay/introspect", ct);
@@ -488,7 +487,7 @@ public class HttpInboundLifecycleTests
         var unaryProcedures = root.GetProperty("procedures").GetProperty("unary");
         Assert.Contains(unaryProcedures.EnumerateArray(), element => string.Equals(element.GetProperty("name").GetString(), "service::ping", StringComparison.Ordinal));
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     private static SocketsHttpHandler CreateHttp3Handler()

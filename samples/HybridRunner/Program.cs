@@ -25,7 +25,7 @@ public static class Program
             shutdown.Cancel();
         };
 
-        await runtime.Dispatcher.StartAsync().ConfigureAwait(false);
+        await runtime.Dispatcher.StartOrThrowAsync().ConfigureAwait(false);
         Console.WriteLine("Hybrid batch + realtime runner started.");
         Console.WriteLine($" HTTP inbound: {string.Join(", ", runtime.HttpInbound.Urls)}");
         Console.WriteLine("Press Ctrl+C to stop.");
@@ -44,7 +44,7 @@ public static class Program
         shutdown.Cancel();
         await worker.ConfigureAwait(false);
 
-        await runtime.Dispatcher.StopAsync().ConfigureAwait(false);
+        await runtime.Dispatcher.StopOrThrowAsync().ConfigureAwait(false);
         Console.WriteLine("Hybrid runner stopped.");
     }
 }

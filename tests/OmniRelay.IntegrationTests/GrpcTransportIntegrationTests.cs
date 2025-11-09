@@ -82,8 +82,8 @@ public class GrpcTransportIntegrationTests
         var clientDispatcher = new Dispatcher.Dispatcher(clientOptions);
 
         var ct = TestContext.Current.CancellationToken;
-        await serverDispatcher.StartAsync(ct);
-        await clientDispatcher.StartAsync(ct);
+        await serverDispatcher.StartOrThrowAsync(ct);
+        await clientDispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -93,8 +93,8 @@ public class GrpcTransportIntegrationTests
         }
         finally
         {
-            await clientDispatcher.StopAsync(CancellationToken.None);
-            await serverDispatcher.StopAsync(CancellationToken.None);
+            await clientDispatcher.StopOrThrowAsync(CancellationToken.None);
+            await serverDispatcher.StopOrThrowAsync(CancellationToken.None);
         }
 
         AssertLogContains(clientLog, "client-global");
@@ -166,8 +166,8 @@ public class GrpcTransportIntegrationTests
         var clientDispatcher = new Dispatcher.Dispatcher(clientOptions);
 
         var ct = TestContext.Current.CancellationToken;
-        await serverDispatcher.StartAsync(ct);
-        await clientDispatcher.StartAsync(ct);
+        await serverDispatcher.StartOrThrowAsync(ct);
+        await clientDispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -177,8 +177,8 @@ public class GrpcTransportIntegrationTests
         }
         finally
         {
-            await clientDispatcher.StopAsync(CancellationToken.None);
-            await serverDispatcher.StopAsync(CancellationToken.None);
+            await clientDispatcher.StopOrThrowAsync(CancellationToken.None);
+            await serverDispatcher.StopOrThrowAsync(CancellationToken.None);
         }
 
         AssertLogContains(clientLog, "client-http3");
@@ -219,7 +219,7 @@ public class GrpcTransportIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var insecureHandler = new SocketsHttpHandler();
@@ -274,7 +274,7 @@ public class GrpcTransportIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 
@@ -317,9 +317,9 @@ public class GrpcTransportIntegrationTests
         var dispatcher = new Dispatcher.Dispatcher(options);
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
-        await dispatcher.StopAsync(CancellationToken.None);
+        await dispatcher.StopOrThrowAsync(CancellationToken.None);
 
         AssertLogContains(observed, "gRPC HTTP/3 enabled on");
     }
@@ -337,7 +337,7 @@ public class GrpcTransportIntegrationTests
         dispatcher.RegisterTestService(new GeneratedTestService());
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -362,7 +362,7 @@ public class GrpcTransportIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 

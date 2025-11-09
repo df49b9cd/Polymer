@@ -108,7 +108,7 @@ internal sealed class DispatcherHostedService(BridgeRuntime runtime, ILogger<Dis
     [SuppressMessage("Reliability", "CA2016:Forward the CancellationToken parameter", Justification = "Dispatcher start semantics do not accept caller tokens.")]
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await runtime.Dispatcher.StartAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        await runtime.Dispatcher.StartOrThrowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
             "Started OmniRelay dispatcher ({Service}) - HTTP: {HttpInbound}; gRPC: {GrpcInbound}",
             runtime.Dispatcher.ServiceName,
@@ -119,7 +119,7 @@ internal sealed class DispatcherHostedService(BridgeRuntime runtime, ILogger<Dis
     [SuppressMessage("Reliability", "CA2016:Forward the CancellationToken parameter", Justification = "Dispatcher stop semantics do not accept caller tokens.")]
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        await runtime.Dispatcher.StopAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        await runtime.Dispatcher.StopOrThrowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Stopped OmniRelay dispatcher {Service}", runtime.Dispatcher.ServiceName);
     }
 }

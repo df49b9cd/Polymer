@@ -32,7 +32,7 @@ public class InMemoryThresholdTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "big::payload");
@@ -43,7 +43,7 @@ public class InMemoryThresholdTests
 
         Assert.Equal(HttpStatusCode.TooManyRequests, resp.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -64,7 +64,7 @@ public class InMemoryThresholdTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "big::payload");
@@ -79,7 +79,7 @@ public class InMemoryThresholdTests
 
         Assert.Equal(HttpStatusCode.TooManyRequests, resp.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -100,7 +100,7 @@ public class InMemoryThresholdTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "big::payload");
@@ -115,7 +115,7 @@ public class InMemoryThresholdTests
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     private sealed class NonSeekableReadStream(byte[] buffer) : Stream

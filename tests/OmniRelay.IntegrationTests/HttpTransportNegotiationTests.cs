@@ -31,7 +31,7 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -54,7 +54,7 @@ public class HttpTransportNegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 
@@ -72,7 +72,7 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -93,7 +93,7 @@ public class HttpTransportNegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 
@@ -115,7 +115,7 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -140,7 +140,7 @@ public class HttpTransportNegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 
@@ -158,7 +158,7 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         try
         {
@@ -177,7 +177,7 @@ public class HttpTransportNegotiationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 

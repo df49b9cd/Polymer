@@ -36,7 +36,7 @@ public class MetaHeadersTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "meta::echo");
@@ -51,6 +51,6 @@ public class MetaHeadersTests
         Assert.Equal(1500, doc.GetProperty("ttlMs").GetDouble(), precision: 0);
         Assert.Equal(deadline, doc.GetProperty("deadline").GetString());
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 }

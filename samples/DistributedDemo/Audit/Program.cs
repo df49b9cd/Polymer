@@ -49,7 +49,7 @@ Console.CancelKeyPress += (_, args) =>
     shutdown.Cancel();
 };
 
-await dispatcher.StartAsync().ConfigureAwait(false);
+await dispatcher.StartOrThrowAsync().ConfigureAwait(false);
 Console.WriteLine(
     "Audit service listening on {0}",
     inbound.Urls.Count > 0 ? string.Join(", ", inbound.Urls) : "http://0.0.0.0:6080");
@@ -63,7 +63,7 @@ catch (OperationCanceledException)
     // expected
 }
 
-await dispatcher.StopAsync().ConfigureAwait(false);
+await dispatcher.StopOrThrowAsync().ConfigureAwait(false);
 
 static void ConfigureInboundMetrics(IServiceCollection services, string serviceName, string scrapePath)
 {

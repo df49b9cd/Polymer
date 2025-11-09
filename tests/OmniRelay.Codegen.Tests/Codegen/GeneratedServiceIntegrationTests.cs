@@ -29,7 +29,7 @@ public class GeneratedServiceIntegrationTests
         dispatcher.RegisterTestService(new TestServiceImpl());
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await dispatcher.StartAsync(cts.Token);
+        await dispatcher.StartOrThrowAsync(cts.Token);
         try
         {
             var client = TestServiceOmniRelay.CreateTestServiceClient(dispatcher, serviceName);
@@ -39,7 +39,7 @@ public class GeneratedServiceIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 
@@ -61,7 +61,7 @@ public class GeneratedServiceIntegrationTests
         TestServiceOmniRelay.RegisterTestService(dispatcher, new TestServiceImpl());
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await dispatcher.StartAsync(cts.Token);
+        await dispatcher.StartOrThrowAsync(cts.Token);
 
         await WaitForGrpcReadyAsync(address, cts.Token);
         await Task.Delay(100, cts.Token);
@@ -75,7 +75,7 @@ public class GeneratedServiceIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
     }
 

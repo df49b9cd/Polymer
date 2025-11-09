@@ -41,7 +41,7 @@ public class GrpcOutboundResilienceTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         // Client requires HTTP/3 exact (handshake will fail consistently)
@@ -86,7 +86,7 @@ public class GrpcOutboundResilienceTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 

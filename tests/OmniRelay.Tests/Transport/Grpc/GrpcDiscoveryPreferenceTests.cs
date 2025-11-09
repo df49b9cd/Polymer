@@ -82,7 +82,7 @@ public class GrpcDiscoveryPreferenceTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(h2Address, ct);
         await WaitForGrpcReadyAsync(h3Address, ct);
 
@@ -116,7 +116,7 @@ public class GrpcDiscoveryPreferenceTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the server interceptor.");

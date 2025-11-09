@@ -27,8 +27,8 @@ public class DispatcherOptionsTests
 
         var dispatcher = new Dispatcher(options);
 
-        await dispatcher.StartAsync(CancellationToken.None);
-        await dispatcher.StopAsync(CancellationToken.None);
+        await dispatcher.StartOrThrowAsync(CancellationToken.None);
+        await dispatcher.StopOrThrowAsync(CancellationToken.None);
 
         Assert.Equal(1, lifecycle.StartCalls);
         Assert.Equal(1, lifecycle.StopCalls);

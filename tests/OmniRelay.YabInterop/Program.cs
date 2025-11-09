@@ -108,7 +108,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
 
 try
 {
-    await dispatcher.StartAsync(cts.Token);
+    await dispatcher.StartOrThrowAsync(cts.Token);
 
     if (enableHttp)
     {
@@ -142,7 +142,7 @@ catch (OperationCanceledException)
 }
 finally
 {
-    await dispatcher.StopAsync(CancellationToken.None);
+    await dispatcher.StopOrThrowAsync(CancellationToken.None);
 }
 
 static async Task WriteDescriptorAsync(string outputPath)

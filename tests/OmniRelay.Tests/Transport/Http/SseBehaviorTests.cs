@@ -33,7 +33,7 @@ public class SseBehaviorTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "stream::events");
@@ -41,6 +41,6 @@ public class SseBehaviorTests
 
         Assert.Equal(HttpStatusCode.NotAcceptable, response.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 }

@@ -42,7 +42,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         RegisterPingProcedure(healthyDispatcher);
 
         var ct = TestContext.Current.CancellationToken;
-        await healthyDispatcher.StartAsync(ct);
+        await healthyDispatcher.StartOrThrowAsync(ct);
         await WaitForHttpReadyAsync(healthyBase, ct);
 
         try
@@ -78,7 +78,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         }
         finally
         {
-            await healthyDispatcher.StopAsync(CancellationToken.None);
+            await healthyDispatcher.StopOrThrowAsync(CancellationToken.None);
         }
 
         var degradedPort = TestPortAllocator.GetRandomPort();
@@ -155,7 +155,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForHttpReadyAsync(baseAddress, ct);
 
         try
@@ -218,7 +218,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         }
         finally
         {
-            await dispatcher.StopAsync(CancellationToken.None);
+            await dispatcher.StopOrThrowAsync(CancellationToken.None);
         }
 
         var inboundLog = logProvider.Entries.FirstOrDefault(entry => entry.Message.StartsWith("rpc inbound unary completed", StringComparison.OrdinalIgnoreCase));
@@ -273,8 +273,8 @@ public class ObservabilityDiagnosticsIntegrationTests
         var client = TestServiceOmniRelay.CreateTestServiceClient(clientDispatcher, serviceName);
 
         var ct = TestContext.Current.CancellationToken;
-        await serverDispatcher.StartAsync(ct);
-        await clientDispatcher.StartAsync(ct);
+        await serverDispatcher.StartOrThrowAsync(ct);
+        await clientDispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -289,8 +289,8 @@ public class ObservabilityDiagnosticsIntegrationTests
         }
         finally
         {
-            await clientDispatcher.StopAsync(CancellationToken.None);
-            await serverDispatcher.StopAsync(CancellationToken.None);
+            await clientDispatcher.StopOrThrowAsync(CancellationToken.None);
+            await serverDispatcher.StopOrThrowAsync(CancellationToken.None);
         }
 
         var serverSpan = activities.FirstOrDefault(activity =>

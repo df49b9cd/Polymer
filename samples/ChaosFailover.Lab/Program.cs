@@ -26,7 +26,7 @@ public static class Program
             shutdown.Cancel();
         };
 
-        await lab.Dispatcher.StartAsync().ConfigureAwait(false);
+        await lab.Dispatcher.StartOrThrowAsync().ConfigureAwait(false);
         Console.WriteLine("Chaos & failover lab running.");
         Console.WriteLine($" HTTP inbound: {string.Join(", ", lab.HttpInbound.Urls)}");
         Console.WriteLine("Press Ctrl+C to stop.");
@@ -44,7 +44,7 @@ public static class Program
 
         shutdown.Cancel();
         await generator.ConfigureAwait(false);
-        await lab.Dispatcher.StopAsync().ConfigureAwait(false);
+        await lab.Dispatcher.StopOrThrowAsync().ConfigureAwait(false);
         Console.WriteLine("Lab stopped.");
     }
 }
@@ -122,7 +122,7 @@ internal sealed class ChaosBackend : IAsyncDisposable
                 return ValueTask.FromResult(Response<ChaosResponse>.Create(new ChaosResponse(name, "ok", null)));
             });
 
-        await dispatcher.StartAsync().ConfigureAwait(false);
+        await dispatcher.StartOrThrowAsync().ConfigureAwait(false);
         return new ChaosBackend(dispatcher, outbound);
     }
 
@@ -134,7 +134,7 @@ internal sealed class ChaosBackend : IAsyncDisposable
         }
 
         _disposed = true;
-        await _dispatcher.StopAsync().ConfigureAwait(false);
+        await _dispatcher.StopOrThrowAsync().ConfigureAwait(false);
     }
 }
 

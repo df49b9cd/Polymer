@@ -80,7 +80,7 @@ internal sealed class RiskDeployment : IAsyncDisposable
         var options = new DispatcherOptions(ServiceName);
         var dispatcher = new OmniRelayDispatcher(options);
         dispatcher.RegisterRiskService(implementation);
-        await dispatcher.StartAsync().ConfigureAwait(false);
+        await dispatcher.StartOrThrowAsync().ConfigureAwait(false);
         return new RiskDeployment(dispatcher, implementation);
     }
 
@@ -92,7 +92,7 @@ internal sealed class RiskDeployment : IAsyncDisposable
         }
 
         _disposed = true;
-        await _dispatcher.StopAsync().ConfigureAwait(false);
+        await _dispatcher.StopOrThrowAsync().ConfigureAwait(false);
     }
 }
 
@@ -134,13 +134,13 @@ internal sealed class RolloutHarness : IAsyncDisposable
             teeOptions);
 
         var dispatcher = new OmniRelayDispatcher(options);
-        await dispatcher.StartAsync().ConfigureAwait(false);
+        await dispatcher.StartOrThrowAsync().ConfigureAwait(false);
         return new RolloutHarness(dispatcher);
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _dispatcher.StopAsync().ConfigureAwait(false);
+        await _dispatcher.StopOrThrowAsync().ConfigureAwait(false);
     }
 }
 

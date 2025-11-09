@@ -178,7 +178,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -201,7 +201,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -224,7 +224,7 @@ public class GrpcTransportTests
                 ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(address, "binding");
@@ -256,7 +256,7 @@ public class GrpcTransportTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -286,7 +286,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var channel = GrpcChannel.ForAddress(address);
@@ -296,7 +296,7 @@ public class GrpcTransportTests
         var inFlightCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
         await requestStarted.Task.WaitAsync(ct);
 
-        var stopTask = dispatcher.StopAsync(ct);
+        var stopTask = dispatcher.StopOrThrowAsync(ct);
 
         await Task.Delay(100, ct);
 
@@ -339,7 +339,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var channel = GrpcChannel.ForAddress(address);
@@ -350,7 +350,7 @@ public class GrpcTransportTests
         await requestStarted.Task.WaitAsync(ct);
 
         using var stopCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-        var stopTask = dispatcher.StopAsync(stopCts.Token);
+        var stopTask = dispatcher.StopOrThrowAsync(stopCts.Token);
 
         await stopTask;
         releaseRequest.TrySetResult();
@@ -380,7 +380,7 @@ public class GrpcTransportTests
                 ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var clientTls = new GrpcClientTlsOptions
@@ -403,7 +403,7 @@ public class GrpcTransportTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -433,7 +433,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         using var channel = GrpcChannel.ForAddress(address);
@@ -448,7 +448,7 @@ public class GrpcTransportTests
 
         await requestStarted.Task.WaitAsync(ct);
 
-        var stopTask = dispatcher.StopAsync(ct);
+        var stopTask = dispatcher.StopOrThrowAsync(ct);
 
         var draining = await healthClient.CheckAsync(new HealthCheckRequest(), cancellationToken: ct).ResponseAsync.WaitAsync(ct);
         Assert.Equal(HealthCheckResponse.Types.ServingStatus.NotServing, draining.Status);
@@ -525,7 +525,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -557,7 +557,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -596,7 +596,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address1, ct);
         await WaitForGrpcReadyAsync(address2, ct);
 
@@ -637,7 +637,7 @@ public class GrpcTransportTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -676,7 +676,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(healthyAddress, ct);
 
         var breakerOptions = new PeerCircuitBreakerOptions
@@ -749,7 +749,7 @@ public class GrpcTransportTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -793,7 +793,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var rawCodec = new RawCodec();
@@ -813,7 +813,7 @@ public class GrpcTransportTests
 
         Assert.Equal(OmniRelayStatusCode.ResourceExhausted, exception.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30_000)]
@@ -867,7 +867,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -893,7 +893,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -929,7 +929,7 @@ public class GrpcTransportTests
 
         var cts = new CancellationTokenSource();
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -948,7 +948,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -984,7 +984,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1005,7 +1005,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1054,7 +1054,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1077,7 +1077,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1128,7 +1128,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1151,7 +1151,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1206,7 +1206,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1227,7 +1227,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1274,7 +1274,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1294,7 +1294,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1337,7 +1337,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
 
         await WaitForGrpcReadyAsync(address, ct);
 
@@ -1358,7 +1358,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1395,7 +1395,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1415,7 +1415,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1494,7 +1494,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1523,7 +1523,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1567,7 +1567,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var rawCodec = new RawCodec();
@@ -1588,7 +1588,7 @@ public class GrpcTransportTests
 
         Assert.Equal(OmniRelayStatusCode.ResourceExhausted, exception.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30_000)]
@@ -1660,7 +1660,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1695,7 +1695,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1775,7 +1775,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1805,7 +1805,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1888,7 +1888,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -1925,7 +1925,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -1972,7 +1972,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -2023,7 +2023,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -2091,7 +2091,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -2140,7 +2140,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -2179,7 +2179,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -2228,7 +2228,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -2257,7 +2257,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         try
@@ -2295,7 +2295,7 @@ public class GrpcTransportTests
         }
         finally
         {
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -2399,7 +2399,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var loggerProvider = new CaptureLoggerProvider();
@@ -2441,7 +2441,7 @@ public class GrpcTransportTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
     }
 
@@ -2490,7 +2490,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(address, "logging");
@@ -2513,7 +2513,7 @@ public class GrpcTransportTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.Contains(loggerProvider.Entries, entry =>
@@ -2575,7 +2575,7 @@ public class GrpcTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(address, "echo");
@@ -2598,7 +2598,7 @@ public class GrpcTransportTests
         finally
         {
             await outbound.StopAsync(ct);
-            await dispatcher.StopAsync(ct);
+            await dispatcher.StopOrThrowAsync(ct);
         }
 
         Assert.True(serverDuration.HasValue && serverDuration.Value > 0, "Expected server unary duration metric to be recorded.");

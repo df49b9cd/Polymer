@@ -21,7 +21,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
     shutdown.Cancel();
 };
 
-await runtime.Dispatcher.StartAsync().ConfigureAwait(false);
+await runtime.Dispatcher.StartOrThrowAsync().ConfigureAwait(false);
 Console.WriteLine("OmniRelay quickstart dispatcher is running.");
 Console.WriteLine($" HTTP unary + oneway:   {string.Join(", ", runtime.HttpInbound.Urls)}");
 Console.WriteLine($" gRPC unary + streaming: {string.Join(", ", runtime.GrpcInbound.Urls)}");
@@ -38,7 +38,7 @@ catch (OperationCanceledException)
 }
 
 Console.WriteLine("Stopping dispatcher...");
-await runtime.Dispatcher.StopAsync().ConfigureAwait(false);
+await runtime.Dispatcher.StopOrThrowAsync().ConfigureAwait(false);
 Console.WriteLine("Dispatcher stopped.");
 
 namespace OmniRelay.Samples.Quickstart

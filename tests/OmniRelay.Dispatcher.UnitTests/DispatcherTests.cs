@@ -99,10 +99,10 @@ public class DispatcherTests
         Assert.Contains("bind", lifecycle.Events);
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        await dispatcher.StartOrThrowAsync(ct);
         Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
 
-        await dispatcher.StopAsync(ct);
+        await dispatcher.StopOrThrowAsync(ct);
         Assert.Equal(DispatcherStatus.Stopped, dispatcher.Status);
         Assert.Contains("start", lifecycle.Events);
         Assert.Contains("stop", lifecycle.Events);
@@ -171,8 +171,9 @@ public class DispatcherTests
         options.AddLifecycle("second", new ThrowingLifecycle(startThrows: true));
         var dispatcher = new Dispatcher(options);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.StartAsync(TestContext.Current.CancellationToken));
-
+        var startResult = await dispatcher.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(startResult.IsFailure);
+        Assert.Contains("start failure", startResult.Error!.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("stop", first.Events);
         Assert.Equal(DispatcherStatus.Stopped, dispatcher.Status);
     }
@@ -184,9 +185,11 @@ public class DispatcherTests
         options.AddLifecycle("only", new ThrowingLifecycle(stopThrows: true));
         var dispatcher = new Dispatcher(options);
 
-        await dispatcher.StartAsync(TestContext.Current.CancellationToken);
+        var startResult = await dispatcher.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(startResult.IsSuccess);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.StopAsync(TestContext.Current.CancellationToken));
+        var stopResult = await dispatcher.StopAsync(TestContext.Current.CancellationToken);
+        Assert.True(stopResult.IsFailure);
         Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
     }
 
@@ -202,12 +205,15 @@ public class DispatcherTests
 
         await lifecycle.Started;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.StopAsync(TestContext.Current.CancellationToken));
+        var prematureStop = await dispatcher.StopAsync(TestContext.Current.CancellationToken);
+        Assert.True(prematureStop.IsFailure);
 
         lifecycle.Release();
-        await startTask;
+        var startResult = await startTask;
+        Assert.True(startResult.IsSuccess);
 
-        await dispatcher.StopAsync(TestContext.Current.CancellationToken);
+        var finalStop = await dispatcher.StopAsync(TestContext.Current.CancellationToken);
+        Assert.True(finalStop.IsSuccess);
     }
 
     private sealed class RecordingUnaryMiddleware(string name, List<string> sink) : IUnaryInboundMiddleware

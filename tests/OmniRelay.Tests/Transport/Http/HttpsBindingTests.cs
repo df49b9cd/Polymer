@@ -34,7 +34,8 @@ public class HttpsBindingTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartAsync(ct);
+        var startResult = await dispatcher.StartAsync(ct);
+        Assert.True(startResult.IsSuccess);
 
         var handler = new HttpClientHandler
         {
@@ -46,7 +47,8 @@ public class HttpsBindingTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        await dispatcher.StopAsync(ct);
+        var stopResult = await dispatcher.StopAsync(ct);
+        Assert.True(stopResult.IsSuccess);
     }
 
     [Fact(Timeout = 30000)]
@@ -60,7 +62,8 @@ public class HttpsBindingTests
         options.AddLifecycle("https-inbound", inbound);
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await dispatcher.StartAsync(TestContext.Current.CancellationToken));
+        var startResult = await dispatcher.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(startResult.IsFailure);
     }
 
 }

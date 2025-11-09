@@ -77,7 +77,7 @@ Console.CancelKeyPress += (_, args) =>
 static string FormatUrls(IReadOnlyCollection<string> urls, params string[] fallback) =>
     urls.Count > 0 ? string.Join(", ", urls) : string.Join(", ", fallback);
 
-await dispatcher.StartAsync().ConfigureAwait(false);
+await dispatcher.StartOrThrowAsync().ConfigureAwait(false);
 Console.WriteLine(
     "Inventory instance '{0}' is listening on HTTP {1} and gRPC {2}.",
     instanceName,
@@ -93,7 +93,7 @@ catch (OperationCanceledException)
     // expected on Ctrl+C
 }
 
-await dispatcher.StopAsync().ConfigureAwait(false);
+await dispatcher.StopOrThrowAsync().ConfigureAwait(false);
 
 static void ConfigureInboundMetrics(IServiceCollection services, string serviceName, string scrapePath)
 {
