@@ -192,9 +192,9 @@ internal static class StreamingHandlers
     {
         var accumulator = new MetricAccumulator();
 
-        await foreach (var sample in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        await foreach (var sampleResult in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
-            accumulator.Add(sample);
+            accumulator.Add(sampleResult.ValueOrThrow());
         }
 
         var ack = accumulator.ToAck();
@@ -207,8 +207,9 @@ internal static class StreamingHandlers
     {
         var backlog = new List<InsightRequest>();
 
-        await foreach (var request in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        await foreach (var requestResult in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
+            var request = requestResult.ValueOrThrow();
             backlog.Add(request);
 
             var signal = new InsightSignal
@@ -218,7 +219,8 @@ internal static class StreamingHandlers
                 Confidence = Math.Clamp(0.45 + (Math.Abs(request.Sentiment) * 0.4), 0, 1)
             };
 
-            await context.WriteAsync(signal, cancellationToken).ConfigureAwait(false);
+            var writeResult = await context.WriteAsync(signal, cancellationToken).ConfigureAwait(false);
+            writeResult.ThrowIfFailure();
         }
 
         var summary = new InsightSignal
@@ -228,7 +230,8 @@ internal static class StreamingHandlers
             Confidence = 0.72
         };
 
-        await context.WriteAsync(summary, cancellationToken).ConfigureAwait(false);
+        var finalWrite = await context.WriteAsync(summary, cancellationToken).ConfigureAwait(false);
+        finalWrite.ThrowIfFailure();
     }
 }
 
@@ -264,8 +267,9 @@ internal sealed class StreamingDemo(StreamingLabRuntime runtime)
             var request = Request<TickerSubscription>.Create(subscription, meta);
             var stream = client.CallAsync(request, new StreamCallOptions(StreamDirection.Server), cancellationToken);
 
-            await foreach (var response in stream.WithCancellation(cancellationToken))
+            await foreach (var responseResult in stream.WithCancellation(cancellationToken))
             {
+                var response = responseResult.ValueOrThrow();
                 var update = response.Body;
                 Console.WriteLine($"[Ticker] {update.Symbol}: {update.Price:F2} ({update.Delta:+0.00;-0.00}) #{update.Sequence}");
             }
@@ -293,15 +297,18 @@ internal sealed class StreamingDemo(StreamingLabRuntime runtime)
                 caller: "lab-metrics",
                 encoding: _runtime.MetricsCodec.Encoding);
 
-            await using var session = await client.StartAsync(meta, cancellationToken).ConfigureAwait(false);
+            var sessionResult = await client.StartAsync(meta, cancellationToken).ConfigureAwait(false);
+            await using var session = sessionResult.ValueOrThrow();
 
             foreach (var sample in MetricBatchBuilder.Build(portfolio))
             {
-                await session.WriteAsync(sample, cancellationToken).ConfigureAwait(false);
+                var writeResult = await session.WriteAsync(sample, cancellationToken).ConfigureAwait(false);
+                writeResult.ThrowIfFailure();
             }
 
             await session.CompleteAsync(cancellationToken).ConfigureAwait(false);
-            var response = await session.Response.ConfigureAwait(false);
+            var responseResult = await session.Response.ConfigureAwait(false);
+            var response = responseResult.ValueOrThrow();
 
             Console.WriteLine($"[Metrics] {response.Body.Portfolio} avg={response.Body.AverageScore:F3} exposure={response.Body.TotalExposure:F1} :: {response.Body.Note}");
             await Task.Delay(TimeSpan.FromSeconds(6), cancellationToken).ConfigureAwait(false);
@@ -323,13 +330,15 @@ internal sealed class StreamingDemo(StreamingLabRuntime runtime)
                 caller: "lab-insights",
                 encoding: _runtime.InsightCodec.Encoding);
 
-            await using var session = await client.StartAsync(meta, cancellationToken).ConfigureAwait(false);
+            var sessionResult = await client.StartAsync(meta, cancellationToken).ConfigureAwait(false);
+            await using var session = sessionResult.ValueOrThrow();
 
             var readerTask = ConsumeSignalsAsync(session, cancellationToken);
 
             foreach (var request in InsightScript.Build())
             {
-                await session.WriteAsync(request, cancellationToken).ConfigureAwait(false);
+                var writeResult = await session.WriteAsync(request, cancellationToken).ConfigureAwait(false);
+                writeResult.ThrowIfFailure();
                 await Task.Delay(TimeSpan.FromMilliseconds(400), cancellationToken).ConfigureAwait(false);
             }
 
@@ -344,8 +353,9 @@ internal sealed class StreamingDemo(StreamingLabRuntime runtime)
         DuplexStreamClient<InsightRequest, InsightSignal>.DuplexStreamSession session,
         CancellationToken cancellationToken)
     {
-        await foreach (var response in session.ReadResponsesAsync(cancellationToken))
+        await foreach (var responseResult in session.ReadResponsesAsync(cancellationToken))
         {
+            var response = responseResult.ValueOrThrow();
             var insight = response.Body;
             Console.WriteLine($"[Insights] {insight.Analyst}: {insight.Message} (confidence {insight.Confidence:P0})");
         }

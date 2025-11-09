@@ -9,6 +9,7 @@ using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
+using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
@@ -44,7 +45,7 @@ public class StreamClientTests
             var coll = new List<Response<Res>>();
             await foreach (var res in client.CallAsync(new Request<Req>(meta, new Req { V = 1 }), options, TestContext.Current.CancellationToken))
             {
-                coll.Add(res);
+                coll.Add(res.ValueOrThrow());
             }
             return coll;
         }, TestContext.Current.CancellationToken);
@@ -69,14 +70,17 @@ public class StreamClientTests
         codec.EncodeRequest(Arg.Any<Req>(), Arg.Any<RequestMeta>()).Returns(Err<byte[]>(Error.From("bad", "invalid-argument")));
 
         var client = new StreamClient<Req, Res>(outbound, codec, []);
-        await Assert.ThrowsAsync<OmniRelayException>(async () =>
+        var options = new StreamCallOptions(StreamDirection.Server);
+        var enumerated = false;
+        await foreach (var result in client.CallAsync(Request<Req>.Create(new Req()), options, TestContext.Current.CancellationToken))
         {
-            var options = new StreamCallOptions(StreamDirection.Server);
-            await foreach (var _ in client.CallAsync(Request<Req>.Create(new Req()), options, TestContext.Current.CancellationToken))
-            {
-                // unreachable
-            }
-        });
+            enumerated = true;
+            Assert.True(result.IsFailure);
+            Assert.Equal("invalid-argument", result.Error!.Code);
+            break;
+        }
+
+        Assert.True(enumerated);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -93,12 +97,16 @@ public class StreamClientTests
         var client = new StreamClient<Req, Res>(outbound, codec, []);
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        await Assert.ThrowsAsync<OmniRelayException>(async () =>
+        var enumerated = false;
+        await foreach (var result in client.CallAsync(Request<Req>.Create(new Req()), options, TestContext.Current.CancellationToken))
         {
-            await foreach (var _ in client.CallAsync(Request<Req>.Create(new Req()), options, TestContext.Current.CancellationToken))
-            {
-            }
-        });
+            enumerated = true;
+            Assert.True(result.IsFailure);
+            Assert.Equal(OmniRelayStatusCode.Unavailable, OmniRelayErrorAdapter.ToStatus(result.Error!));
+            break;
+        }
+
+        Assert.True(enumerated);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -119,16 +127,18 @@ public class StreamClientTests
         var client = new StreamClient<Req, Res>(outbound, codec, []);
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        var iteration = Task.Run(async () =>
+        var enumeration = Task.Run(async () =>
         {
-            await foreach (var _ in client.CallAsync(new Request<Req>(meta, new Req()), options, TestContext.Current.CancellationToken))
+            await foreach (var result in client.CallAsync(new Request<Req>(meta, new Req()), options, TestContext.Current.CancellationToken))
             {
+                Assert.True(result.IsFailure);
+                break;
             }
         }, TestContext.Current.CancellationToken);
 
         await call.WriteAsync(new byte[] { 9 }, TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<OmniRelayException>(async () => await iteration);
+        await enumeration;
         Assert.Equal(StreamCompletionStatus.Faulted, call.Context.CompletionStatus);
         Assert.NotNull(call.Context.CompletionError);
     }
@@ -160,8 +170,9 @@ public class StreamClientTests
 
         var iterate = Task.Run(async () =>
         {
-            await foreach (var _ in client.CallAsync(new Request<Req>(meta, new Req()), options, TestContext.Current.CancellationToken))
+            await foreach (var result in client.CallAsync(new Request<Req>(meta, new Req()), options, TestContext.Current.CancellationToken))
             {
+                Assert.True(result.IsSuccess);
             }
         }, TestContext.Current.CancellationToken);
 

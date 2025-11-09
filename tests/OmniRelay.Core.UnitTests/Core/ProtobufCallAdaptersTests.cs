@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using Google.Protobuf.WellKnownTypes;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
+using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
@@ -100,7 +101,8 @@ public class ProtobufCallAdaptersTests
             {
                 Assert.Equal("hello", typedRequest.Body.Value);
                 writer.ResponseMeta = new ResponseMeta(transport: "custom");
-                await writer.WriteAsync(new StringValue { Value = "world" }, ct);
+                var writeResult = await writer.WriteAsync(new StringValue { Value = "world" }, ct);
+                writeResult.ThrowIfFailure();
             });
 
         var result = await handler(request, options, TestContext.Current.CancellationToken);
@@ -154,7 +156,9 @@ public class ProtobufCallAdaptersTests
             async (_, writer, ct) =>
             {
                 writer.ResponseMeta = new ResponseMeta(encoding: "unsupported");
-                await Assert.ThrowsAsync<OmniRelayException>(async () => await writer.WriteAsync(new StringValue { Value = "b" }, ct));
+                var writeResult = await writer.WriteAsync(new StringValue { Value = "b" }, ct);
+                Assert.True(writeResult.IsFailure);
+                Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(writeResult.Error!));
             });
 
         var result = await handler(request, options, TestContext.Current.CancellationToken);
@@ -182,9 +186,9 @@ public class ProtobufCallAdaptersTests
         channel.Writer.TryComplete();
 
         var messages = new List<string>();
-        await foreach (var message in typedContext.ReadAllAsync(ct))
+        await foreach (var messageResult in typedContext.ReadAllAsync(ct))
         {
-            messages.Add(message.Value);
+            messages.Add(messageResult.ValueOrThrow().Value);
         }
 
         Assert.Equal(new[] { "one", "two" }, messages);
@@ -202,14 +206,16 @@ public class ProtobufCallAdaptersTests
         await channel.Writer.WriteAsync(new byte[] { 1, 2 }, TestContext.Current.CancellationToken);
         channel.Writer.TryComplete();
 
-        var ex = await Assert.ThrowsAsync<OmniRelayException>(async () =>
+        var enumerated = false;
+        await foreach (var result in typedContext.ReadAllAsync(TestContext.Current.CancellationToken))
         {
-            await foreach (var _ in typedContext.ReadAllAsync(TestContext.Current.CancellationToken))
-            {
-            }
-        });
+            enumerated = true;
+            Assert.True(result.IsFailure);
+            Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
+            break;
+        }
 
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, ex.StatusCode);
+        Assert.True(enumerated);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -225,9 +231,9 @@ public class ProtobufCallAdaptersTests
             async (ctx, ct) =>
             {
                 var values = new List<string>();
-                await foreach (var item in ctx.ReadAllAsync(ct))
+                await foreach (var itemResult in ctx.ReadAllAsync(ct))
                 {
-                    values.Add(item.Value);
+                    values.Add(itemResult.ValueOrThrow().Value);
                 }
 
                 return Response<StringValue>.Create(
@@ -280,9 +286,11 @@ public class ProtobufCallAdaptersTests
             async (ctx, ct) =>
             {
                 ctx.ResponseMeta = new ResponseMeta(transport: "duplex");
-                await foreach (var message in ctx.ReadAllAsync(ct))
+                await foreach (var messageResult in ctx.ReadAllAsync(ct))
                 {
-                    await ctx.WriteAsync(new StringValue { Value = message.Value.ToUpperInvariant() }, ct);
+                    var message = messageResult.ValueOrThrow();
+                    var writeResult = await ctx.WriteAsync(new StringValue { Value = message.Value.ToUpperInvariant() }, ct);
+                    writeResult.ThrowIfFailure();
                 }
             });
 
@@ -338,7 +346,9 @@ public class ProtobufCallAdaptersTests
             async (ctx, ct) =>
             {
                 ctx.ResponseMeta = new ResponseMeta(encoding: "invalid");
-                await Assert.ThrowsAsync<OmniRelayException>(async () => await ctx.WriteAsync(new StringValue { Value = "x" }, ct));
+                var writeResult = await ctx.WriteAsync(new StringValue { Value = "x" }, ct);
+                Assert.True(writeResult.IsFailure);
+                Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(writeResult.Error!));
             });
 
         var result = await handler(request, TestContext.Current.CancellationToken);

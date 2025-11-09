@@ -282,7 +282,7 @@ public class ObservabilityDiagnosticsIntegrationTests
             var payloads = new List<string>();
             await foreach (var response in client.ServerStreamAsync(new StreamRequest { Value = "probe" }, cancellationToken: ct).WithCancellation(ct))
             {
-                payloads.Add(response.Body.Value);
+                payloads.Add(response.ValueOrThrow().Body.Value);
             }
 
             Assert.Equal(new[] { "probe-0", "probe-1", "probe-2" }, payloads);
@@ -574,7 +574,8 @@ public class ObservabilityDiagnosticsIntegrationTests
             for (var index = 0; index < 3; index++)
             {
                 var payload = new StreamResponse { Value = $"{request.Body.Value}-{index}" };
-                await stream.WriteAsync(payload, cancellationToken);
+                var writeResult = await stream.WriteAsync(payload, cancellationToken);
+                writeResult.ThrowIfFailure();
                 await Task.Delay(TimeSpan.FromMilliseconds(20), cancellationToken);
             }
         }

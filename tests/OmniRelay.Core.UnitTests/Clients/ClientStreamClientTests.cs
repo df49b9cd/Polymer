@@ -8,6 +8,7 @@ using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
+using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
@@ -69,17 +70,21 @@ public class ClientStreamClientTests
         outbound.CallAsync(Arg.Any<RequestMeta>(), Arg.Any<CancellationToken>()).Returns(ci => ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
-        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
 
-        await session.WriteAsync(new Req { V = 10 }, TestContext.Current.CancellationToken);
-        await session.WriteAsync(new Req { V = 20 }, TestContext.Current.CancellationToken);
+        var firstWrite = await session.WriteAsync(new Req { V = 10 }, TestContext.Current.CancellationToken);
+        firstWrite.ThrowIfFailure();
+        var secondWrite = await session.WriteAsync(new Req { V = 20 }, TestContext.Current.CancellationToken);
+        secondWrite.ThrowIfFailure();
         await session.CompleteAsync(TestContext.Current.CancellationToken);
 
         var responseBytes = new byte[] { 99 };
         var finalMeta = new ResponseMeta { Transport = "test" };
         transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(responseBytes, finalMeta)));
 
-        var response = await session.Response;
+        var responseResult = await session.Response;
+        var response = responseResult.ValueOrThrow();
         Assert.Equal(Convert.ToBase64String(responseBytes), response.Body.S);
     }
 
@@ -93,7 +98,8 @@ public class ClientStreamClientTests
             .Returns(ValueTask.FromResult(Err<IClientStreamTransportCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "client"))));
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
-        await Assert.ThrowsAsync<OmniRelayException>(() => client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken).AsTask());
+        var result = await client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -110,9 +116,11 @@ public class ClientStreamClientTests
             .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
-        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
 
-        await Assert.ThrowsAsync<OmniRelayException>(() => session.WriteAsync(new Req { V = 1 }, TestContext.Current.CancellationToken).AsTask());
+        var writeResult = await session.WriteAsync(new Req { V = 1 }, TestContext.Current.CancellationToken);
+        Assert.True(writeResult.IsFailure);
         Assert.Empty(transportCall.Writes);
     }
 
@@ -131,11 +139,13 @@ public class ClientStreamClientTests
             .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
-        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
 
         transportCall.CompleteWith(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "fail", transport: "client")));
 
-        await Assert.ThrowsAsync<OmniRelayException>(() => session.Response);
+        var responseResult = await session.Response;
+        Assert.True(responseResult.IsFailure);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -154,11 +164,13 @@ public class ClientStreamClientTests
             .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
-        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
 
         transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(new byte[] { 2 }, new ResponseMeta())));
 
-        await Assert.ThrowsAsync<OmniRelayException>(() => session.Response);
+        var responseResult = await session.Response;
+        Assert.True(responseResult.IsFailure);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -184,10 +196,13 @@ public class ClientStreamClientTests
             .Returns(ValueTask.FromResult(Ok((IClientStreamTransportCall)transportCall)));
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
-        await using var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
-        await session.WriteAsync(new Req { V = 5 }, TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
+        var writeResult = await session.WriteAsync(new Req { V = 5 }, TestContext.Current.CancellationToken);
+        writeResult.ThrowIfFailure();
         transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(new byte[] { 5 }, new ResponseMeta())));
-        await session.Response;
+        var responseResult = await session.Response;
+        responseResult.ValueOrThrow();
 
         Assert.NotNull(capturedMeta);
         Assert.Equal("proto", capturedMeta!.Encoding);

@@ -390,19 +390,20 @@ public class GrpcTransportIntegrationTests
         var responses = new List<string>();
         await foreach (var response in client.ServerStreamAsync(new StreamRequest { Value = "data" }, serverStreamMeta, cancellationToken))
         {
-            responses.Add(response.Body.Value);
+            responses.Add(response.ValueOrThrow().Body.Value);
         }
         Assert.Equal(new[] { "data#0", "data#1", "data#2" }, responses);
         var capturedServerMeta = await impl.ServerStreamMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
         Assert.Equal(serverStreamMeta.TimeToLive, capturedServerMeta.TimeToLive);
 
         var clientStreamMeta = meta with { Procedure = "ClientStream" };
-        await using (var session = await client.ClientStreamAsync(clientStreamMeta, cancellationToken))
+        var clientStreamResult = await client.ClientStreamAsync(clientStreamMeta, cancellationToken);
+        await using (var session = clientStreamResult.ValueOrThrow())
         {
-            await session.WriteAsync(new StreamRequest { Value = "2" }, cancellationToken);
-            await session.WriteAsync(new StreamRequest { Value = "5" }, cancellationToken);
+            (await session.WriteAsync(new StreamRequest { Value = "2" }, cancellationToken)).ThrowIfFailure();
+            (await session.WriteAsync(new StreamRequest { Value = "5" }, cancellationToken)).ThrowIfFailure();
             await session.CompleteAsync(cancellationToken);
-            var aggregate = await session.Response;
+            var aggregate = (await session.Response).ValueOrThrow();
             Assert.Equal("sum:7", aggregate.Body.Message);
         }
 
@@ -410,16 +411,17 @@ public class GrpcTransportIntegrationTests
         Assert.True(Math.Abs((capturedClientMeta.Deadline!.Value - clientStreamMeta.Deadline!.Value).TotalMilliseconds) <= DeadlineTolerance.TotalMilliseconds);
 
         var duplexMeta = meta with { Procedure = "DuplexStream" };
-        await using (var session = await client.DuplexStreamAsync(duplexMeta, cancellationToken))
+        var duplexResult = await client.DuplexStreamAsync(duplexMeta, cancellationToken);
+        await using (var session = duplexResult.ValueOrThrow())
         {
-            await session.WriteAsync(new StreamRequest { Value = "alpha" }, cancellationToken);
-            await session.WriteAsync(new StreamRequest { Value = "beta" }, cancellationToken);
+            (await session.WriteAsync(new StreamRequest { Value = "alpha" }, cancellationToken)).ThrowIfFailure();
+            (await session.WriteAsync(new StreamRequest { Value = "beta" }, cancellationToken)).ThrowIfFailure();
             await session.CompleteRequestsAsync(cancellationToken: cancellationToken);
 
             var duplexResponses = new List<string>();
             await foreach (var response in session.ReadResponsesAsync(cancellationToken))
             {
-                duplexResponses.Add(response.Body.Value);
+                duplexResponses.Add(response.ValueOrThrow().Body.Value);
             }
 
             Assert.Equal(new[] { "ready", "echo:alpha", "echo:beta" }, duplexResponses);
@@ -480,7 +482,8 @@ public class GrpcTransportIntegrationTests
             ServerStreamMeta.TrySetResult(request.Meta);
             for (var index = 0; index < 3; index++)
             {
-                await stream.WriteAsync(new StreamResponse { Value = $"{request.Body.Value}#{index}" }, cancellationToken).ConfigureAwait(false);
+                var writeResult = await stream.WriteAsync(new StreamResponse { Value = $"{request.Body.Value}#{index}" }, cancellationToken).ConfigureAwait(false);
+                writeResult.ThrowIfFailure();
             }
         }
 
@@ -488,8 +491,9 @@ public class GrpcTransportIntegrationTests
         {
             ClientStreamMeta.TrySetResult(context.Meta);
             var sum = 0;
-            await foreach (var chunk in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            await foreach (var chunkResult in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
+                var chunk = chunkResult.ValueOrThrow();
                 _ = int.TryParse(chunk.Value, out var value);
                 sum += value;
             }
@@ -501,11 +505,14 @@ public class GrpcTransportIntegrationTests
         public async ValueTask DuplexStreamAsync(ProtobufCallAdapters.ProtobufDuplexStreamContext<StreamRequest, StreamResponse> context, CancellationToken cancellationToken)
         {
             DuplexMeta.TrySetResult(context.RequestMeta);
-            await context.WriteAsync(new StreamResponse { Value = "ready" }, cancellationToken).ConfigureAwait(false);
+            var initialWrite = await context.WriteAsync(new StreamResponse { Value = "ready" }, cancellationToken).ConfigureAwait(false);
+            initialWrite.ThrowIfFailure();
 
-            await foreach (var chunk in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            await foreach (var chunkResult in context.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                await context.WriteAsync(new StreamResponse { Value = $"echo:{chunk.Value}" }, cancellationToken).ConfigureAwait(false);
+                var chunk = chunkResult.ValueOrThrow();
+                var writeResult = await context.WriteAsync(new StreamResponse { Value = $"echo:{chunk.Value}" }, cancellationToken).ConfigureAwait(false);
+                writeResult.ThrowIfFailure();
             }
         }
     }

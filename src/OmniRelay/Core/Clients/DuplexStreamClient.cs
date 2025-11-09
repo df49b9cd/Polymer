@@ -4,6 +4,7 @@ using Hugo;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
+using static Hugo.Go;
 
 namespace OmniRelay.Core.Clients;
 
@@ -30,9 +31,9 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
     }
 
     /// <summary>
-    /// Starts a duplex-streaming session and returns a session wrapper for writing and reading.
+    /// Starts a duplex-streaming session and returns a result-wrapped session wrapper for writing and reading.
     /// </summary>
-    public async ValueTask<DuplexStreamSession> StartAsync(RequestMeta meta, CancellationToken cancellationToken = default)
+    public async ValueTask<Result<DuplexStreamSession>> StartAsync(RequestMeta meta, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(meta);
 
@@ -42,10 +43,10 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
         var result = await _pipeline(request, cancellationToken).ConfigureAwait(false);
         if (result.IsFailure)
         {
-            throw OmniRelayErrors.FromError(result.Error!, normalized.Transport ?? "unknown");
+            return OmniRelayErrors.ToResult<DuplexStreamSession>(result.Error!, normalized.Transport ?? "unknown");
         }
 
-        return new DuplexStreamSession(normalized, _codec, result.Value);
+        return Ok(new DuplexStreamSession(normalized, _codec, result.Value));
     }
 
     /// <summary>
@@ -76,18 +77,19 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
         /// <summary>Gets the raw response reader channel.</summary>
         public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _call.ResponseReader;
 
-        /// <summary>Writes a typed request message to the request stream.</summary>
-        public async ValueTask WriteAsync(TRequest message, CancellationToken cancellationToken = default)
+        /// <summary>Writes a typed request message to the request stream, returning a result for success or failure.</summary>
+        public async ValueTask<Result<Unit>> WriteAsync(TRequest message, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var encodeResult = _codec.EncodeRequest(message, _meta);
             if (encodeResult.IsFailure)
             {
-                throw OmniRelayErrors.FromError(encodeResult.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Unit>(encodeResult.Error!, _meta.Transport ?? "unknown");
             }
 
             await _call.RequestWriter.WriteAsync(encodeResult.Value, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
 
         /// <summary>Signals completion of request writes, optionally with an error.</summary>
@@ -99,9 +101,9 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
             _call.CompleteResponsesAsync(error, cancellationToken);
 
         /// <summary>
-        /// Reads and decodes response messages from the duplex session as an async stream of typed responses.
+        /// Reads and decodes response messages from the duplex session as an async stream of result-wrapped responses.
         /// </summary>
-        public async IAsyncEnumerable<Response<TResponse>> ReadResponsesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<Result<Response<TResponse>>> ReadResponsesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await foreach (var payload in _call.ResponseReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -109,10 +111,11 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
                 if (decode.IsFailure)
                 {
                     await _call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
-                    throw OmniRelayErrors.FromError(decode.Error!, _meta.Transport ?? "unknown");
+                    yield return OmniRelayErrors.ToResult<Response<TResponse>>(decode.Error!, _meta.Transport ?? "unknown");
+                    yield break;
                 }
 
-                yield return Response<TResponse>.Create(decode.Value, _call.ResponseMeta);
+                yield return Ok(Response<TResponse>.Create(decode.Value, _call.ResponseMeta));
             }
         }
 

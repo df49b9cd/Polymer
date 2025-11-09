@@ -159,7 +159,11 @@ public class GeneratedClientHttp3Tests
         public ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request, CancellationToken cancellationToken)
             => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = request.Body.Message }, new ResponseMeta()));
 
-        public async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken) => await stream.WriteAsync(new StreamResponse { Value = request.Body.Value }, cancellationToken);
+        public async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken)
+        {
+            var writeResult = await stream.WriteAsync(new StreamResponse { Value = request.Body.Value }, cancellationToken);
+            writeResult.ThrowIfFailure();
+        }
 
         public ValueTask<Response<UnaryResponse>> ClientStreamAsync(ProtobufCallAdapters.ProtobufClientStreamContext<StreamRequest, UnaryResponse> context, CancellationToken cancellationToken)
             => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = "ok" }, new ResponseMeta()));

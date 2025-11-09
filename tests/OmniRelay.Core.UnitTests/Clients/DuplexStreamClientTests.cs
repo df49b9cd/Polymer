@@ -9,6 +9,7 @@ using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
+using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
@@ -35,10 +36,13 @@ public class DuplexStreamClientTests
             .Returns(ci => ValueTask.FromResult(Ok((IDuplexStreamCall)duplex)));
 
         var client = new DuplexStreamClient<Req, Res>(outbound, codec, []);
-        var session = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(meta, TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
 
-        await session.WriteAsync(new Req { A = 1 }, TestContext.Current.CancellationToken);
-        await session.WriteAsync(new Req { A = 2 }, TestContext.Current.CancellationToken);
+        var firstWrite = await session.WriteAsync(new Req { A = 1 }, TestContext.Current.CancellationToken);
+        firstWrite.ThrowIfFailure();
+        var secondWrite = await session.WriteAsync(new Req { A = 2 }, TestContext.Current.CancellationToken);
+        secondWrite.ThrowIfFailure();
         await duplex.ResponseWriter.WriteAsync(new byte[] { 3 }, TestContext.Current.CancellationToken);
         await duplex.ResponseWriter.WriteAsync(new byte[] { 4 }, TestContext.Current.CancellationToken);
         await duplex.CompleteResponsesAsync(null, TestContext.Current.CancellationToken);
@@ -46,7 +50,7 @@ public class DuplexStreamClientTests
         var received = new List<Response<Res>>();
         await foreach (var r in session.ReadResponsesAsync(TestContext.Current.CancellationToken))
         {
-            received.Add(r);
+            received.Add(r.ValueOrThrow());
         }
 
         Assert.Equal(2, received.Count);
@@ -64,7 +68,8 @@ public class DuplexStreamClientTests
             .Returns(ValueTask.FromResult(Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "nope", transport: "duplex"))));
 
         var client = new DuplexStreamClient<Req, Res>(outbound, codec, []);
-        await Assert.ThrowsAsync<OmniRelayException>(() => client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken).AsTask());
+        var result = await client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -80,9 +85,11 @@ public class DuplexStreamClientTests
             .Returns(ValueTask.FromResult(Ok((IDuplexStreamCall)duplex)));
 
         var client = new DuplexStreamClient<Req, Res>(outbound, codec, []);
-        var session = await client.StartAsync(new RequestMeta(), TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(new RequestMeta(), TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
 
-        await Assert.ThrowsAsync<OmniRelayException>(() => session.WriteAsync(new Req(), TestContext.Current.CancellationToken).AsTask());
+        var writeResult = await session.WriteAsync(new Req(), TestContext.Current.CancellationToken);
+        Assert.True(writeResult.IsFailure);
         Assert.Equal(0, duplex.Context.RequestMessageCount);
     }
 
@@ -101,18 +108,21 @@ public class DuplexStreamClientTests
             .Returns(ValueTask.FromResult(Ok((IDuplexStreamCall)duplex)));
 
         var client = new DuplexStreamClient<Req, Res>(outbound, codec, []);
-        var session = await client.StartAsync(new RequestMeta(), TestContext.Current.CancellationToken);
+        var sessionResult = await client.StartAsync(new RequestMeta(), TestContext.Current.CancellationToken);
+        await using var session = sessionResult.ValueOrThrow();
 
         var readTask = Task.Run(async () =>
         {
-            await foreach (var _ in session.ReadResponsesAsync(TestContext.Current.CancellationToken))
+            await foreach (var result in session.ReadResponsesAsync(TestContext.Current.CancellationToken))
             {
+                Assert.True(result.IsFailure);
+                break;
             }
         }, TestContext.Current.CancellationToken);
 
         await duplex.ResponseWriter.WriteAsync(new byte[] { 7 }, TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<OmniRelayException>(async () => await readTask);
+        await readTask;
         Assert.Equal(StreamCompletionStatus.Faulted, duplex.Context.ResponseCompletionStatus);
         Assert.NotNull(duplex.Context.ResponseCompletionError);
     }
@@ -134,7 +144,8 @@ public class DuplexStreamClientTests
             });
 
         var client = new DuplexStreamClient<Req, Res>(outbound, codec, []);
-        await client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken);
+        var startResult = await client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken);
+        await using var _ = startResult.ValueOrThrow();
 
         Assert.NotNull(captured);
         Assert.Equal("proto", captured!.Meta.Encoding);

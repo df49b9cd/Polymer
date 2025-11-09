@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
+using Hugo;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
+using static Hugo.Go;
 
 namespace OmniRelay.Core.Clients;
 
@@ -29,9 +31,9 @@ public sealed class StreamClient<TRequest, TResponse>
     }
 
     /// <summary>
-    /// Performs a server-streaming RPC and yields typed responses.
+    /// Performs a server-streaming RPC and yields result-wrapped typed responses.
     /// </summary>
-    public async IAsyncEnumerable<Response<TResponse>> CallAsync(
+    public async IAsyncEnumerable<Result<Response<TResponse>>> CallAsync(
         Request<TRequest> request,
         StreamCallOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -41,29 +43,31 @@ public sealed class StreamClient<TRequest, TResponse>
         var encodeResult = _codec.EncodeRequest(request.Body, meta);
         if (encodeResult.IsFailure)
         {
-            throw OmniRelayErrors.FromError(encodeResult.Error!, options.Direction.ToString());
+            yield return OmniRelayErrors.ToResult<Response<TResponse>>(encodeResult.Error!, options.Direction.ToString());
+            yield break;
         }
 
         var rawRequest = new Request<ReadOnlyMemory<byte>>(meta, encodeResult.Value);
         var streamResult = await _pipeline(rawRequest, options, cancellationToken).ConfigureAwait(false);
         if (streamResult.IsFailure)
         {
-            throw OmniRelayErrors.FromError(streamResult.Error!, options.Direction.ToString());
+            yield return OmniRelayErrors.ToResult<Response<TResponse>>(streamResult.Error!, options.Direction.ToString());
+            yield break;
         }
 
-        await using (streamResult.Value.AsAsyncDisposable(out var call))
-        {
-            await foreach (var payload in call.Responses.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var decodeResult = _codec.DecodeResponse(payload, call.ResponseMeta);
-                if (decodeResult.IsFailure)
-                {
-                    await call.CompleteAsync(decodeResult.Error!, cancellationToken).ConfigureAwait(false);
-                    throw OmniRelayErrors.FromError(decodeResult.Error!, request.Meta.Transport ?? "stream");
-                }
+        await using var callLease = streamResult.Value.AsAsyncDisposable(out var call);
 
-                yield return Response<TResponse>.Create(decodeResult.Value, call.ResponseMeta);
+        await foreach (var payload in call.Responses.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var decodeResult = _codec.DecodeResponse(payload, call.ResponseMeta);
+            if (decodeResult.IsFailure)
+            {
+                await call.CompleteAsync(decodeResult.Error!, cancellationToken).ConfigureAwait(false);
+                yield return OmniRelayErrors.ToResult<Response<TResponse>>(decodeResult.Error!, request.Meta.Transport ?? "stream");
+                yield break;
             }
+
+            yield return Ok(Response<TResponse>.Create(decodeResult.Value, call.ResponseMeta));
         }
     }
 

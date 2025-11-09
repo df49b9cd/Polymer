@@ -432,16 +432,17 @@ public class HttpTransportTests
             encoding: "application/json",
             transport: "http");
 
-        await using var session = await client.StartAsync(requestMeta, ct);
+        var sessionResult = await client.StartAsync(requestMeta, ct);
+        await using var session = sessionResult.ValueOrThrow();
 
-        await session.WriteAsync(new ChatMessage("hello"), ct);
-        await session.WriteAsync(new ChatMessage("world"), ct);
+        (await session.WriteAsync(new ChatMessage("hello"), ct)).ThrowIfFailure();
+        (await session.WriteAsync(new ChatMessage("world"), ct)).ThrowIfFailure();
         await session.CompleteRequestsAsync(cancellationToken: ct);
 
         var messages = new List<string>();
         await foreach (var response in session.ReadResponsesAsync(ct))
         {
-            messages.Add(response.Body.Message);
+            messages.Add(response.ValueOrThrow().Body.Message);
         }
 
         Assert.Equal(new[] { "hello", "world" }, messages);
@@ -494,7 +495,8 @@ public class HttpTransportTests
             procedure: "chat::echo",
             transport: "http");
 
-        await using var session = await client.StartAsync(requestMeta, ct);
+        var sessionResult = await client.StartAsync(requestMeta, ct);
+        await using var session = sessionResult.ValueOrThrow();
 
         var ex = await Assert.ThrowsAsync<OmniRelayException>(async () =>
         {

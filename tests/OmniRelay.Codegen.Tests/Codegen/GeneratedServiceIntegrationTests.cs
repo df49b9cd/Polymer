@@ -89,17 +89,19 @@ public class GeneratedServiceIntegrationTests
 
         public async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken)
         {
-            await stream.WriteAsync(new StreamResponse { Value = request.Body.Value + "-stream-1" }, cancellationToken);
-            await stream.WriteAsync(new StreamResponse { Value = request.Body.Value + "-stream-2" }, cancellationToken);
+            var firstWrite = await stream.WriteAsync(new StreamResponse { Value = request.Body.Value + "-stream-1" }, cancellationToken);
+            firstWrite.ThrowIfFailure();
+            var secondWrite = await stream.WriteAsync(new StreamResponse { Value = request.Body.Value + "-stream-2" }, cancellationToken);
+            secondWrite.ThrowIfFailure();
             await stream.CompleteAsync(cancellationToken);
         }
 
         public async ValueTask<Response<UnaryResponse>> ClientStreamAsync(ProtobufCallAdapters.ProtobufClientStreamContext<StreamRequest, UnaryResponse> context, CancellationToken cancellationToken)
         {
             var values = new List<string>();
-            await foreach (var message in context.ReadAllAsync(cancellationToken))
+            await foreach (var messageResult in context.ReadAllAsync(cancellationToken))
             {
-                values.Add(message.Value);
+                values.Add(messageResult.ValueOrThrow().Value);
             }
 
             var response = new UnaryResponse { Message = string.Join(",", values.Select(v => v + "-client")) };
@@ -108,9 +110,11 @@ public class GeneratedServiceIntegrationTests
 
         public async ValueTask DuplexStreamAsync(ProtobufCallAdapters.ProtobufDuplexStreamContext<StreamRequest, StreamResponse> context, CancellationToken cancellationToken)
         {
-            await foreach (var message in context.ReadAllAsync(cancellationToken))
+            await foreach (var messageResult in context.ReadAllAsync(cancellationToken))
             {
-                await context.WriteAsync(new StreamResponse { Value = message.Value + "-duplex" }, cancellationToken);
+                var message = messageResult.ValueOrThrow();
+                var writeResult = await context.WriteAsync(new StreamResponse { Value = message.Value + "-duplex" }, cancellationToken);
+                writeResult.ThrowIfFailure();
             }
 
             await context.CompleteResponsesAsync(cancellationToken);

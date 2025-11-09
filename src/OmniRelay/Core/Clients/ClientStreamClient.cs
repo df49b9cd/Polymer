@@ -1,6 +1,8 @@
+using Hugo;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
+using static Hugo.Go;
 
 namespace OmniRelay.Core.Clients;
 
@@ -28,9 +30,9 @@ public sealed class ClientStreamClient<TRequest, TResponse>
     }
 
     /// <summary>
-    /// Starts a client-streaming session and returns a session wrapper to write messages and await the response.
+    /// Starts a client-streaming session and returns a result-wrapped session wrapper to write messages and await the response.
     /// </summary>
-    public async ValueTask<ClientStreamSession> StartAsync(RequestMeta meta, CancellationToken cancellationToken = default)
+    public async ValueTask<Result<ClientStreamSession>> StartAsync(RequestMeta meta, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(meta);
 
@@ -39,10 +41,10 @@ public sealed class ClientStreamClient<TRequest, TResponse>
         var result = await _pipeline(normalizedMeta, cancellationToken).ConfigureAwait(false);
         if (result.IsFailure)
         {
-            throw OmniRelayErrors.FromError(result.Error!, normalizedMeta.Transport ?? "unknown");
+            return OmniRelayErrors.ToResult<ClientStreamSession>(result.Error!, normalizedMeta.Transport ?? "unknown");
         }
 
-        return new ClientStreamSession(normalizedMeta, _codec, result.Value);
+        return Ok(new ClientStreamSession(normalizedMeta, _codec, result.Value));
     }
 
     /// <summary>
@@ -53,7 +55,7 @@ public sealed class ClientStreamClient<TRequest, TResponse>
         private readonly RequestMeta _meta;
         private readonly ICodec<TRequest, TResponse> _codec;
         private readonly IClientStreamTransportCall _transportCall;
-        private readonly Lazy<Task<Response<TResponse>>> _response;
+        private readonly Lazy<Task<Result<Response<TResponse>>>> _response;
 
         internal ClientStreamSession(
             RequestMeta meta,
@@ -63,7 +65,7 @@ public sealed class ClientStreamClient<TRequest, TResponse>
             _meta = meta;
             _codec = codec;
             _transportCall = transportCall;
-            _response = new Lazy<Task<Response<TResponse>>>(AwaitResponseAsync);
+            _response = new Lazy<Task<Result<Response<TResponse>>>>(AwaitResponseAsync);
         }
 
         /// <summary>Gets the request metadata.</summary>
@@ -72,21 +74,22 @@ public sealed class ClientStreamClient<TRequest, TResponse>
         /// <summary>Gets the response metadata.</summary>
         public ResponseMeta ResponseMeta => _transportCall.ResponseMeta;
 
-        /// <summary>Gets the task that completes with the unary response.</summary>
-        public Task<Response<TResponse>> Response => _response.Value;
+        /// <summary>Gets the task that completes with the result-wrapped unary response.</summary>
+        public Task<Result<Response<TResponse>>> Response => _response.Value;
 
-        /// <summary>Writes a typed request message to the stream.</summary>
-        public async ValueTask WriteAsync(TRequest message, CancellationToken cancellationToken = default)
+        /// <summary>Writes a typed request message to the stream, returning a result for success or failure.</summary>
+        public async ValueTask<Result<Unit>> WriteAsync(TRequest message, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var encodeResult = _codec.EncodeRequest(message, _meta);
             if (encodeResult.IsFailure)
             {
-                throw OmniRelayErrors.FromError(encodeResult.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Unit>(encodeResult.Error!, _meta.Transport ?? "unknown");
             }
 
             await _transportCall.WriteAsync(encodeResult.Value, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
 
         /// <summary>Signals completion of the request stream.</summary>
@@ -96,21 +99,21 @@ public sealed class ClientStreamClient<TRequest, TResponse>
         /// <inheritdoc />
         public ValueTask DisposeAsync() => _transportCall.DisposeAsync();
 
-        private async Task<Response<TResponse>> AwaitResponseAsync()
+        private async Task<Result<Response<TResponse>>> AwaitResponseAsync()
         {
             var result = await _transportCall.Response.ConfigureAwait(false);
             if (result.IsFailure)
             {
-                throw OmniRelayErrors.FromError(result.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Response<TResponse>>(result.Error!, _meta.Transport ?? "unknown");
             }
 
             var decode = _codec.DecodeResponse(result.Value.Body, result.Value.Meta);
             if (decode.IsFailure)
             {
-                throw OmniRelayErrors.FromError(decode.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Response<TResponse>>(decode.Error!, _meta.Transport ?? "unknown");
             }
 
-            return Response<TResponse>.Create(decode.Value, result.Value.Meta);
+            return Ok(Response<TResponse>.Create(decode.Value, result.Value.Meta));
         }
     }
 

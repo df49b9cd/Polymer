@@ -426,7 +426,7 @@ public sealed class OmniRelayProtobufGenerator
 
         private static void EmitStreamClientMethod(IndentedStringBuilder builder, MethodModel method)
         {
-            builder.AppendLine($"public IAsyncEnumerable<Response<{method.OutputType}>> {method.HandlerName}({method.InputType} request, RequestMeta? meta = null, CancellationToken cancellationToken = default)");
+            builder.AppendLine($"public IAsyncEnumerable<Result<Response<{method.OutputType}>>> {method.HandlerName}({method.InputType} request, RequestMeta? meta = null, CancellationToken cancellationToken = default)");
             builder.AppendLine("{");
             builder.PushIndent();
             builder.AppendLine($"var requestMeta = PrepareRequestMeta(meta, _service, \"{method.ProcedureName}\", {method.CodecFieldName}.Encoding);");
@@ -439,7 +439,7 @@ public sealed class OmniRelayProtobufGenerator
 
         private static void EmitClientStreamClientMethod(IndentedStringBuilder builder, MethodModel method)
         {
-            builder.AppendLine($"public ValueTask<ClientStreamClient<{method.InputType}, {method.OutputType}>.ClientStreamSession> {method.HandlerName}(RequestMeta? meta = null, CancellationToken cancellationToken = default)");
+            builder.AppendLine($"public ValueTask<Result<ClientStreamClient<{method.InputType}, {method.OutputType}>.ClientStreamSession>> {method.HandlerName}(RequestMeta? meta = null, CancellationToken cancellationToken = default)");
             builder.AppendLine("{");
             builder.PushIndent();
             builder.AppendLine($"var requestMeta = PrepareRequestMeta(meta, _service, \"{method.ProcedureName}\", {method.CodecFieldName}.Encoding);");
@@ -452,7 +452,7 @@ public sealed class OmniRelayProtobufGenerator
 
         private static void EmitDuplexClientMethod(IndentedStringBuilder builder, MethodModel method)
         {
-            builder.AppendLine($"public ValueTask<DuplexStreamClient<{method.InputType}, {method.OutputType}>.DuplexStreamSession> {method.HandlerName}(RequestMeta? meta = null, CancellationToken cancellationToken = default)");
+            builder.AppendLine($"public ValueTask<Result<DuplexStreamClient<{method.InputType}, {method.OutputType}>.DuplexStreamSession>> {method.HandlerName}(RequestMeta? meta = null, CancellationToken cancellationToken = default)");
             builder.AppendLine("{");
             builder.PushIndent();
             builder.AppendLine($"var requestMeta = PrepareRequestMeta(meta, _service, \"{method.ProcedureName}\", {method.CodecFieldName}.Encoding);");

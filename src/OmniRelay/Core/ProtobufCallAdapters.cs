@@ -236,17 +236,18 @@ public static class ProtobufCallAdapters
             }
         }
 
-        /// <summary>Encodes and writes a typed response message.</summary>
-        public async ValueTask WriteAsync(TResponse message, CancellationToken cancellationToken = default)
+        /// <summary>Encodes and writes a typed response message, returning a result that captures failures.</summary>
+        public async ValueTask<Result<Unit>> WriteAsync(TResponse message, CancellationToken cancellationToken = default)
         {
             var encode = _codec.EncodeResponse(message, _responseMeta);
             if (encode.IsFailure)
             {
                 await _call.CompleteAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
-                throw OmniRelayErrors.FromError(encode.Error!, _transport);
+                return OmniRelayErrors.ToResult<Unit>(encode.Error!, _transport);
             }
 
             await _call.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
 
         /// <summary>Completes the response stream successfully.</summary>
@@ -282,9 +283,9 @@ public static class ProtobufCallAdapters
         public RequestMeta Meta => _context.Meta;
 
         /// <summary>
-        /// Iterates and decodes all request messages in the client stream.
+        /// Iterates and decodes all request messages in the client stream as result-wrapped payloads.
         /// </summary>
-        public async IAsyncEnumerable<TRequest> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<Result<TRequest>> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var reader = _context.Requests;
             var transport = Meta.Transport ?? "stream";
@@ -296,10 +297,11 @@ public static class ProtobufCallAdapters
                     var decode = _codec.DecodeRequest(payload, Meta);
                     if (decode.IsFailure)
                     {
-                        throw OmniRelayErrors.FromError(decode.Error!, transport);
+                        yield return OmniRelayErrors.ToResult<TRequest>(decode.Error!, transport);
+                        yield break;
                     }
 
-                    yield return decode.Value;
+                    yield return Ok(decode.Value);
                 }
             }
         }
@@ -341,9 +343,9 @@ public static class ProtobufCallAdapters
         }
 
         /// <summary>
-        /// Iterates and decodes all request messages from the duplex request stream.
+        /// Iterates and decodes all request messages from the duplex request stream as result-wrapped payloads.
         /// </summary>
-        public async IAsyncEnumerable<TRequest> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<Result<TRequest>> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var reader = _call.RequestReader;
 
@@ -354,25 +356,27 @@ public static class ProtobufCallAdapters
                     var decode = _codec.DecodeRequest(payload, _call.RequestMeta);
                     if (decode.IsFailure)
                     {
-                        throw OmniRelayErrors.FromError(decode.Error!, _transport);
+                        yield return OmniRelayErrors.ToResult<TRequest>(decode.Error!, _transport);
+                        yield break;
                     }
 
-                    yield return decode.Value;
+                    yield return Ok(decode.Value);
                 }
             }
         }
 
-        /// <summary>Encodes and writes a typed response message to the duplex response stream.</summary>
-        public async ValueTask WriteAsync(TResponse message, CancellationToken cancellationToken = default)
+        /// <summary>Encodes and writes a typed response message to the duplex response stream, producing a result.</summary>
+        public async ValueTask<Result<Unit>> WriteAsync(TResponse message, CancellationToken cancellationToken = default)
         {
             var encode = _codec.EncodeResponse(message, _call.ResponseMeta);
             if (encode.IsFailure)
             {
                 await FailAsync(encode.Error!, cancellationToken).ConfigureAwait(false);
-                throw OmniRelayErrors.FromError(encode.Error!, _transport);
+                return OmniRelayErrors.ToResult<Unit>(encode.Error!, _transport);
             }
 
             await _call.ResponseWriter.WriteAsync(encode.Value, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
 
         /// <summary>Signals completion of response messages.</summary>
