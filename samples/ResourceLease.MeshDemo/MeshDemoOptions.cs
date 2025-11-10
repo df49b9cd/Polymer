@@ -1,9 +1,11 @@
-using System.Globalization;
-
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
 public sealed class MeshDemoOptions
 {
+    public static readonly string[] DefaultCatalogs = ["fabric-lakehouse", "delta-lab", "governance-hub"];
+    public static readonly string[] DefaultDatabasePrefixes = ["sales", "billing", "ml", "governance", "security"];
+    public static readonly string[] DefaultPrincipals = ["spark-streaming", "trino-bi", "governor", "fabric-sync", "delta-maintenance"];
+
     public string ServiceName { get; set; } = "resourcelease-mesh-demo";
 
     public string Namespace { get; set; } = "resourcelease.mesh";
@@ -23,6 +25,12 @@ public sealed class MeshDemoOptions
         nameof(MeshDemoRole.Worker),
         nameof(MeshDemoRole.Diagnostics)
     ];
+
+    public string[] Catalogs { get; set; } = DefaultCatalogs;
+
+    public string[] DatabasePrefixes { get; set; } = DefaultDatabasePrefixes;
+
+    public string[] Principals { get; set; } = DefaultPrincipals;
 
     public string[]? Urls { get; set; }
 

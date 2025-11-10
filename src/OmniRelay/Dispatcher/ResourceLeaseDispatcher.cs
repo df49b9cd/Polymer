@@ -84,32 +84,42 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
     {
         _dispatcher.RegisterJsonUnary<ResourceLeaseEnqueueRequest, ResourceLeaseEnqueueResponse>(
             _enqueueProcedure,
-            HandleEnqueue);
+            HandleEnqueue,
+            ConfigureResourceLeaseCodec);
 
         _dispatcher.RegisterJsonUnary<ResourceLeaseLeaseRequest, ResourceLeaseLeaseResponse>(
             _leaseProcedure,
-            HandleLease);
+            HandleLease,
+            ConfigureResourceLeaseCodec);
 
         _dispatcher.RegisterJsonUnary<ResourceLeaseCompleteRequest, ResourceLeaseAcknowledgeResponse>(
             _completeProcedure,
-            HandleComplete);
+            HandleComplete,
+            ConfigureResourceLeaseCodec);
 
         _dispatcher.RegisterJsonUnary<ResourceLeaseHeartbeatRequest, ResourceLeaseAcknowledgeResponse>(
             _heartbeatProcedure,
-            HandleHeartbeat);
+            HandleHeartbeat,
+            ConfigureResourceLeaseCodec);
 
         _dispatcher.RegisterJsonUnary<ResourceLeaseFailRequest, ResourceLeaseAcknowledgeResponse>(
             _failProcedure,
-            HandleFail);
+            HandleFail,
+            ConfigureResourceLeaseCodec);
 
         _dispatcher.RegisterJsonUnary<ResourceLeaseDrainRequest, ResourceLeaseDrainResponse>(
             _drainProcedure,
-            HandleDrain);
+            HandleDrain,
+            ConfigureResourceLeaseCodec);
 
         _dispatcher.RegisterJsonUnary<ResourceLeaseRestoreRequest, ResourceLeaseRestoreResponse>(
             _restoreProcedure,
-            HandleRestore);
+            HandleRestore,
+            ConfigureResourceLeaseCodec);
     }
+
+    private static void ConfigureResourceLeaseCodec<TRequest, TResponse>(JsonCodecBuilder<TRequest, TResponse> builder) =>
+        builder.SerializerContext ??= ResourceLeaseJson.Context;
 
     private async ValueTask<ResourceLeaseEnqueueResponse> HandleEnqueue(JsonUnaryContext context, ResourceLeaseEnqueueRequest request)
     {

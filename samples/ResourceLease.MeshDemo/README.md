@@ -1,6 +1,6 @@
-# ResourceLease Mesh Demo
+# Lakehouse Catalog Mesh Demo
 
-An end-to-end sample that highlights the OmniRelay ResourceLease RPC mesh feature set: durable replication, deterministic capture, peer health tracking, backpressure hooks, diagnostics control plane, and background workers that lease work through the canonical `resourcelease::*` procedures.
+An end-to-end sample that highlights how OmniRelay’s ResourceLease mesh can coordinate a fleet of lakehouse metadata catalog servers: catalog mutations are replicated through OmniRelay, peers apply schema commits deterministically, and operators can observe replication/backpressure/peer health in real time.
 
 ## What it hosts
 
@@ -10,8 +10,8 @@ An end-to-end sample that highlights the OmniRelay ResourceLease RPC mesh featur
 | Durable replication | `SqliteResourceLeaseReplicator` persists events to `mesh-data/replication.db` and mirrors them to an in-memory log served at `/demo/replication`. |
 | Deterministic store | `SqliteDeterministicStateStore` captures effect ids in `mesh-data/deterministic.db`. |
 | Backpressure hooks | `BackpressureAwareRateLimiter` + diagnostics listener keep the HTTP worker pool in sync with SafeTaskQueue backpressure. |
-| Diagnostics endpoints | `/demo/lease-health`, `/demo/backpressure`, `/demo/replication`, `/demo/enqueue` (human-friendly helpers layered on top of `/omnirelay/control/*`). |
-| Background services | `LeaseSeederHostedService` enqueues synthetic work; `LeaseWorkerHostedService` leases/heartbeats/complete/fail items to showcase replication + peer metrics. |
+| Diagnostics endpoints | `/demo/lease-health`, `/demo/backpressure`, `/demo/replication`, `/demo/catalogs`, `/demo/enqueue` (human-friendly helpers layered on top of `/omnirelay/control/*`). |
+| Lakehouse catalog simulator | `LakehouseCatalogSeederHostedService` emits catalog operations (create table, alter schema, commit snapshot, vacuum); `LakehouseCatalogWorkerHostedService` applies them while reporting catalog state via `/demo/catalogs`. |
 
 ## Node roles
 
@@ -21,8 +21,8 @@ An end-to-end sample that highlights the OmniRelay ResourceLease RPC mesh featur
 | --- | --- |
 | `dispatcher` | Hosts the ResourceLease dispatcher, peer health tracker, backpressure hooks, deterministic capture, and durable replication. |
 | `diagnostics` | Exposes `/demo/*` helper endpoints and the home page banner. Requires `dispatcher`. |
-| `seeder` | Runs `LeaseSeederHostedService` which enqueues synthetic work items via HTTP calls. |
-| `worker` | Runs `LeaseWorkerHostedService`. Launch multiple processes with different `workerPeerId` values to simulate a fleet of peers. |
+| `seeder` | Runs `LakehouseCatalogSeederHostedService` which enqueues catalog mutations (create table, alter schema, snapshot commits, vacuums). |
+| `worker` | Runs `LakehouseCatalogWorkerHostedService`, applying catalog changes and updating the in-memory catalog snapshot. Launch multiple processes with different `workerPeerId` values to emulate metadata servers. |
 
 Set roles via environment variable (`MESHDEMO_meshDemo__roles=dispatcher,worker`) or CLI overrides (`--meshDemo:roles=dispatcher,worker`). Values are case-insensitive and accept comma-separated lists.
 
@@ -55,7 +55,7 @@ dotnet run --project samples/ResourceLease.MeshDemo -- \
   --meshDemo:workerPeerId=mesh-worker-b
 ```
 
-Visit the diagnostics node (for example `http://localhost:5158/`) to watch replication logs, peer health, and backpressure as the workers lease and complete items. Point seeders/workers at remote dispatchers by changing their `rpcUrl`.
+Visit the diagnostics node (for example `http://localhost:5158/`) to watch replication logs, peer health, catalog snapshots (`/demo/catalogs`), and backpressure as catalog servers process mutations. Point seeders/workers at remote dispatchers by changing their `rpcUrl`.
 
 ## Docker Compose mesh lab
 
@@ -103,12 +103,19 @@ Outputs:
 
 ## Interact with the dispatcher
 
-### Enqueue work via HTTP helper
+### Enqueue catalog operations via HTTP helper
 
 ```bash
 curl -X POST http://localhost:5158/demo/enqueue \
   -H "Content-Type: application/json" \
-  -d '{ "resourceType":"demo.order","resourceId":"external-cli","partitionKey":"tenant-42" }'
+  -d '{
+        "catalog":"fabric-lakehouse",
+        "database":"sales",
+        "table":"orders",
+        "operation":"CommitSnapshot",
+        "version":42,
+        "principal":"spark-cli"
+      }'
 ```
 
 ### Enqueue via OmniRelay CLI
@@ -120,7 +127,15 @@ omnirelay request \
   --service resourcelease-mesh-demo \
   --procedure resourcelease.mesh::enqueue \
   --encoding application/json \
-  --body '{"payload":{"resourceType":"demo.order","resourceId":"cli","partitionKey":"tenant-cli","payloadEncoding":"application/json","body":"eyJtZXNzYWdlIjoiY2xpIn0="}}'
+  --body '{
+    "payload":{
+      "resourceType":"lakehouse.catalog",
+      "resourceId":"fabric-lakehouse.sales.orders.v0042",
+      "partitionKey":"fabric-lakehouse",
+      "payloadEncoding":"application/json",
+      "body":"eyJjYXRhbG9nIjogImZhYnJpYy1sYWtlaG91c2UiLCAiZGF0YWJhc2UiOiAic2FsZXMiLCAidGFibGUiOiAib3JkZXJzIiwgIm9wZXJhdGlvblR5cGUiOiAiQ29tbWl0U25hcHNob3QiLCAidmVyc2lvbiI6IDQyLCAicHJpbmNpcGFsIjogInNwYXJrLWNsaSIsICJjb2x1bW5zIjogWyJpZCBTVFJJTkciLCAicGF5bG9hZCBTVFJJTkciXSwgImNoYW5nZXMiOiBbImNvbW1pdCBzbmFwc2hvdCBmcm9tIENMSSJdLCAic25hcHNob3RJZCI6ICJjbGktc25hcHNob3QiLCAidGltZXN0YW1wIjogIjIwMjQtMDEtMDFUMDA6MDA6MDBaIiwgInJlcXVlc3RJZCI6ICJjbGkifQ=="
+    }
+  }'
 ```
 
 ### Inspect health + replication
@@ -129,6 +144,7 @@ omnirelay request \
 curl http://localhost:5158/demo/lease-health      # PeerLeaseHealthTracker snapshot
 curl http://localhost:5158/demo/backpressure      # Latest SafeTaskQueue backpressure signal
 curl http://localhost:5158/demo/replication       # Recent replication events from SQLite
+curl http://localhost:5158/demo/catalogs          # Current lakehouse catalog snapshot
 ```
 
 ## Configuration
@@ -136,10 +152,11 @@ curl http://localhost:5158/demo/replication       # Recent replication events fr
 - `appsettings.json` (`meshDemo` section) controls:
   - `rpcUrl`: HTTP inbound for ResourceLease RPCs.
   - `dataDirectory`: where SQLite replication/deterministic files are stored.
-- `workerPeerId`: peer identifier used by the background worker.
-- `seederIntervalSeconds`: cadence for seeding demo work.
-- `roles`: enables one or more of `dispatcher`, `diagnostics`, `seeder`, `worker`.
-- `urls`: optional array of ASP.NET Core listener URLs (for example `["http://0.0.0.0:5158"]`). When omitted, the default ASP.NET Core port selection applies. Override individual entries via `--meshDemo:urls:0=...` or environment variables like `MESHDEMO_meshDemo__urls__0`.
+  - `workerPeerId`: peer identifier used by the background worker.
+  - `seederIntervalSeconds`: cadence for injecting catalog operations.
+  - `roles`: enables one or more of `dispatcher`, `diagnostics`, `seeder`, `worker`.
+  - `urls`: optional array of ASP.NET Core listener URLs (for example `["http://0.0.0.0:5158"]`). When omitted, the default ASP.NET Core port selection applies. Override via `--meshDemo:urls:0=` or `MESHDEMO_meshDemo__urls__0`.
+  - `catalogs`, `databasePrefixes`, `principals`: seed data for catalog names, database prefixes, and committing principals. Override to mirror your own topology (e.g., `MESHDEMO_meshDemo__catalogs__0=fabric-prod`).
 - Override any value via environment variables prefixed with `MESHDEMO_` (e.g., `MESHDEMO_meshDemo__rpcUrl`, `MESHDEMO_meshDemo__roles=dispatcher,worker`).
 
 ## Concepts showcased

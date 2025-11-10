@@ -22,6 +22,7 @@ internal static class MeshJson
 [JsonSerializable(typeof(PeerLeaseHealthDiagnostics))]
 [JsonSerializable(typeof(PeerLeaseHealthSummary))]
 [JsonSerializable(typeof(ResourceLeaseBackpressureSignal))]
-[JsonSerializable(typeof(MeshEnqueuePayloadBody))]
-[JsonSerializable(typeof(LeaseSeederPayload))]
+[JsonSerializable(typeof(LakehouseCatalogOperation))]
+[JsonSerializable(typeof(LakehouseCatalogSnapshot))]
+[JsonSerializable(typeof(LakehouseCatalogTableState))]
 internal sealed partial class MeshJsonContext : JsonSerializerContext;

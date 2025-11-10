@@ -5,30 +5,64 @@ using OmniRelay.Dispatcher;
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
 public sealed record MeshEnqueueRequest(
-    string ResourceType,
-    string ResourceId,
-    string PartitionKey = "default",
+    string Catalog = "fabric-lakehouse",
+    string Database = "sales",
+    string Table = "ad_hoc",
+    LakehouseCatalogOperationType Operation = LakehouseCatalogOperationType.CommitSnapshot,
+    int Version = 1,
+    string Principal = "cli.enqueue",
+    string[]? Columns = null,
+    string[]? Changes = null,
     Dictionary<string, string>? Attributes = null,
     string? Body = null,
     string? RequestId = null)
 {
     public ResourceLeaseItemPayload ToPayload()
     {
-        var effectiveBody = string.IsNullOrWhiteSpace(Body)
-            ? JsonSerializer.SerializeToUtf8Bytes(
-                new MeshEnqueuePayloadBody($"work:{ResourceId}", DateTimeOffset.UtcNow),
-                MeshJson.Context.MeshEnqueuePayloadBody)
-            : Encoding.UTF8.GetBytes(Body!);
+        var requestId = RequestId ?? Guid.NewGuid().ToString("N");
+        byte[] effectiveBody;
+        string resourceId;
+        var payloadAttributes = Attributes ?? new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["catalog"] = Catalog,
+            ["database"] = Database,
+            ["table"] = Table
+        };
+
+        if (string.IsNullOrWhiteSpace(Body))
+        {
+            var columnSet = Columns is { Length: > 0 } cols ? cols : new[] { "id STRING", "payload STRING" };
+            var changes = Changes is { Length: > 0 } delta ? delta : columnSet;
+            var operation = new LakehouseCatalogOperation(
+                Catalog,
+                Database,
+                Table,
+                Operation,
+                Version,
+                Principal,
+                columnSet,
+                changes,
+                SnapshotId: Guid.NewGuid().ToString("N"),
+                Timestamp: DateTimeOffset.UtcNow,
+                RequestId: requestId);
+            effectiveBody = JsonSerializer.SerializeToUtf8Bytes(operation, MeshJson.Context.LakehouseCatalogOperation);
+            resourceId = operation.ResourceId;
+            payloadAttributes["operation"] = Operation.ToString();
+            payloadAttributes["version"] = Version.ToString();
+        }
+        else
+        {
+            effectiveBody = Encoding.UTF8.GetBytes(Body);
+            resourceId = $"{Catalog}.{Database}.{Table}.manual";
+        }
 
         return new ResourceLeaseItemPayload(
-            ResourceType,
-            ResourceId,
-            PartitionKey,
+            ResourceType: "lakehouse.catalog",
+            ResourceId: resourceId,
+            PartitionKey: Catalog,
             PayloadEncoding: "application/json",
             Body: effectiveBody,
-            Attributes,
-            RequestId ?? Guid.NewGuid().ToString("N"));
+            Attributes: payloadAttributes,
+            RequestId: requestId);
     }
 }
-
-internal sealed record MeshEnqueuePayloadBody(string Message, DateTimeOffset CreatedAt);

@@ -1,5 +1,6 @@
-using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Hugo;
 
 namespace OmniRelay.Dispatcher;
 
@@ -31,6 +32,7 @@ public static class ResourceLeaseJson
 [JsonSerializable(typeof(ResourceLeasePendingItemDto))]
 [JsonSerializable(typeof(ResourceLeaseOwnershipHandle))]
 [JsonSerializable(typeof(ResourceLeaseErrorInfo))]
+[JsonSerializable(typeof(Error))]
 [JsonSerializable(typeof(ResourceLeaseBackpressureSignal))]
 [JsonSerializable(typeof(ResourceLeaseWorkItem))]
 public sealed partial class ResourceLeaseJsonContext : JsonSerializerContext;

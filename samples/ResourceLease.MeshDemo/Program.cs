@@ -29,6 +29,7 @@ if (activeRoles.HasRole(MeshDemoRole.Diagnostics) && !activeRoles.HasRole(MeshDe
 }
 
 builder.Services.Configure<MeshDemoOptions>(meshDemoSection);
+builder.Services.AddSingleton<LakehouseCatalogState>();
 ConfigureMeshMetrics(builder, bootstrapOptions);
 
 if (activeRoles.HasRole(MeshDemoRole.Dispatcher))
@@ -94,12 +95,12 @@ if (activeRoles.HasRole(MeshDemoRole.Seeder) ||
 
 if (activeRoles.HasRole(MeshDemoRole.Seeder))
 {
-    builder.Services.AddHostedService<LeaseSeederHostedService>();
+    builder.Services.AddHostedService<LakehouseCatalogSeederHostedService>();
 }
 
 if (activeRoles.HasRole(MeshDemoRole.Worker))
 {
-    builder.Services.AddHostedService<LeaseWorkerHostedService>();
+    builder.Services.AddHostedService<LakehouseCatalogWorkerHostedService>();
 }
 
 var app = builder.Build();
@@ -137,6 +138,12 @@ if (activeRoles.HasRole(MeshDemoRole.Diagnostics))
         var recent = log.GetRecent().ToArray();
         return TypedResults.Json(recent, ResourceLeaseJson.Context.ResourceLeaseReplicationEventArray);
     });
+
+    app.MapGet("/demo/catalogs", (LakehouseCatalogState catalogState) =>
+    {
+        var snapshot = catalogState.Snapshot();
+        return TypedResults.Json(snapshot, MeshJson.Context.LakehouseCatalogSnapshot);
+    });
 }
 
 app.MapPrometheusScrapingEndpoint("/metrics");
@@ -153,9 +160,10 @@ static string BuildBanner(MeshDemoOptions options, MeshDemoRole roles)
     if (roles.HasRole(MeshDemoRole.Diagnostics))
     {
         sb.AppendLine("Key endpoints:");
-        sb.AppendLine("- POST /demo/enqueue            -> enqueue sample work items without CLI");
+        sb.AppendLine("- POST /demo/enqueue            -> enqueue catalog mutations without CLI");
         sb.AppendLine("- GET  /demo/lease-health       -> PeerLeaseHealthTracker snapshot (JSON)");
         sb.AppendLine("- GET  /demo/backpressure       -> Last backpressure signal (JSON)");
+        sb.AppendLine("- GET  /demo/catalogs           -> Lakehouse catalog snapshot (JSON)");
         sb.AppendLine("- GET  /demo/replication        -> Recent replication events (JSON)");
         sb.AppendLine();
     }
@@ -176,7 +184,7 @@ static string BuildBanner(MeshDemoOptions options, MeshDemoRole roles)
     sb.AppendLine($"    --service {options.ServiceName ?? "resourcelease-mesh-demo"} \\");
     sb.AppendLine($"    --procedure {ns}::enqueue \\");
     sb.AppendLine("    --encoding application/json \\");
-    sb.AppendLine("    --body '{\"payload\":{\"resourceType\":\"demo\",\"resourceId\":\"cli\",\"partitionKey\":\"cli\",\"payloadEncoding\":\"json\",\"body\":\"eyJtZXNzYWdlIjoiY2xpIn0=\"}}'");
+    sb.AppendLine("    --body '{\"payload\":{\"resourceType\":\"lakehouse.catalog\",\"resourceId\":\"fabric-lakehouse.sales.orders.v0042\",\"partitionKey\":\"fabric-lakehouse\",\"payloadEncoding\":\"application/json\",\"body\":\"eyJjYXRhbG9nIjogImZhYnJpYy1sYWtlaG91c2UiLCAiZGF0YWJhc2UiOiAic2FsZXMiLCAidGFibGUiOiAib3JkZXJzIiwgIm9wZXJhdGlvblR5cGUiOiAiQ29tbWl0U25hcHNob3QiLCAidmVyc2lvbiI6IDQyLCAicHJpbmNpcGFsIjogInNwYXJrLWNsaSIsICJjb2x1bW5zIjogWyJpZCBTVFJJTkciLCAicGF5bG9hZCBTVFJJTkciXSwgImNoYW5nZXMiOiBbImNvbW1pdCBzbmFwc2hvdCBmcm9tIENMSSJdLCAic25hcHNob3RJZCI6ICJjbGktc25hcHNob3QiLCAidGltZXN0YW1wIjogIjIwMjQtMDEtMDFUMDA6MDA6MDBaIiwgInJlcXVlc3RJZCI6ICJjbGkifQ==\"}}'");
     return sb.ToString();
 }
 

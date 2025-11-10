@@ -21,7 +21,7 @@ This document outlines how to operate OmniRelay as a self-healing, peer-aware RP
 - Backpressure and telemetry keep the mesh resilient under load spikes.
 
 ### Distributed sample project
-- `samples/ResourceLease.MeshDemo` now ships role toggles (`meshDemo.roles`) so you can split the dispatcher, diagnostics control plane, seeders, and workers across multiple processes or machines.
+- `samples/ResourceLease.MeshDemo` now ships role toggles (`meshDemo.roles`) so you can split the dispatcher, diagnostics control plane, seeders, and workers across multiple processes or machines while simulating lakehouse metadata catalog servers (catalog mutations stream through OmniRelay and `/demo/catalogs` surfaces the resulting state).
 - Launch the dispatcher with diagnostics enabled to host the mesh endpoints and control-plane helpers:
   ```bash
   dotnet run --project samples/ResourceLease.MeshDemo -- \
@@ -42,7 +42,7 @@ This document outlines how to operate OmniRelay as a self-healing, peer-aware RP
     --meshDemo:rpcUrl=http://127.0.0.1:7420 \
     --meshDemo:workerPeerId=mesh-worker-a
   ```
-- The diagnostics node continues to serve `/demo/lease-health`, `/demo/backpressure`, `/demo/replication`, and `/demo/enqueue`, making it easy to showcase the mesh features described in this document without standing up additional infrastructure.
+- The diagnostics node continues to serve `/demo/lease-health`, `/demo/backpressure`, `/demo/replication`, `/demo/catalogs`, and `/demo/enqueue`, making it easy to showcase the mesh features described in this document without standing up additional infrastructure.
 - Prefer `docker compose up --build` (run from `samples/ResourceLease.MeshDemo`) to boot a full mesh lab with Prometheus + Grafana dashboards. The Dockerfile publishes a Linux `linux-x64` Native AOT image so containers start instantly. The dispatcher container exposes RPCs on `localhost:7420`, diagnostics on `localhost:5158`, Prometheus lives on `9090`, and Grafana ships a pre-provisioned **ResourceLease Mesh Overview** dashboard under the **OmniRelay** folder.
 
 ### Core Building Blocks
