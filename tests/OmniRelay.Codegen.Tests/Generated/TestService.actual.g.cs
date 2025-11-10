@@ -32,25 +32,25 @@ public static class TestServiceOmniRelay
         {
             builder.WithEncoding(__UnaryCallCodec.Encoding);
             builder.Handle(ProtobufCallAdapters.CreateUnaryHandler(__UnaryCallCodec, implementation.UnaryCallAsync));
-        });
+        }).ThrowIfFailure();
 
         dispatcher.RegisterStream("ServerStream", builder =>
         {
             builder.WithEncoding(__ServerStreamCodec.Encoding);
             builder.Handle(ProtobufCallAdapters.CreateServerStreamHandler(__ServerStreamCodec, implementation.ServerStreamAsync));
-        });
+        }).ThrowIfFailure();
 
         dispatcher.RegisterClientStream("ClientStream", builder =>
         {
             builder.WithEncoding(__ClientStreamCodec.Encoding);
             builder.Handle(ProtobufCallAdapters.CreateClientStreamHandler(__ClientStreamCodec, implementation.ClientStreamAsync));
-        });
+        }).ThrowIfFailure();
 
         dispatcher.RegisterDuplex("DuplexStream", builder =>
         {
             builder.WithEncoding(__DuplexStreamCodec.Encoding);
             builder.Handle(ProtobufCallAdapters.CreateDuplexHandler(__DuplexStreamCodec, implementation.DuplexStreamAsync));
-        });
+        }).ThrowIfFailure();
 
     }
 
@@ -88,21 +88,21 @@ public static class TestServiceOmniRelay
             return client.CallAsync(new Request<global::OmniRelay.Tests.Protos.UnaryRequest>(requestMeta, request), cancellationToken);
         }
 
-        public IAsyncEnumerable<Response<global::OmniRelay.Tests.Protos.StreamResponse>> ServerStreamAsync(global::OmniRelay.Tests.Protos.StreamRequest request, RequestMeta? meta = null, CancellationToken cancellationToken = default)
+        public IAsyncEnumerable<Result<Response<global::OmniRelay.Tests.Protos.StreamResponse>>> ServerStreamAsync(global::OmniRelay.Tests.Protos.StreamRequest request, RequestMeta? meta = null, CancellationToken cancellationToken = default)
         {
             var requestMeta = PrepareRequestMeta(meta, _service, "ServerStream", __ServerStreamCodec.Encoding);
             var client = _serverStreamStreamClient ??= _dispatcher.CreateStreamClient<global::OmniRelay.Tests.Protos.StreamRequest, global::OmniRelay.Tests.Protos.StreamResponse>(_service, __ServerStreamCodec, _outboundKey);
             return client.CallAsync(new Request<global::OmniRelay.Tests.Protos.StreamRequest>(requestMeta, request), new StreamCallOptions(StreamDirection.Server), cancellationToken);
         }
 
-        public ValueTask<ClientStreamClient<global::OmniRelay.Tests.Protos.StreamRequest, global::OmniRelay.Tests.Protos.UnaryResponse>.ClientStreamSession> ClientStreamAsync(RequestMeta? meta = null, CancellationToken cancellationToken = default)
+        public ValueTask<Result<ClientStreamClient<global::OmniRelay.Tests.Protos.StreamRequest, global::OmniRelay.Tests.Protos.UnaryResponse>.ClientStreamSession>> ClientStreamAsync(RequestMeta? meta = null, CancellationToken cancellationToken = default)
         {
             var requestMeta = PrepareRequestMeta(meta, _service, "ClientStream", __ClientStreamCodec.Encoding);
             var client = _clientStreamClientStream ??= _dispatcher.CreateClientStreamClient<global::OmniRelay.Tests.Protos.StreamRequest, global::OmniRelay.Tests.Protos.UnaryResponse>(_service, __ClientStreamCodec, _outboundKey);
             return client.StartAsync(requestMeta, cancellationToken);
         }
 
-        public ValueTask<DuplexStreamClient<global::OmniRelay.Tests.Protos.StreamRequest, global::OmniRelay.Tests.Protos.StreamResponse>.DuplexStreamSession> DuplexStreamAsync(RequestMeta? meta = null, CancellationToken cancellationToken = default)
+        public ValueTask<Result<DuplexStreamClient<global::OmniRelay.Tests.Protos.StreamRequest, global::OmniRelay.Tests.Protos.StreamResponse>.DuplexStreamSession>> DuplexStreamAsync(RequestMeta? meta = null, CancellationToken cancellationToken = default)
         {
             var requestMeta = PrepareRequestMeta(meta, _service, "DuplexStream", __DuplexStreamCodec.Encoding);
             var client = _duplexStreamDuplexClient ??= _dispatcher.CreateDuplexStreamClient<global::OmniRelay.Tests.Protos.StreamRequest, global::OmniRelay.Tests.Protos.StreamResponse>(_service, __DuplexStreamCodec, _outboundKey);
