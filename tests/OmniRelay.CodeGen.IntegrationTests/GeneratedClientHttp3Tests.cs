@@ -21,7 +21,7 @@ using OmniRelay.Transport.Grpc;
 using Xunit;
 using static Hugo.Go;
 
-namespace OmniRelay.Tests.Codegen;
+namespace OmniRelay.CodeGen.IntegrationTests;
 
 public class GeneratedClientHttp3Tests
 {
@@ -32,15 +32,13 @@ public class GeneratedClientHttp3Tests
         {
             return;
         }
+
         using var certificate = CreateSelfSigned("CN=omnirelay-codegen-http3");
         var port = GetFreeTcpPort();
         var address = new Uri($"https://127.0.0.1:{port}");
 
         var observed = new ConcurrentQueue<string>();
-        var serverRuntime = new GrpcServerRuntimeOptions
-        {
-            EnableHttp3 = true
-        };
+        var serverRuntime = new GrpcServerRuntimeOptions { EnableHttp3 = true };
         var tls = new GrpcServerTlsOptions { Certificate = certificate };
 
         var options = new DispatcherOptions("codegen-svc");
@@ -59,7 +57,7 @@ public class GeneratedClientHttp3Tests
         options.AddLifecycle("inbound", inbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
-        Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
+        TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartOrThrowAsync(ct);
@@ -84,7 +82,7 @@ public class GeneratedClientHttp3Tests
 
         try
         {
-            var client = Protos.TestServiceOmniRelay.CreateTestServiceClient(clientDispatcher, "codegen-svc");
+            var client = TestServiceOmniRelay.CreateTestServiceClient(clientDispatcher, "codegen-svc");
             var result = await client.UnaryCallAsync(new UnaryRequest { Message = "ping" }, cancellationToken: ct);
             Assert.True(result.IsSuccess);
         }
@@ -106,10 +104,7 @@ public class GeneratedClientHttp3Tests
         var address = new Uri($"https://127.0.0.1:{port}");
 
         var observed = new ConcurrentQueue<string>();
-        var serverRuntime = new GrpcServerRuntimeOptions
-        {
-            EnableHttp3 = false
-        };
+        var serverRuntime = new GrpcServerRuntimeOptions { EnableHttp3 = false };
         var tls = new GrpcServerTlsOptions { Certificate = certificate };
 
         var options = new DispatcherOptions("codegen-svc-h2");
@@ -128,7 +123,7 @@ public class GeneratedClientHttp3Tests
         options.AddLifecycle("inbound-h2", inbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
-        Protos.TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
+        TestServiceOmniRelay.RegisterTestService(dispatcher, new Impl());
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartOrThrowAsync(ct);
@@ -140,8 +135,7 @@ public class GeneratedClientHttp3Tests
             remoteService: "codegen-svc-h2",
             clientRuntimeOptions: new GrpcClientRuntimeOptions
             {
-                EnableHttp3 = true,
-                VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher
+                EnableHttp3 = true, VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher
             },
             clientTlsOptions: new GrpcClientTlsOptions
             {
@@ -157,7 +151,7 @@ public class GeneratedClientHttp3Tests
 
         try
         {
-            var client = Protos.TestServiceOmniRelay.CreateTestServiceClient(clientDispatcher, "codegen-svc-h2");
+            var client = TestServiceOmniRelay.CreateTestServiceClient(clientDispatcher, "codegen-svc-h2");
             var result = await client.UnaryCallAsync(new UnaryRequest { Message = "ping" }, cancellationToken: ct);
             Assert.True(result.IsSuccess);
         }
@@ -171,21 +165,31 @@ public class GeneratedClientHttp3Tests
         Assert.StartsWith("HTTP/2", protocol, StringComparison.Ordinal);
     }
 
-    private sealed class Impl : Protos.TestServiceOmniRelay.ITestService
+    private sealed class Impl : TestServiceOmniRelay.ITestService
     {
-        public ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request, CancellationToken cancellationToken)
-            => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = request.Body.Message }, new ResponseMeta()));
+        public ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request,
+            CancellationToken cancellationToken)
+            => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = request.Body.Message },
+                new ResponseMeta()));
 
-        public async ValueTask ServerStreamAsync(Request<StreamRequest> request, ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream, CancellationToken cancellationToken)
+        public async ValueTask ServerStreamAsync(Request<StreamRequest> request,
+            ProtobufCallAdapters.ProtobufServerStreamWriter<StreamRequest, StreamResponse> stream,
+            CancellationToken cancellationToken)
         {
-            var writeResult = await stream.WriteAsync(new StreamResponse { Value = request.Body.Value }, cancellationToken);
+            var writeResult =
+                await stream.WriteAsync(new StreamResponse { Value = request.Body.Value }, cancellationToken);
             writeResult.ThrowIfFailure();
         }
 
-        public ValueTask<Response<UnaryResponse>> ClientStreamAsync(ProtobufCallAdapters.ProtobufClientStreamContext<StreamRequest, UnaryResponse> context, CancellationToken cancellationToken)
-            => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = "ok" }, new ResponseMeta()));
+        public ValueTask<Response<UnaryResponse>> ClientStreamAsync(
+            ProtobufCallAdapters.ProtobufClientStreamContext<StreamRequest, UnaryResponse> context,
+            CancellationToken cancellationToken)
+            => ValueTask.FromResult(Response<UnaryResponse>.Create(new UnaryResponse { Message = "ok" },
+                new ResponseMeta()));
 
-        public ValueTask DuplexStreamAsync(ProtobufCallAdapters.ProtobufDuplexStreamContext<StreamRequest, StreamResponse> context, CancellationToken cancellationToken)
+        public ValueTask DuplexStreamAsync(
+            ProtobufCallAdapters.ProtobufDuplexStreamContext<StreamRequest, StreamResponse> context,
+            CancellationToken cancellationToken)
             => ValueTask.CompletedTask;
     }
 
@@ -196,7 +200,8 @@ public class GeneratedClientHttp3Tests
         {
             try
             {
-                await client.ConnectAsync(address.Host, address.Port).WaitAsync(TimeSpan.FromMilliseconds(200), cancellationToken);
+                await client.ConnectAsync(address.Host, address.Port)
+                    .WaitAsync(TimeSpan.FromMilliseconds(200), cancellationToken);
                 await Task.Delay(50, cancellationToken);
                 return;
             }
@@ -205,6 +210,7 @@ public class GeneratedClientHttp3Tests
                 await Task.Delay(25, cancellationToken);
             }
         }
+
         throw new TimeoutException("Inbound not ready");
     }
 
@@ -213,7 +219,8 @@ public class GeneratedClientHttp3Tests
         using var rsa = RSA.Create(2048);
         var request = new CertificateRequest(subject, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
-        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
+        request.CertificateExtensions.Add(
+            new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
         request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
         var sanBuilder = new SubjectAlternativeNameBuilder();
         sanBuilder.AddDnsName("localhost");
@@ -230,6 +237,7 @@ public class GeneratedClientHttp3Tests
         listener.Stop();
         return port;
     }
+
     private static bool TryDequeueWithWait<T>(ConcurrentQueue<T> queue, out T value, int timeoutMilliseconds = 5000)
     {
         var start = Environment.TickCount64;
@@ -246,3 +254,4 @@ public class GeneratedClientHttp3Tests
         value = default!;
         return false;
     }
+}
