@@ -808,7 +808,7 @@ internal sealed class DispatcherBuilder
         // (for control-plane endpoints) in that container.
 
         var addMetrics = ShouldExposePrometheusMetrics();
-        var addControlPlane = TryGetDiagnosticsControlPlaneOptions(out _);
+        var addControlPlane = TryGetDiagnosticsControlPlaneOptions(out var controlPlaneOptions);
 
         if (!addMetrics && !addControlPlane)
         {
@@ -817,6 +817,11 @@ internal sealed class DispatcherBuilder
 
         var scrapePath = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
         var rootRuntime = _serviceProvider.GetService<IDiagnosticsRuntime>();
+        var peerHealthProviders = controlPlaneOptions.EnableLeaseHealthDiagnostics
+            ? _serviceProvider.GetServices<IPeerHealthSnapshotProvider>()
+                .Where(static provider => provider is not null)
+                .ToArray()
+            : Array.Empty<IPeerHealthSnapshotProvider>();
 
         return services =>
         {
@@ -853,6 +858,11 @@ internal sealed class DispatcherBuilder
                 if (rootLoggerFactory is not null)
                 {
                     services.AddSingleton(rootLoggerFactory);
+                }
+
+                if (controlPlaneOptions.EnableLeaseHealthDiagnostics && peerHealthProviders.Length > 0)
+                {
+                    services.AddSingleton<IEnumerable<IPeerHealthSnapshotProvider>>(peerHealthProviders);
                 }
             }
         };
@@ -1044,8 +1054,10 @@ internal sealed class DispatcherBuilder
             return false;
         }
 
-        options = new DiagnosticsControlPlaneOptions(enableLogging, enableSampling);
-        return enableLogging || enableSampling;
+        var hasPeerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>().Any();
+
+        options = new DiagnosticsControlPlaneOptions(enableLogging, enableSampling, enableLeaseHealthDiagnostics: hasPeerHealthProviders);
+        return enableLogging || enableSampling || hasPeerHealthProviders;
     }
 
     private static void ConfigureDiagnosticsControlPlane(WebApplication app, DiagnosticsControlPlaneOptions options)
@@ -1107,9 +1119,33 @@ internal sealed class DispatcherBuilder
                 return Results.NoContent();
             });
         }
+
+        if (options.EnableLeaseHealthDiagnostics)
+        {
+            app.MapGet("/omnirelay/control/lease-health", (IEnumerable<IPeerHealthSnapshotProvider> providers) =>
+            {
+                var builder = ImmutableArray.CreateBuilder<PeerLeaseHealthSnapshot>();
+                foreach (var provider in providers)
+                {
+                    if (provider is null)
+                    {
+                        continue;
+                    }
+
+                    var snapshot = provider.Snapshot();
+                    if (!snapshot.IsDefaultOrEmpty)
+                    {
+                        builder.AddRange(snapshot);
+                    }
+                }
+
+                var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(builder.ToImmutable());
+                return Results.Json(diagnostics);
+            });
+        }
     }
 
-    private readonly record struct DiagnosticsControlPlaneOptions(bool EnableLoggingToggle, bool EnableSamplingToggle)
+    private readonly record struct DiagnosticsControlPlaneOptions(bool EnableLoggingToggle, bool EnableSamplingToggle, bool EnableLeaseHealthDiagnostics)
     {
         public bool EnableLoggingToggle
         {
@@ -1122,6 +1158,12 @@ internal sealed class DispatcherBuilder
             get => field;
             init => field = value;
         } = EnableSamplingToggle;
+
+        public bool EnableLeaseHealthDiagnostics
+        {
+            get => field;
+            init => field = value;
+        } = EnableLeaseHealthDiagnostics;
     }
 
     private sealed record DiagnosticsLogLevelRequest(string? Level)

@@ -106,13 +106,17 @@ OmniRelay already supplies the core pieces (SafeTaskQueue, replication, health g
 ### TODO / Implementation Backlog
 1. **Mesh Deployment Guide**
    - Document step-by-step instructions for running ResourceLease dispatcher + middleware stack on every metadata node (install, config, health endpoints).
+   - See the “ResourceLease Mesh Deployment Guide” section below for the full checklist.
 2. **Shared Replication Hub**
    - Harden the new durable replicators with operational guides (backup/restore, schema migrations) and sample configurations that wire dispatcher options to SQLite/object-store/gRPC hubs in single- and multi-region layouts.
+   - (See the “Shared Replication Hub” section below for walk-throughs and configuration snippets.)
 3. **Deterministic Store Providers**
    - Ship plug-ins for common state stores (SQL, Cosmos DB, Redis) implementing `IDeterministicStateStore`, plus guidance for effect-id versioning policies.
+   - See “Deterministic Store Providers” below for current adapters and guidance.
 4. **Peer Chooser Integrations**
    - Expose `PeerLeaseHealthTracker` snapshots via diagnostics endpoints and feed them into existing peer-chooser implementations in `Core.Peers`.
    - Add unit/integration tests covering unhealthy peer eviction and reactivation after heartbeat.
+   - See “Peer Chooser Integrations” below for recommended diagnostics and test coverage.
 5. **Backpressure Hooks**
    - Implement sample `IResourceLeaseBackpressureListener` adapters (e.g., toggle RateLimitingMiddleware, emit control-plane events) and document integration points.
 6. **Sharding Strategy**
@@ -126,3 +130,122 @@ OmniRelay already supplies the core pieces (SafeTaskQueue, replication, health g
    - Ship analyzer/linting guidance that flags usage of removed namespace/table fields in downstream payload builders.
 
 Tracking these TODO items will take the existing ResourceLease + health + replication foundation and harden it into a full OmniRelay RPC Mesh. Each bullet is actionable with pointers to the relevant code paths for implementation.
+
+### ResourceLease Mesh Deployment Guide
+1. **Install OmniRelay + replicator packages**
+   - Add `OmniRelay`, `OmniRelay.Configuration`, and the replicators you need (`OmniRelay.ResourceLeaseReplicator.Sqlite`, `.Grpc`, `.ObjectStorage`) to every metadata node.
+   - Ensure the host has .NET 8+ runtimes, OpenTelemetry exporters, and any native dependencies (for example `libsqlite3`).
+2. **Configure dispatcher + middleware**
+   - Register `ResourceLeaseDispatcherComponent` inside your DI container, wiring `PrincipalBindingMiddleware`, health trackers, and transport codecs (HTTP/gRPC) just like other OmniRelay dispatchers.
+   - Provide a shared `PeerLeaseHealthTracker`, SafeTaskQueue options (capacity, watermarks, lease duration), and deterministic options if the node needs replay guarantees.
+3. **Wire durable replication (optional but recommended)**
+   - Choose one or more replicator options:
+     - `SqliteResourceLeaseReplicator` for local durability (point it at a writable path and back up `.db` files).
+     - `GrpcResourceLeaseReplicator` when you have a remote replication hub; configure TLS + credentials via `GrpcChannelOptions`.
+     - `ObjectStorageResourceLeaseReplicator` for blob-based audit streams; supply an `IResourceLeaseObjectStore` implementation for your cloud provider.
+   - Attach sinks (governance feeds, metrics) via `IResourceLeaseReplicationSink` to observe the ordered log.
+4. **Enable deterministic capture where necessary**
+   - Plug a durable `IDeterministicStateStore` (`SqliteDeterministicStateStore` or `FileSystemDeterministicStateStore`) into `ResourceLeaseDeterministicOptions`.
+   - Define `ChangeId`, version windows, and effect-id format so replay boundaries are explicit during rollouts.
+5. **Expose health + diagnostics**
+   - Publish dispatcher health endpoints (pending depth, active leases, backpressure state, replication checkpoints) through your existing HTTP/gRPC health probes.
+   - Surface `PeerLeaseHealthTracker.Snapshot()` via diagnostics APIs so operators can inspect peer eligibility and gossip metadata.
+   - Ensure transport-level probes (Kubernetes `readiness`/`liveness`) call the OmniRelay health endpoints.
+6. **Secure transports + principals**
+   - Require mTLS or JWT auth on every inbound transport; configure `PrincipalBindingMiddleware` headers (`x-client-principal`, thumbprints) and verify that replication metadata includes `rpc.principal`.
+   - Apply role-based access controls to outbound `resourcelease::*` calls (e.g., default deny for non-mesh callers).
+7. **Operationalize**
+   - Automate deployment via your IaC/CI system: install packages, publish config files (queue options, replicator connection strings), run `dotnet publish`, and copy binaries to each node.
+   - Include runbooks for scaling queues, rotating deterministic state stores, bootstrapping new nodes (restore replication DBs), and draining work via `resourcelease::drain`.
+   - Monitor `omnirelay.resourcelease.*` metrics plus replicator lag; add alerts for stuck pending counts, backpressure toggles, or missing heartbeats.
+
+### Shared Replication Hub
+1. **Choose a hub topology**
+   - **Single-node durability**: run `SqliteResourceLeaseReplicator` on every metadata node. Pros: zero external dependency, fast local writes. Cons: backups must pull `.db` files from each node; cross-node replay requires replaying from multiple logs.
+   - **Centralized hub**: deploy `GrpcResourceLeaseReplicator` behind a load-balanced service (per region). All dispatchers stream events to it; the hub persists to durable storage (another SQLite instance, PostgreSQL, or a log broker) and fans out to sinks. Pros: single source of truth; simpler lineage feeds. Cons: requires HA + backpressure control on the hub.
+   - **Object-store audit**: `ObjectStorageResourceLeaseReplicator` emits immutable JSON blobs to S3/GCS/Azure Blob. Pros: cheap retention, easy analytics; Cons: higher latency, eventual consistency.
+2. **Backup + restore guidance**
+   - **SQLite replicator**:
+     - Enable WAL mode (`PRAGMA journal_mode = wal`) via connection string for better write concurrency.
+     - Schedule filesystem snapshots (or `sqlite3 .backup`) per node; compress and copy to off-site storage.
+     - Restore by copying the `.db` file back and restarting the node; the replicator resumes from the highest `sequence_number`.
+   - **gRPC hub**:
+     - Host the hub inside a managed cluster (Kubernetes, Service Fabric) and attach a persistent volume for the hub’s own SQLite/log store.
+     - Take periodic backups of the hub database and replicate it cross-region.
+     - Document schema migrations (e.g., adding columns) by shipping SQL scripts with each release; apply using rolling upgrades while the hub is in maintenance mode.
+   - **Object-store**:
+     - Version object keys (`resourcelease/region/{seq:D20}.json`) and replicate buckets across regions (S3 Cross-Region Replication, GCS Turbo Replication).
+     - For restores, list keys since the last checkpoint and stream them into a replay pipeline that rehydrates SafeTaskQueue items or deterministic logs.
+3. **Sample configurations**
+   - **SQLite (single-node)**
+     ```csharp
+     services.AddSingleton<IResourceLeaseReplicator>(_ =>
+         new SqliteResourceLeaseReplicator(
+             connectionString: "Data Source=/var/lib/omnirelay/leases.db;Cache=Shared",
+             tableName: "LeaseEvents",
+             sinks: new IResourceLeaseReplicationSink[] { governanceSink }));
+     ```
+   - **gRPC hub (region-scoped)**
+     ```csharp
+     var channel = GrpcChannel.ForAddress("https://replicator.us-east.example.com",
+         new GrpcChannelOptions { HttpHandler = tlsHandler });
+
+     services.AddSingleton<IResourceLeaseReplicator>(_ =>
+         new GrpcResourceLeaseReplicator(
+             new GrpcResourceLeaseReplicator.ResourceLeaseReplicatorGrpcClient(channel),
+             sinks: Array.Empty<IResourceLeaseReplicationSink>(),
+             startingSequence: 0));
+     ```
+   - **Object storage (multi-region audit)**
+     ```csharp
+     services.AddSingleton<IResourceLeaseObjectStore>(
+         new S3ResourceLeaseObjectStore(bucketName: "omnirelay-replication-us"));
+
+     services.AddSingleton<IResourceLeaseReplicator>(sp =>
+         new ObjectStorageResourceLeaseReplicator(sp.GetRequiredService<IResourceLeaseObjectStore>(),
+             keyPrefix: "resourcelease/us-east/",
+             sinks: new[] { telemetrySink }));
+     ```
+4. **Multi-region considerations**
+   - Deploy region-specific replicators (e.g., gRPC hubs per region, object-store prefixes per region) and attach a global aggregation pipeline (Data Lake, Kafka) for analytics.
+   - When cross-region failover is required, mirror deterministic stores plus replication logs so a standby region can catch up before taking leases.
+   - Document RPO/RTO assumptions: e.g., “SQLite nodes keep 24h of events; object storage retains 30 days; gRPC hub replicates to standby every 5s.”
+
+### Deterministic Store Providers
+1. **Current adapters**
+   - `SqliteDeterministicStateStore` (in `OmniRelay.ResourceLeaseReplicator.Sqlite`) persists deterministic records in a local SQLite database. Use it in tandem with the SQLite replicator or whenever each node needs a self-contained deterministic gate. Configure WAL mode and take filesystem snapshots for backups.
+   - `FileSystemDeterministicStateStore` (in `OmniRelay.ResourceLeaseReplicator.ObjectStorage`) writes JSON blobs per effect id. Use it for development, air-gapped deployments, or as a base class for S3/Azure blob adapters (simply override the file operations with bucket operations).
+2. **Extending to cloud services**
+   - **Cosmos DB**: implement `IDeterministicStateStore` using `Container.UpsertItemAsync` and conditional `PatchItemAsync` for `TryAdd`. Store `DeterministicRecord` payloads in base64 and index by `key`. Use TTL policies for old records.
+   - **Redis**: back records with hashes where field names are `key` and values are the serialized record. Use Lua scripts that perform `EXISTS` checks + `SET` atomically to implement `TryAdd`.
+   - **SQL Server/PostgreSQL**: copy the SQLite schema and swap `ON CONFLICT DO UPDATE` with the dialect-specific UPSERT syntax.
+3. **Effect-id + version policies**
+   - Keep `ChangeId` scoped to a dispatcher/region pair (e.g., `resourcelease.mesh.us-east`). Increment the ID or bump the version window whenever you change payload schema or deterministic semantics.
+   - Use deterministic effect id factories such as `"{changeId}/seq/{sequenceNumber}"` or `"{changeId}/resource/{payload.ResourceId}/seq/{sequenceNumber}"` if you need per-resource replay.
+   - During migrations, run dual writes: capture under `changeId.v1` and `changeId.v2` until all nodes are upgraded, then toggle the dispatcher to the new ID.
+4. **Operations & monitoring**
+   - Instrument `TryAdd` success/failure counts, read/write latency, and storage utilization per store. Unexpected `TryAdd=false` spikes usually indicate duplicate replication events or version mismatches.
+   - Include deterministic stores in your backup story (same cadence as replication DBs). To restore, replay the replication log through the new store and rebuild deterministic gates before resuming leases.
+
+### Peer Chooser Integrations
+1. **Surface lease health via diagnostics**
+   - When the diagnostics control plane is enabled and at least one `IPeerHealthSnapshotProvider` is registered, OmniRelay automatically exposes `/omnirelay/control/lease-health`. The endpoint returns a `PeerLeaseHealthDiagnostics` payload with per-peer snapshots plus summary counts (`eligible`, `unhealthy`, `pendingReassignments`) for dashboards.
+   - Hosting your own control surface? Reuse the same helper so payloads stay consistent:
+     ```csharp
+     app.MapGet("/diagnostics/lease-health", (PeerLeaseHealthTracker tracker) =>
+         Results.Json(PeerLeaseHealthDiagnostics.FromSnapshots(tracker.Snapshot())));
+     ```
+   - Annotate each snapshot with node metadata (region, build SHA) so fleet-wide dashboards can correlate unhealthy peers with deployments.
+2. **Feed choosers with live data**
+   - Update peer-chooser constructors (e.g., `FewestPendingPeerChooser`, `RoundRobinPeerChooser`) to accept a `PeerLeaseHealthTracker` or `IPeerHealthSnapshotProvider`. Before selecting a peer, call `IsPeerEligible(peerId)` to skip nodes without recent heartbeats.
+   - Maintain a background task that subscribes to the diagnostics endpoint across the fleet and caches snapshots inside existing routing components (e.g., `PeerListCoordinator`). This allows choosers embedded in other services (gateways, orchestrators) to reuse the same health view.
+3. **Testing guidance**
+   - **Unit tests**: Simulate heartbeat/eviction flows by creating a `PeerLeaseHealthTracker`, recording heartbeats, failures, and requeues, then asserting that choosers skip unhealthy peers until a fresh heartbeat arrives.
+   - **Integration tests**: Spin up multiple dispatcher instances with short heartbeat grace periods. Kill one node (or stop sending heartbeats) and assert that:
+     1. Diagnostics endpoint shows the peer as `IsHealthy=false`.
+     2. Peer chooser stops routing work to that peer.
+     3. After resuming heartbeats, the peer is eligible again.
+   - Run chaos-style tests that randomly drop heartbeats or inject duplicate lease assignments, validating that replication events + health tracker stay consistent.
+4. **Operational hooks**
+   - Expose derived metrics (`omnirelay.peer.unhealthy`, `omnirelay.peer.evictions`) so SREs can spot cluster-wide issues quickly.
+   - Provide CLI/UX tools that query the diagnostics endpoint and show a ranked list of peers (`pending leases`, `last heartbeat`, `disconnect reason`) to speed up incident response.

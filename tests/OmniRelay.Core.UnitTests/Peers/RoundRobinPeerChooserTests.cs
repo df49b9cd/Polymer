@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Hugo;
@@ -50,6 +51,54 @@ public class RoundRobinPeerChooserTests
         var p1 = Substitute.For<IPeer>(); p1.Identifier.Returns("p1"); p1.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p1.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
         var p2 = Substitute.For<IPeer>(); p2.Identifier.Returns("p2"); p2.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p2.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
         var chooser = new RoundRobinPeerChooser(p1, p2);
+        var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
+        Assert.True(res.IsFailure);
+        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async Task HealthProviderSkipsIneligiblePeers()
+    {
+        var unhealthy = Substitute.For<IPeer>();
+        unhealthy.Identifier.Returns("p1");
+        unhealthy.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null));
+        unhealthy.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
+
+        var healthy = Substitute.For<IPeer>();
+        healthy.Identifier.Returns("p2");
+        healthy.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null));
+        healthy.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
+
+        var provider = Substitute.For<IPeerHealthSnapshotProvider>();
+        provider.IsPeerEligible("p1").Returns(false);
+        provider.IsPeerEligible("p2").Returns(true);
+        provider.Snapshot().Returns(ImmutableArray<PeerLeaseHealthSnapshot>.Empty);
+
+        var chooser = new RoundRobinPeerChooser(new[] { unhealthy, healthy }, provider);
+        var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
+        Assert.True(res.IsSuccess);
+        Assert.Same(healthy, res.Value.Peer);
+        await res.Value.DisposeAsync();
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async Task HealthProviderAllIneligible_ReturnsResourceExhausted()
+    {
+        var p1 = Substitute.For<IPeer>();
+        p1.Identifier.Returns("p1");
+        p1.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null));
+        p1.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
+
+        var p2 = Substitute.For<IPeer>();
+        p2.Identifier.Returns("p2");
+        p2.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null));
+        p2.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
+
+        var provider = Substitute.For<IPeerHealthSnapshotProvider>();
+        provider.IsPeerEligible(Arg.Any<string>()).Returns(false);
+        provider.Snapshot().Returns(ImmutableArray<PeerLeaseHealthSnapshot>.Empty);
+
+        var chooser = new RoundRobinPeerChooser(new[] { p1, p2 }, provider);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
         Assert.True(res.IsFailure);
         Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));

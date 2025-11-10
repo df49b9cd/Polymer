@@ -8,7 +8,7 @@ namespace OmniRelay.Core.Peers;
 /// <summary>
 /// Tracks SafeTaskQueue lease heartbeats and membership gossip for metadata peers.
 /// </summary>
-public sealed class PeerLeaseHealthTracker
+public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
 {
     private readonly ConcurrentDictionary<string, PeerLeaseHealthState> _states = new(StringComparer.Ordinal);
     private readonly TimeSpan _heartbeatGracePeriod;

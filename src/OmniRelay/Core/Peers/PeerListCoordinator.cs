@@ -18,11 +18,11 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     private readonly List<IPeer> _availablePeers = [];
     private readonly PeerAvailabilitySignal _availabilitySignal;
     private readonly TimeProvider _timeProvider;
-    private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
+    private readonly IPeerHealthSnapshotProvider? _leaseHealthProvider;
     private bool _disposed;
 
     public PeerListCoordinator(IEnumerable<IPeer> peers)
-        : this(peers, null, TimeProvider.System)
+        : this(peers, leaseHealthProvider: null, TimeProvider.System)
     {
     }
 
@@ -32,15 +32,25 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     }
 
     public PeerListCoordinator(IEnumerable<IPeer> peers, PeerLeaseHealthTracker? leaseHealthTracker, TimeProvider? timeProvider)
+        : this(peers, (IPeerHealthSnapshotProvider?)leaseHealthTracker, timeProvider)
+    {
+    }
+
+    public PeerListCoordinator(IEnumerable<IPeer> peers, IPeerHealthSnapshotProvider? leaseHealthProvider)
+        : this(peers, leaseHealthProvider, TimeProvider.System)
+    {
+    }
+
+    public PeerListCoordinator(IEnumerable<IPeer> peers, IPeerHealthSnapshotProvider? leaseHealthProvider, TimeProvider? timeProvider)
     {
         _timeProvider = timeProvider ?? TimeProvider.System;
-        _leaseHealthTracker = leaseHealthTracker;
+        _leaseHealthProvider = leaseHealthProvider;
         _availabilitySignal = new PeerAvailabilitySignal(_timeProvider);
         UpdatePeers(peers);
     }
 
     public ImmutableArray<PeerLeaseHealthSnapshot> LeaseHealth =>
-        _leaseHealthTracker?.Snapshot() ?? ImmutableArray<PeerLeaseHealthSnapshot>.Empty;
+        _leaseHealthProvider?.Snapshot() ?? ImmutableArray<PeerLeaseHealthSnapshot>.Empty;
 
     public void UpdatePeers(IEnumerable<IPeer> peers)
     {
@@ -287,7 +297,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
 
             attempted = true;
 
-            if (_leaseHealthTracker is not null && !_leaseHealthTracker.IsPeerEligible(candidate.Identifier))
+            if (_leaseHealthProvider is not null && !_leaseHealthProvider.IsPeerEligible(candidate.Identifier))
             {
                 PeerMetrics.RecordLeaseRejected(meta, candidate.Identifier, "lease_unhealthy");
                 continue;
