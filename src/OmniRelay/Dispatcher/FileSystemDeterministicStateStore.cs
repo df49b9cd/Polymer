@@ -1,0 +1,111 @@
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using Hugo;
+
+namespace OmniRelay.Dispatcher;
+
+/// <summary>
+/// Stores deterministic records as JSON documents on the filesystem.
+/// </summary>
+public sealed class FileSystemDeterministicStateStore : IDeterministicStateStore
+{
+    private readonly string _root;
+    private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly ReaderWriterLockSlim _lock = new();
+
+    public FileSystemDeterministicStateStore(string rootDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(rootDirectory))
+        {
+            throw new ArgumentException("Root directory is required.", nameof(rootDirectory));
+        }
+
+        _root = Path.GetFullPath(rootDirectory);
+        Directory.CreateDirectory(_root);
+    }
+
+    public bool TryGet(string key, out DeterministicRecord record)
+    {
+        var path = GetPath(key);
+        _lock.EnterReadLock();
+        try
+        {
+            if (!File.Exists(path))
+            {
+                record = null!;
+                return false;
+            }
+
+            var json = File.ReadAllText(path, Encoding.UTF8);
+            var model = JsonSerializer.Deserialize<RecordModel>(json, _jsonOptions)!;
+            record = model.ToRecord();
+            return true;
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    public void Set(string key, DeterministicRecord record)
+    {
+        var path = GetPath(key);
+        var model = RecordModel.FromRecord(record);
+        var json = JsonSerializer.Serialize(model, _jsonOptions);
+
+        _lock.EnterWriteLock();
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, json, Encoding.UTF8);
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    public bool TryAdd(string key, DeterministicRecord record)
+    {
+        var path = GetPath(key);
+        var model = RecordModel.FromRecord(record);
+        var json = JsonSerializer.Serialize(model, _jsonOptions);
+
+        _lock.EnterWriteLock();
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            using var writer = new StreamWriter(stream, Encoding.UTF8);
+            writer.Write(json);
+            return true;
+        }
+        catch (IOException) when (File.Exists(path))
+        {
+            return false;
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    private string GetPath(string key)
+    {
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+        var directory = Path.Combine(_root, hash[..2]);
+        return Path.Combine(directory, $"{hash}.json");
+    }
+
+    private sealed record RecordModel(string Kind, int Version, DateTimeOffset RecordedAt, byte[] Payload)
+    {
+        public DeterministicRecord ToRecord() => new(Kind, Version, Payload, RecordedAt);
+
+        public static RecordModel FromRecord(DeterministicRecord record) =>
+            new(record.Kind, record.Version, record.RecordedAt, record.Payload.ToArray());
+    }
+}

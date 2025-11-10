@@ -22,7 +22,9 @@ This document outlines how to operate OmniRelay as a self-healing, peer-aware RP
    - Share a `PeerLeaseHealthTracker` across dispatchers and peer choosers (`RoundRobinPeerChooser`, `FewestPendingPeerChooser`, etc.) so lease assignments/heartbeats update cluster health.
 3. **Replication + Deterministic Capture**
    - Plug an `IResourceLeaseReplicator` (e.g., `InMemoryResourceLeaseReplicator` or a custom sink) into each component to sequence every queue mutation.
+   - Use the new durable replicators when you need persistence beyond process memory: `SqliteResourceLeaseReplicator` (writes inside a SQLite database), `ObjectStorageResourceLeaseReplicator` (emits JSON blobs to S3/GCS/Azure-compatible stores via `IResourceLeaseObjectStore`), or `GrpcResourceLeaseReplicator` (ships events to a remote `ResourceLeaseReplicatorGrpc` service while still applying local sinks).
    - Optionally add `DeterministicResourceLeaseCoordinator` (via `ResourceLeaseDeterministicOptions`) so the same ordered events are persisted in an effect store for replay.
+   - Harden deterministic capture by swapping in the production adapters: `SqliteDeterministicStateStore` for lightweight SQL durability and `FileSystemDeterministicStateStore` for human-inspectable JSON blobs on disk. Both satisfy `IDeterministicStateStore` and drop in without touching dispatcher code.
 4. **Backpressure + Metrics**
    - Configure `TaskQueueOptions.Backpressure` thresholds and wire an `IResourceLeaseBackpressureListener` to fan out pause/resume signals to upstream throttles.
    - Emit `ResourceLeaseMetrics` (`pending`, `active`, `backpressure.transitions`) to whichever telemetry sink each node exposes.
@@ -85,8 +87,9 @@ OmniRelay already supplies the core pieces (SafeTaskQueue, replication, health g
    - Payloads require the `ResourceType`/`ResourceId` identity pair so resources are unambiguous.
    - Namespace/table fields have been removed entirely to avoid conflicting semantics.
 2. **Productionize replication/deterministic stores**
-   - Deliver durable `IResourceLeaseReplicator` implementations (SQL/gRPC/object storage) plus hardened `IDeterministicStateStore` adapters.
-   - Make them opt-in via configuration so services can migrate one by one.
+   - Durable `IResourceLeaseReplicator` implementations now ship in-box: `SqliteResourceLeaseReplicator`, `GrpcResourceLeaseReplicator`, and `ObjectStorageResourceLeaseReplicator`.
+   - `SqliteDeterministicStateStore` and `FileSystemDeterministicStateStore` provide hardened `IDeterministicStateStore` adapters. Wire them through `ResourceLeaseDeterministicOptions` when deterministic capture is enabled.
+   - Configuration remains opt-in so clusters can switch from the in-memory defaults gradually.
 3. **Expose mesh diagnostics + tooling**
    - Add health/metrics endpoints (peer health snapshots, backpressure state, replication checkpoints) and CLI/admin tools for drain/restore/lease inspection.
    - Provide scripts/operators for zero-downtime deployment/upgrade of the dispatcher component.
@@ -104,8 +107,7 @@ OmniRelay already supplies the core pieces (SafeTaskQueue, replication, health g
 1. **Mesh Deployment Guide**
    - Document step-by-step instructions for running ResourceLease dispatcher + middleware stack on every metadata node (install, config, health endpoints).
 2. **Shared Replication Hub**
-   - Implement a production-grade `IResourceLeaseReplicator` that persists the ordered log (e.g., gRPC streaming or SQL-backed) and supports fan-out across processes.
-   - Provide configuration samples wiring Dispatcher options to that replicator.
+   - Harden the new durable replicators with operational guides (backup/restore, schema migrations) and sample configurations that wire dispatcher options to SQLite/object-store/gRPC hubs in single- and multi-region layouts.
 3. **Deterministic Store Providers**
    - Ship plug-ins for common state stores (SQL, Cosmos DB, Redis) implementing `IDeterministicStateStore`, plus guidance for effect-id versioning policies.
 4. **Peer Chooser Integrations**

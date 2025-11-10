@@ -28,6 +28,10 @@ Use `ResourceLeaseDispatcherOptions.QueueOptions` to align lease duration, heart
 - `ResourceLeaseDispatcherOptions.Replicator` accepts an `IResourceLeaseReplicator` that sequences every enqueue/lease/heartbeat/complete/fail/drain/restore mutation and fans the ordered log to subscribers. Each `ResourceLeaseReplicationEvent` carries a monotonic `SequenceNumber`, ownership token, optional payload/error info, and queue depth metadata so every node can deterministically replay the same state.
 - `ResourceLeaseReplicationEventType` enumerates the canonical changes (`Enqueue`, `LeaseGranted`, `Heartbeat`, `Completed`, `Failed`, `DrainSnapshot`, `RestoreSnapshot`). Events are published after the SafeTaskQueue operation succeeds, ensuring replicating nodes never observe speculative mutations.
 - `InMemoryResourceLeaseReplicator` ships as a default hub: it increments the sequence number, timestamps the event, and delivers it to registered `IResourceLeaseReplicationSink` instances. `CheckpointingResourceLeaseReplicationSink` provides deduplication by discarding events with sequence numbers at or below the last applied checkpoint, which survives retries and out-of-order deliveries in streaming transports.
+- Durable implementations are available for production:
+  - `SqliteResourceLeaseReplicator` persists each event inside a SQLite database before fanning out to sinks. It automatically creates the table (customise via options) and resumes sequence numbers from the stored log after restarts.
+  - `ObjectStorageResourceLeaseReplicator` emits immutable JSON blobs to any `IResourceLeaseObjectStore` (the built-in `FileSystemResourceLeaseObjectStore` targets local disks; implement S3/GCS/Azure equivalents by implementing the interface).
+  - `GrpcResourceLeaseReplicator` forwards events to a remote `ResourceLeaseReplicatorGrpc` endpoint so operators can centralise the log while still running local sinks. See `ResourceLeaseReplication.proto` for the contract.
 - Downstream nodes can attach sinks that write to a Raft log, emit gRPC/HTTP streaming updates, or feed a `DeterministicGate` workflow. Because every event includes the `ResourceLeaseOwnershipHandle` (sequence + attempt + leaseId) the same fencing semantics described in `docs/reference/hugo-api-reference.md#task-queue-components` apply across replicas.
 
 ### Deterministic recovery tooling
@@ -35,6 +39,9 @@ Use `ResourceLeaseDispatcherOptions.QueueOptions` to align lease duration, heart
 - `ResourceLeaseDispatcherOptions.DeterministicCoordinator` (or the convenience `DeterministicOptions`) wires Hugo’s `VersionGate`, `DeterministicGate`, and `DeterministicEffectStore` directly into the replication stream. Every `ResourceLeaseReplicationEvent` is captured under a stable effect id (`{changeId}/seq/{sequenceNumber}` by default), so if a node fails mid-flight the effect store guarantees the same sequence is replayed exactly once when it resumes.
 - `ResourceLeaseDeterministicOptions` accepts any `IDeterministicStateStore`, letting you persist coordination metadata in SQL, Cosmos DB, Redis, etc. Override `ChangeId`, `MinVersion`, `MaxVersion`, or `EffectIdFactory` to align with existing rollout/version policies.
 - When the dispatcher publishes an event it flows through the deterministic coordinator before returning to callers. Combined with the replication log this provides a single source of truth for lease state, replay-safe compensations, and auditable history without building a separate workflow engine.
+- Use the hardened adapters when wiring deterministic capture in production:
+  - `SqliteDeterministicStateStore` stores state in a SQLite table (`DeterministicStateStore` by default) using optimistic inserts for `TryAdd`. Ideal for embedded deployments or single-node control planes.
+  - `FileSystemDeterministicStateStore` writes JSON blobs (keyed by the SHA-256 hash) to the filesystem so diagnostics can be inspected with standard tooling. Because each record is immutable, deterministic replays tolerate process crashes or machine restarts.
 
 ### Backpressure + flow control
 
