@@ -30,6 +30,7 @@
     <Compile Include="../OmniRelay.Codegen.Tests/Generated/TestService.OmniRelay.g.cs" Link="Support/Generated/TestService.OmniRelay.g.cs" />
     <Compile Include="../TestSupport/Http3FactAttribute.cs" Link="Support/Http3FactAttribute.cs" />
     <Compile Include="../TestSupport/Http3TestHelper.cs" Link="Support/Http3TestHelper.cs" />
+    <Compile Include="../OmniRelay.Tests/Support/TestRuntimeConfigurator.cs" Link="Support/TestRuntimeConfigurator.cs" />
     <Compile Include="../OmniRelay.IntegrationTests/Support/TestCertificateFactory.cs" Link="Support/TestCertificateFactory.cs" />
     <Compile Include="../OmniRelay.IntegrationTests/Support/HostedProtocolCaptureInterceptor.cs" Link="Support/HostedProtocolCaptureInterceptor.cs" />
     <Compile Include="../OmniRelay.IntegrationTests/Support/GeneratedTestService.cs" Link="Support/GeneratedTestService.cs" />
