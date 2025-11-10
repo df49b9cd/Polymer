@@ -178,6 +178,9 @@ public abstract class CheckpointingResourceLeaseReplicationSink : IResourceLease
             }
         }
 
+        var lagMilliseconds = (DateTimeOffset.UtcNow - replicationEvent.Timestamp).TotalMilliseconds;
+        ResourceLeaseReplicationMetrics.RecordReplicationLag(replicationEvent, lagMilliseconds);
+
         await ApplyInternalAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
 
         Interlocked.Exchange(ref _globalCheckpoint, replicationEvent.SequenceNumber);

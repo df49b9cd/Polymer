@@ -122,7 +122,7 @@ OmniRelay already supplies the core pieces (SafeTaskQueue, replication, health g
 6. **Sharding Strategy**
    - Use the new sharding guidance (see “Sharding Strategy” below) plus helpers like `ShardedResourceLeaseReplicator` and `CompositeResourceLeaseReplicator` to fan out work across multiple ResourceLease namespaces while keeping replication streams aggregated with shard metadata.
 7. **Mesh Health Dashboard**
-   - Define standard metrics/OTLP spans for lease depth, replication lag, peer health, and backpressure, plus dashboards/alerts for mesh operators.
+   - Wire the standard metrics (lease depth, replication lag, peer health, backpressure) and OTLP spans described in “Mesh Health Dashboard” so operators can triage mesh hot spots in seconds with shared dashboards + alerts.
 8. **Failure Drills**
    - Create playbooks + automated tests that simulate peer loss, partition, and recovery to validate that replication and deterministic replay avoid split-brain.
 9. **Resource-Lease Adoption Kit**
@@ -315,3 +315,20 @@ Tracking these TODO items will take the existing ResourceLease + health + replic
 4. **Share monitoring + control planes**
    - Surface each shard’s backpressure/status through the same diagnostics runtime. Reuse the `ResourceLeaseBackpressureDiagnosticsListener` and include the shard id in every payload (`Metadata["shard.id"]`) so dashboards can highlight which queue is under pressure.
    - When draining or restoring shards independently, use the `Namespace`-qualified procedures to target a single queue without pausing the rest of the mesh. Document shard-specific RPO/RTO (e.g., `resourcelease.billing` might use SQLite durability while `resourcelease.ml-jobs` points at an object-store replicator).
+
+### Mesh Health Dashboard
+1. **Lease depth & backpressure**
+   - Metrics: `omnirelay.resourcelease.pending`, `omnirelay.resourcelease.active`, and `omnirelay.resourcelease.backpressure.transitions` (all emitted by `ResourceLeaseMetrics`). Plot pending/active as gauges with shard/service tags and alert when pending stays above 80% of the high watermark or when transitions spike.
+   - Add a per-shard SLO card: “Time spent under backpressure < 1% over 30m”. Trigger paging alerts when `backpressure.transitions` exceeds a baseline or when a shard’s pending histogram shows p95 > high watermark for more than two intervals.
+2. **Peer health**
+   - Metrics: `omnirelay.peer.lease.healthy`, `omnirelay.peer.lease.unhealthy`, `omnirelay.peer.lease.pending_reassignments` (observable gauges updated whenever `PeerLeaseHealthTracker.Snapshot()` runs) plus existing `omnirelay.peer.lease_assignments`, `omnirelay.peer.lease_disconnects`.
+   - Dashboards: stacked bar showing healthy vs unhealthy peers per region/service; table with pending reassignments. Alerts: unhealthy peers > 0 for N minutes or pending reassignments keeps growing, indicating peers stuck mid-work.
+3. **Replication lag & volume**
+   - Metrics: `omnirelay.resourcelease.replication.events` counter and `omnirelay.resourcelease.replication.lag` histogram (recorded when checkpointing sinks apply events). Monitor p95/p99 lag per shard and raise alerts when lag exceeds lease timeout or drifts steadily upward.
+   - Overlay shard.id and event type tags to distinguish enqueue spikes from drain/restore operations.
+4. **Tracing + span tags**
+   - `RpcTracingMiddleware` already emits spans via `ActivitySource("OmniRelay.Rpc")` with tags like `rpc.service`, `rpc.peer`, `rpc.shard_key`, and `rpc.principal`. Pair those with a custom `resourcelease.operation` tag (add via middleware when calling ResourceLease procedures) so distributed traces show queue wait vs execution time.
+   - Recommended alert: “Lease RPC latency p95 > 1s with `rpc.shard_key=hash-03`” correlates with pending depth and replication lag charts to highlight hot shards.
+5. **Dashboards & alerts to ship**
+   - Overview board: per-shard pending/active gauges, healthy/unhealthy peer counts, replication lag heatmap, backpressure transition timeline.
+   - Alert catalog: (a) Pending depth > 90% of high watermark for 5m, (b) Replication lag > lease duration for any shard, (c) Unhealthy peers >= 1 for 3m, (d) Backpressure toggling more than X times/hour (thrash indicator). Include runbooks referencing drain/restore, shard routing, and peer eviction procedures.

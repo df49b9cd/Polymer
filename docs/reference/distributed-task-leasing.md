@@ -73,6 +73,8 @@ Use `ResourceLeaseDispatcherOptions.QueueOptions` to align lease duration, heart
         listener.Latest is { } latest ? Results.Json(latest) : Results.NoContent());
     ```
 - `ResourceLeaseMetrics` emits `omnirelay.resourcelease.pending`, `omnirelay.resourcelease.active`, and `omnirelay.resourcelease.backpressure.transitions` so dashboards can visualize queue depth and backpressure churn over time.
+- `PeerLeaseHealthTracker` updates observable gauges `omnirelay.peer.lease.healthy`, `omnirelay.peer.lease.unhealthy`, and `omnirelay.peer.lease.pending_reassignments` each time `Snapshot()` runs, providing per-node peer-health insight without bespoke exporters.
+- Replication components emit `omnirelay.resourcelease.replication.events` (per-event counter) and `omnirelay.resourcelease.replication.lag` (histogram of ms elapsed between event timestamp and sink application) so operators can alert on lag or shard-specific anomalies.
 
 ### Sharding strategy
 

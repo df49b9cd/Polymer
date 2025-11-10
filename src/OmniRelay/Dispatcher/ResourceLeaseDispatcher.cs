@@ -527,6 +527,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             payload,
             error,
             metadata);
+        ResourceLeaseReplicationMetrics.RecordReplicationEvent(replicationEvent);
 
         if (_replicator is not null)
         {

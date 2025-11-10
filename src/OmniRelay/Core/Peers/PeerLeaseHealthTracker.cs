@@ -79,13 +79,29 @@ public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
     {
         var now = _timeProvider.GetUtcNow();
         var builder = ImmutableArray.CreateBuilder<PeerLeaseHealthSnapshot>(_states.Count);
+        var healthyCount = 0;
+        var unhealthyCount = 0;
+        var pendingReassignments = 0;
 
         foreach (var state in _states.Values)
         {
-            builder.Add(state.ToSnapshot(now, _heartbeatGracePeriod));
+            var snapshot = state.ToSnapshot(now, _heartbeatGracePeriod);
+            builder.Add(snapshot);
+            if (snapshot.IsHealthy)
+            {
+                healthyCount++;
+            }
+            else
+            {
+                unhealthyCount++;
+            }
+
+            pendingReassignments += snapshot.PendingReassignments;
         }
 
-        return builder.ToImmutable();
+        var snapshots = builder.ToImmutable();
+        PeerLeaseHealthMetrics.UpdateSnapshot(healthyCount, unhealthyCount, pendingReassignments);
+        return snapshots;
     }
 
     private PeerLeaseHealthState GetOrCreateState(string peerId) =>
