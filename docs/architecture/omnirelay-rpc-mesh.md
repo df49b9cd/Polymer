@@ -20,6 +20,31 @@ This document outlines how to operate OmniRelay as a self-healing, peer-aware RP
 - Replication ensures all nodes replay the same ordered mutations so recovery is deterministic and split-brain free.
 - Backpressure and telemetry keep the mesh resilient under load spikes.
 
+### Distributed sample project
+- `samples/ResourceLease.MeshDemo` now ships role toggles (`meshDemo.roles`) so you can split the dispatcher, diagnostics control plane, seeders, and workers across multiple processes or machines.
+- Launch the dispatcher with diagnostics enabled to host the mesh endpoints and control-plane helpers:
+  ```bash
+  dotnet run --project samples/ResourceLease.MeshDemo -- \
+    --meshDemo:roles=dispatcher,diagnostics \
+    --meshDemo:rpcUrl=http://0.0.0.0:7420 \
+    --urls=http://0.0.0.0:5158
+  ```
+- Start a seeder pointing at the dispatcher URL to keep work flowing into the queue:
+  ```bash
+  dotnet run --project samples/ResourceLease.MeshDemo -- \
+    --meshDemo:roles=seeder \
+    --meshDemo:rpcUrl=http://127.0.0.1:7420
+  ```
+- Spin up as many workers as needed, each with a unique `workerPeerId`, to observe peer health gossip, replication logs, and backpressure while leases move between peers:
+  ```bash
+  dotnet run --project samples/ResourceLease.MeshDemo -- \
+    --meshDemo:roles=worker \
+    --meshDemo:rpcUrl=http://127.0.0.1:7420 \
+    --meshDemo:workerPeerId=mesh-worker-a
+  ```
+- The diagnostics node continues to serve `/demo/lease-health`, `/demo/backpressure`, `/demo/replication`, and `/demo/enqueue`, making it easy to showcase the mesh features described in this document without standing up additional infrastructure.
+- Prefer `docker compose up --build` (run from `samples/ResourceLease.MeshDemo`) to boot a full mesh lab with Prometheus + Grafana dashboards. The Dockerfile publishes a Linux `linux-x64` Native AOT image so containers start instantly. The dispatcher container exposes RPCs on `localhost:7420`, diagnostics on `localhost:5158`, Prometheus lives on `9090`, and Grafana ships a pre-provisioned **ResourceLease Mesh Overview** dashboard under the **OmniRelay** folder.
+
 ### Core Building Blocks
 1. **Resource Lease Dispatcher Component**
    - The `ResourceLeaseDispatcherComponent` models a generic work-queue item (`ResourceLeaseWorkItem` + `ResourceLeaseItemPayload`). The payload carries the explicit `ResourceType`/`ResourceId` pair (plus partition key, attributes, opaque body, and request id) so workflows, ingestion, ML jobs, or any arbitrary domain can participate without translating into table semantics.

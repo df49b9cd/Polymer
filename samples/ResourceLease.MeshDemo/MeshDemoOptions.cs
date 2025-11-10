@@ -16,6 +16,14 @@ public sealed class MeshDemoOptions
 
     public double SeederIntervalSeconds { get; set; } = 5;
 
+    public string[] Roles { get; set; } = new[]
+    {
+        nameof(MeshDemoRole.Dispatcher),
+        nameof(MeshDemoRole.Seeder),
+        nameof(MeshDemoRole.Worker),
+        nameof(MeshDemoRole.Diagnostics)
+    };
+
     public Uri GetRpcBaseUri()
     {
         var baseUri = RpcUrl.EndsWith("/", StringComparison.Ordinal)

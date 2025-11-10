@@ -9,4 +9,10 @@
     <ProjectReference Include="..\..\src\OmniRelay\OmniRelay.csproj" />
     <ProjectReference Include="..\..\src\OmniRelay.ResourceLeaseReplicator.Sqlite\OmniRelay.ResourceLeaseReplicator.Sqlite.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+  </ItemGroup>
 </Project>

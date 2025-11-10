@@ -1,8 +1,11 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using OmniRelay.Core.Peers;
 using OmniRelay.Dispatcher;
 using OmniRelay.Samples.ResourceLease.MeshDemo;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,106 +13,182 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnCh
 builder.Configuration.AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 builder.Configuration.AddEnvironmentVariables(prefix: "MESHDEMO_");
 
-builder.Services.Configure<MeshDemoOptions>(builder.Configuration.GetSection("meshDemo"));
+var meshDemoSection = builder.Configuration.GetSection("meshDemo");
+var bootstrapOptions = new MeshDemoOptions();
+meshDemoSection.Bind(bootstrapOptions);
+var activeRoles = MeshDemoRoleExtensions.ResolveRoles(bootstrapOptions.Roles);
 
-builder.Services.AddSingleton(sp =>
+if (activeRoles.HasRole(MeshDemoRole.Diagnostics) && !activeRoles.HasRole(MeshDemoRole.Dispatcher))
 {
-    var options = sp.GetRequiredService<IOptions<MeshDemoOptions>>().Value;
-    return MeshDemoPaths.Create(options);
-});
+    throw new InvalidOperationException("Diagnostics role requires the dispatcher role.");
+}
 
-builder.Services.AddSingleton<PeerLeaseHealthTracker>();
-builder.Services.AddSingleton<BackpressureAwareRateLimiter>(sp =>
+builder.Services.Configure<MeshDemoOptions>(meshDemoSection);
+ConfigureMeshMetrics(builder, bootstrapOptions);
+
+if (activeRoles.HasRole(MeshDemoRole.Dispatcher))
 {
-    var limiter = new BackpressureAwareRateLimiter(
-        normalLimiter: BackpressureLimiterFactory.Create(permitLimit: 32),
-        backpressureLimiter: BackpressureLimiterFactory.Create(permitLimit: 4));
-    return limiter;
-});
+    builder.Services.AddSingleton(sp =>
+    {
+        var options = sp.GetRequiredService<IOptions<MeshDemoOptions>>().Value;
+        return MeshDemoPaths.Create(options);
+    });
 
-builder.Services.AddSingleton<ResourceLeaseBackpressureDiagnosticsListener>();
-builder.Services.AddSingleton<IResourceLeaseBackpressureListener>(sp =>
-    sp.GetRequiredService<ResourceLeaseBackpressureDiagnosticsListener>());
-builder.Services.AddSingleton<IResourceLeaseBackpressureListener>(sp =>
-    new RateLimitingBackpressureListener(
-        sp.GetRequiredService<BackpressureAwareRateLimiter>(),
-        sp.GetRequiredService<ILogger<RateLimitingBackpressureListener>>()));
+    builder.Services.AddSingleton<PeerLeaseHealthTracker>();
+    builder.Services.AddSingleton<BackpressureAwareRateLimiter>(sp =>
+    {
+        var limiter = new BackpressureAwareRateLimiter(
+            normalLimiter: BackpressureLimiterFactory.Create(permitLimit: 32),
+            backpressureLimiter: BackpressureLimiterFactory.Create(permitLimit: 4));
+        return limiter;
+    });
 
-builder.Services.AddSingleton<MeshReplicationLog>();
-builder.Services.AddSingleton<IResourceLeaseReplicationSink>(sp =>
-    new MeshReplicationLogSink(sp.GetRequiredService<MeshReplicationLog>()));
+    if (activeRoles.HasRole(MeshDemoRole.Diagnostics))
+    {
+        builder.Services.AddSingleton<ResourceLeaseBackpressureDiagnosticsListener>();
+        builder.Services.AddSingleton<IResourceLeaseBackpressureListener>(sp =>
+            sp.GetRequiredService<ResourceLeaseBackpressureDiagnosticsListener>());
+        builder.Services.AddSingleton<MeshReplicationLog>();
+        builder.Services.AddSingleton<IResourceLeaseReplicationSink>(sp =>
+            new MeshReplicationLogSink(sp.GetRequiredService<MeshReplicationLog>()));
+    }
 
-builder.Services.AddSingleton(sp =>
+    builder.Services.AddSingleton<IResourceLeaseBackpressureListener>(sp =>
+        new RateLimitingBackpressureListener(
+            sp.GetRequiredService<BackpressureAwareRateLimiter>(),
+            sp.GetRequiredService<ILogger<RateLimitingBackpressureListener>>()));
+
+    builder.Services.AddSingleton(sp =>
+    {
+        var paths = sp.GetRequiredService<MeshDemoPaths>();
+        var sinks = sp.GetServices<IResourceLeaseReplicationSink>();
+        return new SqliteResourceLeaseReplicator(paths.ReplicationConnectionString, tableName: "LeaseEvents", sinks: sinks);
+    });
+
+    builder.Services.AddSingleton(sp =>
+    {
+        var paths = sp.GetRequiredService<MeshDemoPaths>();
+        return new SqliteDeterministicStateStore(paths.DeterministicConnectionString);
+    });
+
+    builder.Services.AddSingleton<MeshDispatcherHostedService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<MeshDispatcherHostedService>());
+}
+
+if (activeRoles.HasRole(MeshDemoRole.Seeder) ||
+    activeRoles.HasRole(MeshDemoRole.Worker) ||
+    activeRoles.HasRole(MeshDemoRole.Diagnostics))
 {
-    var paths = sp.GetRequiredService<MeshDemoPaths>();
-    var sinks = sp.GetServices<IResourceLeaseReplicationSink>();
-    return new SqliteResourceLeaseReplicator(paths.ReplicationConnectionString, tableName: "LeaseEvents", sinks: sinks);
-});
+    builder.Services.AddHttpClient<ResourceLeaseHttpClient>((sp, httpClient) =>
+    {
+        var options = sp.GetRequiredService<IOptions<MeshDemoOptions>>().Value;
+        httpClient.BaseAddress = options.GetRpcBaseUri();
+        httpClient.Timeout = Timeout.InfiniteTimeSpan;
+    });
+}
 
-builder.Services.AddSingleton(sp =>
+if (activeRoles.HasRole(MeshDemoRole.Seeder))
 {
-    var paths = sp.GetRequiredService<MeshDemoPaths>();
-    return new SqliteDeterministicStateStore(paths.DeterministicConnectionString);
-});
+    builder.Services.AddHostedService<LeaseSeederHostedService>();
+}
 
-builder.Services.AddSingleton<MeshDispatcherHostedService>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<MeshDispatcherHostedService>());
-
-builder.Services.AddHttpClient<ResourceLeaseHttpClient>((sp, httpClient) =>
+if (activeRoles.HasRole(MeshDemoRole.Worker))
 {
-    var options = sp.GetRequiredService<IOptions<MeshDemoOptions>>().Value;
-    httpClient.BaseAddress = options.GetRpcBaseUri();
-    httpClient.Timeout = Timeout.InfiniteTimeSpan;
-});
-
-builder.Services.AddHostedService<LeaseSeederHostedService>();
-builder.Services.AddHostedService<LeaseWorkerHostedService>();
+    builder.Services.AddHostedService<LeaseWorkerHostedService>();
+}
 
 var app = builder.Build();
 
-app.MapGet("/", () => Results.Text("""
-OmniRelay ResourceLease Mesh Demo
-
-Key endpoints:
-- POST /demo/enqueue            -> enqueue sample work items without CLI
-- GET  /demo/lease-health       -> PeerLeaseHealthTracker snapshot (JSON)
-- GET  /demo/backpressure       -> Last backpressure signal (JSON)
-- GET  /demo/replication        -> Recent replication events (JSON)
-
-RPC endpoints:
-- ResourceLease dispatcher listens on http://127.0.0.1:7420/yarpc/v1 (namespace resourcelease.mesh)
-
-Try commands:
-  omnirelay request --transport http --url http://127.0.0.1:7420/yarpc/v1 \
-    --service resourcelease-mesh-demo \
-    --procedure resourcelease.mesh::enqueue \
-    --encoding application/json \
-    --body '{"payload":{"resourceType":"demo","resourceId":"cli","partitionKey":"cli","payloadEncoding":"json","body":"eyJtZXNzYWdlIjoiY2xpIn0="}}'
-"""));
-
-app.MapPost("/demo/enqueue", async (MeshEnqueueRequest request, ResourceLeaseHttpClient client, CancellationToken ct) =>
+app.MapGet("/", (IOptions<MeshDemoOptions> optionsAccessor) =>
 {
-    var payload = request.ToPayload();
-    var response = await client.EnqueueAsync(payload, ct);
-    return Results.Json(response, MeshJson.Options);
+    var banner = BuildBanner(optionsAccessor.Value, activeRoles);
+    return Results.Text(banner);
 });
 
-app.MapGet("/demo/lease-health", (PeerLeaseHealthTracker tracker) =>
+if (activeRoles.HasRole(MeshDemoRole.Diagnostics))
 {
-    var snapshots = tracker.Snapshot();
-    return Results.Json(PeerLeaseHealthDiagnostics.FromSnapshots(snapshots), MeshJson.Options);
-});
+    app.MapPost("/demo/enqueue", async (MeshEnqueueRequest request, ResourceLeaseHttpClient client, CancellationToken ct) =>
+    {
+        var payload = request.ToPayload();
+        var response = await client.EnqueueAsync(payload, ct).ConfigureAwait(false);
+        return Results.Json(response, MeshJson.Options);
+    });
 
-app.MapGet("/demo/backpressure", (ResourceLeaseBackpressureDiagnosticsListener listener) =>
-{
-    return listener.Latest is { } latest
-        ? Results.Json(latest, MeshJson.Options)
-        : Results.NoContent();
-});
+    app.MapGet("/demo/lease-health", (PeerLeaseHealthTracker tracker) =>
+    {
+        var snapshots = tracker.Snapshot();
+        return Results.Json(PeerLeaseHealthDiagnostics.FromSnapshots(snapshots), MeshJson.Options);
+    });
 
-app.MapGet("/demo/replication", (MeshReplicationLog log) =>
-{
-    return Results.Json(log.GetRecent(), MeshJson.Options);
-});
+    app.MapGet("/demo/backpressure", (ResourceLeaseBackpressureDiagnosticsListener listener) =>
+    {
+        return listener.Latest is { } latest
+            ? Results.Json(latest, MeshJson.Options)
+            : Results.NoContent();
+    });
 
+    app.MapGet("/demo/replication", (MeshReplicationLog log) =>
+    {
+        return Results.Json(log.GetRecent(), MeshJson.Options);
+    });
+}
+
+app.MapPrometheusScrapingEndpoint("/metrics");
 app.Run();
+
+static string BuildBanner(MeshDemoOptions options, MeshDemoRole roles)
+{
+    var sb = new StringBuilder();
+    sb.AppendLine("OmniRelay ResourceLease Mesh Demo");
+    sb.AppendLine();
+    sb.AppendLine($"Active roles: {roles}");
+    sb.AppendLine();
+
+    if (roles.HasRole(MeshDemoRole.Diagnostics))
+    {
+        sb.AppendLine("Key endpoints:");
+        sb.AppendLine("- POST /demo/enqueue            -> enqueue sample work items without CLI");
+        sb.AppendLine("- GET  /demo/lease-health       -> PeerLeaseHealthTracker snapshot (JSON)");
+        sb.AppendLine("- GET  /demo/backpressure       -> Last backpressure signal (JSON)");
+        sb.AppendLine("- GET  /demo/replication        -> Recent replication events (JSON)");
+        sb.AppendLine();
+    }
+    else
+    {
+        sb.AppendLine("Diagnostics endpoints are disabled on this node.");
+        sb.AppendLine();
+    }
+
+    var rpcBase = (options.RpcUrl ?? "http://127.0.0.1:7420").TrimEnd('/');
+    var ns = string.IsNullOrWhiteSpace(options.Namespace) ? "resourcelease.mesh" : options.Namespace;
+    sb.AppendLine("RPC endpoints:");
+    sb.AppendLine($"- ResourceLease dispatcher listens on {rpcBase}/yarpc/v1 (namespace {ns})");
+    sb.AppendLine();
+    sb.AppendLine("Try commands:");
+    sb.AppendLine($"  omnirelay request --transport http --url {rpcBase}/yarpc/v1 \\");
+    sb.AppendLine($"    --service {options.ServiceName ?? "resourcelease-mesh-demo"} \\");
+    sb.AppendLine($"    --procedure {ns}::enqueue \\");
+    sb.AppendLine("    --encoding application/json \\");
+    sb.AppendLine("    --body '{\"payload\":{\"resourceType\":\"demo\",\"resourceId\":\"cli\",\"partitionKey\":\"cli\",\"payloadEncoding\":\"json\",\"body\":\"eyJtZXNzYWdlIjoiY2xpIn0=\"}}'");
+    return sb.ToString();
+}
+
+static void ConfigureMeshMetrics(WebApplicationBuilder builder, MeshDemoOptions bootstrap)
+{
+    var resource = ResourceBuilder.CreateDefault()
+        .AddService(bootstrap.ServiceName ?? "resourcelease-mesh-demo");
+
+    builder.Services.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics
+                .SetResourceBuilder(resource)
+                .AddRuntimeInstrumentation()
+                .AddMeter(
+                    "OmniRelay.Dispatcher.ResourceLease",
+                    "OmniRelay.Dispatcher.ResourceLeaseReplication",
+                    "OmniRelay.Core.Peers",
+                    "OmniRelay.Transport.Http")
+                .AddPrometheusExporter();
+        });
+}
