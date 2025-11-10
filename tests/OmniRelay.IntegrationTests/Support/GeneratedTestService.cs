@@ -10,25 +10,26 @@ namespace OmniRelay.IntegrationTests.Support;
 
 internal sealed class GeneratedTestService : TestServiceOmniRelay.ITestService
 {
-    public TaskCompletionSource<RequestMeta> UnaryMeta
-    {
-        get => field;
-    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource<RequestMeta> _unaryMeta = NewProbe();
+    private TaskCompletionSource<RequestMeta> _serverStreamMeta = NewProbe();
+    private TaskCompletionSource<RequestMeta> _clientStreamMeta = NewProbe();
+    private TaskCompletionSource<RequestMeta> _duplexMeta = NewProbe();
 
-    public TaskCompletionSource<RequestMeta> ServerStreamMeta
-    {
-        get => field;
-    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource<RequestMeta> UnaryMeta => _unaryMeta;
+    public TaskCompletionSource<RequestMeta> ServerStreamMeta => _serverStreamMeta;
+    public TaskCompletionSource<RequestMeta> ClientStreamMeta => _clientStreamMeta;
+    public TaskCompletionSource<RequestMeta> DuplexMeta => _duplexMeta;
 
-    public TaskCompletionSource<RequestMeta> ClientStreamMeta
+    public void ResetProbes()
     {
-        get => field;
-    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _unaryMeta = NewProbe();
+        _serverStreamMeta = NewProbe();
+        _clientStreamMeta = NewProbe();
+        _duplexMeta = NewProbe();
+    }
 
-    public TaskCompletionSource<RequestMeta> DuplexMeta
-    {
-        get => field;
-    } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static TaskCompletionSource<RequestMeta> NewProbe() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request, CancellationToken cancellationToken)
     {

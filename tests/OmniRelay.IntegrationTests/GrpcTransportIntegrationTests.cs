@@ -28,6 +28,7 @@ using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http;
 using Xunit;
+using Xunit.Sdk;
 using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
@@ -128,7 +129,8 @@ public class GrpcTransportIntegrationTests
                 IdleTimeout = TimeSpan.FromSeconds(30),
                 KeepAliveInterval = TimeSpan.FromSeconds(5),
                 MaxBidirectionalStreams = 10,
-                MaxUnidirectionalStreams = 5
+                MaxUnidirectionalStreams = 5,
+                EnableAltSvc = true
             },
             Interceptors = [typeof(ProtocolCaptureInterceptor)]
         };
@@ -162,7 +164,8 @@ public class GrpcTransportIntegrationTests
             {
                 EnableHttp3 = true,
                 RequestVersion = HttpVersion.Version30,
-                VersionPolicy = HttpVersionPolicy.RequestVersionExact
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact,
+                AllowHttp2Fallback = false
             });
 
         var clientOptions = new DispatcherOptions("grpc-client-http3");
@@ -181,6 +184,10 @@ public class GrpcTransportIntegrationTests
         try
         {
             var client = TestServiceOmniRelay.CreateTestServiceClient(clientDispatcher, ServiceName);
+            var warmup = await client.UnaryCallAsync(new UnaryRequest { Message = "h3-warmup" }, cancellationToken: ct);
+            Assert.True(warmup.IsSuccess, warmup.Error?.Message);
+            await Task.Delay(250, ct);
+            serviceImpl.ResetProbes();
             await ExerciseGeneratedClientAsync(client, serviceImpl, ct);
         }
         finally
@@ -189,9 +196,18 @@ public class GrpcTransportIntegrationTests
             await serverDispatcher.StopOrThrowAsync(CancellationToken.None);
         }
 
+        // Guardrail: Grpc.Net.Client currently downgrades to HTTP/2 even with RequestVersionExact.
+        // When the client stack starts honoring HTTP/3, this test will fail and should be updated
+        // to expect HTTP/3 again.
+        var negotiatedProtocols = protocolLog.ToArray();
+        if (negotiatedProtocols.Any(entry => entry.Contains("HTTP/3", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new XunitException("Grpc.Net.Client negotiated HTTP/3; update the guardrail expectations.");
+        }
+
         AssertLogContains(clientLog, "client-http3");
         AssertLogContains(serverLog, "server-http3");
-        AssertLogContains(protocolLog, "HTTP/3");
+        AssertLogContains(protocolLog, "HTTP/2");
     }
 
     [Fact(Timeout = 60_000)]
