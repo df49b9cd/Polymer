@@ -120,7 +120,7 @@ OmniRelay already supplies the core pieces (SafeTaskQueue, replication, health g
 5. **Backpressure Hooks**
    - Leverage the new `BackpressureAwareRateLimiter`, `RateLimitingBackpressureListener`, and `ResourceLeaseBackpressureDiagnosticsListener` helpers (see “Backpressure Hooks” below) so nodes automatically shed traffic and publish control-plane signals whenever SafeTaskQueue backpressure toggles.
 6. **Sharding Strategy**
-   - Author guidance (and optional helper utilities) for running multiple ResourceLease queues per resource type or other lease identity boundary, including how to route payloads and aggregate replication streams.
+   - Use the new sharding guidance (see “Sharding Strategy” below) plus helpers like `ShardedResourceLeaseReplicator` and `CompositeResourceLeaseReplicator` to fan out work across multiple ResourceLease namespaces while keeping replication streams aggregated with shard metadata.
 7. **Mesh Health Dashboard**
    - Define standard metrics/OTLP spans for lease depth, replication lag, peer health, and backpressure, plus dashboards/alerts for mesh operators.
 8. **Failure Drills**
@@ -290,3 +290,28 @@ Tracking these TODO items will take the existing ResourceLease + health + replic
      });
      ```
    - Use the streaming endpoint for dashboards, CLI “watch” commands, or to fan out signals to orchestrators that drain upstream gateways automatically.
+
+### Sharding Strategy
+1. **Choose shard boundaries and namespaces**
+   - Divide the global lease workload by resource type, tenant, or hash buckets. Create a dedicated `ResourceLeaseDispatcherComponent` per shard with a unique namespace (for example `resourcelease.users`, `resourcelease.billing`, `resourcelease.hash.00`, etc.). Namespaces keep procedure names (`resourcelease.users::enqueue`) predictable for clients and allow you to scale individual shards independently.
+   - Reuse shared services (PeerLeaseHealthTracker, deterministic coordinator factories, middleware) per process so shards observe the same peer health and deterministic policies.
+2. **Route requests consistently**
+   - For server-side routing (for example control-plane APIs that enqueue work), build a simple map from `ResourceType` or `ResourceId` patterns to shard namespaces. Populate `RequestMeta.ShardKey` (or the `Rpc-Shard-Key` header when proxying HTTP/gRPC calls) so downstream instrumentation and gateways know which shard handled the request.
+   - When multiple services enqueue into the mesh, centralize the routing logic in a small helper—e.g., `string ResolveShard(ResourceLeaseItemPayload payload)` that returns the namespace or `ShardKey`. Clients then call the matching RPC (`resourcelease.{shard}::enqueue`) directly.
+3. **Aggregate replication streams**
+   - Tag every shard’s replication output with a consistent metadata key so downstream sinks can distinguish which queue produced an event. The `ShardedResourceLeaseReplicator` helper (in `ResourceLeaseShardingReplicators.cs`) wraps any replicator and injects `"shard.id" = "{yourShard}"` before forwarding:
+     ```csharp
+     var globalReplicator = new InMemoryResourceLeaseReplicator(new[] { auditSink, checkpointSink });
+
+     var usersShard = new ResourceLeaseDispatcherComponent(dispatcher, new ResourceLeaseDispatcherOptions
+     {
+         Namespace = "resourcelease.users",
+         Replicator = new ShardedResourceLeaseReplicator(globalReplicator, shardId: "users"),
+         LeaseHealthTracker = sharedTracker,
+         QueueOptions = usersQueueOptions
+     });
+     ```
+   - Need to fan events out to multiple downstream hubs (for example, a per-region durable log plus a central observability sink)? Wrap them with `CompositeResourceLeaseReplicator` so each shard publishes once but multiple replicators receive the same ordered stream.
+4. **Share monitoring + control planes**
+   - Surface each shard’s backpressure/status through the same diagnostics runtime. Reuse the `ResourceLeaseBackpressureDiagnosticsListener` and include the shard id in every payload (`Metadata["shard.id"]`) so dashboards can highlight which queue is under pressure.
+   - When draining or restoring shards independently, use the `Namespace`-qualified procedures to target a single queue without pausing the rest of the mesh. Document shard-specific RPO/RTO (e.g., `resourcelease.billing` might use SQLite durability while `resourcelease.ml-jobs` points at an object-store replicator).

@@ -74,6 +74,27 @@ Use `ResourceLeaseDispatcherOptions.QueueOptions` to align lease duration, heart
     ```
 - `ResourceLeaseMetrics` emits `omnirelay.resourcelease.pending`, `omnirelay.resourcelease.active`, and `omnirelay.resourcelease.backpressure.transitions` so dashboards can visualize queue depth and backpressure churn over time.
 
+### Sharding strategy
+
+- Run multiple `ResourceLeaseDispatcherComponent` instances per process when you need to isolate workloads (per resource type, tenant, or hash bucket). Give each shard a unique namespace (e.g., `resourcelease.users`, `resourcelease.billing`) via `ResourceLeaseDispatcherOptions.Namespace`.
+- Use `RequestMeta.ShardKey` (and the `Rpc-Shard-Key` transport header) to record which shard handled a request. Clients can compute the shard key from `ResourceType`, `ResourceId`, or any domain attribute, then call the matching namespace (`resourcelease.{shard}::enqueue`).
+- Aggregate replication without losing shard identity by wrapping replicate hubs:
+  ```csharp
+  var sharedHub = new InMemoryResourceLeaseReplicator();
+
+  var usersReplicator = new ShardedResourceLeaseReplicator(sharedHub, shardId: "users");
+  var billingReplicator = new ShardedResourceLeaseReplicator(sharedHub, shardId: "billing");
+
+  var composite = new CompositeResourceLeaseReplicator(new IResourceLeaseReplicator[]
+  {
+      usersReplicator,
+      new ShardedResourceLeaseReplicator(otherHub, shardId: "users")
+  });
+  ```
+  - `ShardedResourceLeaseReplicator` injects `Metadata["shard.id"]` before forwarding events so downstream sinks, deterministic stores, or analytics pipelines can group by shard.
+  - `CompositeResourceLeaseReplicator` fans out every event to multiple replicators—use it when a shard must write to both a local durable log and a remote streaming hub.
+- Monitor each shard through the same diagnostics runtime by reusing the listeners from “Backpressure Hooks.” Include the shard id in every payload (via the helper above or custom metadata) so dashboards can highlight hot partitions.
+
 ### Security & identity propagation
 
 - Add `PrincipalBindingMiddleware` (see `src/OmniRelay/Core/Middleware/PrincipalBindingMiddleware.cs`) to the inbound pipeline before ResourceLease procedures to normalize the caller. The middleware inspects TLS headers such as `x-mtls-subject` / `x-mtls-thumbprint` or auth headers (`Authorization: Bearer ...`) and promotes the resolved identity into `RequestMeta.Caller` plus the `rpc.principal` metadata key. ResourceLease dispatch automatically uses that identity when populating `OwnerPeerId`, replication events, and gossip records.
