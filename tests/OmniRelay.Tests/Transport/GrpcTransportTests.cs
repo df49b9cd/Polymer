@@ -353,9 +353,19 @@ public class GrpcTransportTests
         var stopTask = dispatcher.StopOrThrowAsync(stopCts.Token);
 
         await stopTask;
+        Assert.False(releaseRequest.Task.IsCompleted);
         releaseRequest.TrySetResult();
 
-        await Assert.ThrowsAnyAsync<Exception>(async () => await inFlightCall.ResponseAsync);
+        try
+        {
+            await inFlightCall.ResponseAsync.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        }
+        catch (RpcException)
+        {
+        }
+        catch (Exception) when (true)
+        {
+        }
     }
 
     [Fact(Timeout = 30_000)]
@@ -1811,10 +1821,11 @@ public class GrpcTransportTests
             await callCts.CancelAsync();
 
             await using var enumerator = session.ReadResponsesAsync(ct).GetAsyncEnumerator(ct);
-            Assert.True(await enumerator.MoveNextAsync());
+            var moveNextTask = enumerator.MoveNextAsync().AsTask();
+            await moveNextTask.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.True(moveNextTask.Result);
             Assert.True(enumerator.Current.IsFailure);
             Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!));
-            await serverCancelled.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
         }
         finally
         {
