@@ -2,11 +2,13 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Hugo;
 using OmniRelay.Core;
+using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Peers;
 using OmniRelay.Errors;
 using static Hugo.Go;
@@ -25,6 +27,15 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
     private readonly ConcurrentDictionary<TaskQueueOwnershipToken, SafeTaskQueueLease<TableLeaseWorkItem>> _leases = new();
     private readonly ConcurrentDictionary<TaskQueueOwnershipToken, string> _leaseOwners = new();
     private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
+    private readonly ITableLeaseReplicator? _replicator;
+    private readonly ITableLeaseBackpressureListener? _backpressureListener;
+    private readonly ITableLeaseDeterministicCoordinator? _deterministicCoordinator;
+    private readonly long? _backpressureHighWatermark;
+    private readonly long? _backpressureLowWatermark;
+    private readonly TimeSpan? _backpressureCooldown;
+    private DateTimeOffset _lastBackpressureTransition;
+    private int _isBackpressureActive;
+    private TaskCompletionSource<bool>? _backpressureTcs;
     private readonly string _enqueueProcedure;
     private readonly string _leaseProcedure;
     private readonly string _completeProcedure;
@@ -40,7 +51,10 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        var queueOptions = _options.QueueOptions ?? throw new ArgumentException("Queue options are required.", nameof(options));
+        var queueOptions = _options.QueueOptions ?? new TaskQueueOptions();
+        _backpressureHighWatermark = queueOptions.Backpressure?.HighWatermark;
+        _backpressureLowWatermark = queueOptions.Backpressure?.LowWatermark;
+        _backpressureCooldown = queueOptions.Backpressure?.Cooldown;
 
         var prefix = string.IsNullOrWhiteSpace(_options.Namespace)
             ? "tablelease"
@@ -57,6 +71,11 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
         _queue = new TaskQueue<TableLeaseWorkItem>(queueOptions);
         _safeQueue = new SafeTaskQueueWrapper<TableLeaseWorkItem>(_queue, ownsQueue: false);
         _leaseHealthTracker = _options.LeaseHealthTracker;
+        _replicator = _options.Replicator;
+        _backpressureListener = _options.BackpressureListener;
+        _deterministicCoordinator = _options.DeterministicCoordinator ?? (_options.DeterministicOptions is not null
+            ? new DeterministicTableLeaseCoordinator(_options.DeterministicOptions!)
+            : null);
 
         RegisterProcedures();
     }
@@ -94,6 +113,8 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
 
     private async ValueTask<TableLeaseEnqueueResponse> HandleEnqueue(JsonUnaryContext context, TableLeaseEnqueueRequest request)
     {
+        await WaitForBackpressureAsync(context.CancellationToken).ConfigureAwait(false);
+
         if (request.Payload is null)
         {
             throw new ResultException(Error.From("table lease payload is required", "error.tablelease.payload_missing", cause: null!, metadata: null));
@@ -103,6 +124,16 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
         var enqueue = await _safeQueue.EnqueueAsync(workItem, context.CancellationToken).ConfigureAwait(false);
         enqueue.ThrowIfFailure();
 
+        await PublishReplicationAsync(
+            TableLeaseReplicationEventType.Enqueue,
+            ownership: null,
+            ResolvePeerId(context.RequestMeta, null),
+            workItem.ToPayload(),
+            error: null,
+            additionalMetadata: null,
+            context.CancellationToken).ConfigureAwait(false);
+
+        EvaluateBackpressure();
         return new TableLeaseEnqueueResponse(GetStats());
     }
 
@@ -123,10 +154,12 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
         }
 
         var ownerPeerId = ResolvePeerId(context.RequestMeta, request?.PeerId);
+        var leaseHandle = TableLeaseOwnershipHandle.FromToken(lease.OwnershipToken);
+
         if (!string.IsNullOrWhiteSpace(ownerPeerId))
         {
             _leaseOwners[lease.OwnershipToken] = ownerPeerId!;
-            var peerHandle = ToPeerHandle(lease.OwnershipToken);
+            var peerHandle = ToPeerHandle(leaseHandle);
             _leaseHealthTracker?.RecordLeaseAssignment(ownerPeerId!, peerHandle, lease.Value.Namespace, lease.Value.Table);
             if (lease.Value.Attributes.Count > 0)
             {
@@ -134,6 +167,16 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
             }
         }
 
+        await PublishReplicationAsync(
+            TableLeaseReplicationEventType.LeaseGranted,
+            leaseHandle,
+            ownerPeerId,
+            lease.Value.ToPayload(),
+            TableLeaseErrorInfo.FromError(lease.LastError),
+            additionalMetadata: null,
+            context.CancellationToken).ConfigureAwait(false);
+
+        EvaluateBackpressure();
         return TableLeaseLeaseResponse.FromLease(lease, ownerPeerId);
     }
 
@@ -153,6 +196,26 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
         }
 
         CleanupLease(request.OwnershipToken, ownerId, requeued: false);
+
+        await PublishReplicationAsync(
+            TableLeaseReplicationEventType.Completed,
+            request.OwnershipToken,
+            ownerId,
+            lease.Value.ToPayload(),
+            error: null,
+            additionalMetadata: null,
+            context.CancellationToken).ConfigureAwait(false);
+
+        await PublishReplicationAsync(
+            TableLeaseReplicationEventType.Heartbeat,
+            request.OwnershipToken,
+            ownerId,
+            payload: null,
+            error: null,
+            additionalMetadata: null,
+            context.CancellationToken).ConfigureAwait(false);
+
+        EvaluateBackpressure();
         return TableLeaseAcknowledgeResponse.Ack();
     }
 
@@ -169,9 +232,11 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
             return TableLeaseAcknowledgeResponse.FromError(heartbeat.Error!);
         }
 
-        if (TryGetLeaseOwner(request.OwnershipToken, out var ownerId) && ownerId is not null)
+        string? ownerId = null;
+        if (TryGetLeaseOwner(request.OwnershipToken, out var resolvedHeartbeatOwner) && resolvedHeartbeatOwner is not null)
         {
-            _leaseHealthTracker?.RecordLeaseHeartbeat(ownerId, ToPeerHandle(request.OwnershipToken), _queue.PendingCount);
+            ownerId = resolvedHeartbeatOwner;
+            _leaseHealthTracker?.RecordLeaseHeartbeat(resolvedHeartbeatOwner, ToPeerHandle(request.OwnershipToken), _queue.PendingCount);
         }
 
         return TableLeaseAcknowledgeResponse.Ack();
@@ -199,6 +264,19 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
             _leaseHealthTracker?.RecordDisconnect(ownerId, request.Reason);
         }
 
+        await PublishReplicationAsync(
+            TableLeaseReplicationEventType.Failed,
+            request.OwnershipToken,
+            ownerId,
+            lease.Value.ToPayload(),
+            TableLeaseErrorInfo.FromError(error),
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "failure.requeued", request.Requeue.ToString(CultureInfo.InvariantCulture) }
+            },
+            context.CancellationToken).ConfigureAwait(false);
+
+        EvaluateBackpressure();
         return TableLeaseAcknowledgeResponse.Ack();
     }
 
@@ -210,6 +288,21 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
             .ToImmutableArray();
 
         // Drain removes the work from the queue; reset stats so operators can see the impact.
+        var drainMetadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "drain.count", payloads.Length.ToString(CultureInfo.InvariantCulture) }
+        };
+
+        await PublishReplicationAsync(
+            TableLeaseReplicationEventType.DrainSnapshot,
+            ownership: null,
+            peerId: null,
+            payload: null,
+            error: null,
+            drainMetadata,
+            context.CancellationToken).ConfigureAwait(false);
+
+        EvaluateBackpressure();
         return new TableLeaseDrainResponse(payloads);
     }
 
@@ -225,11 +318,30 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
             .ToList();
 
         await _queue.RestorePendingItemsAsync(pending, context.CancellationToken).ConfigureAwait(false);
+        var restoreMetadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "restore.count", pending.Count.ToString(CultureInfo.InvariantCulture) }
+        };
+
+        await PublishReplicationAsync(
+            TableLeaseReplicationEventType.RestoreSnapshot,
+            ownership: null,
+            peerId: null,
+            payload: null,
+            error: null,
+            restoreMetadata,
+            context.CancellationToken).ConfigureAwait(false);
+
+        EvaluateBackpressure();
         return new TableLeaseRestoreResponse(pending.Count);
     }
 
-    private TableLeaseQueueStats GetStats() =>
-        new(_queue.PendingCount, _queue.ActiveLeaseCount);
+    private TableLeaseQueueStats GetStats()
+    {
+        var stats = new TableLeaseQueueStats(_queue.PendingCount, _queue.ActiveLeaseCount);
+        TableLeaseMetrics.RecordQueueStats(stats.PendingCount, stats.ActiveLeaseCount);
+        return stats;
+    }
 
     private bool TryGetLease(TableLeaseOwnershipHandle? handle, out SafeTaskQueueLease<TableLeaseWorkItem>? lease)
     {
@@ -285,6 +397,167 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
         }
     }
 
+    private void EvaluateBackpressure()
+    {
+        if (!_backpressureHighWatermark.HasValue)
+        {
+            return;
+        }
+
+        var pending = _queue.PendingCount;
+        if (pending >= _backpressureHighWatermark.Value)
+        {
+            TryActivateBackpressure(pending);
+            return;
+        }
+
+        var lowWatermark = _backpressureLowWatermark ?? Math.Max(0, _backpressureHighWatermark.Value / 2);
+        if (pending <= lowWatermark)
+        {
+            TryDeactivateBackpressure(pending);
+        }
+    }
+
+    private void TryActivateBackpressure(long pending)
+    {
+        if (_isBackpressureActive == 1)
+        {
+            return;
+        }
+
+        if (!CanTransitionBackpressure())
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _isBackpressureActive, 1) == 1)
+        {
+            return;
+        }
+
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Volatile.Write(ref _backpressureTcs, gate);
+        PublishBackpressureSignal(true, pending);
+    }
+
+    private void TryDeactivateBackpressure(long pending)
+    {
+        if (_isBackpressureActive == 0)
+        {
+            return;
+        }
+
+        if (!CanTransitionBackpressure())
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _isBackpressureActive, 0) == 0)
+        {
+            return;
+        }
+
+        var gate = Interlocked.Exchange(ref _backpressureTcs, null);
+        gate?.TrySetResult(true);
+        PublishBackpressureSignal(false, pending);
+    }
+
+    private bool CanTransitionBackpressure()
+    {
+        if (!_backpressureCooldown.HasValue)
+        {
+            return true;
+        }
+
+        if (_lastBackpressureTransition == default)
+        {
+            return true;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        return now - _lastBackpressureTransition >= _backpressureCooldown.Value;
+    }
+
+    private void PublishBackpressureSignal(bool isActive, long pending)
+    {
+        _lastBackpressureTransition = DateTimeOffset.UtcNow;
+        TableLeaseMetrics.RecordBackpressureState(isActive);
+
+        if (_backpressureListener is not null)
+        {
+            var signal = new TableLeaseBackpressureSignal(
+                isActive,
+                pending,
+                _lastBackpressureTransition,
+                _backpressureHighWatermark,
+                _backpressureLowWatermark);
+
+            var _ = _backpressureListener.OnBackpressureChanged(signal, CancellationToken.None).AsTask();
+        }
+    }
+
+    private async ValueTask WaitForBackpressureAsync(CancellationToken cancellationToken)
+    {
+        while (Volatile.Read(ref _isBackpressureActive) == 1)
+        {
+            var gate = Volatile.Read(ref _backpressureTcs);
+            if (gate is null)
+            {
+                break;
+            }
+
+            await gate.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async ValueTask PublishReplicationAsync(
+        TableLeaseReplicationEventType eventType,
+        TableLeaseOwnershipHandle? ownership,
+        string? peerId,
+        TableLeaseItemPayload? payload,
+        TableLeaseErrorInfo? error,
+        IReadOnlyDictionary<string, string>? additionalMetadata,
+        CancellationToken cancellationToken)
+    {
+        var metadata = MergeMetadata(additionalMetadata);
+        var replicationEvent = TableLeaseReplicationEvent.Create(
+            eventType,
+            ownership,
+            string.IsNullOrWhiteSpace(peerId) ? null : peerId,
+            payload,
+            error,
+            metadata);
+
+        if (_replicator is not null)
+        {
+            await _replicator.PublishAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (_deterministicCoordinator is not null)
+        {
+            await _deterministicCoordinator.RecordAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private IReadOnlyDictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string>? additional)
+    {
+        var snapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["queue.pending"] = _queue.PendingCount.ToString(CultureInfo.InvariantCulture),
+            ["queue.active"] = _queue.ActiveLeaseCount.ToString(CultureInfo.InvariantCulture)
+        };
+
+        if (additional is not null)
+        {
+            foreach (var kvp in additional)
+            {
+                snapshot[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return snapshot;
+    }
+
     private static PeerLeaseHandle ToPeerHandle(TableLeaseOwnershipHandle handle) =>
         PeerLeaseHandle.FromToken(handle.ToToken());
 
@@ -301,6 +574,12 @@ public sealed class TableLeaseDispatcherComponent : IAsyncDisposable
         if (!string.IsNullOrWhiteSpace(meta.Caller))
         {
             return meta.Caller!;
+        }
+
+        if (meta.Headers.TryGetValue(PrincipalBindingOptions.DefaultPrincipalMetadataKey, out var principal) &&
+            !string.IsNullOrWhiteSpace(principal))
+        {
+            return principal!;
         }
 
         if (meta.Headers.TryGetValue("x-peer-id", out var header) && !string.IsNullOrWhiteSpace(header))
@@ -348,6 +627,18 @@ public sealed class TableLeaseDispatcherOptions
 
     /// <summary>Optional tracker used for peer membership gossip and health propagation.</summary>
     public PeerLeaseHealthTracker? LeaseHealthTracker { get; init; }
+
+    /// <summary>Optional replication hub used to broadcast ordered lease events.</summary>
+    public ITableLeaseReplicator? Replicator { get; init; }
+
+    /// <summary>Optional deterministic coordinator used to persist replication effects.</summary>
+    public ITableLeaseDeterministicCoordinator? DeterministicCoordinator { get; init; }
+
+    /// <summary>Convenience options to spawn a <see cref="DeterministicTableLeaseCoordinator"/>.</summary>
+    public TableLeaseDeterministicOptions? DeterministicOptions { get; init; }
+
+    /// <summary>Optional listener invoked whenever SafeTaskQueue backpressure toggles.</summary>
+    public ITableLeaseBackpressureListener? BackpressureListener { get; init; }
 }
 
 /// <summary>Represents the serialized form of a work item stored in the queue.</summary>
