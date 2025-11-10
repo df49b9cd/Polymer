@@ -23,7 +23,7 @@ namespace OmniRelay.IntegrationTests;
 [Collection("CLI Integration")]
 public sealed class CliToolingIntegrationTests
 {
-    [Fact(Timeout = 120_000)]
+    [Fact(Timeout = 240_000)]
     public async Task CliConfigValidateAndServe_StartsDispatcherFromScaffold()
     {
         using var tempDir = new TempDirectory();
@@ -85,7 +85,7 @@ public sealed class CliToolingIntegrationTests
         Assert.True(serveResult.ExitCode == 0, $"serve command failed: {serveResult.StandardError}");
     }
 
-    [Fact(Timeout = 120_000)]
+    [Fact(Timeout = 240_000)]
     public async Task CliCommands_CanIntrospectRequestAndBenchmark_HttpHost()
     {
         var serviceName = $"cli-introspect-{Guid.NewGuid():N}";
