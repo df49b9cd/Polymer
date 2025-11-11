@@ -15,8 +15,8 @@ namespace OmniRelay.Samples.ConfigToProd;
 
 internal sealed class Program
 {
-    [RequiresDynamicCode()]
-    [RequiresUnreferencedCode()]
+    [RequiresDynamicCode("Configures ASP.NET Core hosting and OmniRelay dispatcher services using reflection-heavy APIs.")]
+    [RequiresUnreferencedCode("Configures ASP.NET Core hosting and OmniRelay dispatcher services using reflection-heavy APIs.")]
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -254,7 +254,7 @@ internal sealed record DiagnosticsControlOptions
     public static bool RuntimeMetricsEnabled
     {
         get => field;
-        init => field = value;
+        set => field = value;
     }
 }
 
@@ -265,7 +265,7 @@ internal sealed record ProbeOptions
     public static bool RequireDiagnosticsToggle
     {
         get => field;
-        init => field = value;
+        set => field = value;
     }
 }
 

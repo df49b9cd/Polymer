@@ -14,8 +14,8 @@ namespace OmniRelay.Samples.ObservabilityCli;
 
 internal static class Program
 {
-    [RequiresDynamicCode()]
-    [RequiresUnreferencedCode()]
+    [RequiresDynamicCode("Configures ASP.NET Core and OpenTelemetry features that rely on reflection.")]
+    [RequiresUnreferencedCode("Configures ASP.NET Core and OpenTelemetry features that rely on reflection.")]
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);

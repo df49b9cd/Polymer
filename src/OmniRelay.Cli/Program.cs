@@ -24,7 +24,7 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Cli;
 
-internal static class Program
+public static class Program
 {
     private const string DefaultConfigSection = "polymer";
     private const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";

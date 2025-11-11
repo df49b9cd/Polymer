@@ -28,7 +28,7 @@ public class DiagnosticsRuntimeSamplerTests
     [Fact]
     public void ZeroProbability_DropsNewTraces()
     {
-        var runtime = new FakeDiagnosticsRuntime { FakeDiagnosticsRuntime.Probability = 0d };
+        var runtime = new FakeDiagnosticsRuntime { Probability = 0d };
         var sampler = new DiagnosticsRuntimeSampler(runtime);
         var result = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
         Assert.Equal(SamplingDecision.Drop, result.Decision);
@@ -37,7 +37,7 @@ public class DiagnosticsRuntimeSamplerTests
     [Fact]
     public void ZeroProbability_RespectsRecordedParent()
     {
-        var runtime = new FakeDiagnosticsRuntime { FakeDiagnosticsRuntime.Probability = 0d };
+        var runtime = new FakeDiagnosticsRuntime { Probability = 0d };
         var sampler = new DiagnosticsRuntimeSampler(runtime);
 
         var parentContext = new ActivityContext(
@@ -52,11 +52,12 @@ public class DiagnosticsRuntimeSamplerTests
     [Fact]
     public void RatioProbability_AppliesDynamicSampler()
     {
-        var runtime = new FakeDiagnosticsRuntime { FakeDiagnosticsRuntime.Probability = 0.5d };
+        const double probability = 0.5d;
+        var runtime = new FakeDiagnosticsRuntime { Probability = probability };
         var sampler = new DiagnosticsRuntimeSampler(runtime);
 
         var sampleResult = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
-        var dropTraceId = FindDropTraceId(FakeDiagnosticsRuntime.Probability.Value);
+        var dropTraceId = FindDropTraceId(probability);
         var dropResult = sampler.ShouldSample(CreateParameters(dropTraceId));
 
         Assert.Equal(SamplingDecision.RecordAndSample, sampleResult.Decision);
@@ -66,7 +67,7 @@ public class DiagnosticsRuntimeSamplerTests
     [Fact]
     public void FullProbability_DelegatesToFallback()
     {
-        var runtime = new FakeDiagnosticsRuntime { FakeDiagnosticsRuntime.Probability = 1d };
+        var runtime = new FakeDiagnosticsRuntime { Probability = 1d };
         var sampler = new DiagnosticsRuntimeSampler(runtime, new AlwaysOffSampler());
 
         var result = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
@@ -110,7 +111,7 @@ public class DiagnosticsRuntimeSamplerTests
     {
         public LogLevel? MinimumLogLevel => null;
 
-        public static double? Probability { get; set; }
+        public double? Probability { get; set; }
 
         public double? TraceSamplingProbability => Probability;
 

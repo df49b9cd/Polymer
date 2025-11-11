@@ -11,7 +11,7 @@ internal sealed class TempDirectory : IDisposable
         Directory.CreateDirectory(Path);
     }
 
-    public static string? Path { get; }
+    public static string? Path { get; private set; }
 
     public static string Resolve(params string[]? segments)
     {
