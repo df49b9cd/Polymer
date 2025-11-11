@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -122,9 +123,9 @@ internal static partial class HttpDuplexProtocol
     {
         var envelope = new ErrorEnvelope
         {
-            ErrorEnvelope.Status = OmniRelayErrorAdapter.ToStatus(error).ToString(),
-            ErrorEnvelope.Message = error.Message,
-            ErrorEnvelope.Code = error.Code
+            Status = OmniRelayErrorAdapter.ToStatus(error).ToString(),
+            Message = error.Message,
+            Code = error.Code
         };
 
         return JsonSerializer.SerializeToUtf8Bytes(envelope, JsonContext.ErrorEnvelope);
@@ -141,10 +142,10 @@ internal static partial class HttpDuplexProtocol
 
         var envelope = new ResponseMetaEnvelope
         {
-            ResponseMetaEnvelope.Encoding = meta.Encoding,
-            ResponseMetaEnvelope.Transport = meta.Transport,
-            ResponseMetaEnvelope.TtlMs = meta.Ttl?.TotalMilliseconds,
-            ResponseMetaEnvelope.Headers = meta.Headers?.Count > 0
+            Encoding = meta.Encoding,
+            Transport = meta.Transport,
+            TtlMs = meta.Ttl?.TotalMilliseconds,
+            Headers = meta.Headers?.Count > 0
                 ? meta.Headers!.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase)
                 : null
         };
@@ -174,20 +175,20 @@ internal static partial class HttpDuplexProtocol
             }
 
             TimeSpan? ttl = null;
-            if (ResponseMetaEnvelope.TtlMs.HasValue)
+            if (envelope.TtlMs.HasValue)
             {
-                ttl = TimeSpan.FromMilliseconds(ResponseMetaEnvelope.TtlMs.Value);
+                ttl = TimeSpan.FromMilliseconds(envelope.TtlMs.Value);
             }
 
             IEnumerable<KeyValuePair<string, string>>? headers = null;
-            if (ResponseMetaEnvelope.Headers is { Count: > 0 })
+            if (envelope.Headers is { Count: > 0 })
             {
-                headers = ResponseMetaEnvelope.Headers.Select(pair => new KeyValuePair<string, string>(pair.Key, pair.Value));
+                headers = envelope.Headers.Select(pair => new KeyValuePair<string, string>(pair.Key, pair.Value));
             }
 
             return new ResponseMeta(
-                encoding: ResponseMetaEnvelope.Encoding,
-                transport: ResponseMetaEnvelope.Transport ?? transport,
+                encoding: envelope.Encoding,
+                transport: envelope.Transport ?? transport,
                 ttl: ttl,
                 headers: headers);
         }
@@ -214,18 +215,18 @@ internal static partial class HttpDuplexProtocol
             }
 
             var status = OmniRelayStatusCode.Internal;
-            if (!string.IsNullOrWhiteSpace(ErrorEnvelope.Status) &&
-                Enum.TryParse(ErrorEnvelope.Status, true, out OmniRelayStatusCode parsed))
+            if (!string.IsNullOrWhiteSpace(envelope.Status) &&
+                Enum.TryParse(envelope.Status, true, out OmniRelayStatusCode parsed))
             {
                 status = parsed;
             }
 
-            var message = string.IsNullOrWhiteSpace(ErrorEnvelope.Message) ? status.ToString() : ErrorEnvelope.Message!;
+            var message = string.IsNullOrWhiteSpace(envelope.Message) ? status.ToString() : envelope.Message!;
             var error = OmniRelayErrorAdapter.FromStatus(status, message, transport: transport);
 
-            if (!string.IsNullOrWhiteSpace(ErrorEnvelope.Code))
+            if (!string.IsNullOrWhiteSpace(envelope.Code))
             {
-                error = error.WithCode(ErrorEnvelope.Code);
+                error = error.WithCode(envelope.Code);
             }
 
             return error;
@@ -255,21 +256,21 @@ internal static partial class HttpDuplexProtocol
 
     private sealed class ErrorEnvelope
     {
-        public static string? Status { get; set; }
+        public string? Status { get; set; }
 
-        public static string? Message { get; set; }
+        public string? Message { get; set; }
 
-        public static string? Code { get; set; }
+        public string? Code { get; set; }
     }
 
     private sealed class ResponseMetaEnvelope
     {
-        public static string? Encoding { get; set; }
+        public string? Encoding { get; set; }
 
-        public static string? Transport { get; set; }
+        public string? Transport { get; set; }
 
-        public static double? TtlMs { get; set; }
+        public double? TtlMs { get; set; }
 
-        public static Dictionary<string, string>? Headers { get; set; }
+        public Dictionary<string, string>? Headers { get; set; }
     }
 }

@@ -14,8 +14,10 @@ namespace OmniRelay.Samples.MinimalApiBridge;
 
 internal static class Program
 {
-    [RequiresDynamicCode()]
-    [RequiresUnreferencedCode()]
+    private const string AotWarning = "Minimal API bridge dynamically registers OmniRelay components and is not compatible with trimming/AOT.";
+
+    [RequiresDynamicCode(AotWarning)]
+    [RequiresUnreferencedCode(AotWarning)]
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
