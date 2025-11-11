@@ -70,7 +70,6 @@ public sealed class LeadershipCoordinatorTests
         });
         return options;
     }
-}
 
     [Fact]
     public void Snapshot_ReturnsEmptyInitially()

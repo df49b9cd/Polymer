@@ -11,58 +11,63 @@ public sealed class LeadershipScopeTests
         var scope = LeadershipScope.GlobalControl;
 
         Assert.Equal("global-control", scope.ScopeId);
-        Assert.Equal(LeadershipScopeKinds.Global, scope.Kind);
+        Assert.Equal(LeadershipScopeKinds.Global, scope.ScopeKind);
+        Assert.Empty(scope.Labels);
     }
 
     [Fact]
-    public void CreateShard_GeneratesCorrectScopeId()
+    public void ForShard_GeneratesCorrectScopeId()
     {
-        var scope = LeadershipScope.CreateShard("test-group", 5);
+        var scope = LeadershipScope.ForShard("test-ns", "5");
 
-        Assert.Equal("shard:test-group:5", scope.ScopeId);
-        Assert.Equal(LeadershipScopeKinds.Shard, scope.Kind);
+        Assert.Equal("shard/test-ns/5", scope.ScopeId);
+        Assert.Equal(LeadershipScopeKinds.Shard, scope.ScopeKind);
+        Assert.Equal("test-ns", scope.Labels["namespace"]);
+        Assert.Equal("5", scope.Labels["shardId"]);
     }
 
     [Fact]
-    public void CreateCustom_UsesProvidedScopeId()
+    public void Create_WithCustomKind_CreatesCustomScope()
     {
-        var scope = LeadershipScope.CreateCustom("custom-scope-id");
+        var scope = LeadershipScope.Create("custom-scope-id", LeadershipScopeKinds.Custom);
 
         Assert.Equal("custom-scope-id", scope.ScopeId);
-        Assert.Equal(LeadershipScopeKinds.Custom, scope.Kind);
+        Assert.Equal(LeadershipScopeKinds.Custom, scope.ScopeKind);
     }
 
     [Fact]
-    public void Parse_ReturnsCorrectScope()
+    public void Create_WithLabels_PreservesLabels()
     {
-        var descriptor = new LeadershipScopeDescriptor
+        var labels = new Dictionary<string, string>
         {
-            ScopeId = "test-scope",
-            Kind = LeadershipScopeKinds.Global
+            ["key1"] = "value1",
+            ["key2"] = "value2"
         };
 
-        var scope = LeadershipScope.Parse(descriptor);
+        var scope = LeadershipScope.Create("test", LeadershipScopeKinds.Custom, labels);
 
-        Assert.Equal("test-scope", scope.ScopeId);
-        Assert.Equal(LeadershipScopeKinds.Global, scope.Kind);
+        Assert.Equal(2, scope.Labels.Count);
+        Assert.Equal("value1", scope.Labels["key1"]);
+        Assert.Equal("value2", scope.Labels["key2"]);
+    }
+
+    [Theory]
+    [InlineData("global-control", "global-control")]
+    [InlineData("shard/ns/1", "shard/ns/1")]
+    [InlineData("custom-scope", "custom-scope")]
+    public void TryParse_ValidInput_ReturnsTrue(string input, string expectedScopeId)
+    {
+        var result = LeadershipScope.TryParse(input, out var scope);
+
+        Assert.True(result);
+        Assert.Equal(expectedScopeId, scope.ScopeId);
     }
 
     [Fact]
-    public void Equality_ComparesScopeId()
+    public void TryParse_EmptyString_ReturnsFalse()
     {
-        var scope1 = new LeadershipScope("scope1", LeadershipScopeKinds.Global);
-        var scope2 = new LeadershipScope("scope1", LeadershipScopeKinds.Global);
-        var scope3 = new LeadershipScope("scope2", LeadershipScopeKinds.Global);
+        var result = LeadershipScope.TryParse("", out var scope);
 
-        Assert.Equal(scope1, scope2);
-        Assert.NotEqual(scope1, scope3);
-    }
-
-    [Fact]
-    public void ToString_ReturnsScopeId()
-    {
-        var scope = new LeadershipScope("my-scope", LeadershipScopeKinds.Custom);
-        
-        Assert.Equal("my-scope", scope.ToString());
+        Assert.False(result);
     }
 }

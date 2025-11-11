@@ -129,7 +129,6 @@ public sealed class MeshGossipMembershipTableTests
 
         public void Advance(TimeSpan delta) => _current += delta;
     }
-}
 
     [Fact]
     public void PickFanout_ReturnsRandomSubset()
@@ -224,13 +223,7 @@ public sealed class MeshGossipMembershipTableTests
         var envelope = new MeshGossipEnvelope
         {
             SchemaVersion = MeshGossipOptions.CurrentSchemaVersion,
-            Sender = new MeshGossipMemberSnapshot
-            {
-                NodeId = senderMetadata.NodeId,
-                Status = MeshGossipMemberStatus.Alive,
-                LastSeen = time.GetUtcNow(),
-                Metadata = senderMetadata
-            },
+            Sender = senderMetadata,
             Members = [],
             Sequence = 1
         };
