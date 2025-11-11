@@ -33,7 +33,7 @@ using static Hugo.Go;
 
 namespace OmniRelay.Tests.Transport;
 
-public class GrpcTransportTests
+public partial class GrpcTransportTests
 {
     static GrpcTransportTests()
     {
@@ -2761,12 +2761,6 @@ public class GrpcTransportTests
         }
     }
 
-    [JsonSourceGenerationOptions(
-        GenerationMode = JsonSourceGenerationMode.Serialization,
-        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-    [JsonSerializable(typeof(EchoRequest))]
-    private sealed partial class GrpcTransportJsonContext : JsonSerializerContext;
-
     private sealed class RecordingClientInterceptor : Interceptor
     {
         private int _unaryCount;
@@ -2849,6 +2843,13 @@ public class GrpcTransportTests
             init => field = value;
         } = Message;
     }
+
+    [JsonSourceGenerationOptions(
+        GenerationMode = JsonSourceGenerationMode.Serialization,
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+    [JsonSerializable(typeof(EchoRequest))]
+    [JsonSerializable(typeof(EchoResponse))]
+    private sealed partial class GrpcTransportJsonContext : JsonSerializerContext;
 
     private sealed class DummyCompressionProvider : ICompressionProvider
     {

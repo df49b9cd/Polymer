@@ -490,10 +490,10 @@ internal sealed record AlertEvent(string Severity, string Message, string? Chann
     } = CorrelationId;
 }
 
-internal sealed record DispatcherStatus(string ServiceName, IReadOnlyList<string> Http, IReadOnlyList<string> Grpc);
+internal sealed record DispatcherStatus(string ServiceName, IReadOnlyCollection<string> Http, IReadOnlyCollection<string> Grpc);
 
 [JsonSourceGenerationOptions(
     GenerationMode = JsonSourceGenerationMode.Serialization,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(DispatcherStatus))]
-internal partial class MinimalApiBridgeJsonContext : JsonSerializerContext;
+internal sealed partial class MinimalApiBridgeJsonContext : JsonSerializerContext;

@@ -53,7 +53,7 @@ public class MetaHeadersTests
             body,
             OmniRelayTestsJsonContext.Default.MetaDiagnosticsPayload);
 
-        Assert.Equal(1500, payload?.TtlMs, precision: 0);
+        Assert.Equal(1500d, payload?.TtlMs ?? double.NaN, precision: 0);
         Assert.Equal(deadline, payload?.Deadline);
 
         await dispatcher.StopOrThrowAsync(ct);
