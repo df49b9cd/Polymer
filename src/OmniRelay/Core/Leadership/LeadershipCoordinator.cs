@@ -107,7 +107,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
                 {
                     await loop.ConfigureAwait(false);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (cts.IsCancellationRequested)
                 {
                 }
             }
