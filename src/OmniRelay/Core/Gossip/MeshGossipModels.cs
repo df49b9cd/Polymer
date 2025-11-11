@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace OmniRelay.Core.Gossip;
 
 /// <summary>Represents the advertised metadata for a gossip participant.</summary>
-public sealed class MeshGossipMemberMetadata
+public sealed record class MeshGossipMemberMetadata
 {
     [JsonPropertyName("nodeId")]
     public string NodeId { get; init; } = string.Empty;
@@ -38,18 +38,7 @@ public sealed class MeshGossipMemberMetadata
         = null;
 
     public MeshGossipMemberMetadata WithLabels(IReadOnlyDictionary<string, string> labels) =>
-        new()
-        {
-            NodeId = NodeId,
-            Role = Role,
-            ClusterId = ClusterId,
-            Region = Region,
-            MeshVersion = MeshVersion,
-            Http3Support = Http3Support,
-            MetadataVersion = MetadataVersion,
-            Endpoint = Endpoint,
-            Labels = labels
-        };
+        this with { Labels = labels };
 }
 
 /// <summary>Envelope exchanged between gossip peers.</summary>
