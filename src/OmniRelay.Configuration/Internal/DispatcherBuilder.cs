@@ -1304,6 +1304,7 @@ internal sealed partial class DispatcherBuilder
         }
         catch (OperationCanceledException)
         {
+            // Expected when the client disconnects or the request is cancelled.
         }
         finally
         {
