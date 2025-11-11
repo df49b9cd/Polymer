@@ -1,5 +1,6 @@
 using System.Diagnostics.Metrics;
 using System.Net.Http;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
@@ -56,11 +57,9 @@ public static class Program
 
         var app = builder.Build();
 
-        app.MapGet("/", (PlaygroundState state) => Results.Json(new
-        {
-            state.ServiceName,
-            state.LastScriptStatus
-        }));
+        app.MapGet("/", (PlaygroundState state) => TypedResults.Json(
+            new PlaygroundSummary(state.ServiceName, state.LastScriptStatus),
+            ObservabilityCliJsonContext.Default.PlaygroundSummary));
 
         app.MapHealthChecks("/healthz", new HealthCheckOptions
         {
@@ -75,7 +74,9 @@ public static class Program
         app.MapGet("/readyz", (PlaygroundState state) =>
         {
             return state.Ready
-                ? Results.Ok(new { status = "ready", since = state.ReadySince })
+                ? TypedResults.Json(
+                    new ReadyStatus(state.ReadySince),
+                    ObservabilityCliJsonContext.Default.ReadyStatus)
                 : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         });
 
@@ -226,3 +227,14 @@ internal sealed class PlaygroundState
         ReadySince = null;
     }
 }
+
+internal sealed record PlaygroundSummary(string ServiceName, string? LastScriptStatus);
+
+internal sealed record ReadyStatus(DateTimeOffset? Since);
+
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Serialization,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(PlaygroundSummary))]
+[JsonSerializable(typeof(ReadyStatus))]
+internal partial class ObservabilityCliJsonContext : JsonSerializerContext;

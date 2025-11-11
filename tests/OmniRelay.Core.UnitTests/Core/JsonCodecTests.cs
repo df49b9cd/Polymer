@@ -110,7 +110,7 @@ public class JsonCodecTests
     {
         var codec = new JsonCodec<TestPayload, TestPayload>();
         var meta = new RequestMeta(service: "svc");
-        var payload = Encoding.UTF8.GetBytes("{\"id\":");
+        var payload = "{\"id\":"u8.ToArray();
 
         var result = codec.DecodeRequest(payload, meta);
 
@@ -136,7 +136,7 @@ public class JsonCodecTests
             responseSchemaId: "schema://json/response");
 
         var meta = new ResponseMeta { Encoding = "json", Transport = "grpc" };
-        var payload = Encoding.UTF8.GetBytes("not json at all");
+        var payload = "not json at all"u8.ToArray();
 
         var result = codec.DecodeResponse(payload, meta);
 
@@ -157,7 +157,7 @@ public class JsonCodecTests
 
         var codec = new JsonCodec<TestPayload, TestPayload>(options: options);
         var meta = new RequestMeta(service: "svc");
-        var payload = Encoding.UTF8.GetBytes("{\"Id\":\"a\",\"Count\":1}");
+        var payload = "{\"Id\":\"a\",\"Count\":1}"u8.ToArray();
 
         var result = codec.DecodeRequest(payload, meta);
 

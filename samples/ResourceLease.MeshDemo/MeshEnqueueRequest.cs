@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using OmniRelay.Dispatcher;
@@ -48,7 +49,7 @@ public sealed record MeshEnqueueRequest(
             effectiveBody = JsonSerializer.SerializeToUtf8Bytes(operation, MeshJson.Context.LakehouseCatalogOperation);
             resourceId = operation.ResourceId;
             payloadAttributes["operation"] = Operation.ToString();
-            payloadAttributes["version"] = Version.ToString();
+            payloadAttributes["version"] = Version.ToString(CultureInfo.InvariantCulture);
         }
         else
         {

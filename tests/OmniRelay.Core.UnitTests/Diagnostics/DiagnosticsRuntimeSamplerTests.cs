@@ -106,21 +106,10 @@ public class DiagnosticsRuntimeSamplerTests
         Assert.NotSame(samplerObj1, samplerObj2);
     }
 
-    private static object? GetCachedSampler(DiagnosticsRuntimeSampler sampler)
-    {
-        var field = typeof(DiagnosticsRuntimeSampler).GetField("_cachedRatioSampler", BindingFlags.Instance | BindingFlags.NonPublic);
-        return field?.GetValue(sampler);
-    }
+    private static DiagnosticsRuntimeSampler.CachedSampler? GetCachedSampler(DiagnosticsRuntimeSampler sampler) =>
+        sampler.TestingCachedSampler;
 
-    private static double GetProbability(object cache)
-    {
-        var prop = cache.GetType().GetProperty("Probability", BindingFlags.Instance | BindingFlags.Public);
-        return (double)(prop!.GetValue(cache) ?? 0d);
-    }
+    private static double GetProbability(DiagnosticsRuntimeSampler.CachedSampler cache) => cache.Probability;
 
-    private static object GetInnerSampler(object cache)
-    {
-        var prop = cache.GetType().GetProperty("Sampler", BindingFlags.Instance | BindingFlags.Public);
-        return prop!.GetValue(cache)!;
-    }
+    private static Sampler GetInnerSampler(DiagnosticsRuntimeSampler.CachedSampler cache) => cache.Sampler;
 }

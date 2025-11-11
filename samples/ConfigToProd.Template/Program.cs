@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Hugo;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
@@ -71,21 +72,21 @@ public sealed class Program
         app.MapGet("/readyz", (ProbeState probeState) =>
         {
             return probeState.IsReady
-                ? Results.Ok(new
-                {
-                    status = "ready",
-                    since = probeState.ReadySinceUtc,
-                    diagnostics = probeState.DiagnosticsSatisfied
-                })
+                ? TypedResults.Json(
+                    new ReadyStatusPayload(
+                        Status: "ready",
+                        Since: probeState.ReadySinceUtc,
+                        Diagnostics: probeState.DiagnosticsSatisfied),
+                    ConfigToProdJsonContext.Default.ReadyStatusPayload)
                 : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         });
 
-        app.MapGet("/", (IConfiguration config, IHostEnvironment env) => Results.Json(new
-        {
-            service = config.GetValue<string>("omnirelay:service"),
-            environment = env.EnvironmentName,
-            message = "Config-to-Prod template running"
-        }));
+        app.MapGet("/", (IConfiguration config, IHostEnvironment env) => TypedResults.Json(
+            new RootStatusPayload(
+                Service: config.GetValue<string>("omnirelay:service"),
+                Environment: env.EnvironmentName,
+                Message: "Config-to-Prod template running"),
+            ConfigToProdJsonContext.Default.RootStatusPayload));
 
         await app.RunAsync().ConfigureAwait(false);
     }
@@ -305,3 +306,14 @@ internal sealed record ProbeOptions
         init => field = value;
     }
 }
+
+internal sealed record ReadyStatusPayload(string Status, DateTimeOffset? Since, bool Diagnostics);
+
+internal sealed record RootStatusPayload(string? Service, string? Environment, string Message);
+
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Serialization,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(ReadyStatusPayload))]
+[JsonSerializable(typeof(RootStatusPayload))]
+internal partial class ConfigToProdJsonContext : JsonSerializerContext;

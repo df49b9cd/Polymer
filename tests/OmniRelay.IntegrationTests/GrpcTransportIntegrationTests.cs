@@ -238,7 +238,7 @@ public class GrpcTransportIntegrationTests
             (request, _) =>
             {
                 var meta = new ResponseMeta(encoding: MediaTypeNames.Text.Plain);
-                var payload = Encoding.UTF8.GetBytes("pong");
+                var payload = "pong"u8.ToArray();
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, meta)));
             }));
 

@@ -48,7 +48,7 @@ public sealed class ResourceLeaseIntegrationTests
             ResourceId: "leases",
             PartitionKey: "partition-1",
             PayloadEncoding: "json",
-            Body: Encoding.UTF8.GetBytes("{\"job\":\"sync\"}"),
+            Body: "{\"job\":\"sync\"}"u8.ToArray(),
             Attributes: new Dictionary<string, string> { ["owner"] = "integration" },
             RequestId: "request-1");
 

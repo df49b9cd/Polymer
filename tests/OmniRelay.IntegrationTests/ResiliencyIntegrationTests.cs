@@ -473,7 +473,7 @@ public class ResiliencyIntegrationTests
         try
         {
             using var httpClient = new HttpClient { BaseAddress = httpBase };
-            using var request = CreateHttpRequest("resiliency::proxy", payload: Encoding.UTF8.GetBytes("hello"));
+            using var request = CreateHttpRequest("resiliency::proxy", payload: "hello"u8.ToArray());
             using var response = await httpClient.SendAsync(request, ct);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var bodyBytes = await response.Content.ReadAsByteArrayAsync(ct);

@@ -182,7 +182,7 @@ public class ObservabilityDiagnosticsIntegrationTests
                     new KeyValuePair<string, string>("rpc.peer", "backend-primary")
                 });
 
-            var outboundRequest = new Request<ReadOnlyMemory<byte>>(outboundMeta, Encoding.UTF8.GetBytes("""{"message":"fanout"}"""));
+            var outboundRequest = new Request<ReadOnlyMemory<byte>>(outboundMeta, """{"message":"fanout"}"""u8.ToArray());
 
             var outboundMiddleware = (IUnaryOutboundMiddleware)rpcLogging;
             var outboundResult = await outboundMiddleware.InvokeAsync(
@@ -321,7 +321,7 @@ public class ObservabilityDiagnosticsIntegrationTests
             builder.Handle(static (request, _) =>
             {
                 var responseMeta = new ResponseMeta(encoding: MediaTypeNames.Text.Plain);
-                var payload = Encoding.UTF8.GetBytes("pong");
+                var payload = "pong"u8.ToArray();
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, responseMeta)));
             });
         });

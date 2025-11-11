@@ -287,7 +287,7 @@ public class OmniRelayConfigurationTests
                 out var inboundCodec));
             Assert.Equal("application/json", inboundCodec.Encoding);
 
-            var invalidPayload = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("{\"count\":2}"));
+            var invalidPayload = new ReadOnlyMemory<byte>("{\"count\":2}"u8.ToArray());
             var decode = inboundCodec.DecodeRequest(invalidPayload, new RequestMeta(service: "echo", procedure: "echo::call"));
             Assert.True(decode.IsFailure);
             Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(decode.Error!));

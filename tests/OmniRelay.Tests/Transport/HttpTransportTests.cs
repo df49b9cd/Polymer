@@ -326,7 +326,7 @@ public class HttpTransportTests
                 {
                     try
                     {
-                        var payload = Encoding.UTF8.GetBytes("this-payload-is-way-too-long");
+                        var payload = "this-payload-is-way-too-long"u8.ToArray();
                         await call.WriteAsync(payload, cancellationToken);
                     }
                     catch (OperationCanceledException)

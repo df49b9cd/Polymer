@@ -40,7 +40,7 @@ public class HttpTransportHeaderIntegrationTests
             (request, _) =>
             {
                 jsonMetaSource.TrySetResult(request.Meta);
-                var payload = Encoding.UTF8.GetBytes("{\"result\":\"json\"}");
+                var payload = "{\"result\":\"json\"}"u8.ToArray();
                 var meta = new ResponseMeta(encoding: MediaTypeNames.Application.Json)
                     .WithHeader("X-Json", "ok");
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, meta)));

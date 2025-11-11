@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -64,12 +66,12 @@ public static class Program
                 string.Join(", ", runtime.GrpcInbound.Urls));
         });
 
-        app.MapGet("/api/dispatcher", () => Results.Json(new
-        {
-            runtime.Dispatcher.ServiceName,
-            http = runtime.HttpInbound.Urls,
-            grpc = runtime.GrpcInbound.Urls
-        }));
+        app.MapGet("/api/dispatcher", () => TypedResults.Json(
+            new DispatcherStatus(
+                runtime.Dispatcher.ServiceName,
+                runtime.HttpInbound.Urls,
+                runtime.GrpcInbound.Urls),
+            MinimalApiBridgeJsonContext.Default.DispatcherStatus));
 
         app.MapGet("/api/greetings/{name}", async (string name, GreetingHandlers handlers, CancellationToken ct) =>
         {
@@ -487,3 +489,11 @@ internal sealed record AlertEvent(string Severity, string Message, string? Chann
         init => field = value;
     } = CorrelationId;
 }
+
+internal sealed record DispatcherStatus(string ServiceName, IReadOnlyList<string> Http, IReadOnlyList<string> Grpc);
+
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Serialization,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(DispatcherStatus))]
+internal partial class MinimalApiBridgeJsonContext : JsonSerializerContext;

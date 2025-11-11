@@ -266,7 +266,7 @@ public class HttpInboundLifecycleTests
         using var rejectedResponse = await httpClient.PostAsync("/", new ByteArrayContent([]), ct);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, rejectedResponse.StatusCode);
-        _ = rejectedResponse.Headers.TryGetValues("Retry-After", out var retryAfterValues);
+        Assert.True(rejectedResponse.Headers.TryGetValues("Retry-After", out var retryAfterValues));
         Assert.Contains("1", retryAfterValues);
         Assert.Equal(2, rejectedResponse.Version.Major);
         Assert.True(rejectedResponse.Headers.TryGetValues(HttpTransportHeaders.Protocol, out var protocolValues));

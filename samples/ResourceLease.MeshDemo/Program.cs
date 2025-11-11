@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Http.Json;
@@ -158,7 +159,7 @@ static string BuildBanner(MeshDemoOptions options, MeshDemoRole roles)
     var sb = new StringBuilder();
     sb.AppendLine("OmniRelay ResourceLease Mesh Demo");
     sb.AppendLine();
-    sb.AppendLine($"Active roles: {roles}");
+    sb.AppendLine(FormattableString.Invariant($"Active roles: {roles}"));
     sb.AppendLine();
 
     if (roles.HasRole(MeshDemoRole.Diagnostics))
@@ -181,12 +182,12 @@ static string BuildBanner(MeshDemoOptions options, MeshDemoRole roles)
     var rpcEndpoint = $"{rpcBase}/omnirelay/yarpc/v1";
     var ns = string.IsNullOrWhiteSpace(options.Namespace) ? "resourcelease.mesh" : options.Namespace;
     sb.AppendLine("RPC endpoints:");
-    sb.AppendLine($"- ResourceLease dispatcher listens on {rpcEndpoint} (namespace {ns})");
+    sb.AppendLine(FormattableString.Invariant($"- ResourceLease dispatcher listens on {rpcEndpoint} (namespace {ns})"));
     sb.AppendLine();
     sb.AppendLine("Try commands:");
-    sb.AppendLine($"  omnirelay request --transport http --url {rpcEndpoint} \\");
-    sb.AppendLine($"    --service {options.ServiceName ?? "resourcelease-mesh-demo"} \\");
-    sb.AppendLine($"    --procedure {ns}::enqueue \\");
+    sb.AppendLine(FormattableString.Invariant($"  omnirelay request --transport http --url {rpcEndpoint} \\"));
+    sb.AppendLine(FormattableString.Invariant($"    --service {options.ServiceName ?? "resourcelease-mesh-demo"} \\"));
+    sb.AppendLine(FormattableString.Invariant($"    --procedure {ns}::enqueue \\"));
     sb.AppendLine("    --encoding application/json \\");
     sb.AppendLine("    --body '{\"payload\":{\"resourceType\":\"lakehouse.catalog\",\"resourceId\":\"fabric-lakehouse.sales.orders.v0042\",\"partitionKey\":\"fabric-lakehouse\",\"payloadEncoding\":\"application/json\",\"body\":\"eyJjYXRhbG9nIjogImZhYnJpYy1sYWtlaG91c2UiLCAiZGF0YWJhc2UiOiAic2FsZXMiLCAidGFibGUiOiAib3JkZXJzIiwgIm9wZXJhdGlvblR5cGUiOiAiQ29tbWl0U25hcHNob3QiLCAidmVyc2lvbiI6IDQyLCAicHJpbmNpcGFsIjogInNwYXJrLWNsaSIsICJjb2x1bW5zIjogWyJpZCBTVFJJTkciLCAicGF5bG9hZCBTVFJJTkciXSwgImNoYW5nZXMiOiBbImNvbW1pdCBzbmFwc2hvdCBmcm9tIENMSSJdLCAic25hcHNob3RJZCI6ICJjbGktc25hcHNob3QiLCAidGltZXN0YW1wIjogIjIwMjQtMDEtMDFUMDA6MDA6MDBaIiwgInJlcXVlc3RJZCI6ICJjbGkifQ==\"}}'");
     return sb.ToString();

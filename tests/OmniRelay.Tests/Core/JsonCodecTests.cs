@@ -31,7 +31,7 @@ public class JsonCodecTests
     public void DecodeRequest_InvalidJsonMapsToInvalidArgument()
     {
         var codec = new JsonCodec<Sample, Sample>();
-        var payload = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("{ invalid json"));
+        var payload = new ReadOnlyMemory<byte>("{ invalid json"u8.ToArray());
         var meta = new RequestMeta(service: "svc", procedure: "echo");
 
         var result = codec.DecodeRequest(payload, meta);
@@ -91,7 +91,7 @@ public class JsonCodecTests
         """);
 
         var codec = new JsonCodec<Sample, Sample>(requestSchema: schema, requestSchemaId: "sample-request");
-        var payload = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("{\"count\":5}"));
+        var payload = new ReadOnlyMemory<byte>("{\"count\":5}"u8.ToArray());
         var meta = new RequestMeta(service: "svc", procedure: "echo");
 
         var result = codec.DecodeRequest(payload, meta);

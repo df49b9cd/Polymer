@@ -42,7 +42,7 @@ public class HttpDispatcherHostIntegrationTests
             "integration::ping",
             static (request, _) =>
             {
-                var responseBytes = Encoding.UTF8.GetBytes("integration-http-response");
+                var responseBytes = "integration-http-response"u8.ToArray();
                 var responseMeta = new ResponseMeta(encoding: MediaTypeNames.Text.Plain);
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(responseBytes, responseMeta)));
             }));
@@ -56,7 +56,7 @@ public class HttpDispatcherHostIntegrationTests
             httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "integration::ping");
             httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
 
-            using var content = new ByteArrayContent(Encoding.UTF8.GetBytes("ping"));
+            using var content = new ByteArrayContent("ping"u8.ToArray());
             using var response = await httpClient.PostAsync("/", content, ct);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync(ct);

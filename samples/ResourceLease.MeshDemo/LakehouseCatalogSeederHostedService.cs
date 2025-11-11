@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using Microsoft.Extensions.Options;
@@ -43,7 +44,7 @@ public sealed class LakehouseCatalogSeederHostedService : BackgroundService
                         ["database"] = operation.Database,
                         ["table"] = operation.Table,
                         ["operation"] = operation.OperationType.ToString(),
-                        ["version"] = operation.Version.ToString()
+                        ["version"] = operation.Version.ToString(CultureInfo.InvariantCulture)
                     },
                     RequestId: operation.RequestId);
 
