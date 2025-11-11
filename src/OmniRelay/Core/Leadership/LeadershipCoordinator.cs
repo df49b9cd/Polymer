@@ -546,7 +546,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
             {
                 scope = descriptor.ToScope();
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 LeadershipCoordinatorLog.InvalidScopeConfiguration(_logger, ex);
                 continue;
