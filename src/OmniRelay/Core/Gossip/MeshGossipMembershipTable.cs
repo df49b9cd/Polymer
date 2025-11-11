@@ -149,7 +149,6 @@ internal sealed class MeshGossipMembershipTable
             return [];
         }
 
-        var now = _timeProvider.GetUtcNow();
         var candidates = _members.Values
             .Where(state => state.NodeId != _localNodeId && state.Metadata.Endpoint is not null && state.Status != MeshGossipMemberStatus.Left)
             .Select(state => state.ToSnapshot())
