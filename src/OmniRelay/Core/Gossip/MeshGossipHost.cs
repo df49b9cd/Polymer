@@ -124,7 +124,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 await _gossipLoop.ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
         {
         }
 
@@ -135,7 +135,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 await _sweepLoop.ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
         {
         }
 
