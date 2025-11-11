@@ -72,7 +72,7 @@ public sealed class ResourceLeaseReplicationTests
             "peer-a",
             new ResourceLeaseItemPayload("workflow", "job-123", "pk", "json", []),
             null,
-            ImmutableDictionary<string, string>.Empty);
+            []);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {

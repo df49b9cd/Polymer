@@ -29,7 +29,7 @@ public sealed class SqliteResourceLeaseReplicator : IResourceLeaseReplicator, IA
         _connectionString = connectionString;
         _tableName = tableName;
         _sinks = sinks is null
-            ? ImmutableArray<IResourceLeaseReplicationSink>.Empty
+            ? []
             : [..sinks.Where(s => s is not null)];
     }
 

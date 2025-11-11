@@ -47,7 +47,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     }
 
     public ImmutableArray<PeerLeaseHealthSnapshot> LeaseHealth =>
-        _leaseHealthProvider?.Snapshot() ?? ImmutableArray<PeerLeaseHealthSnapshot>.Empty;
+        _leaseHealthProvider?.Snapshot() ?? [];
 
     public void UpdatePeers(IEnumerable<IPeer> peers)
     {

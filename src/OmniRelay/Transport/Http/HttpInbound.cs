@@ -49,6 +49,32 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
     private static readonly HttpInboundJsonContext JsonContext = HttpInboundJsonContext.Default;
     private const string RetryAfterHeaderValue = "1";
     private const int DefaultDuplexFrameBytes = 16 * 1024;
+    private const string HttpTransportName = "http";
+    private const string Http3ProtocolName = "http3";
+
+    [LoggerMessage(
+        EventId = 1000,
+        Level = LogLevel.Information,
+        Message = "http inbound: transport={Transport} protocol={Protocol} enabled on {EndpointCount} endpoint(s): {Endpoints}")]
+    private static partial void LogHttp3Enabled(ILogger logger, string transport, string protocol, int endpointCount, string endpoints);
+
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Warning,
+        Message = "http inbound: transport={Transport} protocol={Protocol} was requested but no HTTPS endpoints were configured; falling back to HTTP/1.1 and HTTP/2.")]
+    private static partial void LogHttp3Fallback(ILogger logger, string transport, string protocol);
+
+    [LoggerMessage(
+        EventId = 1002,
+        Level = LogLevel.Warning,
+        Message = "http inbound: transport={Transport} protocol={Protocol} stream limit tuning is not supported by the current MsQuic transport; configured values will be ignored.")]
+    private static partial void LogHttp3StreamLimitUnsupported(ILogger logger, string transport, string protocol);
+
+    [LoggerMessage(
+        EventId = 1003,
+        Level = LogLevel.Warning,
+        Message = "http inbound: transport={Transport} protocol={Protocol} MsQuic tuning unsupported for {OptionList}; configured values will be ignored.")]
+    private static partial void LogHttp3TuningUnsupported(ILogger logger, string transport, string protocol, string optionList);
 
     /// <summary>
     /// Creates a new HTTP inbound server with optional DI and app configuration hooks.
@@ -297,27 +323,21 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         {
             if (http3Endpoints is { Count: > 0 })
             {
-                app.Logger.LogInformation(
-                    "http inbound: transport={Transport} protocol={Protocol} enabled on {EndpointCount} endpoint(s): {Endpoints}",
-                    "http",
-                    "http3",
+                LogHttp3Enabled(
+                    app.Logger,
+                    HttpTransportName,
+                    Http3ProtocolName,
                     http3Endpoints.Count,
                     string.Join(", ", http3Endpoints));
             }
             else
             {
-                app.Logger.LogWarning(
-                    "http inbound: transport={Transport} protocol={Protocol} was requested but no HTTPS endpoints were configured; falling back to HTTP/1.1 and HTTP/2.",
-                    "http",
-                    "http3");
+                LogHttp3Fallback(app.Logger, HttpTransportName, Http3ProtocolName);
             }
 
             if (streamLimitUnsupported)
             {
-                app.Logger.LogWarning(
-                    "http inbound: transport={Transport} protocol={Protocol} stream limit tuning is not supported by the current MsQuic transport; configured values will be ignored.",
-                    "http",
-                    "http3");
+                LogHttp3StreamLimitUnsupported(app.Logger, HttpTransportName, Http3ProtocolName);
             }
 
             if (idleTimeoutUnsupported || keepAliveUnsupported)
@@ -334,10 +354,10 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
                     unsupportedOptions.Add("keep-alive interval");
                 }
 
-                app.Logger.LogWarning(
-                    "http inbound: transport={Transport} protocol={Protocol} MsQuic tuning unsupported for {OptionList}; configured values will be ignored.",
-                    "http",
-                    "http3",
+                LogHttp3TuningUnsupported(
+                    app.Logger,
+                    HttpTransportName,
+                    Http3ProtocolName,
                     string.Join(" and ", unsupportedOptions));
             }
         }

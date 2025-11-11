@@ -30,10 +30,10 @@ public class OutboundCollectionTests
         var collection = new OutboundCollection(
             "downstream",
             map,
-            ImmutableDictionary<string, IOnewayOutbound>.Empty,
-            ImmutableDictionary<string, IStreamOutbound>.Empty,
-            ImmutableDictionary<string, IClientStreamOutbound>.Empty,
-            ImmutableDictionary<string, IDuplexOutbound>.Empty);
+            [],
+            [],
+            [],
+            []);
 
         Assert.Same(unary, collection.ResolveUnary("PRIMARY"));
     }

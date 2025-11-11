@@ -21,7 +21,7 @@ public sealed class ResourceLeaseIntegrationTests
         dispatcherOptions.UnaryInboundMiddleware.Add(new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ["x-client-principal"],
-            AuthorizationHeaderNames = ImmutableArray<string>.Empty,
+            AuthorizationHeaderNames = [],
             ThumbprintHeaderName = "x-mtls-thumbprint",
             IncludeThumbprint = true
         }));

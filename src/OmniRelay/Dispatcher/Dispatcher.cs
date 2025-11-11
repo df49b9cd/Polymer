@@ -314,11 +314,11 @@ public sealed class Dispatcher
             {
                 collection = new OutboundCollection(
                     service,
-                    ImmutableDictionary<string, IUnaryOutbound>.Empty,
-                    ImmutableDictionary<string, IOnewayOutbound>.Empty,
-                    ImmutableDictionary<string, IStreamOutbound>.Empty,
-                    ImmutableDictionary<string, IClientStreamOutbound>.Empty,
-                    ImmutableDictionary<string, IDuplexOutbound>.Empty);
+                    [],
+                    [],
+                    [],
+                    [],
+                    []);
             }
             else
             {

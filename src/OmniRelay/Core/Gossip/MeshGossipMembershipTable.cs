@@ -147,7 +147,7 @@ internal sealed class MeshGossipMembershipTable
     {
         if (fanout <= 0)
         {
-            return Array.Empty<MeshGossipMemberSnapshot>();
+            return [];
         }
 
         var now = _timeProvider.GetUtcNow();

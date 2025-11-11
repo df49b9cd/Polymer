@@ -78,7 +78,7 @@ public class CodecRegistryTests
             typeof(int),
             codec,
             codec.Encoding,
-            ImmutableArray<string>.Empty);
+            []);
 
         var registry = new CodecRegistry("svc", [registration]);
 

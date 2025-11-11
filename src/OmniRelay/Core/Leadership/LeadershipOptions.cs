@@ -32,8 +32,8 @@ public sealed class LeadershipOptions
     public string? NodeId { get; set; }
 
     /// <summary>Explicit scope descriptors. When empty, the coordinator falls back to the global-control scope.</summary>
-    public IList<LeadershipScopeDescriptor> Scopes { get; } = new List<LeadershipScopeDescriptor>();
+    public IList<LeadershipScopeDescriptor> Scopes { get; } = [];
 
     /// <summary>Convenience configuration for bulk shard scopes.</summary>
-    public IList<LeadershipShardScopeOptions> Shards { get; } = new List<LeadershipShardScopeOptions>();
+    public IList<LeadershipShardScopeOptions> Shards { get; } = [];
 }

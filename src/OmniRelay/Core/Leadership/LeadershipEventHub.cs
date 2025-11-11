@@ -14,14 +14,14 @@ public sealed class LeadershipEventHub
     private readonly TimeProvider _timeProvider;
     private readonly object _snapshotLock = new();
     private ImmutableDictionary<string, LeadershipToken> _tokens =
-        ImmutableDictionary<string, LeadershipToken>.Empty;
+        [];
     private LeadershipSnapshot _snapshot;
 
     public LeadershipEventHub(ILogger<LeadershipEventHub> logger, TimeProvider? timeProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeProvider = timeProvider ?? TimeProvider.System;
-        _snapshot = new LeadershipSnapshot(_timeProvider.GetUtcNow(), ImmutableArray<LeadershipToken>.Empty);
+        _snapshot = new LeadershipSnapshot(_timeProvider.GetUtcNow(), []);
     }
 
     /// <summary>Returns the latest leadership snapshot.</summary>

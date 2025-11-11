@@ -161,7 +161,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
                 CertificateRevocationCheckMode = _options.Tls.CheckCertificateRevocation
                     ? X509RevocationMode.Online
                     : X509RevocationMode.NoCheck,
-                ClientCertificates = new X509CertificateCollection(),
+                ClientCertificates = [],
                 LocalCertificateSelectionCallback = (_, host, certificates, _, issuers) =>
                 {
                     var cert = _certificateProvider.GetCertificate();

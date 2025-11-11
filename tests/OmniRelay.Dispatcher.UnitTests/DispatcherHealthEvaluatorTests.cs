@@ -68,7 +68,7 @@ public class DispatcherHealthEvaluatorTests
         IReadOnlyList<Uri> peers,
         ImmutableArray<GrpcPeerSummary>? summaries = null)
     {
-        summaries ??= ImmutableArray<GrpcPeerSummary>.Empty;
+        summaries ??= [];
         return new GrpcOutboundSnapshot(
             "remote",
             peers,

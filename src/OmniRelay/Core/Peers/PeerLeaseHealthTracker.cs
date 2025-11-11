@@ -118,8 +118,8 @@ public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
     {
         private readonly string _peerId;
         private readonly object _lock = new();
-        private readonly Dictionary<Guid, PeerLeaseHandle> _activeLeases = new();
-        private ImmutableDictionary<string, string> _metadata = ImmutableDictionary<string, string>.Empty;
+        private readonly Dictionary<Guid, PeerLeaseHandle> _activeLeases = [];
+        private ImmutableDictionary<string, string> _metadata = [];
         private DateTimeOffset _lastHeartbeat = DateTimeOffset.MinValue;
         private DateTimeOffset? _lastDisconnect;
         private bool _isDisconnected;

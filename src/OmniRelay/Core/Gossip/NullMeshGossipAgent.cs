@@ -14,7 +14,7 @@ internal sealed class NullMeshGossipAgent : IMeshGossipAgent
     public MeshGossipMemberMetadata LocalMetadata { get; } = new() { NodeId = string.Empty };
 
     public MeshGossipClusterView Snapshot() =>
-        new(DateTimeOffset.UtcNow, ImmutableArray<MeshGossipMemberSnapshot>.Empty, string.Empty, MeshGossipOptions.CurrentSchemaVersion);
+        new(DateTimeOffset.UtcNow, [], string.Empty, MeshGossipOptions.CurrentSchemaVersion);
 
     public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 

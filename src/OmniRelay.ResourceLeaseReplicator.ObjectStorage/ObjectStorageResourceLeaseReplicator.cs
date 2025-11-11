@@ -24,7 +24,7 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
         _objectStore = objectStore;
         _keyPrefix = keyPrefix ?? string.Empty;
         _sinks = sinks is null
-            ? ImmutableArray<IResourceLeaseReplicationSink>.Empty
+            ? []
             : [..sinks.Where(s => s is not null)];
     }
 

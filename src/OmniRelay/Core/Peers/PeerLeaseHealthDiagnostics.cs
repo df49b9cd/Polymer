@@ -16,7 +16,7 @@ public sealed record PeerLeaseHealthDiagnostics(
     {
         if (snapshots.IsDefault)
         {
-            snapshots = ImmutableArray<PeerLeaseHealthSnapshot>.Empty;
+            snapshots = [];
         }
 
         var eligible = 0;

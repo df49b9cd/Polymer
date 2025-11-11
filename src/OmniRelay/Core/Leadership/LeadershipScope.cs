@@ -9,7 +9,7 @@ namespace OmniRelay.Core.Leadership;
 public sealed record LeadershipScope
 {
     private static readonly ImmutableDictionary<string, string> EmptyLabels =
-        ImmutableDictionary<string, string>.Empty;
+        [];
 
     private LeadershipScope(string scopeId, string scopeKind, ImmutableDictionary<string, string> labels)
     {
@@ -173,5 +173,5 @@ public sealed class LeadershipShardScopeOptions
 {
     public string? Namespace { get; set; }
 
-    public IList<string> Shards { get; } = new List<string>();
+    public IList<string> Shards { get; } = [];
 }

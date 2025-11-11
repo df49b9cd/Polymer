@@ -2365,7 +2365,7 @@ public static class Program
             return;
         }
 
-        var tokens = snapshot.Tokens ?? Array.Empty<LeadershipTokenResponse>();
+        var tokens = snapshot.Tokens ?? [];
         if (!string.IsNullOrWhiteSpace(scopeFilter))
         {
             tokens = tokens
@@ -3523,7 +3523,7 @@ public static class Program
     {
         public DateTimeOffset GeneratedAt { get; set; }
 
-        public LeadershipTokenResponse[] Tokens { get; set; } = Array.Empty<LeadershipTokenResponse>();
+        public LeadershipTokenResponse[] Tokens { get; set; } = [];
     }
 
     private sealed class LeadershipTokenResponse

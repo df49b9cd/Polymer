@@ -47,7 +47,7 @@ public sealed class MeshGossipOptions
 
     /// <summary>Advertised port if different from bind port (defaults to <see cref="Port"/>).</summary>
     public int? AdvertisePort { get; set; }
-        = null;
+
 
     /// <summary>Interval between gossip rounds.</summary>
     public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(1);
@@ -71,7 +71,7 @@ public sealed class MeshGossipOptions
     public TimeSpan CertificateReloadInterval { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>Optional endpoints preconfigured as seed peers.</summary>
-    public IList<string> SeedPeers { get; init; } = new List<string>();
+    public IList<string> SeedPeers { get; init; } = [];
 
     /// <summary>TLS configuration for gossip traffic.</summary>
     public MeshGossipTlsOptions Tls { get; init; } = new();
@@ -80,7 +80,7 @@ public sealed class MeshGossipOptions
     {
         if (SeedPeers.Count == 0)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         var normalized = new List<string>(SeedPeers.Count);
@@ -119,9 +119,9 @@ public sealed class MeshGossipTlsOptions
     public bool CheckCertificateRevocation { get; set; } = true;
 
     /// <summary>Optional list of CA thumbprints required for peer certificates.</summary>
-    public IList<string> AllowedThumbprints { get; init; } = new List<string>();
+    public IList<string> AllowedThumbprints { get; init; } = [];
 
     /// <summary>Optional override for certificate reload interval.</summary>
     public TimeSpan? ReloadIntervalOverride { get; set; }
-        = null;
+
 }

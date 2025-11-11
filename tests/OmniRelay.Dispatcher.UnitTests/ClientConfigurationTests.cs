@@ -52,11 +52,11 @@ public class ClientConfigurationTests
 
         var collection = new OutboundCollection(
             "downstream",
-            ImmutableDictionary<string, IUnaryOutbound>.Empty,
-            ImmutableDictionary<string, IOnewayOutbound>.Empty,
-            ImmutableDictionary<string, IStreamOutbound>.Empty,
-            ImmutableDictionary<string, IClientStreamOutbound>.Empty,
-            ImmutableDictionary<string, IDuplexOutbound>.Empty);
+            [],
+            [],
+            [],
+            [],
+            []);
 
         var config = new ClientConfiguration(
             collection,
@@ -91,10 +91,10 @@ public class ClientConfigurationTests
 
         return new ClientConfiguration(
             collection,
-            ImmutableArray<IUnaryOutboundMiddleware>.Empty,
-            ImmutableArray<IOnewayOutboundMiddleware>.Empty,
-            ImmutableArray<IStreamOutboundMiddleware>.Empty,
-            ImmutableArray<IClientStreamOutboundMiddleware>.Empty,
-            ImmutableArray<IDuplexOutboundMiddleware>.Empty);
+            [],
+            [],
+            [],
+            [],
+            []);
     }
 }

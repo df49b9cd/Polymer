@@ -72,7 +72,7 @@ public class RoundRobinPeerChooserTests
         var provider = Substitute.For<IPeerHealthSnapshotProvider>();
         provider.IsPeerEligible("p1").Returns(false);
         provider.IsPeerEligible("p2").Returns(true);
-        provider.Snapshot().Returns(ImmutableArray<PeerLeaseHealthSnapshot>.Empty);
+        provider.Snapshot().Returns([]);
 
         var chooser = new RoundRobinPeerChooser([unhealthy, healthy], provider);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
@@ -96,7 +96,7 @@ public class RoundRobinPeerChooserTests
 
         var provider = Substitute.For<IPeerHealthSnapshotProvider>();
         provider.IsPeerEligible(Arg.Any<string>()).Returns(false);
-        provider.Snapshot().Returns(ImmutableArray<PeerLeaseHealthSnapshot>.Empty);
+        provider.Snapshot().Returns([]);
 
         var chooser = new RoundRobinPeerChooser([p1, p2], provider);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);

@@ -58,7 +58,7 @@ public sealed class MeshGossipEnvelope
     public MeshGossipMemberMetadata Sender { get; init; } = new();
 
     [JsonPropertyName("members")]
-    public IReadOnlyList<MeshGossipMemberSnapshot> Members { get; init; } = ImmutableArray<MeshGossipMemberSnapshot>.Empty;
+    public IReadOnlyList<MeshGossipMemberSnapshot> Members { get; init; } = [];
 }
 
 /// <summary>Snapshot for a peer included in gossip payloads.</summary>
