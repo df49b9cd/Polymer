@@ -31,7 +31,7 @@ public sealed class HttpClientLoggingMiddlewareTests
             HttpOutboundCallKind.Unary,
             HttpCompletionOption.ResponseContentRead);
 
-        var response = await middleware.InvokeAsync(
+        using var response = await middleware.InvokeAsync(
             context,
             static (_, _) => ValueTask.FromResult(new HttpResponseMessage(HttpStatusCode.OK)),
             CancellationToken.None);
