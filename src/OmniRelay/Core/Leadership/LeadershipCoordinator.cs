@@ -121,7 +121,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
                 {
                     await _store.TryReleaseAsync(state.Scope.ScopeId, lease, cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
                 {
                     LeadershipCoordinatorLog.FailedToReleaseScope(_logger, state.Scope.ScopeId, ex);
                 }
@@ -180,7 +180,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
                 {
                     return;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
                 {
                     LeadershipCoordinatorLog.EvaluationFailed(_logger, state.Scope.ScopeId, ex);
                 }
@@ -546,7 +546,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
             {
                 scope = descriptor.ToScope();
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 LeadershipCoordinatorLog.InvalidScopeConfiguration(_logger, ex);
                 continue;
