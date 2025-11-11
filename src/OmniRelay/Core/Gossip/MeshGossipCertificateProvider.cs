@@ -14,6 +14,11 @@ public sealed class MeshGossipCertificateProvider : IDisposable
     private X509Certificate2? _certificate;
     private DateTimeOffset _lastLoaded;
     private DateTime _lastWrite;
+    private static readonly Action<ILogger, string, string, Exception?> CertificateLoadedLog =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Information,
+            new EventId(1, "MeshGossipCertificateLoaded"),
+            "Mesh gossip certificate loaded from {Path}. Subject={Subject}");
 
     public MeshGossipCertificateProvider(MeshGossipOptions options, ILogger<MeshGossipCertificateProvider> logger)
     {
@@ -81,7 +86,7 @@ public sealed class MeshGossipCertificateProvider : IDisposable
         _certificate = cert;
         _lastLoaded = DateTimeOffset.UtcNow;
         _lastWrite = File.GetLastWriteTimeUtc(path);
-        _logger.LogInformation("Mesh gossip certificate loaded from {Path}. Subject={Subject}", path, cert.Subject);
+        CertificateLoadedLog(_logger, path, cert.Subject, null);
     }
 
     private string ResolveCertificatePath()
