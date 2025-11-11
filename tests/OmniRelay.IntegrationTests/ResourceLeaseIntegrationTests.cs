@@ -20,7 +20,7 @@ public sealed class ResourceLeaseIntegrationTests
         var dispatcherOptions = new DispatcherOptions("resourcelease-endpoint");
         dispatcherOptions.UnaryInboundMiddleware.Add(new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
-            PrincipalHeaderNames = ImmutableArray.Create("x-client-principal"),
+            PrincipalHeaderNames = ["x-client-principal"],
             AuthorizationHeaderNames = ImmutableArray<string>.Empty,
             ThumbprintHeaderName = "x-mtls-thumbprint",
             IncludeThumbprint = true
@@ -29,7 +29,7 @@ public sealed class ResourceLeaseIntegrationTests
         var dispatcher = new Dispatcher.Dispatcher(dispatcherOptions);
 
         var replicationSink = new RecordingReplicationSink();
-        var replicator = new InMemoryResourceLeaseReplicator(new[] { replicationSink });
+        var replicator = new InMemoryResourceLeaseReplicator([replicationSink]);
 
         await using var component = new ResourceLeaseDispatcherComponent(dispatcher, new ResourceLeaseDispatcherOptions
         {
@@ -133,7 +133,7 @@ public sealed class ResourceLeaseIntegrationTests
 
     private sealed class RecordingReplicationSink : IResourceLeaseReplicationSink
     {
-        private readonly List<ResourceLeaseReplicationEvent> _events = new();
+        private readonly List<ResourceLeaseReplicationEvent> _events = [];
 
         public IReadOnlyList<ResourceLeaseReplicationEvent> Events => _events;
 

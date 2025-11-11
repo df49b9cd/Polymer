@@ -17,19 +17,13 @@ namespace OmniRelay.Core.UnitTests.Clients;
 
 public class ClientStreamClientTests
 {
-    public sealed class Req {
-        public int V
-        {
-            get => field;
-            init => field = value;
-        }
+    public sealed class Req
+    {
+        public int V { get; init; }
     }
-    public sealed class Res {
-        public string? S
-        {
-            get => field;
-            init => field = value;
-        }
+    public sealed class Res
+    {
+        public string? S { get; init; }
     }
 
     private sealed class TestClientStreamTransportCall : IClientStreamTransportCall
@@ -43,13 +37,9 @@ public class ClientStreamClientTests
             ResponseMeta = new ResponseMeta();
         }
 
-        public RequestMeta RequestMeta => field;
+        public RequestMeta RequestMeta { get; }
 
-        public ResponseMeta ResponseMeta
-        {
-            get => field;
-            set => field = value;
-        }
+        public ResponseMeta ResponseMeta { get; set; }
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Response => new(_tcs.Task);
         public IReadOnlyList<ReadOnlyMemory<byte>> Writes => _writes;

@@ -3,7 +3,7 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public sealed class MeshReplicationLog
+internal sealed class MeshReplicationLog
 {
     private readonly ConcurrentQueue<ResourceLeaseReplicationEvent> _events = new();
     private readonly int _capacity;
@@ -24,7 +24,7 @@ public sealed class MeshReplicationLog
     public IReadOnlyList<ResourceLeaseReplicationEvent> GetRecent() => _events.ToArray();
 }
 
-public sealed class MeshReplicationLogSink : IResourceLeaseReplicationSink
+internal sealed class MeshReplicationLogSink : IResourceLeaseReplicationSink
 {
     private readonly MeshReplicationLog _log;
 

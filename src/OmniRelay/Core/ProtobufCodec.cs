@@ -13,9 +13,9 @@ namespace OmniRelay.Core;
 /// </summary>
 public sealed class ProtobufCodec<
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
-    TRequest,
+TRequest,
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
-    TResponse>(
+TResponse>(
     MessageParser<TRequest>? requestParser = null,
     MessageParser<TResponse>? responseParser = null,
     JsonParser? jsonParser = null,
@@ -39,10 +39,7 @@ public sealed class ProtobufCodec<
     private readonly JsonFormatter _jsonFormatter = jsonFormatter ?? JsonFormatter.Default;
 
     /// <inheritdoc />
-    public string Encoding
-    {
-        get => field;
-    } = string.IsNullOrWhiteSpace(defaultEncoding)
+    public string Encoding { get; } = string.IsNullOrWhiteSpace(defaultEncoding)
         ? ProtobufEncoding.Protobuf
         : defaultEncoding;
 
@@ -244,7 +241,7 @@ public sealed class ProtobufCodec<
 
     private static MessageParser<TMessage> ResolveParser<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
-        TMessage>(MessageParser<TMessage>? parser)
+    TMessage>(MessageParser<TMessage>? parser)
         where TMessage : class, IMessage<TMessage>
     {
         if (parser is not null)
@@ -272,7 +269,7 @@ public sealed class ProtobufCodec<
 
     private static MessageDescriptor ResolveDescriptor<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
-        TMessage>()
+    TMessage>()
         where TMessage : class, IMessage<TMessage>
     {
         var descriptorProperty = typeof(TMessage).GetProperty(

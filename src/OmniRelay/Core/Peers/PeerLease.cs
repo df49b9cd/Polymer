@@ -7,7 +7,6 @@ namespace OmniRelay.Core.Peers;
 /// </summary>
 public sealed class PeerLease : IAsyncDisposable
 {
-    private readonly IPeer _peer;
     private readonly string _peerIdentifier;
     private bool _released;
     private bool _success;
@@ -15,16 +14,16 @@ public sealed class PeerLease : IAsyncDisposable
 
     internal PeerLease(IPeer peer, RequestMeta meta)
     {
-        _peer = peer ?? throw new ArgumentNullException(nameof(peer));
+        Peer = peer ?? throw new ArgumentNullException(nameof(peer));
         Meta = meta ?? throw new ArgumentNullException(nameof(meta));
         _success = false;
-        _peerIdentifier = _peer.Identifier;
+        _peerIdentifier = Peer.Identifier;
         _startTimestamp = Stopwatch.GetTimestamp();
         PeerMetrics.RecordLeaseAcquired(Meta, _peerIdentifier);
     }
 
     /// <summary>Gets the leased peer.</summary>
-    public IPeer Peer => _peer;
+    public IPeer Peer { get; }
 
     /// <summary>Gets the request metadata associated with the lease.</summary>
     public RequestMeta Meta { get; }
@@ -46,12 +45,12 @@ public sealed class PeerLease : IAsyncDisposable
         _released = true;
         var elapsed = Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds;
         PeerMetrics.RecordLeaseReleased(Meta, _peerIdentifier, _success, elapsed);
-        if (_peer is IPeerTelemetry telemetry)
+        if (Peer is IPeerTelemetry telemetry)
         {
             telemetry.RecordLeaseResult(_success, elapsed);
         }
 
-        _peer.Release(_success);
+        Peer.Release(_success);
         return ValueTask.CompletedTask;
     }
 }

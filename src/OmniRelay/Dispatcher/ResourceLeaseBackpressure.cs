@@ -8,35 +8,15 @@ public sealed record ResourceLeaseBackpressureSignal(
     long? HighWatermark,
     long? LowWatermark)
 {
-    public bool IsActive
-    {
-        get => field;
-        init => field = value;
-    } = IsActive;
+    public bool IsActive { get; init; } = IsActive;
 
-    public long PendingCount
-    {
-        get => field;
-        init => field = value;
-    } = PendingCount;
+    public long PendingCount { get; init; } = PendingCount;
 
-    public DateTimeOffset ObservedAt
-    {
-        get => field;
-        init => field = value;
-    } = ObservedAt;
+    public DateTimeOffset ObservedAt { get; init; } = ObservedAt;
 
-    public long? HighWatermark
-    {
-        get => field;
-        init => field = value;
-    } = HighWatermark;
+    public long? HighWatermark { get; init; } = HighWatermark;
 
-    public long? LowWatermark
-    {
-        get => field;
-        init => field = value;
-    } = LowWatermark;
+    public long? LowWatermark { get; init; } = LowWatermark;
 }
 
 /// <summary>Consumers implement this to adjust throttling or instrumentation when backpressure toggles.</summary>

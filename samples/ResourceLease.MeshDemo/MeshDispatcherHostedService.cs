@@ -8,7 +8,7 @@ using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public sealed class MeshDispatcherHostedService : IHostedService, IAsyncDisposable
+internal sealed class MeshDispatcherHostedService : IHostedService, IAsyncDisposable
 {
     private readonly MeshDemoOptions _options;
     private readonly PeerLeaseHealthTracker _leaseHealthTracker;
@@ -41,7 +41,7 @@ public sealed class MeshDispatcherHostedService : IHostedService, IAsyncDisposab
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         var dispatcherOptions = new DispatcherOptions(_options.ServiceName);
-        dispatcherOptions.AddLifecycle("mesh-http-inbound", new HttpInbound(new[] { _options.RpcUrl }));
+        dispatcherOptions.AddLifecycle("mesh-http-inbound", new HttpInbound([_options.RpcUrl]));
 
         if (_gossipAgent?.IsEnabled == true)
         {
@@ -112,7 +112,7 @@ public sealed class MeshDispatcherHostedService : IHostedService, IAsyncDisposab
         {
             await asyncReplicator.DisposeAsync().ConfigureAwait(false);
         }
-}
+    }
 
     private static IResourceLeaseBackpressureListener? ComposeBackpressureListener(IEnumerable<IResourceLeaseBackpressureListener> listeners)
     {

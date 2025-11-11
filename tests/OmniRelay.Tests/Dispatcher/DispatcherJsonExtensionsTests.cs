@@ -198,10 +198,7 @@ public class DispatcherJsonExtensionsTests
 
     private sealed class RecordingUnaryOutbound : IUnaryOutbound
     {
-        public List<Request<ReadOnlyMemory<byte>>> Requests
-        {
-            get => field;
-        } = [];
+        public List<Request<ReadOnlyMemory<byte>>> Requests { get; } = [];
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
@@ -228,18 +225,10 @@ public class DispatcherJsonExtensionsTests
 
 internal sealed record JsonEchoRequest(string Name)
 {
-    public string Name
-    {
-        get => field;
-        init => field = value;
-    } = Name;
+    public string Name { get; init; } = Name;
 }
 
 internal sealed record JsonEchoResponse(string Message)
 {
-    public string Message
-    {
-        get => field;
-        init => field = value;
-    } = Message;
+    public string Message { get; init; } = Message;
 }

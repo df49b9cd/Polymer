@@ -36,73 +36,126 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next) =>
-        InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        UnaryOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next) =>
-        InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        UnaryInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next) =>
-        InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        OnewayOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next) =>
-        InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        OnewayInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next) =>
-        InvokeStreamAsync(request.Meta, cancellationToken, () => next(request, options, cancellationToken));
+        StreamInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeStreamAsync(request.Meta, cancellationToken, () => next(request, options, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next) =>
-        InvokeStreamAsync(request.Meta, cancellationToken, () => next(request, options, cancellationToken));
+        StreamOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeStreamAsync(request.Meta, cancellationToken, () => next(request, options, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next) =>
-        InvokeCoreAsync(context.Meta, cancellationToken, () => next(context, cancellationToken));
+        ClientStreamInboundDelegate next)
+    {
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeCoreAsync(context.Meta, cancellationToken, () => next(context, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next) =>
-        InvokeClientStreamAsync(requestMeta, cancellationToken, () => next(requestMeta, cancellationToken));
+        ClientStreamOutboundDelegate next)
+    {
+        requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeClientStreamAsync(requestMeta, cancellationToken, () => next(requestMeta, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next) =>
-        InvokeDuplexAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        DuplexInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeDuplexAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next) =>
-        InvokeDuplexAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        DuplexOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeDuplexAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+    }
 
     private async ValueTask<Result<T>> InvokeCoreAsync<T>(
         RequestMeta meta,
@@ -231,6 +284,12 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         return OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.ResourceExhausted, message, transport: meta.Transport ?? "unknown");
     }
 
+    private static T EnsureNotNull<T>(T? value, string paramName) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(value, paramName);
+        return value;
+    }
+
     private sealed class RateLimitedStreamCall(IStreamCall inner, RateLimitLease lease) : IStreamCall
     {
         private readonly IStreamCall _inner = inner;
@@ -319,3 +378,4 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         }
     }
 }
+

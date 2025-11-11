@@ -7,11 +7,10 @@ using OmniRelay.Core.Clients;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Peers;
 using OmniRelay.Dispatcher;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using Xunit;
-
 using static Hugo.Go;
 
 namespace OmniRelay.Tests.Transport.Grpc;

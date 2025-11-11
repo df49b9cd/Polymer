@@ -16,53 +16,25 @@ public interface IResourceLeaseDeterministicCoordinator
 public sealed class ResourceLeaseDeterministicOptions
 {
     /// <summary>The deterministic state store backing VersionGate and DeterministicEffectStore.</summary>
-    public IDeterministicStateStore StateStore
-    {
-        get => field;
-        init => field = value;
-    } = new InMemoryDeterministicStateStore();
+    public IDeterministicStateStore StateStore { get; init; } = new InMemoryDeterministicStateStore();
 
     /// <summary>Logical change identifier recorded in VersionGate.</summary>
-    public string ChangeId
-    {
-        get => field;
-        init => field = value;
-    } = "resourcelease.replication";
+    public string ChangeId { get; init; } = "resourcelease.replication";
 
     /// <summary>Minimum supported change version.</summary>
-    public int MinVersion
-    {
-        get => field;
-        init => field = value;
-    } = 1;
+    public int MinVersion { get; init; } = 1;
 
     /// <summary>Maximum supported change version.</summary>
-    public int MaxVersion
-    {
-        get => field;
-        init => field = value;
-    } = 1;
+    public int MaxVersion { get; init; } = 1;
 
     /// <summary>Optional factory that customizes the deterministic effect identifier per event.</summary>
-    public Func<ResourceLeaseReplicationEvent, string>? EffectIdFactory
-    {
-        get => field;
-        init => field = value;
-    }
+    public Func<ResourceLeaseReplicationEvent, string>? EffectIdFactory { get; init; }
 
     /// <summary>Serializer context used to persist deterministic helper types (defaults to <see cref="Hugo.DeterministicJsonSerialization.DefaultContext"/>).</summary>
-    public JsonSerializerContext? SerializerContext
-    {
-        get => field;
-        init => field = value;
-    } = DeterministicJsonSerialization.DefaultContext;
+    public JsonSerializerContext? SerializerContext { get; init; } = DeterministicJsonSerialization.DefaultContext;
 
     /// <summary>Overrides serializer options used for deterministic persistence.</summary>
-    public JsonSerializerOptions? SerializerOptions
-    {
-        get => field;
-        init => field = value;
-    }
+    public JsonSerializerOptions? SerializerOptions { get; init; }
 }
 
 /// <summary>

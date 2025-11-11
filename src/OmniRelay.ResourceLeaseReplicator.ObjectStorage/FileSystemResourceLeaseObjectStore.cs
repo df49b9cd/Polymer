@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace OmniRelay.Dispatcher;
 
 /// <summary>
@@ -26,7 +24,7 @@ public sealed class FileSystemResourceLeaseObjectStore : IResourceLeaseObjectSto
 
         if (!Directory.Exists(_root))
         {
-            return ValueTask.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+            return ValueTask.FromResult<IReadOnlyList<string>>([]);
         }
 
         var normalizedPrefix = (prefix ?? string.Empty).Replace('\\', '/');

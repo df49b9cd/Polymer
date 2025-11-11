@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -20,10 +21,14 @@ namespace OmniRelay.Configuration;
 /// </summary>
 public static class OmniRelayServiceCollectionExtensions
 {
+    private const string AotWarning = "OmniRelay dispatcher bootstrapping uses reflection and dynamic configuration; it is not trimming/AOT safe.";
+
     /// <summary>
     /// Adds and configures an <see cref="Dispatcher.Dispatcher"/> using the provided configuration section.
     /// Binds options, wires diagnostics, builds the dispatcher, and registers a hosted service to manage its lifecycle.
     /// </summary>
+    [RequiresDynamicCode(AotWarning)]
+    [RequiresUnreferencedCode(AotWarning)]
     public static IServiceCollection AddOmniRelayDispatcher(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);

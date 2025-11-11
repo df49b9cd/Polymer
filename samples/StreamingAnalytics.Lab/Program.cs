@@ -1,13 +1,9 @@
-using Google.Protobuf;
-using System.Linq;
 using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Clients;
-using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
-using OmniRelay.Errors;
-using OmniRelay.Samples.StreamingAnalytics;
 using OmniRelay.Dispatcher;
+using OmniRelay.Errors;
 using OmniRelay.Transport.Grpc;
 using static Hugo.Go;
 using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
@@ -15,7 +11,7 @@ using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 #pragma warning disable CA2007
 namespace OmniRelay.Samples.StreamingAnalytics;
 
-public static class Program
+internal static class Program
 {
     public static async Task Main(string[] args)
     {
@@ -60,12 +56,12 @@ internal static class StreamingLabBootstrap
         var metricsCodec = new ProtobufCodec<MetricSample, MetricAck>();
         var insightsCodec = new ProtobufCodec<InsightRequest, InsightSignal>();
 
-        var grpcInbound = new GrpcInbound(new[] { "http://127.0.0.1:7190" });
+        var grpcInbound = new GrpcInbound(["http://127.0.0.1:7190"]);
 
         var options = new DispatcherOptions(ServiceName);
         options.AddLifecycle("grpc-inbound", grpcInbound);
 
-        var grpcOutbound = new GrpcOutbound(new[] { new Uri("http://127.0.0.1:7190") }, ServiceName);
+        var grpcOutbound = new GrpcOutbound([new Uri("http://127.0.0.1:7190")], ServiceName);
         options.AddStreamOutbound(ServiceName, LoopbackOutboundKey, grpcOutbound);
         options.AddClientStreamOutbound(ServiceName, LoopbackOutboundKey, grpcOutbound);
         options.AddDuplexOutbound(ServiceName, LoopbackOutboundKey, grpcOutbound);
@@ -97,47 +93,19 @@ internal sealed record StreamingLabRuntime(
     ProtobufCodec<MetricSample, MetricAck> MetricsCodec,
     ProtobufCodec<InsightRequest, InsightSignal> InsightCodec)
 {
-    public OmniRelayDispatcher Dispatcher
-    {
-        get => field;
-        init => field = value;
-    } = Dispatcher;
+    public OmniRelayDispatcher Dispatcher { get; init; } = Dispatcher;
 
-    public GrpcInbound GrpcInbound
-    {
-        get => field;
-        init => field = value;
-    } = GrpcInbound;
+    public GrpcInbound GrpcInbound { get; init; } = GrpcInbound;
 
-    public string Service
-    {
-        get => field;
-        init => field = value;
-    } = Service;
+    public string Service { get; init; } = Service;
 
-    public string OutboundKey
-    {
-        get => field;
-        init => field = value;
-    } = OutboundKey;
+    public string OutboundKey { get; init; } = OutboundKey;
 
-    public JsonCodec<TickerSubscription, TickerUpdate> TickerCodec
-    {
-        get => field;
-        init => field = value;
-    } = TickerCodec;
+    public JsonCodec<TickerSubscription, TickerUpdate> TickerCodec { get; init; } = TickerCodec;
 
-    public ProtobufCodec<MetricSample, MetricAck> MetricsCodec
-    {
-        get => field;
-        init => field = value;
-    } = MetricsCodec;
+    public ProtobufCodec<MetricSample, MetricAck> MetricsCodec { get; init; } = MetricsCodec;
 
-    public ProtobufCodec<InsightRequest, InsightSignal> InsightCodec
-    {
-        get => field;
-        init => field = value;
-    } = InsightCodec;
+    public ProtobufCodec<InsightRequest, InsightSignal> InsightCodec { get; init; } = InsightCodec;
 }
 
 internal static class StreamingHandlers
@@ -490,54 +458,22 @@ internal static class InsightScript
 
 internal sealed record TickerSubscription(string Symbol, int BatchSize = 10, int IntervalMs = 500)
 {
-    public string Symbol
-    {
-        get => field;
-        init => field = value;
-    } = Symbol;
+    public string Symbol { get; init; } = Symbol;
 
-    public int BatchSize
-    {
-        get => field;
-        init => field = value;
-    } = BatchSize;
+    public int BatchSize { get; init; } = BatchSize;
 
-    public int IntervalMs
-    {
-        get => field;
-        init => field = value;
-    } = IntervalMs;
+    public int IntervalMs { get; init; } = IntervalMs;
 }
 
 internal sealed record TickerUpdate(string Symbol, decimal Price, decimal Delta, int Sequence, DateTimeOffset AsOf)
 {
-    public string Symbol
-    {
-        get => field;
-        init => field = value;
-    } = Symbol;
+    public string Symbol { get; init; } = Symbol;
 
-    public decimal Price
-    {
-        get => field;
-        init => field = value;
-    } = Price;
+    public decimal Price { get; init; } = Price;
 
-    public decimal Delta
-    {
-        get => field;
-        init => field = value;
-    } = Delta;
+    public decimal Delta { get; init; } = Delta;
 
-    public int Sequence
-    {
-        get => field;
-        init => field = value;
-    } = Sequence;
+    public int Sequence { get; init; } = Sequence;
 
-    public DateTimeOffset AsOf
-    {
-        get => field;
-        init => field = value;
-    } = AsOf;
+    public DateTimeOffset AsOf { get; init; } = AsOf;
 }

@@ -15,7 +15,7 @@ using static Hugo.Go;
 
 namespace OmniRelay.Samples.Configuration;
 
-public static class Program
+internal static class Program
 {
     public static async Task Main(string[] args)
     {
@@ -401,117 +401,49 @@ internal sealed class AuditFanoutOutboundSpec : ICustomOutboundSpec
 
 internal sealed record WeatherRequest(string City, bool Detailed = false)
 {
-    public string City
-    {
-        get => field;
-        init => field = value;
-    } = City;
+    public string City { get; init; } = City;
 
-    public bool Detailed
-    {
-        get => field;
-        init => field = value;
-    } = Detailed;
+    public bool Detailed { get; init; } = Detailed;
 }
 
 internal sealed record WeatherResponse(string City, int TemperatureC, string Summary, DateTimeOffset IssuedAt)
 {
-    public string City
-    {
-        get => field;
-        init => field = value;
-    } = City;
+    public string City { get; init; } = City;
 
-    public int TemperatureC
-    {
-        get => field;
-        init => field = value;
-    } = TemperatureC;
+    public int TemperatureC { get; init; } = TemperatureC;
 
-    public string Summary
-    {
-        get => field;
-        init => field = value;
-    } = Summary;
+    public string Summary { get; init; } = Summary;
 
-    public DateTimeOffset IssuedAt
-    {
-        get => field;
-        init => field = value;
-    } = IssuedAt;
+    public DateTimeOffset IssuedAt { get; init; } = IssuedAt;
 }
 
 internal sealed record WeatherStreamRequest(string City, int Count = 5, int IntervalSeconds = 1)
 {
-    public string City
-    {
-        get => field;
-        init => field = value;
-    } = City;
+    public string City { get; init; } = City;
 
-    public int Count
-    {
-        get => field;
-        init => field = value;
-    } = Count;
+    public int Count { get; init; } = Count;
 
-    public int IntervalSeconds
-    {
-        get => field;
-        init => field = value;
-    } = IntervalSeconds;
+    public int IntervalSeconds { get; init; } = IntervalSeconds;
 }
 
 internal sealed record WeatherObservation(string City, int Sequence, string Summary, int TemperatureC, DateTimeOffset Timestamp)
 {
-    public string City
-    {
-        get => field;
-        init => field = value;
-    } = City;
+    public string City { get; init; } = City;
 
-    public int Sequence
-    {
-        get => field;
-        init => field = value;
-    } = Sequence;
+    public int Sequence { get; init; } = Sequence;
 
-    public string Summary
-    {
-        get => field;
-        init => field = value;
-    } = Summary;
+    public string Summary { get; init; } = Summary;
 
-    public int TemperatureC
-    {
-        get => field;
-        init => field = value;
-    } = TemperatureC;
+    public int TemperatureC { get; init; } = TemperatureC;
 
-    public DateTimeOffset Timestamp
-    {
-        get => field;
-        init => field = value;
-    } = Timestamp;
+    public DateTimeOffset Timestamp { get; init; } = Timestamp;
 }
 
 internal sealed record TelemetryEvent(string Area, string Level, string Message)
 {
-    public string Area
-    {
-        get => field;
-        init => field = value;
-    } = Area;
+    public string Area { get; init; } = Area;
 
-    public string Level
-    {
-        get => field;
-        init => field = value;
-    } = Level;
+    public string Level { get; init; } = Level;
 
-    public string Message
-    {
-        get => field;
-        init => field = value;
-    } = Message;
+    public string Message { get; init; } = Message;
 }

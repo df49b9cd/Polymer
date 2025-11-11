@@ -62,16 +62,8 @@ public sealed class GrpcClientInterceptorRegistry
         ImmutableArray<Interceptor> DefaultPipeline,
         ImmutableDictionary<string, ImmutableArray<Interceptor>> ProcedurePipelines)
     {
-        public ImmutableArray<Interceptor> DefaultPipeline
-        {
-            get => field;
-            init => field = value;
-        } = DefaultPipeline;
+        public ImmutableArray<Interceptor> DefaultPipeline { get; init; } = DefaultPipeline;
 
-        public ImmutableDictionary<string, ImmutableArray<Interceptor>> ProcedurePipelines
-        {
-            get => field;
-            init => field = value;
-        } = ProcedurePipelines;
+        public ImmutableDictionary<string, ImmutableArray<Interceptor>> ProcedurePipelines { get; init; } = ProcedurePipelines;
     }
 }

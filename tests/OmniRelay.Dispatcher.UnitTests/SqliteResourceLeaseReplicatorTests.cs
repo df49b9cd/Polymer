@@ -15,7 +15,7 @@ public sealed class SqliteResourceLeaseReplicatorTests
         using var temp = new TempFile();
         var connectionString = $"Data Source={temp.Path}";
         var sink = new RecordingSink();
-        var replicator = new SqliteResourceLeaseReplicator(connectionString, sinks: new[] { sink });
+        var replicator = new SqliteResourceLeaseReplicator(connectionString, sinks: [sink]);
 
         var evt = CreateEvent();
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -43,13 +43,13 @@ public sealed class SqliteResourceLeaseReplicatorTests
             DateTimeOffset.UtcNow,
             null,
             "peer",
-            new ResourceLeaseItemPayload("type", "id", "pk", "json", Array.Empty<byte>(), new Dictionary<string, string> { ["owner"] = "test" }),
+            new ResourceLeaseItemPayload("type", "id", "pk", "json", [], new Dictionary<string, string> { ["owner"] = "test" }),
             null,
             ImmutableDictionary<string, string>.Empty);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {
-        public List<ResourceLeaseReplicationEvent> Events { get; } = new();
+        public List<ResourceLeaseReplicationEvent> Events { get; } = [];
 
         public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {

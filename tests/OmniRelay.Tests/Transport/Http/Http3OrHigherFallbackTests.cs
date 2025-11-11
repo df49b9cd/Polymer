@@ -10,8 +10,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
 

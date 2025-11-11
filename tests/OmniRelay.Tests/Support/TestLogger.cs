@@ -38,15 +38,9 @@ internal sealed class TestLogger<T> : ILogger<T>
 
     private sealed class ScopeState(IReadOnlyList<KeyValuePair<string, object?>> values, ScopeState? parent)
     {
-        public IReadOnlyList<KeyValuePair<string, object?>> Values
-        {
-            get => field;
-        } = values;
+        public IReadOnlyList<KeyValuePair<string, object?>> Values { get; } = values;
 
-        public ScopeState? Parent
-        {
-            get => field;
-        } = parent;
+        public ScopeState? Parent { get; } = parent;
 
         public static IReadOnlyList<KeyValuePair<string, object?>>? CreateSnapshot(ScopeState? scope)
         {
@@ -91,37 +85,18 @@ internal sealed class TestLogger<T> : ILogger<T>
 
     internal sealed record LogEntry(LogLevel LogLevel, string Message, Exception? Exception, IReadOnlyList<KeyValuePair<string, object?>>? Scope)
     {
-        public LogLevel LogLevel
-        {
-            get => field;
-            init => field = value;
-        } = LogLevel;
+        public LogLevel LogLevel { get; init; } = LogLevel;
 
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
 
-        public Exception? Exception
-        {
-            get => field;
-            init => field = value;
-        } = Exception;
+        public Exception? Exception { get; init; } = Exception;
 
-        public IReadOnlyList<KeyValuePair<string, object?>>? Scope
-        {
-            get => field;
-            init => field = value;
-        } = Scope;
+        public IReadOnlyList<KeyValuePair<string, object?>>? Scope { get; init; } = Scope;
     }
 
     private sealed class NullScope : IDisposable
     {
-        public static NullScope Instance
-        {
-            get => field;
-        } = new();
+        public static NullScope Instance { get; } = new();
 
         public void Dispose()
         {

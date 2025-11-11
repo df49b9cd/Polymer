@@ -6,21 +6,9 @@ namespace OmniRelay.Transport.Http;
 /// </summary>
 public sealed class HttpClientRuntimeOptions
 {
-    public bool EnableHttp3
-    {
-        get => field;
-        init => field = value;
-    }
+    public bool EnableHttp3 { get; init; }
 
-    public Version? RequestVersion
-    {
-        get => field;
-        init => field = value;
-    }
+    public Version? RequestVersion { get; init; }
 
-    public HttpVersionPolicy? VersionPolicy
-    {
-        get => field;
-        init => field = value;
-    }
+    public HttpVersionPolicy? VersionPolicy { get; init; }
 }

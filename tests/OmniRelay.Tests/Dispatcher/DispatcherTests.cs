@@ -27,13 +27,13 @@ public class DispatcherTests
         await dispatcher.StartOrThrowAsync(ct);
 
         Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
-        Assert.Equal(1, lifecycle.StartCalls);
-        Assert.Equal(0, lifecycle.StopCalls);
+        Assert.Equal(1, StubLifecycle.StartCalls);
+        Assert.Equal(0, StubLifecycle.StopCalls);
 
         await dispatcher.StopOrThrowAsync(ct);
 
         Assert.Equal(DispatcherStatus.Stopped, dispatcher.Status);
-        Assert.Equal(1, lifecycle.StopCalls);
+        Assert.Equal(1, StubLifecycle.StopCalls);
     }
 
     [Fact]
@@ -463,17 +463,9 @@ public class DispatcherTests
 
     private sealed class StubLifecycle : ILifecycle
     {
-        public int StartCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static int StartCalls { get; private set; }
 
-        public int StopCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static int StopCalls { get; private set; }
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
@@ -490,17 +482,9 @@ public class DispatcherTests
 
     private sealed class StubUnaryOutbound : IUnaryOutbound
     {
-        public int StartCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static int StartCalls { get; private set; }
 
-        public int StopCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static int StopCalls { get; private set; }
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(
             IRequest<ReadOnlyMemory<byte>> request,

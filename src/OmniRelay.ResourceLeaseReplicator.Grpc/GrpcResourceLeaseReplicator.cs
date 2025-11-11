@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using OmniRelay.Dispatcher.Grpc;
 
 namespace OmniRelay.Dispatcher;
@@ -21,10 +20,10 @@ public sealed class GrpcResourceLeaseReplicator : IResourceLeaseReplicator
     {
     }
 
-public GrpcResourceLeaseReplicator(
-        IGrpcResourceLeaseReplicatorClient client,
-        IEnumerable<IResourceLeaseReplicationSink>? sinks = null,
-        long startingSequence = 0)
+    public GrpcResourceLeaseReplicator(
+            IGrpcResourceLeaseReplicatorClient client,
+            IEnumerable<IResourceLeaseReplicationSink>? sinks = null,
+            long startingSequence = 0)
     {
         ArgumentNullException.ThrowIfNull(client);
         _client = client;

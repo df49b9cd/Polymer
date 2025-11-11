@@ -9,28 +9,12 @@ public sealed record ProcedureCodecDescriptor(
     object Codec,
     string Encoding)
 {
-    public Type RequestType
-    {
-        get => field;
-        init => field = value;
-    } = RequestType;
+    public Type RequestType { get; init; } = RequestType;
 
-    public Type ResponseType
-    {
-        get => field;
-        init => field = value;
-    } = ResponseType;
+    public Type ResponseType { get; init; } = ResponseType;
 
-    public object Codec
-    {
-        get => field;
-        init => field = value;
-    } = Codec;
+    public object Codec { get; init; } = Codec;
 
-    public string Encoding
-    {
-        get => field;
-        init => field = value;
-    } = Encoding;
+    public string Encoding { get; init; } = Encoding;
 }
 

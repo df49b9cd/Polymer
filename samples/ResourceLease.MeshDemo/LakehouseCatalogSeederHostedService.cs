@@ -1,19 +1,17 @@
-using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
-using System.Threading;
 using Microsoft.Extensions.Options;
 using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public sealed class LakehouseCatalogSeederHostedService : BackgroundService
+internal sealed class LakehouseCatalogSeederHostedService : BackgroundService
 {
     private readonly ResourceLeaseHttpClient _client;
     private readonly MeshDemoOptions _options;
     private readonly ILogger<LakehouseCatalogSeederHostedService> _logger;
     private readonly Random _random = new();
-    private readonly List<CatalogTable> _tables = new();
+    private readonly List<CatalogTable> _tables = [];
     private readonly object _lock = new();
     private int _tableCounter;
 
@@ -151,7 +149,7 @@ public sealed class LakehouseCatalogSeederHostedService : BackgroundService
         var tableName = $"{dbPrefix}_table_{Interlocked.Increment(ref _tableCounter):D3}";
         return new CatalogTable(catalog, database, tableName)
         {
-            Columns = new List<string>()
+            Columns = []
         };
     }
 
@@ -232,6 +230,6 @@ public sealed class LakehouseCatalogSeederHostedService : BackgroundService
 
         public int Version { get; set; }
 
-        public List<string> Columns { get; set; } = new();
+        public List<string> Columns { get; set; } = [];
     }
 }

@@ -12,11 +12,7 @@ public enum StreamDirection
 
 public sealed record StreamCallOptions(StreamDirection Direction)
 {
-    public StreamDirection Direction
-    {
-        get => field;
-        init => field = value;
-    } = Direction;
+    public StreamDirection Direction { get; init; } = Direction;
 }
 
 public interface IStreamCall : IAsyncDisposable

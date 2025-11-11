@@ -74,7 +74,7 @@ internal static class ResourceLeaseReplicationGrpcMapper
                 ResourceId = payload.ResourceId ?? string.Empty,
                 PartitionKey = payload.PartitionKey ?? string.Empty,
                 PayloadEncoding = payload.PayloadEncoding ?? string.Empty,
-                Body = ByteString.CopyFrom(payload.Body ?? Array.Empty<byte>()),
+                Body = ByteString.CopyFrom(payload.Body ?? []),
                 RequestId = payload.RequestId ?? string.Empty
             };
 

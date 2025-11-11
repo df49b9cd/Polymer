@@ -14,8 +14,8 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
@@ -229,20 +229,12 @@ public class HttpOutboundIntegrationTests
 
     private sealed record PingRequest(string Message)
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
     }
 
     private sealed record PingResponse
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = string.Empty;
+        public string Message { get; init; } = string.Empty;
     }
 
     private sealed class FailoverUnaryOutbound : IUnaryOutbound

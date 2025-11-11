@@ -9,11 +9,10 @@ using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
-
 using static Hugo.Go;
 
 namespace OmniRelay.Tests.Transport.Http;

@@ -128,7 +128,6 @@ internal static class PeerMetrics
         LeaseDisconnectCounter.Add(1, tags);
     }
 
-
     private static TagList CreatePeerTags(RequestMeta meta, string peerIdentifier)
     {
         var tags = new TagList

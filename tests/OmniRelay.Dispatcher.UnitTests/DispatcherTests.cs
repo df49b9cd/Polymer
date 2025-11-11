@@ -101,7 +101,7 @@ public class DispatcherTests
         options.AddLifecycle("component", lifecycle);
 
         var dispatcher = new Dispatcher(options);
-        Assert.Same(dispatcher, lifecycle.BoundDispatcher);
+        Assert.Same(dispatcher, TestHelpers.RecordingLifecycle.BoundDispatcher);
         Assert.Contains("bind", lifecycle.Events);
 
         var ct = TestContext.Current.CancellationToken;

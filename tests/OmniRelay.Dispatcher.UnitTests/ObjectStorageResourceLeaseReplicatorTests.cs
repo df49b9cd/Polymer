@@ -16,7 +16,7 @@ public sealed class ObjectStorageResourceLeaseReplicatorTests
         using var temp = new TempDirectory();
         var store = new FileSystemResourceLeaseObjectStore(temp.Path);
         var sink = new RecordingSink();
-        var replicator = new ObjectStorageResourceLeaseReplicator(store, sinks: new[] { sink });
+        var replicator = new ObjectStorageResourceLeaseReplicator(store, sinks: [sink]);
 
         var cancellationToken = TestContext.Current.CancellationToken;
         await replicator.PublishAsync(CreateEvent(), cancellationToken);
@@ -40,13 +40,13 @@ public sealed class ObjectStorageResourceLeaseReplicatorTests
             DateTimeOffset.UtcNow,
             null,
             "peer",
-            new ResourceLeaseItemPayload("type", "id", "partition", "json", Array.Empty<byte>(), null, "req"),
+            new ResourceLeaseItemPayload("type", "id", "partition", "json", [], null, "req"),
             null,
             ImmutableDictionary<string, string>.Empty);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {
-        public List<ResourceLeaseReplicationEvent> Events { get; } = new();
+        public List<ResourceLeaseReplicationEvent> Events { get; } = [];
 
         public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {

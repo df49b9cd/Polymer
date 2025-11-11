@@ -106,25 +106,13 @@ public sealed class OmniRelayProtobufGenerator
 
     private sealed class ProtoFileContext(FileDescriptorProto file, string ns)
     {
-        public FileDescriptorProto File
-        {
-            get => field;
-        } = file ?? throw new ArgumentNullException(nameof(file));
+        public FileDescriptorProto File { get; } = file ?? throw new ArgumentNullException(nameof(file));
 
-        public string Namespace
-        {
-            get => field;
-        } = ns ?? throw new ArgumentNullException(nameof(ns));
+        public string Namespace { get; } = ns ?? throw new ArgumentNullException(nameof(ns));
 
-        public IReadOnlyList<ServiceDescriptorProto> Services
-        {
-            get => field;
-        } = [.. file.Service];
+        public IReadOnlyList<ServiceDescriptorProto> Services { get; } = [.. file.Service];
 
-        public IReadOnlyDictionary<string, string> TypeNameMap
-        {
-            get => field;
-        } = BuildTypeNameMap(file);
+        public IReadOnlyDictionary<string, string> TypeNameMap { get; } = BuildTypeNameMap(file);
 
         private static Dictionary<string, string> BuildTypeNameMap(FileDescriptorProto file)
         {
@@ -160,17 +148,9 @@ public sealed class OmniRelayProtobufGenerator
 
     private sealed record TypeInfo(string Namespace, string CsharpName)
     {
-        public string Namespace
-        {
-            get => field;
-            init => field = value;
-        } = Namespace;
+        public string Namespace { get; init; } = Namespace;
 
-        public string CsharpName
-        {
-            get => field;
-            init => field = value;
-        } = CsharpName;
+        public string CsharpName { get; init; } = CsharpName;
     }
 
     private sealed class ServiceEmitter(
@@ -575,71 +555,27 @@ public sealed class OmniRelayProtobufGenerator
             string ClientStreamField,
             string DuplexClientField)
         {
-            public string Name
-            {
-                get => field;
-                init => field = value;
-            } = Name;
+            public string Name { get; init; } = Name;
 
-            public string ProcedureName
-            {
-                get => field;
-                init => field = value;
-            } = ProcedureName;
+            public string ProcedureName { get; init; } = ProcedureName;
 
-            public string InputType
-            {
-                get => field;
-                init => field = value;
-            } = InputType;
+            public string InputType { get; init; } = InputType;
 
-            public string OutputType
-            {
-                get => field;
-                init => field = value;
-            } = OutputType;
+            public string OutputType { get; init; } = OutputType;
 
-            public RpcKind Kind
-            {
-                get => field;
-                init => field = value;
-            } = Kind;
+            public RpcKind Kind { get; init; } = Kind;
 
-            public string HandlerName
-            {
-                get => field;
-                init => field = value;
-            } = HandlerName;
+            public string HandlerName { get; init; } = HandlerName;
 
-            public string CodecFieldName
-            {
-                get => field;
-                init => field = value;
-            } = CodecFieldName;
+            public string CodecFieldName { get; init; } = CodecFieldName;
 
-            public string UnaryClientField
-            {
-                get => field;
-                init => field = value;
-            } = UnaryClientField;
+            public string UnaryClientField { get; init; } = UnaryClientField;
 
-            public string StreamClientField
-            {
-                get => field;
-                init => field = value;
-            } = StreamClientField;
+            public string StreamClientField { get; init; } = StreamClientField;
 
-            public string ClientStreamField
-            {
-                get => field;
-                init => field = value;
-            } = ClientStreamField;
+            public string ClientStreamField { get; init; } = ClientStreamField;
 
-            public string DuplexClientField
-            {
-                get => field;
-                init => field = value;
-            } = DuplexClientField;
+            public string DuplexClientField { get; init; } = DuplexClientField;
         }
     }
 
@@ -739,15 +675,7 @@ public sealed class OmniRelayProtobufGenerator
 
 public sealed record GeneratedFile(string Name, string Content)
 {
-    public string Name
-    {
-        get => field;
-        init => field = value;
-    } = Name;
+    public string Name { get; init; } = Name;
 
-    public string Content
-    {
-        get => field;
-        init => field = value;
-    } = Content;
+    public string Content { get; init; } = Content;
 }

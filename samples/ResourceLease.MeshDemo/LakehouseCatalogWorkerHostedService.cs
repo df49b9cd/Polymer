@@ -4,7 +4,7 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public sealed class LakehouseCatalogWorkerHostedService : BackgroundService
+internal sealed class LakehouseCatalogWorkerHostedService : BackgroundService
 {
     private readonly ResourceLeaseHttpClient _client;
     private readonly MeshDemoOptions _options;
@@ -28,7 +28,7 @@ public sealed class LakehouseCatalogWorkerHostedService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            ResourceLeaseLeaseResponse? lease = null;
+            ResourceLeaseLeaseResponse? lease;
             try
             {
                 lease = await _client.LeaseAsync(_options.WorkerPeerId, stoppingToken).ConfigureAwait(false);
@@ -56,7 +56,7 @@ public sealed class LakehouseCatalogWorkerHostedService : BackgroundService
 
     private async Task ProcessLeaseAsync(ResourceLeaseLeaseResponse lease, CancellationToken cancellationToken)
     {
-        LakehouseCatalogOperation? operation = null;
+        LakehouseCatalogOperation? operation;
         try
         {
             operation = JsonSerializer.Deserialize(

@@ -237,9 +237,7 @@ public class ProtobufCodeGeneratorTests
 
     private sealed class DescriptorAdditionalText(string path) : AdditionalText
     {
-        private readonly string _path = path ?? throw new ArgumentNullException(nameof(path));
-
-        public override string Path => _path;
+        public override string Path { get; } = path ?? throw new ArgumentNullException(nameof(path));
 
         public override SourceText? GetText(CancellationToken cancellationToken = default) => null;
     }

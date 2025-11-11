@@ -15,51 +15,19 @@ public sealed record PeerLeaseHealthSnapshot(
     ImmutableArray<PeerLeaseHandle> ActiveLeases,
     ImmutableDictionary<string, string> Metadata)
 {
-    public string PeerId
-    {
-        get => field;
-        init => field = value;
-    } = PeerId;
+    public string PeerId { get; init; } = PeerId;
 
-    public DateTimeOffset LastHeartbeat
-    {
-        get => field;
-        init => field = value;
-    } = LastHeartbeat;
+    public DateTimeOffset LastHeartbeat { get; init; } = LastHeartbeat;
 
-    public DateTimeOffset? LastDisconnect
-    {
-        get => field;
-        init => field = value;
-    } = LastDisconnect;
+    public DateTimeOffset? LastDisconnect { get; init; } = LastDisconnect;
 
-    public bool IsHealthy
-    {
-        get => field;
-        init => field = value;
-    } = IsHealthy;
+    public bool IsHealthy { get; init; } = IsHealthy;
 
-    public int ActiveAssignments
-    {
-        get => field;
-        init => field = value;
-    } = ActiveAssignments;
+    public int ActiveAssignments { get; init; } = ActiveAssignments;
 
-    public int PendingReassignments
-    {
-        get => field;
-        init => field = value;
-    } = PendingReassignments;
+    public int PendingReassignments { get; init; } = PendingReassignments;
 
-    public ImmutableArray<PeerLeaseHandle> ActiveLeases
-    {
-        get => field;
-        init => field = value;
-    } = ActiveLeases;
+    public ImmutableArray<PeerLeaseHandle> ActiveLeases { get; init; } = ActiveLeases;
 
-    public ImmutableDictionary<string, string> Metadata
-    {
-        get => field;
-        init => field = value;
-    } = Metadata;
+    public ImmutableDictionary<string, string> Metadata { get; init; } = Metadata;
 }

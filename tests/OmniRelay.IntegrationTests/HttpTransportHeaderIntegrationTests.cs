@@ -100,7 +100,7 @@ public class HttpTransportHeaderIntegrationTests
             client.DefaultRequestHeaders.Remove(HttpTransportHeaders.TtlMs);
             client.DefaultRequestHeaders.Remove(HttpTransportHeaders.Deadline);
             client.DefaultRequestHeaders.Remove(HttpTransportHeaders.Encoding);
-            
+
             var jsonMeta = await jsonMetaSource.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
             Assert.Equal("headers-service", jsonMeta.Service);
             Assert.Equal("headers::json", jsonMeta.Procedure);

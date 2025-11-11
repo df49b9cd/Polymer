@@ -150,23 +150,11 @@ internal static class OmniRelayCliTestHelper
 
 internal sealed record CliResult(int ExitCode, string StandardOutput, string StandardError)
 {
-    public int ExitCode
-    {
-        get => field;
-        init => field = value;
-    } = ExitCode;
+    public int ExitCode { get; init; } = ExitCode;
 
-    public string StandardOutput
-    {
-        get => field;
-        init => field = value;
-    } = StandardOutput;
+    public string StandardOutput { get; init; } = StandardOutput;
 
-    public string StandardError
-    {
-        get => field;
-        init => field = value;
-    } = StandardError;
+    public string StandardError { get; init; } = StandardError;
 }
 
 internal sealed class CliBackgroundProcess : IAsyncDisposable

@@ -12,8 +12,8 @@ using System.Text.Json;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
@@ -27,7 +27,7 @@ public sealed class CliToolingIntegrationTests
     public async Task CliConfigValidateAndServe_StartsDispatcherFromScaffold()
     {
         using var tempDir = new TempDirectory();
-        var configPath = tempDir.Resolve("appsettings.cli.json");
+        var configPath = TempDirectory.Resolve("appsettings.cli.json");
         var serviceName = $"cli-config-{Guid.NewGuid():N}";
 
         var scaffoldResult = await OmniRelayCliTestHelper.RunAsync(
@@ -54,7 +54,7 @@ public sealed class CliToolingIntegrationTests
         Assert.True(validateResult.ExitCode == 0, $"config validate failed: {validateResult.StandardError}");
         Assert.Contains($"Configuration valid for service '{serviceName}'", validateResult.StandardOutput, StringComparison.Ordinal);
 
-        var readyFile = tempDir.Resolve("ready.txt");
+        var readyFile = TempDirectory.Resolve("ready.txt");
         var serveArgs = new List<string>
         {
             "serve",
@@ -186,10 +186,10 @@ public sealed class CliToolingIntegrationTests
         }
 
         using var tempDir = new TempDirectory();
-        var configPath = tempDir.Resolve("appsettings.http3.json");
+        var configPath = TempDirectory.Resolve("appsettings.http3.json");
         var serviceName = $"cli-http3-{Guid.NewGuid():N}";
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=cli-http3");
-        var certificatePath = tempDir.Resolve("server-http3.pfx");
+        var certificatePath = TempDirectory.Resolve("server-http3.pfx");
         File.WriteAllBytes(certificatePath, certificate.Export(X509ContentType.Pfx, "change-me"));
 
         var scaffoldResult = await OmniRelayCliTestHelper.RunAsync(
@@ -225,7 +225,7 @@ public sealed class CliToolingIntegrationTests
             "omnirelay:inbounds:grpc:1:tls:certificatePassword=change-me"
         };
 
-        var readyFile = tempDir.Resolve("ready-http3.txt");
+        var readyFile = TempDirectory.Resolve("ready-http3.txt");
         var serveArgs = new List<string>
         {
             "serve",

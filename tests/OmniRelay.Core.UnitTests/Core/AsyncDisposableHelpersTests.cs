@@ -8,11 +8,7 @@ public class AsyncDisposableHelpersTests
 {
     private sealed class DummyAsyncDisposable : IAsyncDisposable
     {
-        public bool Disposed
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static bool Disposed { get; private set; }
 
         public ValueTask DisposeAsync()
         {
@@ -32,6 +28,6 @@ public class AsyncDisposableHelpersTests
         Assert.Same(dummy, disposable);
 
         await disposable.DisposeAsync();
-        Assert.True(dummy.Disposed);
+        Assert.True(DummyAsyncDisposable.Disposed);
     }
 }

@@ -23,14 +23,10 @@ public sealed class ClientStreamCall : IAsyncDisposable
     }
 
     /// <summary>Gets the request metadata.</summary>
-    public RequestMeta RequestMeta => field;
+    public RequestMeta RequestMeta { get; }
 
     /// <summary>Gets the response metadata.</summary>
-    public ResponseMeta ResponseMeta
-    {
-        get => field;
-        private set => field = value;
-    }
+    public ResponseMeta ResponseMeta { get; private set; }
 
     /// <summary>Gets the request writer channel.</summary>
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;

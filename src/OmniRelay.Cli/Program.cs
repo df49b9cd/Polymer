@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
@@ -23,7 +24,7 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Cli;
 
-public static class Program
+internal static class Program
 {
     private const string DefaultConfigSection = "polymer";
     private const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
@@ -44,7 +45,7 @@ public static class Program
         ["google/protobuf/type.proto"] = TypeReflection.Descriptor,
         ["google/protobuf/wrappers.proto"] = WrappersReflection.Descriptor
     };
-    private static MethodInfo? fileDescriptorBuildFrom;
+    private static MethodInfo? _fileDescriptorBuildFrom;
     private static readonly ConcurrentDictionary<string, DescriptorCacheEntry> DescriptorCache = new(StringComparer.Ordinal);
 
     public static async Task<int> Main(string[] args)
@@ -971,7 +972,7 @@ public static class Program
 
         try
         {
-            using var provider = services.BuildServiceProvider();
+            await using var provider = services.BuildServiceProvider().ConfigureAwait(false);
             var dispatcher = provider.GetRequiredService<Dispatcher.Dispatcher>();
             var summary = dispatcher.Introspect();
 
@@ -984,13 +985,15 @@ public static class Program
             Console.WriteLine($"  ClientStream: {summary.Procedures.ClientStream.Length}");
             Console.WriteLine($"  Duplex:       {summary.Procedures.Duplex.Length}");
 
-            if (summary.Components.Length > 0)
+            if (summary.Components.Length <= 0)
             {
-                Console.WriteLine("Lifecycle components:");
-                foreach (var component in summary.Components)
-                {
-                    Console.WriteLine($"  - {component.Name} ({component.ComponentType})");
-                }
+                return 0;
+            }
+
+            Console.WriteLine("Lifecycle components:");
+            foreach (var component in summary.Components)
+            {
+                Console.WriteLine($"  - {component.Name} ({component.ComponentType})");
             }
 
             return 0;
@@ -1096,14 +1099,9 @@ public static class Program
                 TryWriteReadyFile(readyFile!);
             }
 
-            if (shutdownAfter.HasValue)
-            {
-                Console.WriteLine($"Shutting down automatically after {shutdownAfter.Value:c}.");
-            }
-            else
-            {
-                Console.WriteLine("Press Ctrl+C to stop.");
-            }
+            Console.WriteLine(shutdownAfter.HasValue
+                ? $"Shutting down automatically after {shutdownAfter.Value:c}."
+                : "Press Ctrl+C to stop.");
 
             await shutdownSignal.Task.ConfigureAwait(false);
             await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -1116,13 +1114,12 @@ public static class Program
         }
         finally
         {
-            if (cancelHandler is not null)
-            {
-                Console.CancelKeyPress -= cancelHandler;
-            }
+            Console.CancelKeyPress -= cancelHandler;
         }
     }
 
+    [RequiresDynamicCode("Calls System.Text.Json.Serialization.JsonStringEnumConverter.JsonStringEnumConverter(JsonNamingPolicy, Boolean)")]
+    [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
     private static async Task<int> RunIntrospectAsync(string url, string format, string? timeoutOption)
     {
         var normalizedFormat = string.IsNullOrWhiteSpace(format) ? "text" : format.ToLowerInvariant();
@@ -1134,10 +1131,8 @@ public static class Program
             return 1;
         }
 
-        using var httpClient = new HttpClient
-        {
-            Timeout = Timeout.InfiniteTimeSpan
-        };
+        using var httpClient = new HttpClient();
+        httpClient.Timeout = Timeout.InfiniteTimeSpan;
 
         using var cts = new CancellationTokenSource(timeout);
 
@@ -1202,7 +1197,7 @@ public static class Program
 
     private static bool TryBuildConfiguration(string[] configPaths, string[] setOverrides, out IConfigurationRoot configuration, out string? errorMessage)
     {
-        configuration = default!;
+        configuration = null!;
         errorMessage = null;
 
         if (configPaths.Length == 0)
@@ -1372,7 +1367,7 @@ public static class Program
         out RequestInvocation invocation,
         out string? error)
     {
-        invocation = default!;
+        invocation = null!;
         error = null;
 
         var normalizedTransport = string.IsNullOrWhiteSpace(transport) ? "http" : transport.ToLowerInvariant();
@@ -1477,16 +1472,19 @@ public static class Program
         {
             foreach (var address in normalizedAddresses)
             {
-                if (!Uri.TryCreate(address, UriKind.Absolute, out var grpcUri) || !grpcUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                if (Uri.TryCreate(address, UriKind.Absolute, out var grpcUri) &&
+                    grpcUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                 {
-                    error = $"HTTP/3 requires HTTPS gRPC addresses. Address '{address}' is not HTTPS.";
-                    return false;
+                    continue;
                 }
+
+                error = $"HTTP/3 requires HTTPS gRPC addresses. Address '{address}' is not HTTPS.";
+                return false;
             }
         }
 
         var meta = new RequestMeta(
-            service: service ?? string.Empty,
+            service: service,
             procedure: procedure,
             caller: caller,
             encoding: resolvedEncoding,
@@ -1759,6 +1757,7 @@ public static class Program
         }
     }
 
+    [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
     private static async Task<int> RunAutomationAsync(string scriptPath, bool dryRun, bool continueOnError)
     {
         if (string.IsNullOrWhiteSpace(scriptPath))
@@ -1805,14 +1804,14 @@ public static class Program
         {
             var step = script.Steps[index];
             var typeLabel = string.IsNullOrWhiteSpace(step.Type) ? "(unspecified)" : step.Type;
-            var description = string.IsNullOrWhiteSpace(step.Description) ? string.Empty : $" - {step.Description}";
+            var description = string.IsNullOrWhiteSpace(AutomationStep.Description) ? string.Empty : $" - {AutomationStep.Description}";
             Console.WriteLine($"[{index + 1}/{script.Steps.Length}] {typeLabel}{description}");
 
             var normalizedType = step.Type?.Trim().ToLowerInvariant() ?? string.Empty;
             switch (normalizedType)
             {
                 case "request":
-                    if (string.IsNullOrWhiteSpace(step.Service) || string.IsNullOrWhiteSpace(step.Procedure))
+                    if (string.IsNullOrWhiteSpace(AutomationStep.Service) || string.IsNullOrWhiteSpace(AutomationStep.Procedure))
                     {
                         await Console.Error.WriteLineAsync("  Request step is missing 'service' or 'procedure'.").ConfigureAwait(false);
                         exitCode = exitCode == 0 ? 1 : exitCode;
@@ -1823,18 +1822,18 @@ public static class Program
                         continue;
                     }
 
-                    var headerPairs = step.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
-                    var profiles = step.Profiles ?? [];
-                    var addresses = step.Addresses ?? [];
-                    if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(step.Address))
+                    var headerPairs = AutomationStep.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
+                    var profiles = AutomationStep.Profiles ?? [];
+                    var addresses = AutomationStep.Addresses ?? [];
+                    if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(AutomationStep.Address))
                     {
-                        addresses = [step.Address!];
+                        addresses = [AutomationStep.Address!];
                     }
 
-                    var targetSummary = !string.IsNullOrWhiteSpace(step.Url)
-                        ? step.Url
+                    var targetSummary = !string.IsNullOrWhiteSpace(AutomationStep.Url)
+                        ? AutomationStep.Url
                         : (addresses.Length > 0 ? string.Join(", ", addresses) : "(default transport settings)");
-                    Console.WriteLine($"  -> {step.Transport ?? "http"} {step.Service}/{step.Procedure} @ {targetSummary}");
+                    Console.WriteLine($"  -> {AutomationStep.Transport ?? "http"} {AutomationStep.Service}/{AutomationStep.Procedure} @ {targetSummary}");
 
                     if (dryRun)
                     {
@@ -1843,25 +1842,25 @@ public static class Program
                     }
 
                     var requestResult = await RunRequestAsync(
-                        step.Transport ?? "http",
-                        step.Service,
-                        step.Procedure,
-                        step.Caller,
-                        step.Encoding,
+                        AutomationStep.Transport ?? "http",
+                        AutomationStep.Service,
+                        AutomationStep.Procedure,
+                        AutomationStep.Caller,
+                        AutomationStep.Encoding,
                         headerPairs,
                         profiles,
-                        step.ShardKey,
-                        step.RoutingKey,
-                        step.RoutingDelegate,
-                        step.ProtoFiles ?? [],
-                        step.ProtoMessage,
-                        step.Ttl,
-                        step.Deadline,
-                        step.Timeout,
-                        step.Body,
-                        step.BodyFile,
-                        step.BodyBase64,
-                        step.Url,
+                        AutomationStep.ShardKey,
+                        AutomationStep.RoutingKey,
+                        AutomationStep.RoutingDelegate,
+                        AutomationStep.ProtoFiles ?? [],
+                        AutomationStep.ProtoMessage,
+                        AutomationStep.Ttl,
+                        AutomationStep.Deadline,
+                        AutomationStep.Timeout,
+                        AutomationStep.Body,
+                        AutomationStep.BodyFile,
+                        AutomationStep.BodyBase64,
+                        AutomationStep.Url,
                         addresses,
                         enableHttp3: false,
                         enableGrpcHttp3: false).ConfigureAwait(false);
@@ -1877,8 +1876,8 @@ public static class Program
                     break;
 
                 case "introspect":
-                    var targetUrl = string.IsNullOrWhiteSpace(step.Url) ? DefaultIntrospectionUrl : step.Url!;
-                    Console.WriteLine($"  -> GET {targetUrl} (format={step.Format ?? "text"})");
+                    var targetUrl = string.IsNullOrWhiteSpace(AutomationStep.Url) ? DefaultIntrospectionUrl : AutomationStep.Url!;
+                    Console.WriteLine($"  -> GET {targetUrl} (format={AutomationStep.Format ?? "text"})");
 
                     if (dryRun)
                     {
@@ -1886,7 +1885,7 @@ public static class Program
                         continue;
                     }
 
-                    var introspectResult = await RunIntrospectAsync(targetUrl, step.Format ?? "text", step.Timeout).ConfigureAwait(false);
+                    var introspectResult = await RunIntrospectAsync(targetUrl, AutomationStep.Format ?? "text", AutomationStep.Timeout).ConfigureAwait(false);
                     if (introspectResult != 0)
                     {
                         exitCode = exitCode == 0 ? introspectResult : exitCode;
@@ -1900,7 +1899,7 @@ public static class Program
                 case "delay":
                 case "sleep":
                 case "wait":
-                    var delayValue = step.Duration ?? step.Delay;
+                    var delayValue = AutomationStep.Duration ?? AutomationStep.Delay;
                     if (string.IsNullOrWhiteSpace(delayValue))
                     {
                         await Console.Error.WriteLineAsync("  Delay step requires a 'duration' or 'delay' value.").ConfigureAwait(false);
@@ -1959,170 +1958,62 @@ public static class Program
 
     private sealed record AutomationScript
     {
-        public AutomationStep[] Steps
-        {
-            get => field;
-            init => field = value;
-        } = [];
+        public AutomationStep[] Steps { get; init; } = [];
     }
 
     private sealed record AutomationStep
     {
-        public string Type
-        {
-            get => field;
-            init => field = value;
-        } = string.Empty;
+        public string Type { get; init; } = string.Empty;
 
-        public string? Description
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Description { get; set; }
 
-        public string? Transport
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Transport { get; set; }
 
-        public string? Service
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Service { get; set; }
 
-        public string? Procedure
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Procedure { get; set; }
 
-        public string? Caller
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Caller { get; set; }
 
-        public string? Encoding
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Encoding { get; set; }
 
-        public Dictionary<string, string>? Headers
-        {
-            get => field;
-            init => field = value;
-        }
+        public static Dictionary<string, string>? Headers { get; set; }
 
-        public string[]? Profiles
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string[]? Profiles { get; set; }
 
-        public string? ShardKey
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? ShardKey { get; set; }
 
-        public string? RoutingKey
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? RoutingKey { get; set; }
 
-        public string? RoutingDelegate
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? RoutingDelegate { get; set; }
 
-        public string[]? ProtoFiles
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string[]? ProtoFiles { get; set; }
 
-        public string? ProtoMessage
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? ProtoMessage { get; set; }
 
-        public string? Ttl
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Ttl { get; set; }
 
-        public string? Deadline
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Deadline { get; set; }
 
-        public string? Timeout
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Timeout { get; set; }
 
-        public string? Body
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Body { get; set; }
 
-        public string? BodyFile
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? BodyFile { get; set; }
 
-        public string? BodyBase64
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? BodyBase64 { get; set; }
 
-        public string? Url
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Url { get; set; }
 
-        public string? Address
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Address { get; set; }
 
-        public string[]? Addresses
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string[]? Addresses { get; set; }
 
-        public string? Format
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Format { get; set; }
 
-        public string? Duration
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Duration { get; set; }
 
-        public string? Delay
-        {
-            get => field;
-            init => field = value;
-        }
+        public static string? Delay { get; set; }
     }
 
     private static void PrintBenchmarkSummary(
@@ -2178,16 +2069,18 @@ public static class Program
             Console.WriteLine("Latency (ms): no successful samples.");
         }
 
-        if (summary.Errors.Count > 0)
+        if (summary.Errors.Count <= 0)
         {
-            Console.WriteLine("Top errors:");
-            foreach (var entry in summary.Errors
-                         .OrderByDescending(static kvp => kvp.Value)
-                         .ThenBy(static kvp => kvp.Key, StringComparer.Ordinal)
-                         .Take(5))
-            {
-                Console.WriteLine($"  {entry.Value.ToString("N0", CultureInfo.InvariantCulture)} - {entry.Key}");
-            }
+            return;
+        }
+
+        Console.WriteLine("Top errors:");
+        foreach (var entry in summary.Errors
+                     .OrderByDescending(static kvp => kvp.Value)
+                     .ThenBy(static kvp => kvp.Key, StringComparer.Ordinal)
+                     .Take(5))
+        {
+            Console.WriteLine($"  {entry.Value.ToString("N0", CultureInfo.InvariantCulture)} - {entry.Key}");
         }
     }
 
@@ -2378,7 +2271,7 @@ public static class Program
 
                 case "protobuf":
                 case "proto":
-                    if (state.Proto is not null)
+                    if (ProfileProcessingState.Proto is not null)
                     {
                         error = "Multiple protobuf profiles specified. Provide a single protobuf profile per request.";
                         return false;
@@ -2397,12 +2290,12 @@ public static class Program
                         return false;
                     }
 
-                    state.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
+                    ProfileProcessingState.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
                     encoding ??= transport == "grpc" ? "application/grpc" : "application/x-protobuf";
 
                     if (transport == "http")
                     {
-                        EnsureHeader(headers, "Content-Type", encoding ?? "application/x-protobuf");
+                        EnsureHeader(headers, "Content-Type", encoding);
                     }
 
                     break;
@@ -2431,15 +2324,15 @@ public static class Program
     {
         error = null;
 
-        if (state.Proto is not null)
+        if (ProfileProcessingState.Proto is not null)
         {
-            if (!TryEncodeProtobufPayload(state.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
+            if (!TryEncodeProtobufPayload(ProfileProcessingState.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
             {
                 return false;
             }
         }
 
-        if (state.PrettyPrintJson)
+        if (ProfileProcessingState.PrettyPrintJson)
         {
             FormatJsonPayload(inlineBody, bodyFile, payloadSource, ref payload);
         }
@@ -2460,7 +2353,7 @@ public static class Program
             case "default":
                 break;
             case "pretty":
-                state.PrettyPrintJson = true;
+                ProfileProcessingState.PrettyPrintJson = true;
                 break;
             default:
                 Console.Error.WriteLine($"Warning: unknown json profile '{qualifier}'. Falling back to default settings.");
@@ -2468,10 +2361,11 @@ public static class Program
         }
 
         encoding ??= "application/json";
-        EnsureHeader(headers, "Content-Type", encoding ?? "application/json");
+        EnsureHeader(headers, "Content-Type", encoding);
         EnsureHeader(headers, "Accept", "application/json");
     }
 
+    [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
     private static void FormatJsonPayload(
         string? inlineBody,
         string? bodyFile,
@@ -2484,7 +2378,7 @@ public static class Program
             return;
         }
 
-        string? jsonText = inlineBody;
+        var jsonText = inlineBody;
 
         if (string.IsNullOrEmpty(jsonText) && !string.IsNullOrEmpty(bodyFile) && File.Exists(bodyFile))
         {
@@ -2548,7 +2442,7 @@ public static class Program
             return false;
         }
 
-        string? json = inlineBody;
+        var json = inlineBody;
 
         if (string.IsNullOrEmpty(json) && payloadSource == PayloadSource.File && !string.IsNullOrEmpty(bodyFile))
         {
@@ -2656,20 +2550,7 @@ public static class Program
     private static FieldDescriptor? FindField(MessageDescriptor descriptor, string name)
     {
         var field = descriptor.FindFieldByName(name);
-        if (field is not null)
-        {
-            return field;
-        }
-
-        foreach (var candidate in descriptor.Fields.InDeclarationOrder())
-        {
-            if (string.Equals(candidate.JsonName, name, StringComparison.Ordinal) || string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
+        return field ?? descriptor.Fields.InDeclarationOrder().FirstOrDefault(candidate => string.Equals(candidate.JsonName, name, StringComparison.Ordinal) || string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool TryWriteField(FieldDescriptor field, JsonElement element, CodedOutputStream output, out string? error)
@@ -2901,22 +2782,16 @@ public static class Program
     {
         FieldType.Double => WireFormat.WireType.Fixed64,
         FieldType.Float => WireFormat.WireType.Fixed32,
-        FieldType.Int64 => WireFormat.WireType.Varint,
-        FieldType.UInt64 => WireFormat.WireType.Varint,
-        FieldType.Int32 => WireFormat.WireType.Varint,
+        FieldType.Int64 or FieldType.UInt64 or FieldType.Int32 => WireFormat.WireType.Varint,
         FieldType.Fixed64 => WireFormat.WireType.Fixed64,
         FieldType.Fixed32 => WireFormat.WireType.Fixed32,
         FieldType.Bool => WireFormat.WireType.Varint,
         FieldType.String => WireFormat.WireType.LengthDelimited,
         FieldType.Group => WireFormat.WireType.StartGroup,
-        FieldType.Message => WireFormat.WireType.LengthDelimited,
-        FieldType.Bytes => WireFormat.WireType.LengthDelimited,
+        FieldType.Message or FieldType.Bytes => WireFormat.WireType.LengthDelimited,
         FieldType.UInt32 => WireFormat.WireType.Varint,
         FieldType.SFixed32 => WireFormat.WireType.Fixed32,
         FieldType.SFixed64 => WireFormat.WireType.Fixed64,
-        FieldType.SInt32 => WireFormat.WireType.Varint,
-        FieldType.SInt64 => WireFormat.WireType.Varint,
-        FieldType.Enum => WireFormat.WireType.Varint,
         _ => WireFormat.WireType.Varint
     };
 
@@ -2934,80 +2809,40 @@ public static class Program
         _ => throw new InvalidOperationException("Expected boolean value."),
     };
 
-    private static int ReadInt32(JsonElement element, string fieldName)
-    {
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var value))
-        {
-            return value;
-        }
+    private static int ReadInt32(JsonElement element, string fieldName) =>
+        element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var value) ||
+        element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out value)
+            ? value
+            : throw new InvalidOperationException($"Could not parse int32 value for '{fieldName}'.");
 
-        if (element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-        {
-            return value;
-        }
+    private static long ReadInt64(JsonElement element, string fieldName) =>
+        element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var value) ||
+        element.ValueKind == JsonValueKind.String && long.TryParse(element.GetString(), NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out value)
+            ? value
+            : throw new InvalidOperationException($"Could not parse int64 value for '{fieldName}'.");
 
-        throw new InvalidOperationException($"Could not parse int32 value for '{fieldName}'.");
-    }
+    private static uint ReadUInt32(JsonElement element, string fieldName) =>
+        element.ValueKind == JsonValueKind.Number && element.TryGetUInt32(out var value) ||
+        element.ValueKind == JsonValueKind.String && uint.TryParse(element.GetString(), NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out value)
+            ? value
+            : throw new InvalidOperationException($"Could not parse uint32 value for '{fieldName}'.");
 
-    private static long ReadInt64(JsonElement element, string fieldName)
-    {
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var value))
-        {
-            return value;
-        }
+    private static ulong ReadUInt64(JsonElement element, string fieldName) =>
+        element.ValueKind == JsonValueKind.Number && element.TryGetUInt64(out var value) ||
+        element.ValueKind == JsonValueKind.String && ulong.TryParse(element.GetString(), NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out value)
+            ? value
+            : throw new InvalidOperationException($"Could not parse uint64 value for '{fieldName}'.");
 
-        if (element.ValueKind == JsonValueKind.String && long.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-        {
-            return value;
-        }
-
-        throw new InvalidOperationException($"Could not parse int64 value for '{fieldName}'.");
-    }
-
-    private static uint ReadUInt32(JsonElement element, string fieldName)
-    {
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetUInt32(out var value))
-        {
-            return value;
-        }
-
-        if (element.ValueKind == JsonValueKind.String && uint.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-        {
-            return value;
-        }
-
-        throw new InvalidOperationException($"Could not parse uint32 value for '{fieldName}'.");
-    }
-
-    private static ulong ReadUInt64(JsonElement element, string fieldName)
-    {
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetUInt64(out var value))
-        {
-            return value;
-        }
-
-        if (element.ValueKind == JsonValueKind.String && ulong.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-        {
-            return value;
-        }
-
-        throw new InvalidOperationException($"Could not parse uint64 value for '{fieldName}'.");
-    }
-
-    private static double ReadDouble(JsonElement element, string fieldName)
-    {
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out var value))
-        {
-            return value;
-        }
-
-        if (element.ValueKind == JsonValueKind.String && double.TryParse(element.GetString(), NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value))
-        {
-            return value;
-        }
-
-        throw new InvalidOperationException($"Could not parse floating point value for '{fieldName}'.");
-    }
+    private static double ReadDouble(JsonElement element, string fieldName) =>
+        element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out var value) ||
+        element.ValueKind == JsonValueKind.String && double.TryParse(element.GetString(),
+            NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value)
+            ? value
+            : throw new InvalidOperationException($"Could not parse floating point value for '{fieldName}'.");
 
     private static byte[] ReadBytes(JsonElement element, string fieldName)
     {
@@ -3029,30 +2864,21 @@ public static class Program
 
     private static EnumValueDescriptor ReadEnum(EnumDescriptor enumDescriptor, JsonElement element, string fieldName)
     {
-        if (element.ValueKind == JsonValueKind.String)
+        if (element.ValueKind != JsonValueKind.String)
         {
-            var name = element.GetString() ?? string.Empty;
-            var match = enumDescriptor.FindValueByName(name) ?? enumDescriptor.Values.FirstOrDefault(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
-            if (match is null)
-            {
-                throw new InvalidOperationException($"Enum value '{name}' is not defined for '{fieldName}'.");
-            }
-
-            return match;
+            return element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var numericValue) ||
+                   element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer,
+                       CultureInfo.InvariantCulture, out numericValue)
+                ? enumDescriptor.FindValueByNumber(numericValue) ??
+                  throw new InvalidOperationException(
+                      $"Enum numeric value '{numericValue}' is not defined for '{fieldName}'.")
+                : throw new InvalidOperationException($"Could not parse enum value for '{fieldName}'.");
         }
 
-        int numericValue;
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out numericValue))
-        {
-            return enumDescriptor.FindValueByNumber(numericValue) ?? throw new InvalidOperationException($"Enum numeric value '{numericValue}' is not defined for '{fieldName}'.");
-        }
+        var name = element.GetString() ?? string.Empty;
+        var match = enumDescriptor.FindValueByName(name) ?? enumDescriptor.Values.FirstOrDefault(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+        return match ?? throw new InvalidOperationException($"Enum value '{name}' is not defined for '{fieldName}'.");
 
-        if (element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out numericValue))
-        {
-            return enumDescriptor.FindValueByNumber(numericValue) ?? throw new InvalidOperationException($"Enum numeric value '{numericValue}' is not defined for '{fieldName}'.");
-        }
-
-        throw new InvalidOperationException($"Could not parse enum value for '{fieldName}'.");
     }
 
     private static bool TryLoadMessageDescriptor(
@@ -3061,7 +2887,7 @@ public static class Program
         out MessageDescriptor descriptor,
         out string? error)
     {
-        descriptor = default!;
+        descriptor = null!;
         error = null;
 
         if (descriptorInputs.Length == 0)
@@ -3107,7 +2933,7 @@ public static class Program
         }
 
         error = $"Could not find protobuf message '{messageName}' in provided descriptors.";
-        descriptor = default!;
+        descriptor = null!;
         return false;
     }
 
@@ -3135,12 +2961,9 @@ public static class Program
         }
 
         var messageMap = new Dictionary<string, MessageDescriptor>(StringComparer.Ordinal);
-        foreach (var descriptor in descriptorMap.Values)
+        foreach (var message in descriptorMap.Values.SelectMany(descriptor => EnumerateMessages(descriptor.MessageTypes)))
         {
-            foreach (var message in EnumerateMessages(descriptor.MessageTypes))
-            {
-                messageMap[message.FullName] = message;
-            }
+            messageMap[message.FullName] = message;
         }
 
         return new DescriptorCacheEntry(descriptorMap, messageMap);
@@ -3216,13 +3039,14 @@ public static class Program
             }
         }
 
-        if (pending.Count > 0)
+        if (pending.Count <= 0)
         {
-            error = $"Could not resolve descriptor dependencies for: {string.Join(", ", pending.Keys)}.";
-            return false;
+            return true;
         }
 
-        return true;
+        error = $"Could not resolve descriptor dependencies for: {string.Join(", ", pending.Keys)}.";
+        return false;
+
     }
 
     private static IEnumerable<MessageDescriptor> EnumerateMessages(IEnumerable<MessageDescriptor> rootMessages)
@@ -3294,9 +3118,9 @@ public static class Program
 
     private static FileDescriptor BuildFileDescriptor(FileDescriptorProto proto, FileDescriptor[] dependencies)
     {
-        if (fileDescriptorBuildFrom is not null)
+        if (_fileDescriptorBuildFrom is not null)
         {
-            return InvokeBuildFrom(fileDescriptorBuildFrom, proto, dependencies);
+            return InvokeBuildFrom(_fileDescriptorBuildFrom, proto, dependencies);
         }
 
         var candidates = typeof(FileDescriptor)
@@ -3315,11 +3139,13 @@ public static class Program
             try
             {
                 var result = candidate.Invoke(null, arguments);
-                if (result is FileDescriptor descriptor)
+                if (result is not FileDescriptor descriptor)
                 {
-                    fileDescriptorBuildFrom = candidate;
-                    return descriptor;
+                    continue;
                 }
+
+                _fileDescriptorBuildFrom = candidate;
+                return descriptor;
             }
             catch
             {
@@ -3357,11 +3183,7 @@ public static class Program
             {
                 arguments[index] = proto;
             }
-            else if (parameterType == typeof(FileDescriptor[]))
-            {
-                arguments[index] = dependencies;
-            }
-            else if (typeof(IEnumerable<FileDescriptor>).IsAssignableFrom(parameterType))
+            else if (parameterType == typeof(FileDescriptor[]) || typeof(IEnumerable<FileDescriptor>).IsAssignableFrom(parameterType))
             {
                 arguments[index] = dependencies;
             }
@@ -3377,7 +3199,7 @@ public static class Program
             {
                 arguments[index] = parameterType.IsValueType
                     ? Activator.CreateInstance(parameterType)!
-                    : default!;
+                    : null!;
             }
         }
 
@@ -3388,11 +3210,13 @@ public static class Program
     {
         for (var index = 0; index < headers.Count; index++)
         {
-            if (string.Equals(headers[index].Key, key, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(headers[index].Key, key, StringComparison.OrdinalIgnoreCase))
             {
-                headers[index] = new KeyValuePair<string, string>(key, value);
-                return;
+                continue;
             }
+
+            headers[index] = new KeyValuePair<string, string>(key, value);
+            return;
         }
 
         headers.Add(new KeyValuePair<string, string>(key, value));
@@ -3460,33 +3284,12 @@ public static class Program
 
     private sealed class ProfileProcessingState
     {
-        public bool PrettyPrintJson
-        {
-            get => field;
-            set => field = value;
-        }
+        public static bool PrettyPrintJson { get; set; }
 
-        public ProtoProcessingState? Proto
-        {
-            get => field;
-            set => field = value;
-        }
+        public static ProtoProcessingState? Proto { get; set; }
     }
 
-    private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName)
-    {
-        public string[] DescriptorPaths
-        {
-            get => field;
-            init => field = value;
-        } = DescriptorPaths;
-
-        public string MessageName
-        {
-            get => field;
-            init => field = value;
-        } = MessageName;
-    }
+    private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName);
 
     private enum PayloadSource
     {
@@ -3498,20 +3301,7 @@ public static class Program
 
     private sealed record DescriptorCacheEntry(
         Dictionary<string, FileDescriptor> Files,
-        Dictionary<string, MessageDescriptor> Messages)
-    {
-        public Dictionary<string, FileDescriptor> Files
-        {
-            get => field;
-            init => field = value;
-        } = Files;
-
-        public Dictionary<string, MessageDescriptor> Messages
-        {
-            get => field;
-            init => field = value;
-        } = Messages;
-    }
+        Dictionary<string, MessageDescriptor> Messages);
 
     private static bool TryDecodeUtf8(ReadOnlySpan<byte> data, out string text)
     {

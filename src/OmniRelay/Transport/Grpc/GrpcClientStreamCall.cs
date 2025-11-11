@@ -19,7 +19,6 @@ internal sealed class GrpcClientStreamCall : IStreamCall
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
     private readonly CancellationTokenSource _cts;
-    private readonly StreamCallContext _context;
     private readonly KeyValuePair<string, object?>[] _baseTags;
     private readonly long _startTimestamp = Stopwatch.GetTimestamp();
     private long _responseCount;
@@ -35,7 +34,7 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         _call = call;
         ResponseMeta = responseMeta;
         _baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
-        _context = new StreamCallContext(StreamDirection.Server);
+        Context = new StreamCallContext(StreamDirection.Server);
 
         _requests = Go.MakeChannel<ReadOnlyMemory<byte>>();
         _requests.Writer.TryComplete();
@@ -85,17 +84,13 @@ internal sealed class GrpcClientStreamCall : IStreamCall
     public StreamDirection Direction => StreamDirection.Server;
 
     /// <inheritdoc />
-    public RequestMeta RequestMeta => field;
+    public RequestMeta RequestMeta { get; }
 
     /// <inheritdoc />
-    public ResponseMeta ResponseMeta
-    {
-        get => field;
-        private set => field = value;
-    }
+    public ResponseMeta ResponseMeta { get; private set; }
 
     /// <inheritdoc />
-    public StreamCallContext Context => _context;
+    public StreamCallContext Context { get; }
 
     /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
@@ -109,7 +104,7 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         _cts.Cancel();
         _responses.Writer.TryComplete();
         var completionStatus = ResolveCompletionStatus(error);
-        _context.TrySetCompletion(completionStatus, error);
+        Context.TrySetCompletion(completionStatus, error);
         return ValueTask.CompletedTask;
     }
 
@@ -121,7 +116,7 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         _responses.Writer.TryComplete();
         _requests.Writer.TryComplete();
         RecordCompletion(StatusCode.Cancelled);
-        _context.TrySetCompletion(StreamCompletionStatus.Cancelled);
+        Context.TrySetCompletion(StreamCompletionStatus.Cancelled);
     }
 
     private async Task PumpResponsesAsync(CancellationToken cancellationToken)
@@ -133,14 +128,14 @@ internal sealed class GrpcClientStreamCall : IStreamCall
                 Interlocked.Increment(ref _responseCount);
                 GrpcTransportMetrics.ClientServerStreamResponseMessages.Add(1, _baseTags);
                 await _responses.Writer.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
-                _context.IncrementMessageCount();
+                Context.IncrementMessageCount();
             }
 
             var trailers = _call.GetTrailers();
             ResponseMeta = GrpcMetadataAdapter.CreateResponseMeta(null, trailers);
             _responses.Writer.TryComplete();
             RecordCompletion(StatusCode.OK);
-            _context.TrySetCompletion(StreamCompletionStatus.Succeeded);
+            Context.TrySetCompletion(StreamCompletionStatus.Succeeded);
         }
         catch (RpcException rpcEx)
         {
@@ -152,13 +147,13 @@ internal sealed class GrpcClientStreamCall : IStreamCall
             var completionStatus = status == OmniRelayStatusCode.Cancelled
                 ? StreamCompletionStatus.Cancelled
                 : StreamCompletionStatus.Faulted;
-            _context.TrySetCompletion(completionStatus, error);
+            Context.TrySetCompletion(completionStatus, error);
         }
         catch (Exception ex)
         {
             _responses.Writer.TryComplete(ex);
             RecordCompletion(StatusCode.Unknown);
-            _context.TrySetCompletion(StreamCompletionStatus.Faulted, OmniRelayErrorAdapter.FromStatus(
+            Context.TrySetCompletion(StreamCompletionStatus.Faulted, OmniRelayErrorAdapter.FromStatus(
                 OmniRelayStatusCode.Internal,
                 ex.Message ?? "An unknown error occurred while reading the response stream.",
                 transport: GrpcTransportConstants.TransportName,

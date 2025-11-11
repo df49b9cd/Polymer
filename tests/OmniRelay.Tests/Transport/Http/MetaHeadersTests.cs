@@ -5,8 +5,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
-using OmniRelay.Transport.Http;
 using OmniRelay.Tests;
+using OmniRelay.Transport.Http;
 using Xunit;
 
 namespace OmniRelay.Tests.Transport.Http;
@@ -53,7 +53,7 @@ public class MetaHeadersTests
             body,
             OmniRelayTestsJsonContext.Default.MetaDiagnosticsPayload);
 
-        Assert.Equal(1500, payload?.TtlMs, precision: 0);
+        Assert.Equal(1500d, payload?.TtlMs ?? double.NaN, precision: 0);
         Assert.Equal(deadline, payload?.Deadline);
 
         await dispatcher.StopOrThrowAsync(ct);

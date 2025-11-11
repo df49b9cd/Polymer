@@ -74,7 +74,7 @@ public class RoundRobinPeerChooserTests
         provider.IsPeerEligible("p2").Returns(true);
         provider.Snapshot().Returns(ImmutableArray<PeerLeaseHealthSnapshot>.Empty);
 
-        var chooser = new RoundRobinPeerChooser(new[] { unhealthy, healthy }, provider);
+        var chooser = new RoundRobinPeerChooser([unhealthy, healthy], provider);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
         Assert.True(res.IsSuccess);
         Assert.Same(healthy, res.Value.Peer);
@@ -98,7 +98,7 @@ public class RoundRobinPeerChooserTests
         provider.IsPeerEligible(Arg.Any<string>()).Returns(false);
         provider.Snapshot().Returns(ImmutableArray<PeerLeaseHealthSnapshot>.Empty);
 
-        var chooser = new RoundRobinPeerChooser(new[] { p1, p2 }, provider);
+        var chooser = new RoundRobinPeerChooser([p1, p2], provider);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
         Assert.True(res.IsFailure);
         Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));

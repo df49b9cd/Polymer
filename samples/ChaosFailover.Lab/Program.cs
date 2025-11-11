@@ -6,11 +6,10 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Http;
 using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
-using static Hugo.Go;
 
 namespace OmniRelay.Samples.ChaosFailover.Lab;
 
-public static class Program
+internal static class Program
 {
     public static async Task Main(string[] args)
     {
@@ -53,7 +52,7 @@ internal static class ChaosLabBootstrap
 {
     public static ChaosLabRuntime Build(ChaosBackend primary, ChaosBackend secondary)
     {
-        var httpInbound = new HttpInbound(new[] { "http://127.0.0.1:7230" });
+        var httpInbound = new HttpInbound(["http://127.0.0.1:7230"]);
 
         var options = new DispatcherOptions("samples.chaos-lab");
         options.AddLifecycle("http-inbound", httpInbound);
@@ -89,17 +88,9 @@ internal static class ChaosLabBootstrap
 
 internal sealed record ChaosLabRuntime(OmniRelayDispatcher Dispatcher, HttpInbound HttpInbound)
 {
-    public OmniRelayDispatcher Dispatcher
-    {
-        get => field;
-        init => field = value;
-    } = Dispatcher;
+    public OmniRelayDispatcher Dispatcher { get; init; } = Dispatcher;
 
-    public HttpInbound HttpInbound
-    {
-        get => field;
-        init => field = value;
-    } = HttpInbound;
+    public HttpInbound HttpInbound { get; init; } = HttpInbound;
 }
 
 internal sealed class ChaosBackend : IAsyncDisposable
@@ -165,7 +156,6 @@ internal sealed class ChaosUnaryOutbound(OmniRelayDispatcher dispatcher) : IUnar
     public ValueTask StopAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 }
 
-
 internal static class TrafficGenerator
 {
     public static async Task RunAsync(OmniRelayDispatcher dispatcher, CancellationToken cancellationToken)
@@ -195,32 +185,16 @@ internal static class TrafficGenerator
 
 internal sealed record ChaosRequest(bool UseSecondary)
 {
-    public bool UseSecondary
-    {
-        get => field;
-        init => field = value;
-    } = UseSecondary;
+    public bool UseSecondary { get; init; } = UseSecondary;
 }
 
 internal sealed record ChaosResponse(string Backend, string Status, string? Error)
 {
-    public string Backend
-    {
-        get => field;
-        init => field = value;
-    } = Backend;
+    public string Backend { get; init; } = Backend;
 
-    public string Status
-    {
-        get => field;
-        init => field = value;
-    } = Status;
+    public string Status { get; init; } = Status;
 
-    public string? Error
-    {
-        get => field;
-        init => field = value;
-    } = Error;
+    public string? Error { get; init; } = Error;
 }
 
 internal sealed class OutboundRetryMiddleware(int maxAttempts) : IUnaryOutboundMiddleware

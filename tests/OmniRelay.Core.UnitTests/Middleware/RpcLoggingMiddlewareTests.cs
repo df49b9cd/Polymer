@@ -24,10 +24,7 @@ public class RpcLoggingMiddlewareTests
             _isEnabled = isEnabled ?? (_ => true);
         }
 
-        public ConcurrentQueue<(LogLevel level, string message)> Entries
-        {
-            get => field;
-        } = new();
+        public ConcurrentQueue<(LogLevel level, string message)> Entries { get; } = new();
 
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => new Noop();
         public bool IsEnabled(LogLevel logLevel) => _isEnabled(logLevel);

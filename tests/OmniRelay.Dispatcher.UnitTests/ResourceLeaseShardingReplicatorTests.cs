@@ -38,7 +38,7 @@ public sealed class ResourceLeaseShardingReplicatorTests
         var first = Substitute.For<IResourceLeaseReplicator>();
         var second = Substitute.For<IResourceLeaseReplicator>();
 
-        var composite = new CompositeResourceLeaseReplicator(new[] { first, second });
+        var composite = new CompositeResourceLeaseReplicator([first, second]);
         var evt = SampleEvent();
 
         await composite.PublishAsync(evt, CancellationToken.None);

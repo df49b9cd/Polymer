@@ -14,7 +14,7 @@ public sealed class ResourceLeaseReplicationTests
     public async Task InMemoryReplicator_SequencesAndDeliversEvents()
     {
         var sink = new RecordingSink();
-        var replicator = new InMemoryResourceLeaseReplicator(new[] { sink });
+        var replicator = new InMemoryResourceLeaseReplicator([sink]);
 
         await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
         await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
@@ -26,7 +26,7 @@ public sealed class ResourceLeaseReplicationTests
     public async Task InMemoryReplicator_IgnoresProvidedSequenceAndUsesStartingOffset()
     {
         var sink = new RecordingSink();
-        var replicator = new InMemoryResourceLeaseReplicator(new[] { sink }, startingSequence: 10);
+        var replicator = new InMemoryResourceLeaseReplicator([sink], startingSequence: 10);
 
         await replicator.PublishAsync(CreateEvent(sequence: 42), CancellationToken.None);
 
@@ -70,16 +70,13 @@ public sealed class ResourceLeaseReplicationTests
             DateTimeOffset.UtcNow,
             new ResourceLeaseOwnershipHandle(5, 1, Guid.NewGuid()),
             "peer-a",
-            new ResourceLeaseItemPayload("workflow", "job-123", "pk", "json", Array.Empty<byte>()),
+            new ResourceLeaseItemPayload("workflow", "job-123", "pk", "json", []),
             null,
             ImmutableDictionary<string, string>.Empty);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {
-        public List<ResourceLeaseReplicationEvent> Events
-        {
-            get => field;
-        } = new();
+        public List<ResourceLeaseReplicationEvent> Events { get; } = [];
 
         public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {
@@ -90,10 +87,7 @@ public sealed class ResourceLeaseReplicationTests
 
     private sealed class CountingCheckpointSink : CheckpointingResourceLeaseReplicationSink
     {
-        public List<long> AppliedSequences
-        {
-            get => field;
-        } = new();
+        public List<long> AppliedSequences { get; } = [];
 
         protected override ValueTask ApplyInternalAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {

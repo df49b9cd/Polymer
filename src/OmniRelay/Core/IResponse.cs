@@ -14,16 +14,9 @@ public interface IResponse<out T>
 public sealed record Response<T>(ResponseMeta Meta, T Body) : IResponse<T>
 {
     /// <summary>Gets the response metadata.</summary>
-    public ResponseMeta Meta
-    {
-        get => field;
-    } = Meta ?? throw new ArgumentNullException(nameof(Meta));
+    public ResponseMeta Meta { get; } = Meta ?? throw new ArgumentNullException(nameof(Meta));
 
-    public T Body
-    {
-        get => field;
-        init => field = value;
-    } = Body;
+    public T Body { get; init; } = Body;
 
     /// <summary>
     /// Creates a response from a payload and optional metadata.

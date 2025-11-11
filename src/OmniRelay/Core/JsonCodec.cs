@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -62,6 +61,8 @@ public sealed class JsonCodec<TRequest, TResponse> : ICodec<TRequest, TResponse>
     /// <inheritdoc />
     public Result<byte[]> EncodeRequest(TRequest value, RequestMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         try
         {
             var bytes = Serialize(value, _requestTypeInfo, _requestRuntimeTypeInfo);
@@ -93,6 +94,8 @@ public sealed class JsonCodec<TRequest, TResponse> : ICodec<TRequest, TResponse>
     /// <inheritdoc />
     public Result<TRequest> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         var schemaError = ValidateSchema(
             _requestSchema,
             _requestSchemaId,
@@ -130,6 +133,8 @@ public sealed class JsonCodec<TRequest, TResponse> : ICodec<TRequest, TResponse>
     /// <inheritdoc />
     public Result<byte[]> EncodeResponse(TResponse value, ResponseMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         try
         {
             var bytes = Serialize(value, _responseTypeInfo, _responseRuntimeTypeInfo);
@@ -161,6 +166,8 @@ public sealed class JsonCodec<TRequest, TResponse> : ICodec<TRequest, TResponse>
     /// <inheritdoc />
     public Result<TResponse> DecodeResponse(ReadOnlyMemory<byte> payload, ResponseMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         var schemaError = ValidateSchema(
             _responseSchema,
             _responseSchemaId,

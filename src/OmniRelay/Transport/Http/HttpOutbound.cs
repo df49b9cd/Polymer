@@ -10,7 +10,6 @@ using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
 using OmniRelay.Transport.Http.Middleware;
-using static Hugo.Go;
 
 namespace OmniRelay.Transport.Http;
 
@@ -574,15 +573,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
 /// </summary>
 public sealed record HttpOutboundSnapshot(Uri RequestUri, bool DisposesClient)
 {
-    public Uri RequestUri
-    {
-        get => field;
-        init => field = value;
-    } = RequestUri;
+    public Uri RequestUri { get; init; } = RequestUri;
 
-    public bool DisposesClient
-    {
-        get => field;
-        init => field = value;
-    } = DisposesClient;
+    public bool DisposesClient { get; init; } = DisposesClient;
 }

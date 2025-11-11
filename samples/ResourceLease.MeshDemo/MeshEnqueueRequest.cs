@@ -5,7 +5,7 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public sealed record MeshEnqueueRequest(
+internal sealed record MeshEnqueueRequest(
     string Catalog = "fabric-lakehouse",
     string Database = "sales",
     string Table = "ad_hoc",
@@ -32,7 +32,7 @@ public sealed record MeshEnqueueRequest(
 
         if (string.IsNullOrWhiteSpace(Body))
         {
-            var columnSet = Columns is { Length: > 0 } cols ? cols : new[] { "id STRING", "payload STRING" };
+            var columnSet = Columns is { Length: > 0 } cols ? cols : ["id STRING", "payload STRING"];
             var changes = Changes is { Length: > 0 } delta ? delta : columnSet;
             var operation = new LakehouseCatalogOperation(
                 Catalog,

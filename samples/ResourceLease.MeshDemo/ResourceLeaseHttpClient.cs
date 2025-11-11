@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Options;
@@ -6,7 +5,7 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public sealed class ResourceLeaseHttpClient
+internal sealed class ResourceLeaseHttpClient
 {
     private readonly HttpClient _httpClient;
     private readonly MeshDemoOptions _options;

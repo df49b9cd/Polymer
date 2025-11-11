@@ -13,8 +13,8 @@ using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
 

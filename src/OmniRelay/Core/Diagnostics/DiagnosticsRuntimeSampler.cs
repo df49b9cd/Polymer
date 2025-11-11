@@ -80,4 +80,6 @@ public sealed class DiagnosticsRuntimeSampler(IDiagnosticsRuntime? diagnosticsRu
     }
 
     internal CachedSampler? TestingCachedSampler => _cachedRatioSampler;
+
+    internal sealed record CachedSampler(double Probability, Sampler Sampler);
 }

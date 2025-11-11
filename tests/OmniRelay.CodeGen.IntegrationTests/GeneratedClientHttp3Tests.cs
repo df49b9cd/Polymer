@@ -15,8 +15,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests.Protos;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 using Xunit.Sdk;
@@ -160,7 +160,8 @@ public class GeneratedClientHttp3Tests
             remoteService: "codegen-svc-h2",
             clientRuntimeOptions: new GrpcClientRuntimeOptions
             {
-                EnableHttp3 = true, VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher
+                EnableHttp3 = true,
+                VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher
             },
             clientTlsOptions: new GrpcClientTlsOptions
             {

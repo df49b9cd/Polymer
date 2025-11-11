@@ -1,9 +1,5 @@
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Net;
 using System.Security.Authentication;
-using Grpc.AspNetCore.Server;
 using Grpc.AspNetCore.Server.Model;
 using Grpc.Core;
 using Hugo;
@@ -34,14 +30,13 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
     private WebApplication? _app;
     private Dispatcher.Dispatcher? _dispatcher;
     private readonly GrpcServerTlsOptions? _serverTlsOptions;
-    private readonly GrpcServerRuntimeOptions? _serverRuntimeOptions;
     private readonly GrpcCompressionOptions? _compressionOptions;
     private readonly GrpcTelemetryOptions? _telemetryOptions;
     private GrpcServerInterceptorRegistry? _serverInterceptorRegistry;
     private int _interceptorsConfigured;
     private volatile bool _isDraining;
     private readonly WaitGroup _activeCalls = new();
-    private readonly HashSet<ServerCallContext> _activeCallContexts = new();
+    private readonly HashSet<ServerCallContext> _activeCallContexts = [];
     private readonly object _callContextLock = new();
     private const string RetryAfterMetadataName = "retry-after";
     private const string RetryAfterMetadataValue = "1";
@@ -74,7 +69,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         _configureServices = configureServices;
         _configureApp = configureApp;
         _serverTlsOptions = serverTlsOptions;
-        _serverRuntimeOptions = serverRuntimeOptions;
+        RuntimeOptions = serverRuntimeOptions;
         _compressionOptions = compressionOptions;
         _telemetryOptions = telemetryOptions;
     }
@@ -108,9 +103,9 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         }
 
         var builder = WebApplication.CreateSlimBuilder();
-        var enableHttp3 = _serverRuntimeOptions?.EnableHttp3 == true;
+        var enableHttp3 = RuntimeOptions?.EnableHttp3 == true;
         var http3Endpoints = enableHttp3 ? new List<string>() : null;
-        var http3RuntimeOptions = _serverRuntimeOptions?.Http3;
+        var http3RuntimeOptions = RuntimeOptions?.Http3;
         var streamLimitUnsupported = false;
         var idleTimeoutUnsupported = false;
         var keepAliveUnsupported = false;
@@ -180,14 +175,14 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
 
         builder.WebHost.UseKestrel(options =>
         {
-            if (_serverRuntimeOptions != null)
+            if (RuntimeOptions != null)
             {
-                if (_serverRuntimeOptions.KeepAlivePingDelay is { } delay)
+                if (RuntimeOptions.KeepAlivePingDelay is { } delay)
                 {
                     options.Limits.Http2.KeepAlivePingDelay = delay;
                 }
 
-                if (_serverRuntimeOptions.KeepAlivePingTimeout is { } timeout)
+                if (RuntimeOptions.KeepAlivePingTimeout is { } timeout)
                 {
                     options.Limits.Http2.KeepAlivePingTimeout = timeout;
                 }
@@ -274,7 +269,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
             _ => new GrpcDispatcherServiceMethodProvider(_dispatcher, this));
         builder.Services.AddSingleton<GrpcDispatcherService>();
 
-        var runtimeLoggingInterceptorSpecified = _serverRuntimeOptions?.Interceptors?.Any(type => type == typeof(GrpcServerLoggingInterceptor)) == true;
+        var runtimeLoggingInterceptorSpecified = RuntimeOptions?.Interceptors?.Any(type => type == typeof(GrpcServerLoggingInterceptor)) == true;
         if (runtimeLoggingInterceptorSpecified || (_telemetryOptions?.EnableServerLogging == true))
         {
             builder.Services.TryAddSingleton<GrpcServerLoggingInterceptor>();
@@ -298,24 +293,24 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                 options.Interceptors.Add<CompositeServerInterceptor>();
             }
 
-            if (_serverRuntimeOptions != null)
+            if (RuntimeOptions != null)
             {
-                if (_serverRuntimeOptions.MaxReceiveMessageSize is { } maxReceive)
+                if (RuntimeOptions.MaxReceiveMessageSize is { } maxReceive)
                 {
                     options.MaxReceiveMessageSize = maxReceive;
                 }
 
-                if (_serverRuntimeOptions.MaxSendMessageSize is { } maxSend)
+                if (RuntimeOptions.MaxSendMessageSize is { } maxSend)
                 {
                     options.MaxSendMessageSize = maxSend;
                 }
 
-                if (_serverRuntimeOptions.EnableDetailedErrors is { } detailedErrors)
+                if (RuntimeOptions.EnableDetailedErrors is { } detailedErrors)
                 {
                     options.EnableDetailedErrors = detailedErrors;
                 }
 
-                if (_serverRuntimeOptions?.AnnotatedInterceptors is { Count: > 0 } interceptors)
+                if (RuntimeOptions?.AnnotatedInterceptors is { Count: > 0 } interceptors)
                 {
                     foreach (var interceptor in interceptors)
                     {
@@ -422,7 +417,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
 
     internal bool IsDraining => _isDraining;
 
-    internal GrpcServerRuntimeOptions? RuntimeOptions => _serverRuntimeOptions;
+    internal GrpcServerRuntimeOptions? RuntimeOptions { get; }
 
     internal bool TryEnterCall(ServerCallContext context, out IDisposable? scope, out RpcException? rejection)
     {

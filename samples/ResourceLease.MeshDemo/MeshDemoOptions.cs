@@ -1,6 +1,6 @@
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public sealed class MeshDemoOptions
+internal sealed class MeshDemoOptions
 {
     public static readonly string[] DefaultCatalogs = ["fabric-lakehouse", "delta-lab", "governance-hub"];
     public static readonly string[] DefaultDatabasePrefixes = ["sales", "billing", "ml", "governance", "security"];
@@ -44,13 +44,13 @@ public sealed class MeshDemoOptions
     }
 
     public string[] GetHostingUrls() =>
-        Urls is { Length: > 0 } values ? values : Array.Empty<string>();
+        Urls is { Length: > 0 } values ? values : [];
 
     public TimeSpan GetSeederInterval() =>
         TimeSpan.FromSeconds(Math.Max(1, SeederIntervalSeconds));
 }
 
-public sealed class MeshDemoPaths
+internal sealed class MeshDemoPaths
 {
     private MeshDemoPaths(string replicationConnectionString, string deterministicConnectionString)
     {

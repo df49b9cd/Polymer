@@ -8,100 +8,49 @@ public sealed record StreamChannelMetadata(
     int? Capacity,
     bool TracksMessageCount)
 {
-    public static StreamChannelMetadata DefaultResponse
-    {
-        get => field;
-    } =
+    public static StreamChannelMetadata DefaultResponse { get; } =
         new(StreamDirection.Server, "unbounded-channel", null, true);
 
-    public static StreamChannelMetadata DefaultRequest
-    {
-        get => field;
-    } =
+    public static StreamChannelMetadata DefaultRequest { get; } =
         new(StreamDirection.Client, "unbounded-channel", null, false);
 
-    public StreamDirection Direction
-    {
-        get => field;
-        init => field = value;
-    } = Direction;
+    public StreamDirection Direction { get; init; } = Direction;
 
-    public string BufferingStrategy
-    {
-        get => field;
-        init => field = value;
-    } = BufferingStrategy;
+    public string BufferingStrategy { get; init; } = BufferingStrategy;
 
-    public int? Capacity
-    {
-        get => field;
-        init => field = value;
-    } = Capacity;
+    public int? Capacity { get; init; } = Capacity;
 
-    public bool TracksMessageCount
-    {
-        get => field;
-        init => field = value;
-    } = TracksMessageCount;
+    public bool TracksMessageCount { get; init; } = TracksMessageCount;
 }
 
 public sealed record StreamIntrospectionMetadata(StreamChannelMetadata ResponseChannel)
 {
-    public static StreamIntrospectionMetadata Default
-    {
-        get => field;
-    } =
+    public static StreamIntrospectionMetadata Default { get; } =
         new(StreamChannelMetadata.DefaultResponse);
 
-    public StreamChannelMetadata ResponseChannel
-    {
-        get => field;
-        init => field = value;
-    } = ResponseChannel;
+    public StreamChannelMetadata ResponseChannel { get; init; } = ResponseChannel;
 }
 
 public sealed record ClientStreamIntrospectionMetadata(
     StreamChannelMetadata RequestChannel,
     bool AggregatesUnaryResponse)
 {
-    public static ClientStreamIntrospectionMetadata Default
-    {
-        get => field;
-    } =
+    public static ClientStreamIntrospectionMetadata Default { get; } =
         new(StreamChannelMetadata.DefaultRequest, true);
 
-    public StreamChannelMetadata RequestChannel
-    {
-        get => field;
-        init => field = value;
-    } = RequestChannel;
+    public StreamChannelMetadata RequestChannel { get; init; } = RequestChannel;
 
-    public bool AggregatesUnaryResponse
-    {
-        get => field;
-        init => field = value;
-    } = AggregatesUnaryResponse;
+    public bool AggregatesUnaryResponse { get; init; } = AggregatesUnaryResponse;
 }
 
 public sealed record DuplexIntrospectionMetadata(
     StreamChannelMetadata RequestChannel,
     StreamChannelMetadata ResponseChannel)
 {
-    public static DuplexIntrospectionMetadata Default
-    {
-        get => field;
-    } =
+    public static DuplexIntrospectionMetadata Default { get; } =
         new(StreamChannelMetadata.DefaultRequest, StreamChannelMetadata.DefaultResponse);
 
-    public StreamChannelMetadata RequestChannel
-    {
-        get => field;
-        init => field = value;
-    } = RequestChannel;
+    public StreamChannelMetadata RequestChannel { get; init; } = RequestChannel;
 
-    public StreamChannelMetadata ResponseChannel
-    {
-        get => field;
-        init => field = value;
-    } = ResponseChannel;
+    public StreamChannelMetadata ResponseChannel { get; init; } = ResponseChannel;
 }

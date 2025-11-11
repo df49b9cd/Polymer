@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Loader;
 using Google.Protobuf.Reflection;
@@ -11,6 +12,12 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
 {
     private static readonly Lazy<string?> DependencyDirectory = new(ResolveDependencyDirectory);
 
+    [RequiresAssemblyFiles("Calls OmniRelay.Codegen.Protobuf.Generator.ProtobufIncrementalGenerator.ResolveAssemblyFromDependencies(AssemblyLoadContext, AssemblyName)")]
+    [RequiresAssemblyFiles("Calls OmniRelay.Codegen.Protobuf.Generator.ProtobufIncrementalGenerator.ResolveAssemblyFromDependencies(AssemblyLoadContext, AssemblyName)")]
+    [RequiresAssemblyFiles("Calls OmniRelay.Codegen.Protobuf.Generator.ProtobufIncrementalGenerator.ResolveAssemblyFromDependencies(AssemblyLoadContext, AssemblyName)")]
+    [RequiresAssemblyFiles("Calls OmniRelay.Codegen.Protobuf.Generator.ProtobufIncrementalGenerator.ResolveAssemblyFromDependencies(AssemblyLoadContext, AssemblyName)")]
+    [RequiresAssemblyFiles("Calls OmniRelay.Codegen.Protobuf.Generator.ProtobufIncrementalGenerator.ResolveAssemblyFromDependencies(AssemblyLoadContext, AssemblyName)")]
+    [RequiresAssemblyFiles("Calls OmniRelay.Codegen.Protobuf.Generator.ProtobufIncrementalGenerator.ResolveAssemblyFromDependencies(AssemblyLoadContext, AssemblyName)")]
     static ProtobufIncrementalGenerator()
     {
         var directory = DependencyDirectory.Value;
@@ -121,6 +128,8 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         Exception? ParseException);
 
 #pragma warning disable RS1035 // Do not do file IO in analyzers
+    [RequiresUnreferencedCode("Calls System.Runtime.Loader.AssemblyLoadContext.LoadFromAssemblyPath(String)")]
+    [RequiresAssemblyFiles("Calls System.Reflection.Assembly.Location")]
     private static Assembly? ResolveAssemblyFromDependencies(AssemblyLoadContext context, AssemblyName name)
     {
         // Prevent recursion

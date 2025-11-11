@@ -33,53 +33,21 @@ public sealed record ResourceLeaseReplicationEvent(
                 ? ImmutableDictionary<string, string>.Empty
                 : metadata.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase));
 
-    public long SequenceNumber
-    {
-        get => field;
-        init => field = value;
-    } = SequenceNumber;
+    public long SequenceNumber { get; init; } = SequenceNumber;
 
-    public ResourceLeaseReplicationEventType EventType
-    {
-        get => field;
-        init => field = value;
-    } = EventType;
+    public ResourceLeaseReplicationEventType EventType { get; init; } = EventType;
 
-    public DateTimeOffset Timestamp
-    {
-        get => field;
-        init => field = value;
-    } = Timestamp;
+    public DateTimeOffset Timestamp { get; init; } = Timestamp;
 
-    public ResourceLeaseOwnershipHandle? Ownership
-    {
-        get => field;
-        init => field = value;
-    } = Ownership;
+    public ResourceLeaseOwnershipHandle? Ownership { get; init; } = Ownership;
 
-    public string? PeerId
-    {
-        get => field;
-        init => field = value;
-    } = PeerId;
+    public string? PeerId { get; init; } = PeerId;
 
-    public ResourceLeaseItemPayload? Payload
-    {
-        get => field;
-        init => field = value;
-    } = Payload;
+    public ResourceLeaseItemPayload? Payload { get; init; } = Payload;
 
-    public ResourceLeaseErrorInfo? Error
-    {
-        get => field;
-        init => field = value;
-    } = Error;
+    public ResourceLeaseErrorInfo? Error { get; init; } = Error;
 
-    public ImmutableDictionary<string, string> Metadata
-    {
-        get => field;
-        init => field = value;
-    } = Metadata;
+    public ImmutableDictionary<string, string> Metadata { get; init; } = Metadata;
 }
 
 /// <summary>Enumerates resource lease event types replicated across metadata nodes.</summary>
@@ -111,7 +79,7 @@ public interface IResourceLeaseReplicationSink
 /// </summary>
 public sealed class InMemoryResourceLeaseReplicator : IResourceLeaseReplicator
 {
-    private readonly List<IResourceLeaseReplicationSink> _sinks = new();
+    private readonly List<IResourceLeaseReplicationSink> _sinks = [];
     private long _sequenceId;
 
     public InMemoryResourceLeaseReplicator(IEnumerable<IResourceLeaseReplicationSink>? sinks = null, long startingSequence = 0)

@@ -1,7 +1,4 @@
-using System.Globalization;
-using System.Linq;
 using System.Text;
-using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Peers;
@@ -9,7 +6,6 @@ using OmniRelay.Dispatcher;
 using OmniRelay.Samples.ResourceLease.MeshDemo;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
-using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);

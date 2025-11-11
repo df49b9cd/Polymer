@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
@@ -32,7 +30,7 @@ public sealed class SqliteResourceLeaseReplicator : IResourceLeaseReplicator, IA
         _tableName = tableName;
         _sinks = sinks is null
             ? ImmutableArray<IResourceLeaseReplicationSink>.Empty
-            : sinks.Where(s => s is not null).ToImmutableArray();
+            : [..sinks.Where(s => s is not null)];
     }
 
     public async ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)

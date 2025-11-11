@@ -13,7 +13,7 @@ using OmniDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 namespace DistributedDemo.Gateway;
 
-public static class Program
+internal static class Program
 {
     public static async Task Main(string[] args)
     {

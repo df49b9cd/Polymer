@@ -177,10 +177,10 @@ public class ObservabilityDiagnosticsIntegrationTests
                 caller: "observability-client",
                 encoding: "json",
                 transport: "http",
-                headers: new[]
-                {
+                headers:
+                [
                     new KeyValuePair<string, string>("rpc.peer", "backend-primary")
-                });
+                ]);
 
             var outboundRequest = new Request<ReadOnlyMemory<byte>>(outboundMeta, """{"message":"fanout"}"""u8.ToArray());
 
@@ -208,7 +208,7 @@ public class ObservabilityDiagnosticsIntegrationTests
             {
                 var fakeResponse = new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new ByteArrayContent(Array.Empty<byte>())
+                    Content = new ByteArrayContent([])
                 };
                 return ValueTask.FromResult(fakeResponse);
             };
@@ -436,23 +436,11 @@ public class ObservabilityDiagnosticsIntegrationTests
 
     private sealed record MeasurementRecord(string Instrument, double Value, KeyValuePair<string, object?>[] Tags)
     {
-        public string Instrument
-        {
-            get => field;
-            init => field = value;
-        } = Instrument;
+        public string Instrument { get; init; } = Instrument;
 
-        public double Value
-        {
-            get => field;
-            init => field = value;
-        } = Value;
+        public double Value { get; init; } = Value;
 
-        public KeyValuePair<string, object?>[] Tags
-        {
-            get => field;
-            init => field = value;
-        } = Tags;
+        public KeyValuePair<string, object?>[] Tags { get; init; } = Tags;
     }
 
     private sealed class HttpMetricCollector : IDisposable
@@ -504,35 +492,15 @@ public class ObservabilityDiagnosticsIntegrationTests
         IReadOnlyList<KeyValuePair<string, object?>>? State,
         IReadOnlyList<KeyValuePair<string, object?>> Scope)
     {
-        public string Category
-        {
-            get => field;
-            init => field = value;
-        } = Category;
+        public string Category { get; init; } = Category;
 
-        public LogLevel Level
-        {
-            get => field;
-            init => field = value;
-        } = Level;
+        public LogLevel Level { get; init; } = Level;
 
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
 
-        public IReadOnlyList<KeyValuePair<string, object?>>? State
-        {
-            get => field;
-            init => field = value;
-        } = State;
+        public IReadOnlyList<KeyValuePair<string, object?>>? State { get; init; } = State;
 
-        public IReadOnlyList<KeyValuePair<string, object?>> Scope
-        {
-            get => field;
-            init => field = value;
-        } = Scope;
+        public IReadOnlyList<KeyValuePair<string, object?>> Scope { get; init; } = Scope;
     }
 
     private sealed class CapturingLoggerProvider : ILoggerProvider, ISupportExternalScope
@@ -599,10 +567,7 @@ public class ObservabilityDiagnosticsIntegrationTests
 
     private sealed class NullScope : IDisposable
     {
-        public static NullScope Instance
-        {
-            get => field;
-        } = new();
+        public static NullScope Instance { get; } = new();
 
         public void Dispose()
         {

@@ -1,5 +1,4 @@
 using System.Diagnostics.Metrics;
-using Hugo;
 
 namespace OmniRelay.Dispatcher;
 

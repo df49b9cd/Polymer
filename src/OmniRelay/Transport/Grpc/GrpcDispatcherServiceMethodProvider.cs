@@ -3,11 +3,11 @@ using System.Runtime.ExceptionServices;
 using Grpc.AspNetCore.Server.Model;
 using Grpc.Core;
 using Hugo;
-using static Hugo.Go;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using static Hugo.Go;
 
 namespace OmniRelay.Transport.Grpc;
 

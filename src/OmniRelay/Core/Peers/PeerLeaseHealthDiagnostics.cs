@@ -7,17 +7,9 @@ public sealed record PeerLeaseHealthDiagnostics(
     ImmutableArray<PeerLeaseHealthSnapshot> Peers,
     PeerLeaseHealthSummary Summary)
 {
-    public ImmutableArray<PeerLeaseHealthSnapshot> Peers
-    {
-        get => field;
-        init => field = value;
-    } = Peers;
+    public ImmutableArray<PeerLeaseHealthSnapshot> Peers { get; init; } = Peers;
 
-    public PeerLeaseHealthSummary Summary
-    {
-        get => field;
-        init => field = value;
-    } = Summary;
+    public PeerLeaseHealthSummary Summary { get; init; } = Summary;
 
     /// <summary>Creates a diagnostics payload from the supplied snapshots.</summary>
     public static PeerLeaseHealthDiagnostics FromSnapshots(ImmutableArray<PeerLeaseHealthSnapshot> snapshots)
@@ -54,21 +46,9 @@ public sealed record PeerLeaseHealthDiagnostics(
 /// <summary>Aggregated lease health counts used by diagnostics dashboards.</summary>
 public sealed record PeerLeaseHealthSummary(int EligiblePeers, int UnhealthyPeers, int PendingReassignments)
 {
-    public int EligiblePeers
-    {
-        get => field;
-        init => field = value;
-    } = EligiblePeers;
+    public int EligiblePeers { get; init; } = EligiblePeers;
 
-    public int UnhealthyPeers
-    {
-        get => field;
-        init => field = value;
-    } = UnhealthyPeers;
+    public int UnhealthyPeers { get; init; } = UnhealthyPeers;
 
-    public int PendingReassignments
-    {
-        get => field;
-        init => field = value;
-    } = PendingReassignments;
+    public int PendingReassignments { get; init; } = PendingReassignments;
 }

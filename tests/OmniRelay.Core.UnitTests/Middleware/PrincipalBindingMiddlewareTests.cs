@@ -17,7 +17,7 @@ public sealed class PrincipalBindingMiddlewareTests
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
-            PrincipalHeaderNames = ImmutableArray.Create("x-client-principal"),
+            PrincipalHeaderNames = ["x-client-principal"],
             AuthorizationHeaderNames = ImmutableArray<string>.Empty
         });
 
@@ -51,7 +51,7 @@ public sealed class PrincipalBindingMiddlewareTests
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ImmutableArray<string>.Empty,
-            AuthorizationHeaderNames = ImmutableArray.Create("authorization")
+            AuthorizationHeaderNames = ["authorization"]
         });
 
         var meta = new RequestMeta(
@@ -83,7 +83,7 @@ public sealed class PrincipalBindingMiddlewareTests
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ImmutableArray<string>.Empty,
-            AuthorizationHeaderNames = ImmutableArray.Create("authorization"),
+            AuthorizationHeaderNames = ["authorization"],
             AcceptBearerTokens = false,
             AcceptMutualTlsSubjects = true
         });
@@ -116,7 +116,7 @@ public sealed class PrincipalBindingMiddlewareTests
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
-            PrincipalHeaderNames = ImmutableArray.Create("x-client-principal"),
+            PrincipalHeaderNames = ["x-client-principal"],
             AuthorizationHeaderNames = ImmutableArray<string>.Empty
         });
 
@@ -150,7 +150,7 @@ public sealed class PrincipalBindingMiddlewareTests
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
-            PrincipalHeaderNames = ImmutableArray.Create("x-mtls-subject"),
+            PrincipalHeaderNames = ["x-mtls-subject"],
             AuthorizationHeaderNames = ImmutableArray<string>.Empty,
             IncludeThumbprint = true,
             ThumbprintHeaderName = "x-mtls-thumbprint"
@@ -186,7 +186,7 @@ public sealed class PrincipalBindingMiddlewareTests
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
-            PrincipalHeaderNames = ImmutableArray.Create("x-client-principal"),
+            PrincipalHeaderNames = ["x-client-principal"],
             AuthorizationHeaderNames = ImmutableArray<string>.Empty,
             PromoteToCaller = false
         });

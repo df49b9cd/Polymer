@@ -1,10 +1,8 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-public enum LakehouseCatalogOperationType
+internal enum LakehouseCatalogOperationType
 {
     CreateTable,
     AlterSchema,
@@ -12,7 +10,7 @@ public enum LakehouseCatalogOperationType
     Vacuum
 }
 
-public sealed record LakehouseCatalogOperation(
+internal sealed record LakehouseCatalogOperation(
     string Catalog,
     string Database,
     string Table,
@@ -28,7 +26,7 @@ public sealed record LakehouseCatalogOperation(
     public string ResourceId => $"{Catalog}.{Database}.{Table}.v{Version:D4}";
 }
 
-public sealed record LakehouseCatalogTableState(
+internal sealed record LakehouseCatalogTableState(
     string Catalog,
     string Database,
     string Table,
@@ -39,12 +37,12 @@ public sealed record LakehouseCatalogTableState(
     string SnapshotId,
     DateTimeOffset UpdatedAt);
 
-public sealed record LakehouseCatalogSnapshot(
+internal sealed record LakehouseCatalogSnapshot(
     DateTimeOffset ObservedAt,
     IReadOnlyList<LakehouseCatalogTableState> Tables,
     IReadOnlyList<LakehouseCatalogOperation> RecentOperations);
 
-public enum LakehouseCatalogApplyOutcome
+internal enum LakehouseCatalogApplyOutcome
 {
     Created,
     Updated,
@@ -52,11 +50,11 @@ public enum LakehouseCatalogApplyOutcome
     Stale
 }
 
-public readonly record struct LakehouseCatalogApplyResult(
+internal readonly record struct LakehouseCatalogApplyResult(
     LakehouseCatalogApplyOutcome Outcome,
     LakehouseCatalogTableState State);
 
-public sealed class LakehouseCatalogState
+internal sealed class LakehouseCatalogState
 {
     private const int MaxRecentOperations = 128;
     private readonly ConcurrentDictionary<string, LakehouseCatalogTableState> _tables = new(StringComparer.Ordinal);

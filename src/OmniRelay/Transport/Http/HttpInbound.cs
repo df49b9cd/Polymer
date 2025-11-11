@@ -10,8 +10,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Hugo;
-using System.Linq;
-using static Hugo.Go;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +24,7 @@ using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using static Hugo.Go;
 
 namespace OmniRelay.Transport.Http;
 
@@ -541,7 +540,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         var payload = new HealthPayload(
             healthy ? "ok" : "unavailable",
             readiness ? "ready" : "live",
-            issues.Count == 0 ? Array.Empty<string>() : issues.ToArray(),
+            issues.Count == 0 ? [] : issues.ToArray(),
             Math.Max(Volatile.Read(ref _activeRequestCount), 0),
             _isDraining);
 
@@ -596,7 +595,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
                     {
                         activity.SetTag("network.protocol.version", version);
                     }
-                    activity.SetTag("network.transport", version.StartsWith("3", StringComparison.Ordinal) ? "quic" : "tcp");
+                    activity.SetTag("network.transport", version.StartsWith('3') ? "quic" : "tcp");
                 }
             }
 
@@ -864,7 +863,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
                     {
                         activity.SetTag("network.protocol.version", version);
                     }
-                    activity.SetTag("network.transport", version.StartsWith("3", StringComparison.Ordinal) ? "quic" : "tcp");
+                    activity.SetTag("network.transport", version.StartsWith('3') ? "quic" : "tcp");
                 }
             }
 
@@ -1022,7 +1021,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
                     {
                         activity.SetTag("network.protocol.version", version);
                     }
-                    activity.SetTag("network.transport", version.StartsWith("3", StringComparison.Ordinal) ? "quic" : "tcp");
+                    activity.SetTag("network.transport", version.StartsWith('3') ? "quic" : "tcp");
                 }
             }
 
@@ -1547,7 +1546,6 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
             return Encoding.UTF8.GetBytes(eventFrame);
         }
     }
-
 
     private sealed record HealthPayload(string Status, string Mode, string[] Issues, int ActiveRequests, bool Draining);
 

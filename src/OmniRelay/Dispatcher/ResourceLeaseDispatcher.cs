@@ -1,17 +1,10 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Peers;
-using OmniRelay.Errors;
-using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher;
 
@@ -242,10 +235,8 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             return ResourceLeaseAcknowledgeResponse.FromError(heartbeat.Error!);
         }
 
-        string? ownerId = null;
         if (TryGetLeaseOwner(request.OwnershipToken, out var resolvedHeartbeatOwner) && resolvedHeartbeatOwner is not null)
         {
-            ownerId = resolvedHeartbeatOwner;
             _leaseHealthTracker?.RecordLeaseHeartbeat(resolvedHeartbeatOwner, ToPeerHandle(request.OwnershipToken), _queue.PendingCount);
         }
 
@@ -572,9 +563,6 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
     private static PeerLeaseHandle ToPeerHandle(ResourceLeaseOwnershipHandle handle) =>
         PeerLeaseHandle.FromToken(handle.ToToken());
 
-    private static PeerLeaseHandle ToPeerHandle(TaskQueueOwnershipToken token) =>
-        PeerLeaseHandle.FromToken(token);
-
     private static string ResolvePeerId(RequestMeta meta, string? explicitPeer)
     {
         if (!string.IsNullOrWhiteSpace(explicitPeer))
@@ -843,7 +831,7 @@ public sealed record ResourceLeaseWorkItem(
             ? ImmutableDictionary<string, string>.Empty
             : payload.Attributes.ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
-        var body = payload.Body ?? Array.Empty<byte>();
+        var body = payload.Body ?? [];
 
         return new ResourceLeaseWorkItem(
             payload.ResourceType,

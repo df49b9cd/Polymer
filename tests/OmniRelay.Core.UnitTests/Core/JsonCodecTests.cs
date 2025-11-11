@@ -12,26 +12,14 @@ public class JsonCodecTests
 {
     private sealed record TestPayload(string Id, int Count)
     {
-        public string Id
-        {
-            get => field;
-            init => field = value;
-        } = Id;
+        public string Id { get; init; } = Id;
 
-        public int Count
-        {
-            get => field;
-            init => field = value;
-        } = Count;
+        public int Count { get; init; } = Count;
     }
 
     private sealed record OptionalPayload(string? Name)
     {
-        public string? Name
-        {
-            get => field;
-            init => field = value;
-        } = Name;
+        public string? Name { get; init; } = Name;
     }
 
     private sealed class ThrowingWriteConverter : JsonConverter<TestPayload>

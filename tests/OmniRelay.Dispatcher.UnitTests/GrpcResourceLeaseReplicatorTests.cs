@@ -15,7 +15,7 @@ public sealed class GrpcResourceLeaseReplicatorTests
     {
         var client = new RecordingClient();
         var sink = new RecordingSink();
-        var replicator = new GrpcResourceLeaseReplicator(client, sinks: new[] { sink });
+        var replicator = new GrpcResourceLeaseReplicator(client, sinks: [sink]);
 
         await replicator.PublishAsync(CreateEvent(), TestContext.Current.CancellationToken);
 
@@ -32,13 +32,13 @@ public sealed class GrpcResourceLeaseReplicatorTests
             DateTimeOffset.UtcNow,
             null,
             "peer-a",
-            new ResourceLeaseItemPayload("resource", "id", "pk", "json", Array.Empty<byte>()),
+            new ResourceLeaseItemPayload("resource", "id", "pk", "json", []),
             new ResourceLeaseErrorInfo("info", "code"),
             ImmutableDictionary<string, string>.Empty);
 
     private sealed class RecordingClient : IGrpcResourceLeaseReplicatorClient
     {
-        public List<ResourceLeaseReplicationEventMessage> Requests { get; } = new();
+        public List<ResourceLeaseReplicationEventMessage> Requests { get; } = [];
 
         public async Task PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
         {
@@ -49,7 +49,7 @@ public sealed class GrpcResourceLeaseReplicatorTests
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {
-        public List<ResourceLeaseReplicationEvent> Events { get; } = new();
+        public List<ResourceLeaseReplicationEvent> Events { get; } = [];
 
         public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {

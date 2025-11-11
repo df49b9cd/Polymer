@@ -172,7 +172,7 @@ public class OmniRelayConfigurationTests
 
         var components = dispatcher.Introspect().Components;
         Assert.Contains(components, component => component.Name == "ws-inbound");
-        Assert.Equal("/ws", inboundSpec.LastEndpoint);
+        Assert.Equal("/ws", TestInboundSpec.LastEndpoint);
 
         var clientConfig = dispatcher.ClientConfigOrThrow("search");
         Assert.True(clientConfig.TryGetUnary("primary", out var outbound));
@@ -239,7 +239,7 @@ public class OmniRelayConfigurationTests
         var clientConfig = dispatcher.ClientConfigOrThrow("reports");
         Assert.True(clientConfig.TryGetUnary(OutboundCollection.DefaultKey, out var outbound));
         Assert.IsType<OmniRelay.Transport.Grpc.GrpcOutbound>(outbound);
-        Assert.Equal("sticky", peerSpec.LastMode);
+        Assert.Equal("sticky", TestPeerChooserSpec.LastMode);
     }
 
     [Fact]
@@ -313,11 +313,7 @@ public class OmniRelayConfigurationTests
     {
         public const string SpecName = "test-inbound";
 
-        public string? LastEndpoint
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static string? LastEndpoint { get; private set; }
 
         public string Name => SpecName;
 
@@ -339,11 +335,7 @@ public class OmniRelayConfigurationTests
     {
         public const string SpecName = "test-outbound";
 
-        public string? LastAddress
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static string? LastAddress { get; private set; }
 
         public string Name => SpecName;
 
@@ -356,10 +348,7 @@ public class OmniRelayConfigurationTests
 
     private sealed class TestUnaryOutbound(string address) : IUnaryOutbound
     {
-        public string Address
-        {
-            get => field;
-        } = address;
+        public string Address { get; } = address;
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
@@ -372,10 +361,7 @@ public class OmniRelayConfigurationTests
 
     private sealed class RecordingHttpClientFactory : IHttpClientFactory
     {
-        public List<string> CreatedNames
-        {
-            get => field;
-        } = [];
+        public List<string> CreatedNames { get; } = [];
 
         public HttpClient CreateClient(string name = "")
         {
@@ -394,11 +380,7 @@ public class OmniRelayConfigurationTests
     {
         public const string SpecName = "test-peer";
 
-        public string? LastMode
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static string? LastMode { get; private set; }
 
         public string Name => SpecName;
 
@@ -445,24 +427,12 @@ internal partial class EchoJsonContext : JsonSerializerContext
 
 internal sealed record EchoRequest(string Name, int Count)
 {
-    public string Name
-    {
-        get => field;
-        init => field = value;
-    } = Name;
+    public string Name { get; init; } = Name;
 
-    public int Count
-    {
-        get => field;
-        init => field = value;
-    } = Count;
+    public int Count { get; init; } = Count;
 }
 
 internal sealed record EchoResponse(string Message)
 {
-    public string Message
-    {
-        get => field;
-        init => field = value;
-    } = Message;
+    public string Message { get; init; } = Message;
 }

@@ -3,6 +3,7 @@ namespace OmniRelay.Errors;
 /// <summary>
 /// Canonical status codes for OmniRelay error semantics.
 /// </summary>
+[Flags]
 public enum OmniRelayStatusCode
 {
     Unknown = 0,

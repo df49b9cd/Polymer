@@ -10,7 +10,7 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Samples.Shadowing;
 
-public static class Program
+internal static class Program
 {
     public static async Task Main(string[] args)
     {
@@ -258,117 +258,49 @@ internal readonly record struct ShadowingRuntime(
     HttpInbound HttpInbound,
     GrpcInbound GrpcInbound)
 {
-    public Dispatcher.Dispatcher Dispatcher
-    {
-        get => field;
-        init => field = value;
-    } = Dispatcher;
+    public Dispatcher.Dispatcher Dispatcher { get; init; } = Dispatcher;
 
-    public HttpInbound HttpInbound
-    {
-        get => field;
-        init => field = value;
-    } = HttpInbound;
+    public HttpInbound HttpInbound { get; init; } = HttpInbound;
 
-    public GrpcInbound GrpcInbound
-    {
-        get => field;
-        init => field = value;
-    } = GrpcInbound;
+    public GrpcInbound GrpcInbound { get; init; } = GrpcInbound;
 }
 
 internal sealed record SubmitPaymentRequest(string SessionId, string MerchantId, decimal Amount, string Currency, string CardToken)
 {
-    public string SessionId
-    {
-        get => field;
-        init => field = value;
-    } = SessionId;
+    public string SessionId { get; init; } = SessionId;
 
-    public string MerchantId
-    {
-        get => field;
-        init => field = value;
-    } = MerchantId;
+    public string MerchantId { get; init; } = MerchantId;
 
-    public decimal Amount
-    {
-        get => field;
-        init => field = value;
-    } = Amount;
+    public decimal Amount { get; init; } = Amount;
 
-    public string Currency
-    {
-        get => field;
-        init => field = value;
-    } = Currency;
+    public string Currency { get; init; } = Currency;
 
-    public string CardToken
-    {
-        get => field;
-        init => field = value;
-    } = CardToken;
+    public string CardToken { get; init; } = CardToken;
 }
 
 internal sealed record PaymentDecision(string AuthorizationId, string Decision)
 {
-    public string AuthorizationId
-    {
-        get => field;
-        init => field = value;
-    } = AuthorizationId;
+    public string AuthorizationId { get; init; } = AuthorizationId;
 
-    public string Decision
-    {
-        get => field;
-        init => field = value;
-    } = Decision;
+    public string Decision { get; init; } = Decision;
 }
 
 internal sealed record PaymentReceipt(string AuthorizationId, string Decision, string ShadowReplica)
 {
-    public string AuthorizationId
-    {
-        get => field;
-        init => field = value;
-    } = AuthorizationId;
+    public string AuthorizationId { get; init; } = AuthorizationId;
 
-    public string Decision
-    {
-        get => field;
-        init => field = value;
-    } = Decision;
+    public string Decision { get; init; } = Decision;
 
-    public string ShadowReplica
-    {
-        get => field;
-        init => field = value;
-    } = ShadowReplica;
+    public string ShadowReplica { get; init; } = ShadowReplica;
 }
 
 internal sealed record AuditLogEntry(string MerchantId, string AuthorizationId, string Decision, DateTimeOffset OccurredAt)
 {
-    public string MerchantId
-    {
-        get => field;
-        init => field = value;
-    } = MerchantId;
+    public string MerchantId { get; init; } = MerchantId;
 
-    public string AuthorizationId
-    {
-        get => field;
-        init => field = value;
-    } = AuthorizationId;
+    public string AuthorizationId { get; init; } = AuthorizationId;
 
-    public string Decision
-    {
-        get => field;
-        init => field = value;
-    } = Decision;
+    public string Decision { get; init; } = Decision;
 
-    public DateTimeOffset OccurredAt
-    {
-        get => field;
-        init => field = value;
-    } = OccurredAt;
+    public DateTimeOffset OccurredAt { get; init; } = OccurredAt;
 }

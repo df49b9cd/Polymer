@@ -8,8 +8,8 @@ using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests;
-using OmniRelay.Transport.Grpc;
 using OmniRelay.Tests.Protos;
+using OmniRelay.Transport.Grpc;
 using Xunit;
 
 namespace OmniRelay.CodeGen.IntegrationTests;
@@ -39,8 +39,8 @@ public class GrpcCodegenIntegrationTests
             using var channel = GrpcChannel.ForAddress(address);
             var invoker = channel.CreateCallInvoker();
             var marshaller = Marshallers.Create(
-                (byte[] payload) => payload ?? Array.Empty<byte>(),
-                payload => payload ?? Array.Empty<byte>());
+                (byte[] payload) => payload ?? [],
+                payload => payload ?? []);
             var method = new Method<byte[], byte[]>(MethodType.Unary, ServiceName, "UnaryCall", marshaller, marshaller);
 
             var metadata = new Metadata

@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Threading.Channels;
@@ -51,61 +50,87 @@ public sealed class RpcMetricsMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next) =>
-        ObserveUnaryAsync(
+        UnaryInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveUnaryAsync(
             "inbound",
             "unary",
             request.Meta,
             cancellationToken,
             (req, token) => next(req, token),
             () => request);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next) =>
-        ObserveUnaryAsync(
+        UnaryOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveUnaryAsync(
             "outbound",
             "unary",
             request.Meta,
             cancellationToken,
             (req, token) => next(req, token),
             () => request);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next) =>
-        ObserveOnewayAsync(
+        OnewayInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveOnewayAsync(
             "inbound",
             "oneway",
             request.Meta,
             cancellationToken,
             (req, token) => next(req, token),
             () => request);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next) =>
-        ObserveOnewayAsync(
+        OnewayOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveOnewayAsync(
             "outbound",
             "oneway",
             request.Meta,
             cancellationToken,
             (req, token) => next(req, token),
             () => request);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next) =>
-        ObserveStreamAsync(
+        StreamInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveStreamAsync(
             "inbound",
             $"stream.{options.Direction.ToString().ToLowerInvariant()}",
             request.Meta,
@@ -113,14 +138,21 @@ public sealed class RpcMetricsMiddleware :
             (req, callOptions, token) => next(req, callOptions, token),
             request,
             options);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next) =>
-        ObserveStreamAsync(
+        StreamOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveStreamAsync(
             "outbound",
             $"stream.{options.Direction.ToString().ToLowerInvariant()}",
             request.Meta,
@@ -128,51 +160,71 @@ public sealed class RpcMetricsMiddleware :
             (req, callOptions, token) => next(req, callOptions, token),
             request,
             options);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next) =>
-        ObserveClientStreamInboundAsync(
+        ClientStreamInboundDelegate next)
+    {
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveClientStreamInboundAsync(
             context.Meta,
             cancellationToken,
             context,
             (ctx, token) => next(ctx, token));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next) =>
-        ObserveClientStreamOutboundAsync(
+        ClientStreamOutboundDelegate next)
+    {
+        requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveClientStreamOutboundAsync(
             requestMeta,
             cancellationToken,
             meta => next(meta, cancellationToken));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next) =>
-        ObserveDuplexAsync(
+        DuplexInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveDuplexAsync(
             "inbound",
             "duplex",
             request.Meta,
             cancellationToken,
             token => next(request, token));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next) =>
-        ObserveDuplexAsync(
+        DuplexOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ObserveDuplexAsync(
             "outbound",
             "duplex",
             request.Meta,
             cancellationToken,
             token => next(request, token));
+    }
 
     private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ObserveUnaryAsync(
         string direction,
@@ -415,6 +467,12 @@ public sealed class RpcMetricsMiddleware :
         return result;
     }
 
+    private static T EnsureNotNull<T>(T? value, string paramName) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(value, paramName);
+        return value;
+    }
+
     private sealed class MetricsStreamCall(IStreamCall inner, KeyValuePair<string, object?>[] tags, long startTimestamp, RpcMetricsMiddleware owner) : IStreamCall
     {
         private readonly IStreamCall _inner = inner ?? throw new ArgumentNullException(nameof(inner));
@@ -583,3 +641,4 @@ public sealed class RpcMetricsMiddleware :
         }
     }
 }
+

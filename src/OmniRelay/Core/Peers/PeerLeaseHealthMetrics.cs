@@ -7,7 +7,7 @@ namespace OmniRelay.Core.Peers;
 internal static class PeerLeaseHealthMetrics
 {
     private static readonly Meter Meter = new("OmniRelay.Core.Peers");
-    private static readonly ConcurrentBag<PeerLeaseHealthTracker> Trackers = new();
+    private static readonly ConcurrentBag<PeerLeaseHealthTracker> Trackers = [];
 
     static PeerLeaseHealthMetrics()
     {

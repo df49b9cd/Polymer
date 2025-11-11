@@ -25,6 +25,7 @@ public sealed class StreamClient<TRequest, TResponse>
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
         ArgumentNullException.ThrowIfNull(outbound);
+        ArgumentNullException.ThrowIfNull(middleware);
 
         var terminal = new StreamOutboundDelegate(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeStreamOutbound(middleware, terminal);
@@ -38,6 +39,8 @@ public sealed class StreamClient<TRequest, TResponse>
         StreamCallOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var meta = EnsureEncoding(request.Meta);
 
         var encodeResult = _codec.EncodeRequest(request.Body, meta);

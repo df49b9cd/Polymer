@@ -9,6 +9,12 @@
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(IsPackable)' != 'false'">
     <Version>$(OmniRelayVersion)</Version>
     <VersionPrefix>$(OmniRelayVersion)</VersionPrefix>

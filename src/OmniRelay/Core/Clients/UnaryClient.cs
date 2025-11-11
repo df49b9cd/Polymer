@@ -18,6 +18,9 @@ public sealed class UnaryClient<TRequest, TResponse>
     public UnaryClient(IUnaryOutbound outbound, ICodec<TRequest, TResponse> codec, IReadOnlyList<IUnaryOutboundMiddleware> middleware)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
+        ArgumentNullException.ThrowIfNull(outbound);
+        ArgumentNullException.ThrowIfNull(middleware);
+
         var terminal = new UnaryOutboundDelegate(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeUnaryOutbound(middleware, terminal);
     }
@@ -27,6 +30,8 @@ public sealed class UnaryClient<TRequest, TResponse>
     /// </summary>
     public async ValueTask<Result<Response<TResponse>>> CallAsync(Request<TRequest> request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var outboundResult = await EncodeRequest(request)
             .ThenValueTaskAsync((raw, token) => _pipeline(raw, token), cancellationToken)
             .ConfigureAwait(false);

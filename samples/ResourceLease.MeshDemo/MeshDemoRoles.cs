@@ -1,8 +1,7 @@
-using System;
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
 [Flags]
-public enum MeshDemoRole
+internal enum MeshDemoRole
 {
     None = 0,
     Dispatcher = 1 << 0,
@@ -11,7 +10,7 @@ public enum MeshDemoRole
     Diagnostics = 1 << 3
 }
 
-public static class MeshDemoRoleExtensions
+internal static class MeshDemoRoleExtensions
 {
     public const MeshDemoRole DefaultRoles =
         MeshDemoRole.Dispatcher | MeshDemoRole.Seeder | MeshDemoRole.Worker | MeshDemoRole.Diagnostics;
