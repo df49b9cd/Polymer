@@ -26,10 +26,10 @@ public sealed class LeadershipCoordinatorTests
         var coordinatorA = new LeadershipCoordinator(optionsA, store, NullMeshGossipAgent.Instance, hubA, NullLogger<LeadershipCoordinator>.Instance);
         var coordinatorB = new LeadershipCoordinator(optionsB, store, NullMeshGossipAgent.Instance, hubB, NullLogger<LeadershipCoordinator>.Instance);
 
-        await coordinatorA.StartAsync().ConfigureAwait(false);
-        await coordinatorB.StartAsync().ConfigureAwait(false);
+        await coordinatorA.StartAsync(TestContext.Current.CancellationToken);
+        await coordinatorB.StartAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
 
         var snapshotA = coordinatorA.Snapshot();
         Assert.NotEmpty(snapshotA.Tokens);
@@ -39,9 +39,9 @@ public sealed class LeadershipCoordinatorTests
         var leaderCoordinator = initialToken.LeaderId == "node-a" ? coordinatorA : coordinatorB;
         var followerCoordinator = initialToken.LeaderId == "node-a" ? coordinatorB : coordinatorA;
 
-        await leaderCoordinator.StopAsync().ConfigureAwait(false);
+        await leaderCoordinator.StopAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(300)).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         var followerSnapshot = followerCoordinator.Snapshot();
         Assert.NotEmpty(followerSnapshot.Tokens);
@@ -50,7 +50,7 @@ public sealed class LeadershipCoordinatorTests
         Assert.NotEqual(initialToken.LeaderId, failoverToken.LeaderId);
         Assert.True(failoverToken.FenceToken > initialToken.FenceToken);
 
-        await followerCoordinator.StopAsync().ConfigureAwait(false);
+        await followerCoordinator.StopAsync(TestContext.Current.CancellationToken);
     }
 
     private static LeadershipOptions CreateOptions(string nodeId, LeadershipScopeDescriptor descriptor)
