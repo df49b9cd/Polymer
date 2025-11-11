@@ -67,7 +67,7 @@ public sealed class LeadershipEventHub
         lock (_snapshotLock)
         {
             _tokens = _tokens.SetItem(token.Scope, token);
-            _snapshot = new LeadershipSnapshot(_timeProvider.GetUtcNow(), _tokens.Values.ToImmutableArray());
+            _snapshot = new LeadershipSnapshot(_timeProvider.GetUtcNow(), [.. _tokens.Values]);
         }
     }
 
@@ -79,7 +79,7 @@ public sealed class LeadershipEventHub
             if (_tokens.ContainsKey(scope))
             {
                 _tokens = _tokens.Remove(scope);
-                _snapshot = new LeadershipSnapshot(_timeProvider.GetUtcNow(), _tokens.Values.ToImmutableArray());
+                _snapshot = new LeadershipSnapshot(_timeProvider.GetUtcNow(), [.. _tokens.Values]);
             }
         }
     }
@@ -96,16 +96,14 @@ public sealed class LeadershipEventHub
 
             if (!subscription.TryWrite(leadershipEvent))
             {
-                _logger.LogWarning(
-                    "Dropping leadership event for scope {Scope} (subscriber backlog full).",
-                    leadershipEvent.Scope);
+                LeadershipEventHubLog.DroppedEvent(_logger, leadershipEvent.Scope);
             }
         }
     }
 
     private async IAsyncEnumerable<LeadershipEvent> ReadAsync(Subscription subscription, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await using var scopeGuard = subscription;
+        var scopeGuard = subscription;
 
         try
         {
@@ -119,6 +117,7 @@ public sealed class LeadershipEventHub
         }
         finally
         {
+            await scopeGuard.DisposeAsync().ConfigureAwait(false);
             _subscriptions.TryRemove(subscription.Id, out _);
         }
     }
@@ -183,4 +182,10 @@ public sealed class LeadershipEventHub
             _disposed = true;
         }
     }
+}
+
+internal static partial class LeadershipEventHubLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Dropping leadership event for scope {Scope} (subscriber backlog full).")]
+    public static partial void DroppedEvent(ILogger logger, string scope);
 }

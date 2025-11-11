@@ -220,7 +220,10 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
 
     private Result<T> HandleException<T>(Exception exception, RequestMeta? meta)
     {
-        _logger?.LogError(exception, "Unhandled exception in RPC pipeline (service={Service}, procedure={Procedure})", meta?.Service, meta?.Procedure);
+        if (_logger is not null)
+        {
+            PanicRecoveryMiddlewareLog.UnhandledException(_logger, meta?.Service ?? string.Empty, meta?.Procedure ?? string.Empty, exception);
+        }
 
         var transport = meta?.Transport ?? "unknown";
         var message = exception.Message ?? "Unhandled exception.";
@@ -237,3 +240,8 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     }
 }
 
+internal static partial class PanicRecoveryMiddlewareLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Unhandled exception in RPC pipeline (service={Service}, procedure={Procedure})")]
+    public static partial void UnhandledException(ILogger logger, string service, string procedure, Exception exception);
+}

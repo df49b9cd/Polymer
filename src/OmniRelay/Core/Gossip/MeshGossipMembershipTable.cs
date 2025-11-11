@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using System.Linq;
 
 namespace OmniRelay.Core.Gossip;
 
@@ -134,7 +133,7 @@ internal sealed class MeshGossipMembershipTable
     {
         var now = _timeProvider.GetUtcNow();
         var members = _members.Values
-            .Select(state => state.ToSnapshot(now))
+            .Select(state => state.ToSnapshot())
             .OrderByDescending(snapshot => snapshot.NodeId == _localNodeId)
             .ThenBy(static snapshot => snapshot.NodeId, StringComparer.Ordinal)
             .ToImmutableArray();
@@ -153,7 +152,7 @@ internal sealed class MeshGossipMembershipTable
         var now = _timeProvider.GetUtcNow();
         var candidates = _members.Values
             .Where(state => state.NodeId != _localNodeId && state.Metadata.Endpoint is not null && state.Status != MeshGossipMemberStatus.Left)
-            .Select(state => state.ToSnapshot(now))
+            .Select(state => state.ToSnapshot())
             .ToArray();
 
         if (candidates.Length <= fanout)
@@ -208,7 +207,7 @@ internal sealed class MeshGossipMembershipTable
             return new MeshGossipMemberState(snapshot.NodeId, metadata, lastSeen, status, roundTrip);
         }
 
-        public MeshGossipMemberSnapshot ToSnapshot(DateTimeOffset now) =>
+        public MeshGossipMemberSnapshot ToSnapshot() =>
             new()
             {
                 NodeId = NodeId,

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using Hugo;
 using Microsoft.Extensions.Logging;

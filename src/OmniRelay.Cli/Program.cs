@@ -26,6 +26,8 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Cli;
 
+[RequiresUnreferencedCode("OmniRelay CLI uses reflection-heavy utilities and is not trimming safe.")]
+[RequiresDynamicCode("OmniRelay CLI uses reflection-heavy utilities and is not AOT safe.")]
 public static class Program
 {
     private const string DefaultConfigSection = "polymer";
@@ -449,11 +451,12 @@ public static class Program
     {
         var command = new Command("status", "Show current leadership tokens or stream leadership events.");
 
-        var urlOption = new Option<string>(new[] { "--url", "-u" })
+        var urlOption = new Option<string>("--url")
         {
             Description = "Base control-plane URL (e.g. http://127.0.0.1:8080).",
             DefaultValueFactory = _ => DefaultControlPlaneUrl
         };
+        urlOption.Aliases.Add("-u");
 
         var scopeOption = new Option<string?>("--scope")
         {
@@ -2217,6 +2220,7 @@ public static class Program
         return await RunMeshLeadersSnapshotAsync(baseUrl, scope, timeout).ConfigureAwait(false);
     }
 
+    [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
     private static async Task<int> RunMeshLeadersSnapshotAsync(string baseUrl, string? scope, TimeSpan timeout)
     {
         Uri target;
@@ -2254,6 +2258,7 @@ public static class Program
         }
     }
 
+    [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
     private static async Task<int> RunMeshLeadersWatchAsync(string baseUrl, string? scope, TimeSpan timeout)
     {
         Uri target;
@@ -2367,9 +2372,7 @@ public static class Program
         var tokens = snapshot.Tokens ?? [];
         if (!string.IsNullOrWhiteSpace(scopeFilter))
         {
-            tokens = tokens
-                .Where(token => string.Equals(token.Scope, scopeFilter, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
+            tokens = [.. tokens.Where(token => string.Equals(token.Scope, scopeFilter, StringComparison.OrdinalIgnoreCase))];
         }
 
         Console.WriteLine($"Generated at: {snapshot.GeneratedAt:O}");
@@ -2490,7 +2493,7 @@ public static class Program
 
                 case "protobuf":
                 case "proto":
-                    if (ProfileProcessingState.Proto is not null)
+                    if (state.Proto is not null)
                     {
                         error = "Multiple protobuf profiles specified. Provide a single protobuf profile per request.";
                         return false;
@@ -2509,7 +2512,7 @@ public static class Program
                         return false;
                     }
 
-                    ProfileProcessingState.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
+                    state.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
                     encoding ??= transport == "grpc" ? "application/grpc" : "application/x-protobuf";
 
                     if (transport == "http")
@@ -2543,15 +2546,15 @@ public static class Program
     {
         error = null;
 
-        if (ProfileProcessingState.Proto is not null)
+        if (state.Proto is not null)
         {
-            if (!TryEncodeProtobufPayload(ProfileProcessingState.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
+            if (!TryEncodeProtobufPayload(state.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
             {
                 return false;
             }
         }
 
-        if (ProfileProcessingState.PrettyPrintJson)
+        if (state.PrettyPrintJson)
         {
             FormatJsonPayload(inlineBody, bodyFile, payloadSource, ref payload);
         }
@@ -2572,7 +2575,7 @@ public static class Program
             case "default":
                 break;
             case "pretty":
-                ProfileProcessingState.PrettyPrintJson = true;
+                state.PrettyPrintJson = true;
                 break;
             default:
                 Console.Error.WriteLine($"Warning: unknown json profile '{qualifier}'. Falling back to default settings.");
@@ -3316,7 +3319,7 @@ public static class Program
         return files;
     }
 
-    private static string BuildDescriptorCacheKey(IReadOnlyList<string> descriptorFiles)
+    private static string BuildDescriptorCacheKey(List<string> descriptorFiles)
     {
         if (descriptorFiles.Count == 0)
         {
@@ -3503,9 +3506,9 @@ public static class Program
 
     private sealed class ProfileProcessingState
     {
-        public static bool PrettyPrintJson { get; set; }
+        public bool PrettyPrintJson { get; set; }
 
-        public static ProtoProcessingState? Proto { get; set; }
+        public ProtoProcessingState? Proto { get; set; }
     }
 
     private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName);

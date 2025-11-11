@@ -8,6 +8,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// Records request counts, durations, and outcomes for all RPC shapes using System.Diagnostics.Metrics.
 /// </summary>
@@ -188,7 +190,6 @@ public sealed class RpcMetricsMiddleware :
 
         return ObserveClientStreamOutboundAsync(
             requestMeta,
-            cancellationToken,
             meta => next(meta, cancellationToken));
     }
 
@@ -369,7 +370,6 @@ public sealed class RpcMetricsMiddleware :
 
     private async ValueTask<Result<IClientStreamTransportCall>> ObserveClientStreamOutboundAsync(
         RequestMeta meta,
-        CancellationToken cancellationToken,
         Func<RequestMeta, ValueTask<Result<IClientStreamTransportCall>>> next)
     {
         var tags = CreateBaseTags("outbound", "client_stream", meta);
@@ -452,7 +452,7 @@ public sealed class RpcMetricsMiddleware :
         _durationHistogram.Record(durationMs, augmented);
     }
 
-    private void RecordException(double durationMs, KeyValuePair<string, object?>[] tags, Exception exception)
+    private void RecordException(double durationMs, KeyValuePair<string, object?>[] tags, Exception _)
     {
         var augmented = AppendStatus(tags, "exception");
         _failureCounter.Add(1, augmented);
@@ -641,3 +641,5 @@ public sealed class RpcMetricsMiddleware :
         }
     }
 }
+
+#pragma warning restore CA1068

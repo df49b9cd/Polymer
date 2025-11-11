@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Peers;
@@ -8,7 +7,7 @@ using OmniRelay.Core.Transport;
 namespace OmniRelay.Core.Leadership;
 
 /// <summary>Background coordinator that drives leadership elections per configured scope.</summary>
-public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDisposable
+public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDisposable
 {
     private readonly LeadershipOptions _options;
     private readonly ILeadershipStore _store;
@@ -49,7 +48,7 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
 
         if (_scopes.IsEmpty)
         {
-            _logger.LogWarning("Leadership coordinator started with zero scopes. Register scopes via configuration to enable elections.");
+            LeadershipCoordinatorLog.NoScopesConfigured(_logger);
         }
     }
 
@@ -63,7 +62,7 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
     {
         if (!_options.Enabled)
         {
-            _logger.LogInformation("Leadership coordinator disabled via configuration; skipping startup.");
+            LeadershipCoordinatorLog.CoordinatorDisabled(_logger);
             return;
         }
 
@@ -124,7 +123,7 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to release leadership scope {Scope} during shutdown.", state.Scope.ScopeId);
+                    LeadershipCoordinatorLog.FailedToReleaseScope(_logger, state.Scope.ScopeId, ex);
                 }
 
                 PublishLoss(state, lease, LeadershipEventKind.SteppedDown, "shutdown");
@@ -182,7 +181,7 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Leadership evaluation failed for scope {Scope}.", state.Scope.ScopeId);
+                    LeadershipCoordinatorLog.EvaluationFailed(_logger, state.Scope.ScopeId, ex);
                 }
             }
 
@@ -240,10 +239,7 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
         if (gossipView is not null && !IsLeaderHealthy(state.Lease.LeaderId, gossipView))
         {
             LeadershipMetrics.RecordSplitBrain(state.Scope.ScopeId, state.Lease.LeaderId);
-            _logger.LogWarning(
-                "Detected potential split-brain for scope {Scope}. Incumbent {Leader} is missing or unhealthy in gossip view.",
-                state.Scope.ScopeId,
-                state.Lease.LeaderId);
+            LeadershipCoordinatorLog.SplitBrainDetected(_logger, state.Scope.ScopeId, state.Lease.LeaderId);
         }
 
         if (!string.Equals(state.Lease.LeaderId, NodeId, StringComparison.Ordinal))
@@ -297,11 +293,11 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
             PublishObservation(state, incumbent, "observed incumbent");
         }
 
-        _logger.LogInformation(
-            "Leadership acquisition for scope {Scope} declined (reason={Reason}, incumbent={Leader}).",
+        LeadershipCoordinatorLog.AcquisitionDeclined(
+            _logger,
             state.Scope.ScopeId,
-            result.FailureReason,
-            state.Lease?.LeaderId);
+            result.FailureReason?.ToString() ?? "unknown",
+            state.Lease?.LeaderId ?? "(none)");
     }
 
     private async ValueTask TryRenewAsync(ScopeState state, CancellationToken cancellationToken)
@@ -355,8 +351,8 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
             LeadershipMetrics.RecordElectionDuration(state.Scope.ScopeId, state.Scope.ScopeKind, duration);
             if (duration > _options.MaxElectionWindow.TotalMilliseconds)
             {
-                _logger.LogWarning(
-                    "Election for scope {Scope} exceeded SLA ({Duration} ms > {Window} ms).",
+                LeadershipCoordinatorLog.ElectionExceededSla(
+                    _logger,
                     state.Scope.ScopeId,
                     duration,
                     _options.MaxElectionWindow.TotalMilliseconds);
@@ -546,7 +542,7 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Skipping invalid leadership scope configuration.");
+                LeadershipCoordinatorLog.InvalidScopeConfiguration(_logger, ex);
                 continue;
             }
 
@@ -587,6 +583,33 @@ public sealed class LeadershipCoordinator : ILifecycle, ILeadershipObserver, IDi
         public long LastPublishedFence;
 
         public string? LastPublishedLeader;
+    }
+
+    private static partial class LeadershipCoordinatorLog
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Leadership coordinator started with zero scopes. Register scopes via configuration to enable elections.")]
+        public static partial void NoScopesConfigured(ILogger logger);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Leadership coordinator disabled via configuration; skipping startup.")]
+        public static partial void CoordinatorDisabled(ILogger logger);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "Failed to release leadership scope {Scope} during shutdown.")]
+        public static partial void FailedToReleaseScope(ILogger logger, string scope, Exception exception);
+
+        [LoggerMessage(EventId = 4, Level = LogLevel.Error, Message = "Leadership evaluation failed for scope {Scope}.")]
+        public static partial void EvaluationFailed(ILogger logger, string scope, Exception exception);
+
+        [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "Detected potential split-brain for scope {Scope}. Incumbent {Leader} is missing or unhealthy in gossip view.")]
+        public static partial void SplitBrainDetected(ILogger logger, string scope, string leader);
+
+        [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Leadership acquisition for scope {Scope} declined (reason={Reason}, incumbent={Leader}).")]
+        public static partial void AcquisitionDeclined(ILogger logger, string scope, string reason, string leader);
+
+        [LoggerMessage(EventId = 7, Level = LogLevel.Warning, Message = "Election for scope {Scope} exceeded SLA ({Duration} ms > {Window} ms).")]
+        public static partial void ElectionExceededSla(ILogger logger, string scope, double duration, double window);
+
+        [LoggerMessage(EventId = 8, Level = LogLevel.Warning, Message = "Skipping invalid leadership scope configuration.")]
+        public static partial void InvalidScopeConfiguration(ILogger logger, Exception exception);
     }
 }
 

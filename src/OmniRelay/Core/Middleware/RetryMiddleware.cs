@@ -6,6 +6,8 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// Retries failed unary outbound requests based on a configurable policy and predicates.
 /// </summary>
@@ -238,3 +240,5 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
         return false;
     }
 }
+
+#pragma warning restore CA1068

@@ -33,8 +33,8 @@ public sealed class HttpClientLoggingMiddlewareTests
 
         var response = await middleware.InvokeAsync(
             context,
-            CancellationToken.None,
-            static (_, _) => ValueTask.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+            static (_, _) => ValueTask.FromResult(new HttpResponseMessage(HttpStatusCode.OK)),
+            CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, logger.Entries.Count);

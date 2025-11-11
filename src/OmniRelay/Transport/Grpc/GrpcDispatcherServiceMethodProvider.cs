@@ -245,7 +245,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                             await EnsureHeadersAsync().ConfigureAwait(false);
                             cancellationToken.ThrowIfCancellationRequested();
-                            await WriteGrpcMessageAsync(responseStream, payload, cancellationToken, writeTimeout).ConfigureAwait(false);
+                            await WriteGrpcMessageAsync(responseStream, payload, writeTimeout, cancellationToken).ConfigureAwait(false);
                         }
 
                         await EnsureHeadersAsync().ConfigureAwait(false);
@@ -687,7 +687,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                                 Interlocked.Increment(ref responseCount);
                                 GrpcTransportMetrics.ServerDuplexResponseMessages.Add(1, metricTags);
-                                await WriteGrpcMessageAsync(responseStream, payload, token, duplexWriteTimeout).ConfigureAwait(false);
+                                await WriteGrpcMessageAsync(responseStream, payload, duplexWriteTimeout, token).ConfigureAwait(false);
                             }
 
                             await EnsureHeadersAsync().ConfigureAwait(false);
@@ -781,17 +781,18 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
         }
     }
 
+    #pragma warning disable CA2016 // IServerStreamWriter.WriteAsync does not accept a CancellationToken.
     private static async Task WriteGrpcMessageAsync(
         IServerStreamWriter<byte[]> responseStream,
         ReadOnlyMemory<byte> payload,
-        CancellationToken cancellationToken,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        CancellationToken cancellationToken)
     {
         var buffer = payload.ToArray();
 
         if (timeout is null)
         {
-            await responseStream.WriteAsync(buffer).ConfigureAwait(false);
+            await responseStream.WriteAsync(buffer).WaitAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -807,6 +808,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
             throw new TimeoutException("The write operation timed out.");
         }
     }
+    #pragma warning restore CA2016
 
     private static void ApplySuccessTrailers(ServerCallContext callContext, ResponseMeta responseMeta)
     {

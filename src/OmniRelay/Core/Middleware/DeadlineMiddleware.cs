@@ -5,6 +5,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// Applies deadlines from request metadata (absolute or TTL) by linking a cancellation token.
 /// Works for unary, oneway, server/client/duplex streaming in both inbound and outbound directions.
@@ -271,3 +273,4 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     }
 }
 
+#pragma warning restore CA1068

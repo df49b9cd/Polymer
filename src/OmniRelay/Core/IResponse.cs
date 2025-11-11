@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace OmniRelay.Core;
 
 /// <summary>
@@ -24,6 +26,7 @@ public sealed record Response<T>(ResponseMeta Meta, T Body) : IResponse<T>
     /// <param name="body">The payload body.</param>
     /// <param name="meta">Optional response metadata.</param>
     /// <returns>A new response instance.</returns>
+    [SuppressMessage("Design", "CA1000:Do not declare static members on generic types", Justification = "Factory method mirrors type name for discoverability.")]
     public static Response<T> Create(T body, ResponseMeta? meta = null) =>
         new(meta ?? new ResponseMeta(), body);
 }

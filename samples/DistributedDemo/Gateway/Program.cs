@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DistributedDemo.Inventory.Protos;
 using DistributedDemo.Contracts;
 using Microsoft.Extensions.Configuration;
@@ -49,7 +50,7 @@ internal static class Program
                     // ignore logging failures
                 }
 
-                services.AddOmniRelayDispatcher(context.Configuration.GetSection("omnirelay"));
+                AddOmniRelayDispatcher(services, context.Configuration);
                 services.AddSingleton<CheckoutWorkflow>();
             })
             .Build();
@@ -58,6 +59,11 @@ internal static class Program
 
         await host.RunAsync().ConfigureAwait(false);
     }
+
+    [UnconditionalSuppressMessage("AOT", "IL2026", Justification = "Sample gateway relies on dynamic OmniRelay configuration.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Sample gateway relies on dynamic OmniRelay configuration.")]
+    private static void AddOmniRelayDispatcher(IServiceCollection services, IConfiguration configuration) =>
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
     private static void RegisterGatewayProcedures(IServiceProvider services)
     {

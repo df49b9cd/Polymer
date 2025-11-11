@@ -157,31 +157,7 @@ if (activeRoles.HasRole(MeshDemoRole.Diagnostics))
         app.MapGet("/control/peers", (IMeshGossipAgent agent) =>
         {
             var snapshot = agent.Snapshot();
-            var peers = snapshot.Members.Select(peer => new
-            {
-                peer.NodeId,
-                status = peer.Status.ToString(),
-                peer.LastSeen,
-                peer.RoundTripTimeMs,
-                metadata = new
-                {
-                    peer.Metadata.Role,
-                    peer.Metadata.ClusterId,
-                    peer.Metadata.Region,
-                    peer.Metadata.MeshVersion,
-                    peer.Metadata.Http3Support,
-                    peer.Metadata.Endpoint,
-                    peer.Metadata.MetadataVersion,
-                    Labels = peer.Metadata.Labels
-                }
-            });
-            return Results.Json(new
-            {
-                snapshot.SchemaVersion,
-                snapshot.GeneratedAt,
-                snapshot.LocalNodeId,
-                peers
-            });
+            return Results.Json(snapshot, MeshJson.Context.MeshGossipClusterView);
         });
     }
 }

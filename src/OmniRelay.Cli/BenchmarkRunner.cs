@@ -116,7 +116,7 @@ internal static class BenchmarkRunner
         return invoker;
     }
 
-    private static IRequestInvoker CreateHttpInvoker(RequestInvocation invocation)
+    private static HttpRequestInvoker CreateHttpInvoker(RequestInvocation invocation)
     {
         if (string.IsNullOrWhiteSpace(invocation.HttpUrl))
         {
@@ -131,7 +131,7 @@ internal static class BenchmarkRunner
         return new HttpRequestInvoker(uri, invocation.HttpClientRuntime);
     }
 
-    private static IRequestInvoker CreateGrpcInvoker(RequestInvocation invocation)
+    private static GrpcRequestInvoker CreateGrpcInvoker(RequestInvocation invocation)
     {
         if (invocation.Addresses is not { Length: > 0 })
         {
@@ -347,7 +347,7 @@ internal static class BenchmarkRunner
             mean);
     }
 
-    private static double GetPercentile(IReadOnlyList<double> samples, double percentile)
+    private static double GetPercentile(List<double> samples, double percentile)
     {
         if (samples.Count == 0)
         {

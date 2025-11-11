@@ -24,7 +24,7 @@ namespace OmniRelay.Transport.Grpc;
 /// </summary>
 public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound, IOutboundDiagnostic, IGrpcClientInterceptorSink
 {
-    private readonly IReadOnlyList<Uri> _addresses;
+    private readonly List<Uri> _addresses;
     private readonly string _remoteService;
     private readonly GrpcChannelOptions _channelOptions;
     private readonly GrpcClientTlsOptions? _clientTlsOptions;
@@ -121,7 +121,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             throw new ArgumentException("At least one address must be provided for the gRPC outbound.", nameof(addresses));
         }
 
-        _addresses = addressArray;
+        _addresses = [.. addressArray];
         _remoteService = string.IsNullOrWhiteSpace(remoteService)
             ? throw new ArgumentException("Remote service name must be provided.", nameof(remoteService))
             : remoteService;
@@ -185,7 +185,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (allLoopback)
             {
+#pragma warning disable CA5359 // Loopback development scenarios require disabling certificate validation.
                 sockets.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
             }
 
             if (_clientRuntimeOptions is not null)
@@ -1029,6 +1031,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             _state = PeerState.Unknown;
             _inflight = 0;
             NotifySubscribers();
+            _latencyTracker.Dispose();
             return ValueTask.CompletedTask;
         }
 
@@ -1117,7 +1120,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
-    private sealed class LatencyTracker
+    private sealed class LatencyTracker : IDisposable
     {
         private readonly double[] _buffer;
         private readonly Hugo.Mutex _mutex = new();
@@ -1204,6 +1207,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             var fraction = position - lowerIndex;
             return samples[lowerIndex] + (samples[upperIndex] - samples[lowerIndex]) * fraction;
+        }
+
+        public void Dispose()
+        {
+            _mutex.Dispose();
         }
     }
 
@@ -1382,7 +1390,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (allLoopback)
             {
+#pragma warning disable CA5359 // Loopback development scenarios require disabling certificate validation.
                 handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
             }
         }
 
@@ -1604,7 +1614,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (allLoopback)
             {
+#pragma warning disable CA5359 // Loopback development scenarios require disabling certificate validation.
                 handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
             }
 
             options.HttpHandler = handler;

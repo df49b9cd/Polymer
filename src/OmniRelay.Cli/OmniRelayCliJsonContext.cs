@@ -11,4 +11,4 @@ namespace OmniRelay.Cli;
 [JsonSerializable(typeof(DispatcherIntrospection))]
 [JsonSerializable(typeof(AutomationScript))]
 [JsonSerializable(typeof(AutomationStep))]
-internal partial class OmniRelayCliJsonContext : JsonSerializerContext;
+internal sealed partial class OmniRelayCliJsonContext : JsonSerializerContext;

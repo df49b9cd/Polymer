@@ -1,7 +1,3 @@
-using System.Collections.Immutable;
-using System.Threading;
-using OmniRelay.Core.Transport;
-
 namespace OmniRelay.Core.Gossip;
 
 /// <summary>No-op gossip agent used when gossip is disabled.</summary>

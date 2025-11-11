@@ -24,7 +24,7 @@ internal sealed class LeadershipControlGrpcService : ProtoLeadershipControlServi
         var httpContext = context.GetHttpContext();
         var transport = httpContext?.Request.Protocol ?? context.Peer;
         var scopeLabel = scopeFilter ?? "*";
-        _logger.LogInformation("Leadership gRPC stream opened (scope={Scope}, transport={Transport}).", scopeLabel, transport);
+        LeadershipControlGrpcServiceLog.StreamOpened(_logger, scopeLabel, transport);
 
         try
         {
@@ -40,7 +40,16 @@ internal sealed class LeadershipControlGrpcService : ProtoLeadershipControlServi
         }
         finally
         {
-            _logger.LogInformation("Leadership gRPC stream closed (scope={Scope}).", scopeLabel);
+            LeadershipControlGrpcServiceLog.StreamClosed(_logger, scopeLabel);
         }
     }
+}
+
+internal static partial class LeadershipControlGrpcServiceLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Leadership gRPC stream opened (scope={Scope}, transport={Transport}).")]
+    public static partial void StreamOpened(ILogger logger, string scope, string transport);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Leadership gRPC stream closed (scope={Scope}).")]
+    public static partial void StreamClosed(ILogger logger, string scope);
 }

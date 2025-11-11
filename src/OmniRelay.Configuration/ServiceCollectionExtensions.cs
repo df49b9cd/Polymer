@@ -252,7 +252,7 @@ public static class OmniRelayServiceCollectionExtensions
         }
 
         throw new OmniRelayConfigurationException(
-            $"OTLP protocol '{protocol}' is not valid. Supported values: {string.Join(", ", Enum.GetNames(typeof(OtlpExportProtocol)))}.");
+            $"OTLP protocol '{protocol}' is not valid. Supported values: {string.Join(", ", Enum.GetNames<OtlpExportProtocol>())}.");
     }
 
     private static void ValidateBasicConfiguration(OmniRelayConfigurationOptions options)

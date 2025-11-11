@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace OmniRelay.Core.Leadership;
 
 /// <summary>Runtime configuration for the leadership coordinator.</summary>

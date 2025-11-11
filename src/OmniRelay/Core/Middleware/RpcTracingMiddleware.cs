@@ -7,6 +7,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// OpenTelemetry-based tracing middleware that creates activities for all RPC shapes,
 /// supports inbound context extraction and outbound context injection, and honors runtime sampling.
@@ -816,6 +818,8 @@ public sealed class RpcTracingMiddleware :
         activity?.Stop();
     }
 }
+
+#pragma warning restore CA1068
 
     private static T EnsureNotNull<T>(T? value, string paramName) where T : class
     {

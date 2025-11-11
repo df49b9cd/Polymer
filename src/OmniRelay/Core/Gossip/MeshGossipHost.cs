@@ -1,19 +1,14 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,14 +21,14 @@ namespace OmniRelay.Core.Gossip;
 /// <summary>
 /// Hosts the gossip listener (HTTP/3 + mTLS) and drives outbound gossip rounds.
 /// </summary>
-public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
+public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 {
     private readonly MeshGossipOptions _options;
     private readonly ILogger<MeshGossipHost> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly MeshGossipMembershipTable _membership;
     private readonly MeshGossipCertificateProvider _certificateProvider;
-    private readonly IReadOnlyList<MeshGossipPeerEndpoint> _seedPeers;
+    private readonly List<MeshGossipPeerEndpoint> _seedPeers;
     private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
     private readonly ConcurrentDictionary<string, MeshGossipMemberStatus> _peerStatuses = new(StringComparer.Ordinal);
     private HttpClient? _httpClient;
@@ -77,11 +72,10 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
         localMetadata = EnsureEndpoint(localMetadata, options);
         _membership = new MeshGossipMembershipTable(localMetadata.NodeId, localMetadata, _timeProvider);
         _certificateProvider = certificateProvider ?? new MeshGossipCertificateProvider(options, CreateCertificateLogger(loggerFactory));
-        _seedPeers = options.GetNormalizedSeedPeers()
+        _seedPeers = [.. options.GetNormalizedSeedPeers()
             .Select(value => MeshGossipPeerEndpoint.TryParse(value, out var endpoint) ? endpoint : (MeshGossipPeerEndpoint?)null)
             .Where(static endpoint => endpoint is not null)
-            .Select(static endpoint => endpoint!.Value)
-            .ToArray();
+            .Select(static endpoint => endpoint!.Value)];
     }
 
     public bool IsEnabled => _options.Enabled;
@@ -265,7 +259,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
     {
         snapshot ??= _membership.Snapshot();
         var members = snapshot.Members.Length > 32
-            ? snapshot.Members.Take(32).ToImmutableArray()
+            ? [.. snapshot.Members.Take(32)]
             : snapshot.Members;
 
         var sender = snapshot.Members.FirstOrDefault(m => m.NodeId == LocalMetadata.NodeId)?.Metadata ?? LocalMetadata;
@@ -295,7 +289,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Mesh gossip round failed.");
+                MeshGossipHostLog.GossipRoundFailed(_logger, ex);
             }
         }
     }
@@ -363,7 +357,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
             catch (Exception ex)
             {
                 MeshGossipMetrics.RecordMessage("outbound", "failure");
-                _logger.LogDebug(ex, "Failed to gossip with {Target}", target);
+                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
             }
         }
 
@@ -390,7 +384,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Mesh gossip sweep failed.");
+                MeshGossipHostLog.GossipSweepFailed(_logger, ex);
             }
         }
     }
@@ -467,39 +461,39 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
             case MeshGossipMemberStatus.Alive:
                 if (previousStatus is null || previousStatus == MeshGossipMemberStatus.Left)
                 {
-                    _logger.LogInformation(
-                        "Mesh peer {PeerId} joined cluster {ClusterId} as {Role} (region {Region}, version {Version}, http3={Http3}).",
+                    MeshGossipHostLog.PeerJoined(
+                        _logger,
                         member.NodeId,
-                        metadata.ClusterId,
-                        metadata.Role,
-                        metadata.Region,
-                        metadata.MeshVersion,
+                        metadata.ClusterId ?? string.Empty,
+                        metadata.Role ?? string.Empty,
+                        metadata.Region ?? string.Empty,
+                        metadata.MeshVersion ?? string.Empty,
                         metadata.Http3Support);
                 }
                 else
                 {
-                    _logger.LogInformation(
-                        "Mesh peer {PeerId} recovered from {PreviousStatus} (cluster {ClusterId}, role {Role}).",
+                    MeshGossipHostLog.PeerRecovered(
+                        _logger,
                         member.NodeId,
-                        previousStatus,
-                        metadata.ClusterId,
-                        metadata.Role);
+                        previousStatus?.ToString() ?? "unknown",
+                        metadata.ClusterId ?? string.Empty,
+                        metadata.Role ?? string.Empty);
                 }
                 break;
             case MeshGossipMemberStatus.Suspect:
-                _logger.LogWarning(
-                    "Mesh peer {PeerId} marked suspect (cluster {ClusterId}, role {Role}, lastSeen={LastSeen}).",
+                MeshGossipHostLog.PeerSuspect(
+                    _logger,
                     member.NodeId,
-                    metadata.ClusterId,
-                    metadata.Role,
-                    member.LastSeen);
+                    metadata.ClusterId ?? string.Empty,
+                    metadata.Role ?? string.Empty,
+                    member.LastSeen ?? DateTimeOffset.MinValue);
                 break;
             case MeshGossipMemberStatus.Left:
-                _logger.LogWarning(
-                    "Mesh peer {PeerId} left gossip cluster {ClusterId} (role {Role}).",
+                MeshGossipHostLog.PeerLeft(
+                    _logger,
                     member.NodeId,
-                    metadata.ClusterId,
-                    metadata.Role);
+                    metadata.ClusterId ?? string.Empty,
+                    metadata.Role ?? string.Empty);
                 _leaseHealthTracker?.RecordDisconnect(member.NodeId, "gossip-left");
                 break;
         }
@@ -572,17 +566,17 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
     {
         if (options.Port <= 0 || options.Port > IPEndPoint.MaxPort)
         {
-            throw new ArgumentOutOfRangeException(nameof(options.Port), "mesh:gossip:port must be between 1 and 65535.");
+            throw new ArgumentOutOfRangeException(nameof(options), "mesh:gossip:port must be between 1 and 65535.");
         }
 
         if (options.Fanout <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(options.Fanout), "mesh:gossip:fanout must be greater than zero.");
+            throw new ArgumentOutOfRangeException(nameof(options), "mesh:gossip:fanout must be greater than zero.");
         }
 
         if (options.Interval <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(options.Interval), "mesh:gossip:interval must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(options), "mesh:gossip:interval must be positive.");
         }
     }
 
@@ -599,14 +593,41 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
         _disposed = true;
         try
         {
-            StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+            StopAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Mesh gossip host stop threw during dispose.");
+            MeshGossipHostLog.DisposalFailed(_logger, ex);
         }
 
         _certificateProvider.Dispose();
+    }
+
+    private static partial class MeshGossipHostLog
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Mesh gossip round failed.")]
+        public static partial void GossipRoundFailed(ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Mesh gossip sweep failed.")]
+        public static partial void GossipSweepFailed(ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Mesh peer {PeerId} joined cluster {ClusterId} as {Role} (region {Region}, version {Version}, http3={Http3}).")]
+        public static partial void PeerJoined(ILogger logger, string peerId, string clusterId, string role, string region, string version, bool http3);
+
+        [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Mesh peer {PeerId} recovered from {PreviousStatus} (cluster {ClusterId}, role {Role}).")]
+        public static partial void PeerRecovered(ILogger logger, string peerId, string previousStatus, string clusterId, string role);
+
+        [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "Mesh peer {PeerId} marked suspect (cluster {ClusterId}, role {Role}, lastSeen={LastSeen}).")]
+        public static partial void PeerSuspect(ILogger logger, string peerId, string clusterId, string role, DateTimeOffset lastSeen);
+
+        [LoggerMessage(EventId = 6, Level = LogLevel.Warning, Message = "Mesh peer {PeerId} left gossip cluster {ClusterId} (role {Role}).")]
+        public static partial void PeerLeft(ILogger logger, string peerId, string clusterId, string role);
+
+        [LoggerMessage(EventId = 7, Level = LogLevel.Debug, Message = "Failed to gossip with {Target}")]
+        public static partial void GossipRequestFailed(ILogger logger, string target, Exception exception);
+
+        [LoggerMessage(EventId = 8, Level = LogLevel.Debug, Message = "Mesh gossip host stop threw during dispose.")]
+        public static partial void DisposalFailed(ILogger logger, Exception exception);
     }
 
     private sealed class ForwardingLoggerProvider : ILoggerProvider

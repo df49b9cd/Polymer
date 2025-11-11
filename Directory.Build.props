@@ -33,7 +33,6 @@
     <PublishAot>true</PublishAot>
   </PropertyGroup>
 
-
   <PropertyGroup Condition="'$(IsPackable)' != 'false' and '$(OutputType)' == 'Library'">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>

@@ -541,7 +541,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         }
     }
 
-    private IReadOnlyDictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string>? additional)
+    private Dictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string>? additional)
     {
         var snapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {

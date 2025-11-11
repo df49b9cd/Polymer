@@ -19,7 +19,7 @@ public sealed class ResourceLeaseReplicationTests
         await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
         await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
 
-        Assert.Equal([1L, 2L], sink.Events.Select(evt => evt.SequenceNumber).ToArray());
+        Assert.Equal([1L, 2L], [.. sink.Events.Select(evt => evt.SequenceNumber)]);
     }
 
     [Fact]

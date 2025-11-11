@@ -16,9 +16,13 @@ internal static class Program
 {
     private const string AotWarning = "Minimal API bridge dynamically registers OmniRelay components and is not compatible with trimming/AOT.";
 
+    [UnconditionalSuppressMessage("AOT", "IL2026", Justification = AotWarning)]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = AotWarning)]
+    public static Task Main(string[] args) => RunAsync(args);
+
     [RequiresDynamicCode(AotWarning)]
     [RequiresUnreferencedCode(AotWarning)]
-    public static async Task Main(string[] args)
+    private static async Task RunAsync(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 

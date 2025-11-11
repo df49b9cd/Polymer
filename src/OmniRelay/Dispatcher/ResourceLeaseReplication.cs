@@ -111,7 +111,7 @@ public sealed class InMemoryResourceLeaseReplicator : IResourceLeaseReplicator
         IResourceLeaseReplicationSink[] sinks;
         lock (_sinks)
         {
-            sinks = _sinks.ToArray();
+            sinks = [.. _sinks];
         }
 
         foreach (var sink in sinks)

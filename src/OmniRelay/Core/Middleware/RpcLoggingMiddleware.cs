@@ -247,6 +247,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     private bool ShouldLogFailure(Error error, bool loggedRequest) =>
         _options.ShouldLogError?.Invoke(error) ?? loggedRequest;
 
+    #pragma warning disable CA1848
     private void LogSuccess(string pipeline, RequestMeta meta, TimeSpan duration, ResponseMeta? responseMeta, Activity? activity)
     {
         if (!_logger.IsEnabled(_options.SuccessLogLevel))
@@ -315,11 +316,12 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
             meta.Procedure ?? string.Empty,
             meta.Transport ?? "unknown");
     }
+    #pragma warning restore CA1848
 
     private static T EnsureNotNull<T>(T? value, string paramName) where T : class
     {
         ArgumentNullException.ThrowIfNull(value, paramName);
         return value;
     }
-}
 
+}

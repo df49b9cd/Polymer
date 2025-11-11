@@ -92,20 +92,24 @@ public sealed class RateLimitingBackpressureListener : IResourceLeaseBackpressur
 
         if (signal.IsActive)
         {
-            _logger.LogWarning(
-                "Resource lease backpressure activated: {Pending} pending (high watermark {High}).",
-                signal.PendingCount,
-                signal.HighWatermark);
+            ResourceLeaseBackpressureListenersLog.BackpressureActivated(_logger, signal.PendingCount, signal.HighWatermark);
         }
         else
         {
-            _logger.LogInformation(
-                "Resource lease backpressure cleared at {Pending} pending items.",
-                signal.PendingCount);
+            ResourceLeaseBackpressureListenersLog.BackpressureCleared(_logger, signal.PendingCount);
         }
 
         return ValueTask.CompletedTask;
     }
+}
+
+internal static partial class ResourceLeaseBackpressureListenersLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Resource lease backpressure activated: {Pending} pending (high watermark {High}).")]
+    public static partial void BackpressureActivated(ILogger logger, long pending, long? high);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Resource lease backpressure cleared at {Pending} pending items.")]
+    public static partial void BackpressureCleared(ILogger logger, long pending);
 }
 
 /// <summary>

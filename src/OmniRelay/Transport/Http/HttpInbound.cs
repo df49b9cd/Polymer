@@ -476,7 +476,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         List<HttpContext> contexts;
         lock (_contextLock)
         {
-            contexts = _activeHttpContexts.ToList();
+            contexts = [.. _activeHttpContexts];
         }
 
         foreach (var httpContext in contexts)
@@ -560,7 +560,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         var payload = new HealthPayload(
             healthy ? "ok" : "unavailable",
             readiness ? "ready" : "live",
-            issues.Count == 0 ? [] : issues.ToArray(),
+            issues.Count == 0 ? [] : [.. issues],
             Math.Max(Volatile.Read(ref _activeRequestCount), 0),
             _isDraining);
 
@@ -938,7 +938,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
 
                 try
                 {
-                    await FlushPipeAsync(writer, context.RequestAborted, writeTimeout).ConfigureAwait(false);
+                    await FlushPipeAsync(writer, writeTimeout, context.RequestAborted).ConfigureAwait(false);
 
                     await foreach (var payload in call.Responses.ReadAllAsync(context.RequestAborted).ConfigureAwait(false))
                     {
@@ -954,8 +954,8 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
                         }
 
                         var frame = EncodeSseFrame(payload, responseMeta.Encoding);
-                        await WritePipeAsync(writer, frame, context.RequestAborted, writeTimeout).ConfigureAwait(false);
-                        await FlushPipeAsync(writer, context.RequestAborted, writeTimeout).ConfigureAwait(false);
+                        await WritePipeAsync(writer, frame, writeTimeout, context.RequestAborted).ConfigureAwait(false);
+                        await FlushPipeAsync(writer, writeTimeout, context.RequestAborted).ConfigureAwait(false);
                     }
                 }
                 catch (TimeoutException)
@@ -1227,12 +1227,12 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
                             return;
                         }
 
-                        await SendWebSocketFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseData, payload, cancellationToken, writeTimeout).ConfigureAwait(false);
+                        await SendWebSocketFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseData, payload, writeTimeout, cancellationToken).ConfigureAwait(false);
                     }
 
                     var finalMeta = NormalizeResponseMeta(streamCall.ResponseMeta, transport);
                     var completePayload = HttpDuplexProtocol.SerializeResponseMeta(finalMeta);
-                    await SendWebSocketFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseComplete, completePayload, CancellationToken.None, writeTimeout).ConfigureAwait(false);
+                    await SendWebSocketFrameAsync(webSocket, HttpDuplexProtocol.FrameType.ResponseComplete, completePayload, writeTimeout, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (TimeoutException)
                 {
@@ -1272,7 +1272,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         }
     }
 
-    private static async ValueTask WritePipeAsync(PipeWriter writer, ReadOnlyMemory<byte> payload, CancellationToken baseToken, TimeSpan? timeout)
+    private static async ValueTask WritePipeAsync(PipeWriter writer, ReadOnlyMemory<byte> payload, TimeSpan? timeout, CancellationToken baseToken)
     {
         CancellationTokenSource? timeoutCts = null;
         var token = baseToken;
@@ -1322,7 +1322,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         return exception;
     }
 
-    private static async ValueTask FlushPipeAsync(PipeWriter writer, CancellationToken baseToken, TimeSpan? timeout)
+    private static async ValueTask FlushPipeAsync(PipeWriter writer, TimeSpan? timeout, CancellationToken baseToken)
     {
         CancellationTokenSource? timeoutCts = null;
         var token = baseToken;
@@ -1358,8 +1358,8 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         WebSocket socket,
         HttpDuplexProtocol.FrameType frameType,
         ReadOnlyMemory<byte> payload,
-        CancellationToken baseToken,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        CancellationToken baseToken)
     {
         CancellationTokenSource? timeoutCts = null;
         var token = baseToken;

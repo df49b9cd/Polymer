@@ -1,3 +1,5 @@
+using OmniRelay.Errors;
+
 namespace OmniRelay.Core.Middleware;
 
 public sealed class DeadlineOptions

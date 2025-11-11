@@ -7,6 +7,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// Applies concurrency rate limiting for all RPC shapes using System.Threading.RateLimiting.
 /// </summary>
@@ -378,3 +380,5 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         }
     }
 }
+
+#pragma warning restore CA1068
