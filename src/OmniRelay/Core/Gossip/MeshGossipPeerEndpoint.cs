@@ -36,12 +36,12 @@ public readonly record struct MeshGossipPeerEndpoint(string Host, int Port)
         var hostPart = trimmed[..colon];
         var portPart = trimmed[(colon + 1)..];
 
-        if (!int.TryParse(portPart, NumberStyles.Integer, CultureInfo.InvariantCulture, out var port) || port <= 0)
+        if (!int.TryParse(portPart, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedPort) || parsedPort <= 0)
         {
             return false;
         }
 
-        endpoint = new MeshGossipPeerEndpoint(hostPart, port);
+        endpoint = new MeshGossipPeerEndpoint(hostPart, parsedPort);
         return true;
     }
 

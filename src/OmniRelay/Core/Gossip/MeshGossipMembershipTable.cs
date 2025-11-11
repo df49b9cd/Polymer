@@ -101,7 +101,7 @@ internal sealed class MeshGossipMembershipTable
     }
 
     /// <summary>Marks peers as suspect or left based on heartbeat timers.</summary>
-    public void Sweep(TimeSpan suspicionInterval, TimeSpan leaveInterval, Action<MeshGossipMemberState>? onStatusChanged = null)
+    public void Sweep(TimeSpan suspicionInterval, TimeSpan leaveInterval)
     {
         var now = _timeProvider.GetUtcNow();
 
@@ -125,10 +125,7 @@ internal sealed class MeshGossipMembershipTable
             }
 
             var updated = entry with { Status = newStatus };
-            if (_members.TryUpdate(entry.NodeId, updated, entry))
-            {
-                onStatusChanged?.Invoke(updated);
-            }
+            _members.TryUpdate(entry.NodeId, updated, entry);
         }
     }
 

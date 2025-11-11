@@ -1057,17 +1057,16 @@ internal sealed class DispatcherBuilder
 
         var enableLogging = runtime.EnableLoggingLevelToggle ?? false;
         var enableSampling = runtime.EnableTraceSamplingToggle ?? false;
-        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling);
+        var hasPeerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>().Any();
+        var gossipAgent = _serviceProvider.GetService<IMeshGossipAgent>();
+        var enablePeerDiagnostics = gossipAgent is not null && gossipAgent.IsEnabled;
+        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling || hasPeerHealthProviders || enablePeerDiagnostics);
 
         if (!enableControlPlane)
         {
             options = default;
             return false;
         }
-
-        var hasPeerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>().Any();
-        var gossipAgent = _serviceProvider.GetService<IMeshGossipAgent>();
-        var enablePeerDiagnostics = gossipAgent is not null && gossipAgent.IsEnabled;
 
         options = new DiagnosticsControlPlaneOptions(enableLogging, enableSampling, hasPeerHealthProviders, enablePeerDiagnostics, gossipAgent);
         return enableLogging || enableSampling || hasPeerHealthProviders || enablePeerDiagnostics;

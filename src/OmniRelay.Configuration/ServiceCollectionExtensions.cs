@@ -48,6 +48,10 @@ public static class OmniRelayServiceCollectionExtensions
         {
             services.AddMeshGossipAgent(gossipSection);
         }
+        else
+        {
+            services.TryAddSingleton<IMeshGossipAgent>(NullMeshGossipAgent.Instance);
+        }
 
         // Ensure HttpClientFactory is available so named HTTP outbounds can be used if configured.
         services.AddHttpClient();
@@ -122,7 +126,7 @@ public static class OmniRelayServiceCollectionExtensions
         {
             openTelemetryBuilder.WithMetrics(builder =>
             {
-                builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
+                builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Core.Gossip", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
 
                 if (prometheusEnabled)
                 {

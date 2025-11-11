@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Threading;
 
@@ -30,16 +31,16 @@ internal static class MeshGossipMetrics
 
     public static void RecordRoundTrip(string peerId, double milliseconds)
     {
-        var tags = new TagList { { "mesh.peer", peerId } };
+        var tags = new[] { new KeyValuePair<string, object?>("mesh.peer", peerId) };
         RoundTripHistogram.Record(milliseconds, tags);
     }
 
     public static void RecordMessage(string direction, string outcome)
     {
-        var tags = new TagList
+        var tags = new[]
         {
-            { "mesh.direction", direction },
-            { "mesh.outcome", outcome }
+            new KeyValuePair<string, object?>("mesh.direction", direction),
+            new KeyValuePair<string, object?>("mesh.outcome", outcome)
         };
         MessageCounter.Add(1, tags);
     }
@@ -53,6 +54,6 @@ internal static class MeshGossipMetrics
             return;
         }
 
-        MemberCounter.Add(delta, new TagList { { "mesh.status", status } });
+        MemberCounter.Add(delta, new[] { new KeyValuePair<string, object?>("mesh.status", status) });
     }
 }

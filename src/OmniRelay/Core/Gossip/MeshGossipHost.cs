@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -34,6 +35,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
     private readonly MeshGossipCertificateProvider _certificateProvider;
     private readonly IReadOnlyList<MeshGossipPeerEndpoint> _seedPeers;
     private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
+    private readonly ConcurrentDictionary<string, MeshGossipMemberStatus> _peerStatuses = new(StringComparer.Ordinal);
     private HttpClient? _httpClient;
     private WebApplication? _app;
     private Task? _serverTask;
@@ -54,10 +56,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        if (loggerFactory is null)
-        {
-            throw new ArgumentNullException(nameof(loggerFactory));
-        }
+        ArgumentNullException.ThrowIfNull(loggerFactory);
         _timeProvider = timeProvider ?? TimeProvider.System;
         _leaseHealthTracker = leaseHealthTracker;
         _sequence = Stopwatch.GetTimestamp();
@@ -139,7 +138,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
         if (_app is not null)
         {
             await _app.StopAsync(cancellationToken).ConfigureAwait(false);
-            _app.Dispose();
+            await _app.DisposeAsync().ConfigureAwait(false);
         }
 
         _httpClient?.Dispose();
@@ -223,7 +222,8 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
             SslProtocols = SslProtocols.Tls13 | SslProtocols.Tls12,
             ClientCertificateMode = ClientCertificateMode.RequireCertificate,
             CheckCertificateRevocation = _options.Tls.CheckCertificateRevocation,
-            ClientCertificateValidation = ValidateRemoteCertificate,
+            ClientCertificateValidation = (certificate, chain, errors) =>
+                ValidateRemoteCertificate(sender: null, certificate, chain, errors),
             ServerCertificateSelector = (_, _) => _certificateProvider.GetCertificate()
         };
     }
@@ -331,17 +331,17 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
                 var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
-                var envelope = await response.Content.ReadFromJsonAsync(MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope, cancellationToken).ConfigureAwait(false);
-                if (envelope is not null)
+                var responseEnvelope = await response.Content.ReadFromJsonAsync(MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope, cancellationToken).ConfigureAwait(false);
+                if (responseEnvelope is not null)
                 {
                     var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-                    _membership.MarkSender(envelope, elapsed);
-                    foreach (var member in envelope.Members)
+                    _membership.MarkSender(responseEnvelope, elapsed);
+                    foreach (var member in responseEnvelope.Members)
                     {
                         _membership.MarkObserved(member);
                     }
 
-                    MeshGossipMetrics.RecordRoundTrip(envelope.Sender.NodeId, elapsed);
+                    MeshGossipMetrics.RecordRoundTrip(responseEnvelope.Sender.NodeId, elapsed);
                 }
 
                 MeshGossipMetrics.RecordMessage("outbound", "success");
@@ -371,18 +371,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
             try
             {
                 await Task.Delay(_options.SuspicionInterval, cancellationToken).ConfigureAwait(false);
-                _membership.Sweep(suspicion, leave, state =>
-                {
-                    if (state.Status == MeshGossipMemberStatus.Left)
-                    {
-                        _leaseHealthTracker?.RecordDisconnect(state.NodeId, "gossip-left");
-                        _logger.LogWarning("Peer {PeerId} marked as left by gossip.", state.NodeId);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Peer {PeerId} marked suspect by gossip.", state.NodeId);
-                    }
-                });
+                _membership.Sweep(suspicion, leave);
                 RecordMetrics(_membership.Snapshot());
             }
             catch (OperationCanceledException)
@@ -402,6 +391,7 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
         var suspect = snapshot.Members.Count(m => m.Status == MeshGossipMemberStatus.Suspect);
         var left = snapshot.Members.Count(m => m.Status == MeshGossipMemberStatus.Left);
         MeshGossipMetrics.RecordMemberCounts(alive, suspect, left);
+        TrackPeerStatuses(snapshot);
     }
 
     private void UpdateLeaseDiagnostics()
@@ -429,11 +419,79 @@ public sealed class MeshGossipHost : IMeshGossipAgent, IDisposable
             }
 
             _leaseHealthTracker.RecordGossip(member.NodeId, metadata);
+        }
+    }
 
-            if (member.Status == MeshGossipMemberStatus.Left)
+    private void TrackPeerStatuses(MeshGossipClusterView snapshot)
+    {
+        foreach (var member in snapshot.Members)
+        {
+            if (string.Equals(member.NodeId, LocalMetadata.NodeId, StringComparison.Ordinal))
             {
-                _leaseHealthTracker.RecordDisconnect(member.NodeId, "gossip-left");
+                continue;
             }
+
+            var newStatus = member.Status;
+            MeshGossipMemberStatus? previousStatus = null;
+
+            if (_peerStatuses.TryGetValue(member.NodeId, out var previous))
+            {
+                if (previous == newStatus)
+                {
+                    continue;
+                }
+
+                previousStatus = previous;
+            }
+
+            _peerStatuses[member.NodeId] = newStatus;
+            LogPeerStatusChange(member, previousStatus);
+        }
+    }
+
+    private void LogPeerStatusChange(MeshGossipMemberSnapshot member, MeshGossipMemberStatus? previousStatus)
+    {
+        var metadata = member.Metadata;
+        switch (member.Status)
+        {
+            case MeshGossipMemberStatus.Alive:
+                if (previousStatus is null || previousStatus == MeshGossipMemberStatus.Left)
+                {
+                    _logger.LogInformation(
+                        "Mesh peer {PeerId} joined cluster {ClusterId} as {Role} (region {Region}, version {Version}, http3={Http3}).",
+                        member.NodeId,
+                        metadata.ClusterId,
+                        metadata.Role,
+                        metadata.Region,
+                        metadata.MeshVersion,
+                        metadata.Http3Support);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Mesh peer {PeerId} recovered from {PreviousStatus} (cluster {ClusterId}, role {Role}).",
+                        member.NodeId,
+                        previousStatus,
+                        metadata.ClusterId,
+                        metadata.Role);
+                }
+                break;
+            case MeshGossipMemberStatus.Suspect:
+                _logger.LogWarning(
+                    "Mesh peer {PeerId} marked suspect (cluster {ClusterId}, role {Role}, lastSeen={LastSeen}).",
+                    member.NodeId,
+                    metadata.ClusterId,
+                    metadata.Role,
+                    member.LastSeen);
+                break;
+            case MeshGossipMemberStatus.Left:
+                _logger.LogWarning(
+                    "Mesh peer {PeerId} left gossip cluster {ClusterId} (role {Role}).",
+                    member.NodeId,
+                    metadata.ClusterId,
+                    metadata.Role);
+                _leaseHealthTracker?.RecordDisconnect(member.NodeId, "gossip-left");
+                break;
         }
     }
 
