@@ -180,7 +180,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
                 {
                     return;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
                 {
                     LeadershipCoordinatorLog.EvaluationFailed(_logger, state.Scope.ScopeId, ex);
                 }
