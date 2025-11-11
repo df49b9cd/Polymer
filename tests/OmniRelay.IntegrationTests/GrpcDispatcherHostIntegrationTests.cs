@@ -62,7 +62,7 @@ public class GrpcDispatcherHostIntegrationTests
             var invoker = channel.CreateCallInvoker();
             var method = new Method<byte[], byte[]>(MethodType.Unary, "integration-grpc", "integration::ping", ByteMarshaller, ByteMarshaller);
 
-            var call = invoker.AsyncUnaryCall(method, null, new CallOptions(cancellationToken: ct), Encoding.UTF8.GetBytes("ping"));
+            var call = invoker.AsyncUnaryCall(method, null, new CallOptions(cancellationToken: ct), "ping"u8.ToArray());
             var payload = await call.ResponseAsync.WaitAsync(ct);
             Assert.Equal("ping-grpc-response", Encoding.UTF8.GetString(payload));
         }

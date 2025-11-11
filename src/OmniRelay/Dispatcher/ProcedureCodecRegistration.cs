@@ -13,58 +13,22 @@ internal sealed record ProcedureCodecRegistration(
     string Encoding,
     ImmutableArray<string> Aliases)
 {
-    public ProcedureCodecScope Scope
-    {
-        get => field;
-        init => field = value;
-    } = Scope;
+    public ProcedureCodecScope Scope { get; init; } = Scope;
 
-    public string? Service
-    {
-        get => field;
-        init => field = value;
-    } = Service;
+    public string? Service { get; init; } = Service;
 
-    public string Procedure
-    {
-        get => field;
-        init => field = value;
-    } = Procedure;
+    public string Procedure { get; init; } = Procedure;
 
-    public ProcedureKind Kind
-    {
-        get => field;
-        init => field = value;
-    } = Kind;
+    public ProcedureKind Kind { get; init; } = Kind;
 
-    public Type RequestType
-    {
-        get => field;
-        init => field = value;
-    } = RequestType;
+    public Type RequestType { get; init; } = RequestType;
 
-    public Type ResponseType
-    {
-        get => field;
-        init => field = value;
-    } = ResponseType;
+    public Type ResponseType { get; init; } = ResponseType;
 
-    public object Codec
-    {
-        get => field;
-        init => field = value;
-    } = Codec;
+    public object Codec { get; init; } = Codec;
 
-    public string Encoding
-    {
-        get => field;
-        init => field = value;
-    } = Encoding;
+    public string Encoding { get; init; } = Encoding;
 
-    public ImmutableArray<string> Aliases
-    {
-        get => field;
-        init => field = value;
-    } = Aliases;
+    public ImmutableArray<string> Aliases { get; init; } = Aliases;
 }
 

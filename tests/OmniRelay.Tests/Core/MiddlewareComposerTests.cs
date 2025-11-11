@@ -124,16 +124,9 @@ public class MiddlewareComposerTests
 
     private sealed class StubClientStreamTransportCall(RequestMeta meta) : IClientStreamTransportCall
     {
-        public RequestMeta RequestMeta
-        {
-            get => field;
-        } = meta;
+        public RequestMeta RequestMeta { get; } = meta;
 
-        public ResponseMeta ResponseMeta
-        {
-            get => field;
-            private set => field = value;
-        } = new ResponseMeta();
+        public ResponseMeta ResponseMeta { get; private set; } = new ResponseMeta();
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Response => new(
             Task.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, ResponseMeta))));

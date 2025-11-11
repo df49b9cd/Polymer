@@ -1,10 +1,6 @@
-using Hugo;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using System.Text.Json.Serialization;
+using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
@@ -16,8 +12,12 @@ using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 namespace OmniRelay.Samples.MinimalApiBridge;
 
-public static class Program
+internal static class Program
 {
+    private const string AotWarning = "Minimal API bridge dynamically registers OmniRelay components and is not compatible with trimming/AOT.";
+
+    [RequiresDynamicCode(AotWarning)]
+    [RequiresUnreferencedCode(AotWarning)]
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -64,12 +64,12 @@ public static class Program
                 string.Join(", ", runtime.GrpcInbound.Urls));
         });
 
-        app.MapGet("/api/dispatcher", () => Results.Json(new
-        {
-            runtime.Dispatcher.ServiceName,
-            http = runtime.HttpInbound.Urls,
-            grpc = runtime.GrpcInbound.Urls
-        }));
+        app.MapGet("/api/dispatcher", () => TypedResults.Json(
+            new DispatcherStatus(
+                runtime.Dispatcher.ServiceName,
+                runtime.HttpInbound.Urls,
+                runtime.GrpcInbound.Urls),
+            MinimalApiBridgeJsonContext.Default.DispatcherStatus));
 
         app.MapGet("/api/greetings/{name}", async (string name, GreetingHandlers handlers, CancellationToken ct) =>
         {
@@ -103,23 +103,11 @@ public static class Program
 
 internal sealed record BridgeRuntime(OmniRelayDispatcher Dispatcher, HttpInbound HttpInbound, GrpcInbound GrpcInbound)
 {
-    public OmniRelayDispatcher Dispatcher
-    {
-        get => field;
-        init => field = value;
-    } = Dispatcher;
+    public OmniRelayDispatcher Dispatcher { get; init; } = Dispatcher;
 
-    public HttpInbound HttpInbound
-    {
-        get => field;
-        init => field = value;
-    } = HttpInbound;
+    public HttpInbound HttpInbound { get; init; } = HttpInbound;
 
-    public GrpcInbound GrpcInbound
-    {
-        get => field;
-        init => field = value;
-    } = GrpcInbound;
+    public GrpcInbound GrpcInbound { get; init; } = GrpcInbound;
 }
 
 internal sealed class DispatcherHostedService(BridgeRuntime runtime, ILogger<DispatcherHostedService> logger) : IHostedService
@@ -296,65 +284,29 @@ internal sealed class ConsoleLoggingMiddleware(ILogger<ConsoleLoggingMiddleware>
 
 internal sealed record GreetingRequest(string Name, string? Channel = null)
 {
-    public string Name
-    {
-        get => field;
-        init => field = value;
-    } = Name;
+    public string Name { get; init; } = Name;
 
-    public string? Channel
-    {
-        get => field;
-        init => field = value;
-    } = Channel;
+    public string? Channel { get; init; } = Channel;
 }
 
 internal sealed record GreetingResponse(string Message, string Channel, DateTimeOffset IssuedAt, string Handler)
 {
-    public string Message
-    {
-        get => field;
-        init => field = value;
-    } = Message;
+    public string Message { get; init; } = Message;
 
-    public string Channel
-    {
-        get => field;
-        init => field = value;
-    } = Channel;
+    public string Channel { get; init; } = Channel;
 
-    public DateTimeOffset IssuedAt
-    {
-        get => field;
-        init => field = value;
-    } = IssuedAt;
+    public DateTimeOffset IssuedAt { get; init; } = IssuedAt;
 
-    public string Handler
-    {
-        get => field;
-        init => field = value;
-    } = Handler;
+    public string Handler { get; init; } = Handler;
 }
 
 internal sealed record RebalanceRequest(decimal TargetEquityPercent, decimal TargetFixedIncomePercent, string? Notes)
 {
-    public decimal TargetEquityPercent
-    {
-        get => field;
-        init => field = value;
-    } = TargetEquityPercent;
+    public decimal TargetEquityPercent { get; init; } = TargetEquityPercent;
 
-    public decimal TargetFixedIncomePercent
-    {
-        get => field;
-        init => field = value;
-    } = TargetFixedIncomePercent;
+    public decimal TargetFixedIncomePercent { get; init; } = TargetFixedIncomePercent;
 
-    public string? Notes
-    {
-        get => field;
-        init => field = value;
-    } = Notes;
+    public string? Notes { get; init; } = Notes;
 }
 
 internal sealed record RebalanceCommand(
@@ -364,35 +316,15 @@ internal sealed record RebalanceCommand(
     string? Channel,
     string? Notes)
 {
-    public string PortfolioId
-    {
-        get => field;
-        init => field = value;
-    } = PortfolioId;
+    public string PortfolioId { get; init; } = PortfolioId;
 
-    public decimal TargetEquityPercent
-    {
-        get => field;
-        init => field = value;
-    } = TargetEquityPercent;
+    public decimal TargetEquityPercent { get; init; } = TargetEquityPercent;
 
-    public decimal TargetFixedIncomePercent
-    {
-        get => field;
-        init => field = value;
-    } = TargetFixedIncomePercent;
+    public decimal TargetFixedIncomePercent { get; init; } = TargetFixedIncomePercent;
 
-    public string? Channel
-    {
-        get => field;
-        init => field = value;
-    } = Channel;
+    public string? Channel { get; init; } = Channel;
 
-    public string? Notes
-    {
-        get => field;
-        init => field = value;
-    } = Notes;
+    public string? Notes { get; init; } = Notes;
 }
 
 internal sealed record RebalancePlan(
@@ -403,87 +335,43 @@ internal sealed record RebalancePlan(
     IReadOnlyList<RebalanceAction> Actions,
     string GeneratedBy)
 {
-    public string PortfolioId
-    {
-        get => field;
-        init => field = value;
-    } = PortfolioId;
+    public string PortfolioId { get; init; } = PortfolioId;
 
-    public decimal TargetEquityPercent
-    {
-        get => field;
-        init => field = value;
-    } = TargetEquityPercent;
+    public decimal TargetEquityPercent { get; init; } = TargetEquityPercent;
 
-    public decimal TargetFixedIncomePercent
-    {
-        get => field;
-        init => field = value;
-    } = TargetFixedIncomePercent;
+    public decimal TargetFixedIncomePercent { get; init; } = TargetFixedIncomePercent;
 
-    public DateTimeOffset GeneratedAt
-    {
-        get => field;
-        init => field = value;
-    } = GeneratedAt;
+    public DateTimeOffset GeneratedAt { get; init; } = GeneratedAt;
 
-    public IReadOnlyList<RebalanceAction> Actions
-    {
-        get => field;
-        init => field = value;
-    } = Actions;
+    public IReadOnlyList<RebalanceAction> Actions { get; init; } = Actions;
 
-    public string GeneratedBy
-    {
-        get => field;
-        init => field = value;
-    } = GeneratedBy;
+    public string GeneratedBy { get; init; } = GeneratedBy;
 }
 
 internal sealed record RebalanceAction(string AssetClass, string Instruction, decimal Percent)
 {
-    public string AssetClass
-    {
-        get => field;
-        init => field = value;
-    } = AssetClass;
+    public string AssetClass { get; init; } = AssetClass;
 
-    public string Instruction
-    {
-        get => field;
-        init => field = value;
-    } = Instruction;
+    public string Instruction { get; init; } = Instruction;
 
-    public decimal Percent
-    {
-        get => field;
-        init => field = value;
-    } = Percent;
+    public decimal Percent { get; init; } = Percent;
 }
 
 internal sealed record AlertEvent(string Severity, string Message, string? Channel, string? CorrelationId)
 {
-    public string Severity
-    {
-        get => field;
-        init => field = value;
-    } = Severity;
+    public string Severity { get; init; } = Severity;
 
-    public string Message
-    {
-        get => field;
-        init => field = value;
-    } = Message;
+    public string Message { get; init; } = Message;
 
-    public string? Channel
-    {
-        get => field;
-        init => field = value;
-    } = Channel;
+    public string? Channel { get; init; } = Channel;
 
-    public string? CorrelationId
-    {
-        get => field;
-        init => field = value;
-    } = CorrelationId;
+    public string? CorrelationId { get; init; } = CorrelationId;
 }
+
+internal sealed record DispatcherStatus(string ServiceName, IReadOnlyCollection<string> Http, IReadOnlyCollection<string> Grpc);
+
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Serialization,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(DispatcherStatus))]
+internal sealed partial class MinimalApiBridgeJsonContext : JsonSerializerContext;

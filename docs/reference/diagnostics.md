@@ -62,6 +62,23 @@
 | `taskqueue.lease.duration` | `Histogram<double>` | ms | Lease durations from grant to completion. |
 | `taskqueue.heartbeat.extension` | `Histogram<double>` | ms | Durations granted by heartbeat renewals. |
 
+### ResourceLease mesh instruments
+
+The ResourceLease dispatcher and peer health subsystems emit additional meters for observability dashboards:
+
+| Name | Type | Unit | Description |
+| ---- | ---- | ---- | ----------- |
+| `omnirelay.resourcelease.pending` | `Histogram<long>` | items | Pending SafeTaskQueue depth samples recorded on enqueue/dequeue. |
+| `omnirelay.resourcelease.active` | `Histogram<long>` | leases | Active lease count samples. |
+| `omnirelay.resourcelease.backpressure.transitions` | `Counter<long>` | events | Incremented whenever SafeTaskQueue backpressure toggles. |
+| `omnirelay.peer.lease.healthy` | `ObservableGauge<long>` | peers | Number of peers currently considered healthy by `PeerLeaseHealthTracker`. |
+| `omnirelay.peer.lease.unhealthy` | `ObservableGauge<long>` | peers | Number of peers marked unhealthy (missing heartbeats or disconnected). |
+| `omnirelay.peer.lease.pending_reassignments` | `ObservableGauge<long>` | leases | Total pending reassignments caused by failures/requeues. |
+| `omnirelay.resourcelease.replication.events` | `Counter<long>` | events | Replication events emitted by `ResourceLeaseReplicationEvent` publishers (tagged by `lease.event_type`, `rpc.peer`, `shard.id`). |
+| `omnirelay.resourcelease.replication.lag` | `Histogram<double>` | ms | End-to-end lag between event timestamp and sink application (recorded by checkpointing sinks). |
+
+Pair these metrics with the control-plane endpoints described under “Mesh Diagnostics + Tooling” to build dashboards for queue depth, peer health, replication lag, and backpressure state.
+
 ### Workflow execution
 
 | Name | Type | Unit | Description |

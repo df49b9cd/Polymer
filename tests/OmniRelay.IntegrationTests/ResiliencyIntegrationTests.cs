@@ -24,8 +24,8 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -203,7 +203,7 @@ public class ResiliencyIntegrationTests
         try
         {
             var codec = new RawCodec();
-            var client = new UnaryClient<byte[], byte[]>(outbound, codec, Array.Empty<IUnaryOutboundMiddleware>());
+            var client = new UnaryClient<byte[], byte[]>(outbound, codec, []);
             var request = new Request<byte[]>(
                 new RequestMeta("resiliency-handshake-backend", "resiliency-backend::echo", encoding: codec.Encoding, transport: GrpcTransport),
                 []);
@@ -278,7 +278,7 @@ public class ResiliencyIntegrationTests
             endpointHttp3Support: new Dictionary<Uri, bool> { [address] = true });
 
         var codec = new RawCodec();
-        var client = new UnaryClient<byte[], byte[]>(outbound, codec, Array.Empty<IUnaryOutboundMiddleware>());
+        var client = new UnaryClient<byte[], byte[]>(outbound, codec, []);
 
         var ct = TestContext.Current.CancellationToken;
         await backendDispatcher.StartOrThrowAsync(ct);
@@ -371,8 +371,16 @@ public class ResiliencyIntegrationTests
 
                 var json = await response.Content.ReadAsStringAsync(ct);
                 using var document = JsonDocument.Parse(json);
-            var metadata = document.RootElement.GetProperty("metadata");
-            Assert.True(metadata.GetProperty(RetryableMetadataKey).GetBoolean());
+                var metadata = document.RootElement.GetProperty("metadata");
+                var retryElement = metadata.GetProperty(RetryableMetadataKey);
+                var retryable = retryElement.ValueKind switch
+                {
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    JsonValueKind.String => bool.TryParse(retryElement.GetString(), out var parsed) && parsed,
+                    _ => false
+                };
+                Assert.True(retryable);
             }
 
             using var channel = GrpcChannel.ForAddress(cancelAddress);
@@ -473,7 +481,7 @@ public class ResiliencyIntegrationTests
         try
         {
             using var httpClient = new HttpClient { BaseAddress = httpBase };
-            using var request = CreateHttpRequest("resiliency::proxy", payload: Encoding.UTF8.GetBytes("hello"));
+            using var request = CreateHttpRequest("resiliency::proxy", payload: "hello"u8.ToArray());
             using var response = await httpClient.SendAsync(request, ct);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var bodyBytes = await response.Content.ReadAsByteArrayAsync(ct);
@@ -498,8 +506,8 @@ public class ResiliencyIntegrationTests
     }
 
     private static readonly Marshaller<byte[]> ByteMarshaller = Marshallers.Create(
-        payload => payload ?? Array.Empty<byte>(),
-        payload => payload ?? Array.Empty<byte>());
+        payload => payload ?? [],
+        payload => payload ?? []);
 
     private const string GrpcTransport = "grpc";
     private const string TransportMetadataKey = "omnirelay.transport";

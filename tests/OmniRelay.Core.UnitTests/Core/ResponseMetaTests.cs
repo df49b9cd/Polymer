@@ -24,7 +24,7 @@ public class ResponseMetaTests
     public void WithHeaders_Merges_Existing()
     {
         var meta = new ResponseMeta(encoding: "json").WithHeader("a", "1");
-        var merged = meta.WithHeaders([new("b", "2"), new("A", "3")]);
+        var merged = meta.WithHeaders([new KeyValuePair<string, string>("b", "2"), new KeyValuePair<string, string>("A", "3")]);
         Assert.True(merged.TryGetHeader("a", out var v1));
         Assert.Equal("3", v1);
         Assert.True(merged.TryGetHeader("b", out var v2));

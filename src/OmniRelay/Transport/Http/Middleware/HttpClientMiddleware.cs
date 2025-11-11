@@ -49,29 +49,16 @@ public sealed class HttpClientMiddlewareContext(
 {
     private Dictionary<string, object?>? _items;
 
-    public HttpRequestMessage Request
-    {
-        get => field;
-    } = request ?? throw new ArgumentNullException(nameof(request));
+    public HttpRequestMessage Request { get; } = request ?? throw new ArgumentNullException(nameof(request));
 
-    public RequestMeta RequestMeta
-    {
-        get => field;
-    } = requestMeta ?? throw new ArgumentNullException(nameof(requestMeta));
+    public RequestMeta RequestMeta { get; } = requestMeta ?? throw new ArgumentNullException(nameof(requestMeta));
 
-    public HttpOutboundCallKind CallKind
-    {
-        get => field;
-    } = callKind;
+    public HttpOutboundCallKind CallKind { get; } = callKind;
 
     /// <summary>
     /// Gets or sets the <see cref="HttpCompletionOption"/> to use when sending the request.
     /// </summary>
-    public HttpCompletionOption CompletionOption
-    {
-        get => field;
-        set => field = value;
-    } = completionOption;
+    public HttpCompletionOption CompletionOption { get; set; } = completionOption;
 
     /// <summary>
     /// Provides a per-call bag for middleware to share data.

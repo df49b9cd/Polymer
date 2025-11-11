@@ -27,103 +27,156 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        UnaryOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        UnaryInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        OnewayOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        OnewayInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        StreamOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, options, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        StreamInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, options, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        ClientStreamInboundDelegate next)
+    {
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             context.Meta,
             cancellationToken,
             (_, linked) => next(context, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        ClientStreamOutboundDelegate next)
+    {
+        requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             requestMeta,
             cancellationToken,
             (_, linked) => next(requestMeta, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        DuplexOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, linked));
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next) =>
-        InvokeWithDeadlineAsync(
+        DuplexInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeWithDeadlineAsync(
             request.Meta,
             cancellationToken,
             (_, linked) => next(request, linked));
+    }
 
     private async ValueTask<Result<T>> InvokeWithDeadlineAsync<T>(
         RequestMeta meta,
@@ -178,6 +231,12 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
         return cts;
     }
 
+    private static T EnsureNotNull<T>(T? value, string paramName) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(value, paramName);
+        return value;
+    }
+
     private static DateTimeOffset? ResolveAbsoluteDeadline(RequestMeta meta)
     {
         if (meta.Deadline is { } absolute)
@@ -211,3 +270,4 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
         return error;
     }
 }
+

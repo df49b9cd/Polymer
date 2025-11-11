@@ -28,118 +28,171 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next) =>
-        ExecuteWithLogging(
+        UnaryInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "inbound unary",
             request.Meta,
             token => next(request, token),
             cancellationToken,
             static response => response.Meta);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next) =>
-        ExecuteWithLogging(
+        UnaryOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "outbound unary",
             request.Meta,
             token => next(request, token),
             cancellationToken,
             static response => response.Meta);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next) =>
-        ExecuteWithLogging(
+        OnewayInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "inbound oneway",
             request.Meta,
             token => next(request, token),
             cancellationToken,
             static ack => ack.Meta);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next) =>
-        ExecuteWithLogging(
+        OnewayOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "outbound oneway",
             request.Meta,
             token => next(request, token),
             cancellationToken,
             static ack => ack.Meta);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next) =>
-        ExecuteWithLogging(
+        StreamInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             $"inbound stream ({options.Direction})",
             request.Meta,
             token => next(request, options, token),
             cancellationToken);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next) =>
-        ExecuteWithLogging(
+        StreamOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             $"outbound stream ({options.Direction})",
             request.Meta,
             token => next(request, options, token),
             cancellationToken);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next) =>
-        ExecuteWithLogging(
+        ClientStreamInboundDelegate next)
+    {
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "inbound client-stream",
             context.Meta,
             token => next(context, token),
             cancellationToken,
             static response => response.Meta);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next) =>
-        ExecuteWithLogging(
+        ClientStreamOutboundDelegate next)
+    {
+        requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "outbound client-stream",
             requestMeta,
             token => next(requestMeta, token),
             cancellationToken);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next) =>
-        ExecuteWithLogging(
+        DuplexInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "inbound duplex",
             request.Meta,
             token => next(request, token),
             cancellationToken);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next) =>
-        ExecuteWithLogging(
+        DuplexOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return ExecuteWithLogging(
             "outbound duplex",
             request.Meta,
             token => next(request, token),
             cancellationToken);
+    }
 
     private async ValueTask<Result<TResponse>> ExecuteWithLogging<TResponse>(
         string pipeline,
@@ -262,4 +315,11 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
             meta.Procedure ?? string.Empty,
             meta.Transport ?? "unknown");
     }
+
+    private static T EnsureNotNull<T>(T? value, string paramName) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(value, paramName);
+        return value;
+    }
 }
+

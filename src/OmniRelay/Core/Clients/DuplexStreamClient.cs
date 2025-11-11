@@ -54,19 +54,18 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
     /// </summary>
     public sealed class DuplexStreamSession : IAsyncDisposable
     {
-        private readonly RequestMeta _meta;
         private readonly ICodec<TRequest, TResponse> _codec;
         private readonly IDuplexStreamCall _call;
 
         internal DuplexStreamSession(RequestMeta meta, ICodec<TRequest, TResponse> codec, IDuplexStreamCall call)
         {
-            _meta = meta;
+            RequestMeta = meta;
             _codec = codec;
             _call = call;
         }
 
         /// <summary>Gets the request metadata.</summary>
-        public RequestMeta RequestMeta => _meta;
+        public RequestMeta RequestMeta { get; }
 
         /// <summary>Gets the response metadata.</summary>
         public ResponseMeta ResponseMeta => _call.ResponseMeta;
@@ -82,10 +81,10 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var encodeResult = _codec.EncodeRequest(message, _meta);
+            var encodeResult = _codec.EncodeRequest(message, RequestMeta);
             if (encodeResult.IsFailure)
             {
-                return OmniRelayErrors.ToResult<Unit>(encodeResult.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Unit>(encodeResult.Error!, RequestMeta.Transport ?? "unknown");
             }
 
             await _call.RequestWriter.WriteAsync(encodeResult.Value, cancellationToken).ConfigureAwait(false);
@@ -123,7 +122,7 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
                     }
                     catch (Exception ex)
                     {
-                        pendingFailure = OmniRelayErrors.ToResult<Response<TResponse>>(ex, _meta.Transport ?? "unknown");
+                        pendingFailure = OmniRelayErrors.ToResult<Response<TResponse>>(ex, RequestMeta.Transport ?? "unknown");
                         break;
                     }
 
@@ -137,7 +136,7 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
                     if (decode.IsFailure)
                     {
                         await _call.CompleteResponsesAsync(decode.Error!, cancellationToken).ConfigureAwait(false);
-                        yield return OmniRelayErrors.ToResult<Response<TResponse>>(decode.Error!, _meta.Transport ?? "unknown");
+                        yield return OmniRelayErrors.ToResult<Response<TResponse>>(decode.Error!, RequestMeta.Transport ?? "unknown");
                         yield break;
                     }
 

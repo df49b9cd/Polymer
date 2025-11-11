@@ -59,7 +59,7 @@ internal static class HttpTransportMetrics
                     tags.Add(KeyValuePair.Create<string, object?>("network.protocol.version", version));
                 }
 
-                tags.Add(KeyValuePair.Create<string, object?>("network.transport", version.StartsWith("3", StringComparison.Ordinal) ? "quic" : "tcp"));
+                tags.Add(KeyValuePair.Create<string, object?>("network.transport", version.StartsWith('3') ? "quic" : "tcp"));
             }
         }
 

@@ -51,7 +51,6 @@ internal static class GrpcStatusMapper
         OmniRelayStatusCode.Internal => new Status(StatusCode.Internal, message),
         OmniRelayStatusCode.Unavailable => new Status(StatusCode.Unavailable, message),
         OmniRelayStatusCode.DataLoss => new Status(StatusCode.DataLoss, message),
-        OmniRelayStatusCode.Unknown => new Status(StatusCode.Unknown, message),
         _ => new Status(StatusCode.Unknown, message)
     };
 }

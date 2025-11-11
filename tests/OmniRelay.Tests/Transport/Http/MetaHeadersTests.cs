@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
 using Xunit;
 
@@ -30,8 +31,10 @@ public class MetaHeadersTests
             {
                 var ttlMs = request.Meta.TimeToLive?.TotalMilliseconds;
                 var deadline = request.Meta.Deadline?.ToUniversalTime().ToString("O");
-                var json = JsonSerializer.Serialize(new { ttlMs, deadline });
-                var bytes = Encoding.UTF8.GetBytes(json);
+                var payload = new MetaDiagnosticsPayload(ttlMs, deadline);
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(
+                    payload,
+                    OmniRelayTestsJsonContext.Default.MetaDiagnosticsPayload);
                 return ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(bytes, new ResponseMeta(encoding: "application/json"))));
             }));
 
@@ -45,12 +48,16 @@ public class MetaHeadersTests
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Deadline, deadline);
 
         using var response = await httpClient.PostAsync("/", new ByteArrayContent([]), ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        var doc = JsonSerializer.Deserialize<JsonElement>(body);
+        var body = await response.Content.ReadAsByteArrayAsync(ct);
+        var payload = JsonSerializer.Deserialize(
+            body,
+            OmniRelayTestsJsonContext.Default.MetaDiagnosticsPayload);
 
-        Assert.Equal(1500, doc.GetProperty("ttlMs").GetDouble(), precision: 0);
-        Assert.Equal(deadline, doc.GetProperty("deadline").GetString());
+        Assert.Equal(1500d, payload?.TtlMs ?? double.NaN, precision: 0);
+        Assert.Equal(deadline, payload?.Deadline);
 
         await dispatcher.StopOrThrowAsync(ct);
     }
 }
+
+internal sealed record MetaDiagnosticsPayload(double? TtlMs, string? Deadline);

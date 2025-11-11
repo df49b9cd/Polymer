@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -12,34 +14,72 @@ namespace OmniRelay.Core;
 /// JSON codec for encoding/decoding requests and responses, with optional source generator metadata
 /// and JSON Schema validation for request/response payloads.
 /// </summary>
-public sealed class JsonCodec<TRequest, TResponse>(
-    JsonSerializerOptions? options = null,
-    string encoding = "json",
-    JsonSerializerContext? serializerContext = null,
-    JsonSchema? requestSchema = null,
-    string? requestSchemaId = null,
-    JsonSchema? responseSchema = null,
-    string? responseSchemaId = null)
-    : ICodec<TRequest, TResponse>
+public sealed class JsonCodec<TRequest, TResponse> : ICodec<TRequest, TResponse>
 {
-    private readonly JsonSerializerOptions _options = options ?? serializerContext?.Options ?? CreateDefaultOptions();
-    private readonly JsonTypeInfo<TRequest>? _requestTypeInfo = ResolveTypeInfo<TRequest>(serializerContext);
-    private readonly JsonTypeInfo<TResponse>? _responseTypeInfo = ResolveTypeInfo<TResponse>(serializerContext);
+    private readonly JsonSerializerOptions _options;
+    private readonly JsonTypeInfo<TRequest>? _requestTypeInfo;
+    private readonly JsonTypeInfo<TResponse>? _responseTypeInfo;
+    private readonly Lazy<JsonTypeInfo<TRequest>>? _requestRuntimeTypeInfo;
+    private readonly Lazy<JsonTypeInfo<TResponse>>? _responseRuntimeTypeInfo;
+    private readonly JsonSchema? _requestSchema;
+    private readonly string? _requestSchemaId;
+    private readonly JsonSchema? _responseSchema;
+    private readonly string? _responseSchemaId;
     private readonly EvaluationOptions _schemaEvaluationOptions = new() { OutputFormat = OutputFormat.List };
 
+    public JsonCodec(
+        JsonSerializerOptions? options = null,
+        string encoding = "json",
+        JsonSerializerContext? serializerContext = null,
+        JsonSchema? requestSchema = null,
+        string? requestSchemaId = null,
+        JsonSchema? responseSchema = null,
+        string? responseSchemaId = null)
+    {
+        _options = options ?? serializerContext?.Options ?? CreateDefaultOptions();
+        _requestTypeInfo = ResolveTypeInfo<TRequest>(serializerContext);
+        _responseTypeInfo = ResolveTypeInfo<TResponse>(serializerContext);
+
+        var needsRequestRuntimeType = _requestTypeInfo is null;
+        var needsResponseRuntimeType = _responseTypeInfo is null;
+
+        if (needsRequestRuntimeType || needsResponseRuntimeType)
+        {
+            EnsureRuntimeTypeResolver(_options);
+        }
+
+        if (needsRequestRuntimeType)
+        {
+            _requestRuntimeTypeInfo = CreateRuntimeTypeInfoFactory<TRequest>(_options);
+        }
+
+        if (needsResponseRuntimeType)
+        {
+            _responseRuntimeTypeInfo = CreateRuntimeTypeInfoFactory<TResponse>(_options);
+        }
+
+        _requestSchema = requestSchema;
+        _requestSchemaId = requestSchemaId;
+        _responseSchema = responseSchema;
+        _responseSchemaId = responseSchemaId;
+        Encoding = encoding;
+    }
+
     /// <inheritdoc />
-    public string Encoding { get; } = encoding;
+    public string Encoding { get; }
 
     /// <inheritdoc />
     public Result<byte[]> EncodeRequest(TRequest value, RequestMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         try
         {
-            var bytes = Serialize(value, _requestTypeInfo);
+            var bytes = Serialize(value, _requestTypeInfo, _requestRuntimeTypeInfo);
 
             var schemaError = ValidateSchema(
-                requestSchema,
-                requestSchemaId,
+                _requestSchema,
+                _requestSchemaId,
                 bytes,
                 "encode-request",
                 "request",
@@ -64,9 +104,11 @@ public sealed class JsonCodec<TRequest, TResponse>(
     /// <inheritdoc />
     public Result<TRequest> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         var schemaError = ValidateSchema(
-            requestSchema,
-            requestSchemaId,
+            _requestSchema,
+            _requestSchemaId,
             payload,
             "decode-request",
             "request",
@@ -79,7 +121,7 @@ public sealed class JsonCodec<TRequest, TResponse>(
 
         try
         {
-            var value = Deserialize(payload, _requestTypeInfo);
+            var value = Deserialize(payload, _requestTypeInfo, _requestRuntimeTypeInfo);
             return Ok(value!);
         }
         catch (JsonException ex)
@@ -101,13 +143,15 @@ public sealed class JsonCodec<TRequest, TResponse>(
     /// <inheritdoc />
     public Result<byte[]> EncodeResponse(TResponse value, ResponseMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         try
         {
-            var bytes = Serialize(value, _responseTypeInfo);
+            var bytes = Serialize(value, _responseTypeInfo, _responseRuntimeTypeInfo);
 
             var schemaError = ValidateSchema(
-                responseSchema,
-                responseSchemaId,
+                _responseSchema,
+                _responseSchemaId,
                 bytes,
                 "encode-response",
                 "response",
@@ -132,9 +176,11 @@ public sealed class JsonCodec<TRequest, TResponse>(
     /// <inheritdoc />
     public Result<TResponse> DecodeResponse(ReadOnlyMemory<byte> payload, ResponseMeta meta)
     {
+        ArgumentNullException.ThrowIfNull(meta);
+
         var schemaError = ValidateSchema(
-            responseSchema,
-            responseSchemaId,
+            _responseSchema,
+            _responseSchemaId,
             payload,
             "decode-response",
             "response",
@@ -147,7 +193,7 @@ public sealed class JsonCodec<TRequest, TResponse>(
 
         try
         {
-            var value = Deserialize(payload, _responseTypeInfo);
+            var value = Deserialize(payload, _responseTypeInfo, _responseRuntimeTypeInfo);
             return Ok(value!);
         }
         catch (JsonException ex)
@@ -166,15 +212,55 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
     }
 
-    private byte[] Serialize<T>(T value, JsonTypeInfo<T>? typeInfo) =>
-        typeInfo is not null
-            ? JsonSerializer.SerializeToUtf8Bytes(value, typeInfo)
-            : JsonSerializer.SerializeToUtf8Bytes(value, _options);
+    private static byte[] Serialize<T>(T value, JsonTypeInfo<T>? typeInfo, Lazy<JsonTypeInfo<T>>? runtimeTypeInfo) =>
+        JsonSerializer.SerializeToUtf8Bytes(value, ResolveRuntimeTypeInfo(typeInfo, runtimeTypeInfo));
 
-    private T? Deserialize<T>(ReadOnlyMemory<byte> payload, JsonTypeInfo<T>? typeInfo) =>
-        typeInfo is not null
-            ? JsonSerializer.Deserialize(payload.Span, typeInfo)
-            : JsonSerializer.Deserialize<T>(payload.Span, _options);
+    private static T? Deserialize<T>(ReadOnlyMemory<byte> payload, JsonTypeInfo<T>? typeInfo, Lazy<JsonTypeInfo<T>>? runtimeTypeInfo) =>
+        JsonSerializer.Deserialize(payload.Span, ResolveRuntimeTypeInfo(typeInfo, runtimeTypeInfo));
+
+    private static Lazy<JsonTypeInfo<T>> CreateRuntimeTypeInfoFactory<T>(JsonSerializerOptions options) =>
+        new(() =>
+        {
+            var resolved = options.GetTypeInfo(typeof(T))
+                ?? throw new InvalidOperationException($"JsonSerializerOptions does not expose metadata for '{typeof(T).FullName}'.");
+            return (JsonTypeInfo<T>)resolved;
+        });
+
+    private static JsonTypeInfo<T> ResolveRuntimeTypeInfo<T>(JsonTypeInfo<T>? typeInfo, Lazy<JsonTypeInfo<T>>? runtimeTypeInfo)
+    {
+        if (typeInfo is not null)
+        {
+            return typeInfo;
+        }
+
+        if (runtimeTypeInfo is not null)
+        {
+            return runtimeTypeInfo.Value;
+        }
+
+        throw new InvalidOperationException($"Json metadata for '{typeof(T).FullName}' is not available. Provide a JsonSerializerContext.");
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Reflection-based JSON fallback is only used when dynamic code is available; trimmed/AOT deployments must provide a JsonSerializerContext.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Reflection-based JSON fallback is only used when dynamic code is available; native AOT deployments must provide a JsonSerializerContext.")]
+    private static void EnsureRuntimeTypeResolver(JsonSerializerOptions options)
+    {
+        if (options.TypeInfoResolver is not null)
+        {
+            return;
+        }
+
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            throw new InvalidOperationException("JsonCodec requires a JsonSerializerContext when dynamic code is unavailable.");
+        }
+
+        options.TypeInfoResolver = DefaultRuntimeResolver.Value;
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Reflection-based JSON fallback is only used when dynamic code is available; native AOT deployments must supply a JsonSerializerContext.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Reflection-based JSON fallback is only used when dynamic code is available; native AOT deployments must supply a JsonSerializerContext.")]
+    private static readonly Lazy<IJsonTypeInfoResolver> DefaultRuntimeResolver = new(static () => new DefaultJsonTypeInfoResolver());
 
     private Error? ValidateSchema(
         JsonSchema? schema,
@@ -249,7 +335,7 @@ public sealed class JsonCodec<TRequest, TResponse>(
             PropertyNameCaseInsensitive = true
         };
 
-    private static IReadOnlyDictionary<string, object?> BuildSchemaMetadata(
+    private static Dictionary<string, object?> BuildSchemaMetadata(
         string stage,
         string? schemaId,
         EvaluationResults evaluation,
@@ -289,7 +375,7 @@ public sealed class JsonCodec<TRequest, TResponse>(
         }
     }
 
-    private IReadOnlyDictionary<string, object?> BuildExceptionMetadata(Exception exception, string stage) => new Dictionary<string, object?>
+    private Dictionary<string, object?> BuildExceptionMetadata(Exception exception, string stage) => new Dictionary<string, object?>
     {
         ["encoding"] = Encoding,
         ["stage"] = stage,

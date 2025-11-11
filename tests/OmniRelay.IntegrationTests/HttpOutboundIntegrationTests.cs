@@ -14,8 +14,8 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
@@ -50,7 +50,7 @@ public class HttpOutboundIntegrationTests
             "runtime::ping",
             (request, _) =>
             {
-                var payload = Encoding.UTF8.GetBytes("{\"message\":\"pong\"}");
+                var payload = "{\"message\":\"pong\"}"u8.ToArray();
                 var responseMeta = new ResponseMeta(encoding: MediaTypeNames.Application.Json);
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, responseMeta)));
             }));
@@ -135,7 +135,7 @@ public class HttpOutboundIntegrationTests
             (request, _) =>
             {
                 Interlocked.Increment(ref peer2Calls);
-                var payload = Encoding.UTF8.GetBytes("{\"message\":\"peer-b\"}");
+                var payload = "{\"message\":\"peer-b\"}"u8.ToArray();
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, new ResponseMeta(encoding: MediaTypeNames.Application.Json))));
             }));
 
@@ -229,20 +229,12 @@ public class HttpOutboundIntegrationTests
 
     private sealed record PingRequest(string Message)
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
     }
 
     private sealed record PingResponse
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = string.Empty;
+        public string Message { get; init; } = string.Empty;
     }
 
     private sealed class FailoverUnaryOutbound : IUnaryOutbound

@@ -52,11 +52,12 @@ public class DiagnosticsRuntimeSamplerTests
     [Fact]
     public void RatioProbability_AppliesDynamicSampler()
     {
-        var runtime = new FakeDiagnosticsRuntime { Probability = 0.5d };
+        const double probability = 0.5d;
+        var runtime = new FakeDiagnosticsRuntime { Probability = probability };
         var sampler = new DiagnosticsRuntimeSampler(runtime);
 
         var sampleResult = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
-        var dropTraceId = FindDropTraceId(runtime.Probability.Value);
+        var dropTraceId = FindDropTraceId(probability);
         var dropResult = sampler.ShouldSample(CreateParameters(dropTraceId));
 
         Assert.Equal(SamplingDecision.RecordAndSample, sampleResult.Decision);
@@ -110,11 +111,7 @@ public class DiagnosticsRuntimeSamplerTests
     {
         public LogLevel? MinimumLogLevel => null;
 
-        public double? Probability
-        {
-            get => field;
-            set => field = value;
-        }
+        public double? Probability { get; set; }
 
         public double? TraceSamplingProbability => Probability;
 

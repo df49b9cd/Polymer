@@ -11,14 +11,13 @@ public sealed class ServerStreamCall : IStreamCall
 {
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
-    private readonly StreamCallContext _context;
     private bool _completed;
 
     private ServerStreamCall(RequestMeta requestMeta, ResponseMeta responseMeta)
     {
         RequestMeta = requestMeta ?? throw new ArgumentNullException(nameof(requestMeta));
         ResponseMeta = responseMeta ?? new ResponseMeta();
-        _context = new StreamCallContext(StreamDirection.Server);
+        Context = new StreamCallContext(StreamDirection.Server);
 
         _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
@@ -41,17 +40,13 @@ public sealed class ServerStreamCall : IStreamCall
     public StreamDirection Direction => StreamDirection.Server;
 
     /// <inheritdoc />
-    public RequestMeta RequestMeta => field;
+    public RequestMeta RequestMeta { get; }
 
     /// <inheritdoc />
-    public ResponseMeta ResponseMeta
-    {
-        get => field;
-        private set => field = value;
-    }
+    public ResponseMeta ResponseMeta { get; private set; }
 
     /// <inheritdoc />
-    public StreamCallContext Context => _context;
+    public StreamCallContext Context { get; }
 
     /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
@@ -66,7 +61,7 @@ public sealed class ServerStreamCall : IStreamCall
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
     {
         await _responses.Writer.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
-        _context.IncrementMessageCount();
+        Context.IncrementMessageCount();
     }
 
     /// <inheritdoc />
@@ -91,7 +86,7 @@ public sealed class ServerStreamCall : IStreamCall
             _responses.Writer.TryComplete(exception);
         }
 
-        _context.TrySetCompletion(status, error);
+        Context.TrySetCompletion(status, error);
         return ValueTask.CompletedTask;
     }
 
@@ -100,7 +95,7 @@ public sealed class ServerStreamCall : IStreamCall
     {
         _responses.Writer.TryComplete();
         _requests.Writer.TryComplete();
-        _context.TrySetCompletion(StreamCompletionStatus.Cancelled);
+        Context.TrySetCompletion(StreamCompletionStatus.Cancelled);
         return ValueTask.CompletedTask;
     }
 

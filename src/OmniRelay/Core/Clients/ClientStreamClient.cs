@@ -52,7 +52,6 @@ public sealed class ClientStreamClient<TRequest, TResponse>
     /// </summary>
     public sealed class ClientStreamSession : IAsyncDisposable
     {
-        private readonly RequestMeta _meta;
         private readonly ICodec<TRequest, TResponse> _codec;
         private readonly IClientStreamTransportCall _transportCall;
         private readonly Lazy<Task<Result<Response<TResponse>>>> _response;
@@ -62,14 +61,14 @@ public sealed class ClientStreamClient<TRequest, TResponse>
             ICodec<TRequest, TResponse> codec,
             IClientStreamTransportCall transportCall)
         {
-            _meta = meta;
+            RequestMeta = meta;
             _codec = codec;
             _transportCall = transportCall;
             _response = new Lazy<Task<Result<Response<TResponse>>>>(AwaitResponseAsync);
         }
 
         /// <summary>Gets the request metadata.</summary>
-        public RequestMeta RequestMeta => _meta;
+        public RequestMeta RequestMeta { get; }
 
         /// <summary>Gets the response metadata.</summary>
         public ResponseMeta ResponseMeta => _transportCall.ResponseMeta;
@@ -82,10 +81,10 @@ public sealed class ClientStreamClient<TRequest, TResponse>
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var encodeResult = _codec.EncodeRequest(message, _meta);
+            var encodeResult = _codec.EncodeRequest(message, RequestMeta);
             if (encodeResult.IsFailure)
             {
-                return OmniRelayErrors.ToResult<Unit>(encodeResult.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Unit>(encodeResult.Error!, RequestMeta.Transport ?? "unknown");
             }
 
             await _transportCall.WriteAsync(encodeResult.Value, cancellationToken).ConfigureAwait(false);
@@ -104,13 +103,13 @@ public sealed class ClientStreamClient<TRequest, TResponse>
             var result = await _transportCall.Response.ConfigureAwait(false);
             if (result.IsFailure)
             {
-                return OmniRelayErrors.ToResult<Response<TResponse>>(result.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Response<TResponse>>(result.Error!, RequestMeta.Transport ?? "unknown");
             }
 
             var decode = _codec.DecodeResponse(result.Value.Body, result.Value.Meta);
             if (decode.IsFailure)
             {
-                return OmniRelayErrors.ToResult<Response<TResponse>>(decode.Error!, _meta.Transport ?? "unknown");
+                return OmniRelayErrors.ToResult<Response<TResponse>>(decode.Error!, RequestMeta.Transport ?? "unknown");
             }
 
             return Ok(Response<TResponse>.Create(decode.Value, result.Value.Meta));

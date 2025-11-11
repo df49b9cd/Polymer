@@ -79,5 +79,7 @@ public sealed class DiagnosticsRuntimeSampler(IDiagnosticsRuntime? diagnosticsRu
         return sampler;
     }
 
-    private sealed record CachedSampler(double Probability, Sampler Sampler);
+    internal CachedSampler? TestingCachedSampler => _cachedRatioSampler;
+
+    internal sealed record CachedSampler(double Probability, Sampler Sampler);
 }

@@ -92,7 +92,7 @@ public class ProtobufCodecTests
         var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: false);
         var meta = new ResponseMeta { Encoding = ProtobufEncoding.ApplicationJson };
 
-        var result = codec.DecodeResponse(Encoding.UTF8.GetBytes("\"noop\""), meta);
+        var result = codec.DecodeResponse("\"noop\""u8.ToArray(), meta);
 
         Assert.True(result.IsFailure);
         var error = result.Error!;
@@ -160,7 +160,7 @@ public class ProtobufCodecTests
         var codec = new ProtobufCodec<StringValue, StringValue>(allowJsonEncoding: true);
         var meta = new ResponseMeta { Encoding = ProtobufEncoding.ApplicationJson };
 
-        var result = codec.DecodeResponse(Encoding.UTF8.GetBytes("{invalid json"), meta);
+        var result = codec.DecodeResponse("{invalid json"u8.ToArray(), meta);
 
         Assert.True(result.IsFailure);
         var error = result.Error!;

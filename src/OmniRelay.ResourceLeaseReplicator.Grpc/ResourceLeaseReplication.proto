@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+option csharp_namespace = "OmniRelay.Dispatcher.Grpc";
+
+package omnirelay.dispatcher.replication;
+
+message ResourceLeaseOwnershipHandleMessage {
+  int64 sequence_id = 1;
+  int32 attempt = 2;
+  bytes lease_id = 3;
+}
+
+message ResourceLeaseErrorInfoMessage {
+  string message = 1;
+  string code = 2;
+}
+
+message ResourceLeaseItemPayloadMessage {
+  string resource_type = 1;
+  string resource_id = 2;
+  string partition_key = 3;
+  string payload_encoding = 4;
+  bytes body = 5;
+  map<string, string> attributes = 6;
+  string request_id = 7;
+}
+
+message ResourceLeaseReplicationEventMessage {
+  int64 sequence_number = 1;
+  int32 event_type = 2;
+  string timestamp = 3;
+  string peer_id = 4;
+  ResourceLeaseOwnershipHandleMessage ownership = 5;
+  ResourceLeaseItemPayloadMessage payload = 6;
+  ResourceLeaseErrorInfoMessage error = 7;
+  map<string, string> metadata = 8;
+}
+
+message PublishResponse {}
+
+service ResourceLeaseReplicatorGrpc {
+  rpc Publish(ResourceLeaseReplicationEventMessage) returns (PublishResponse);
+}

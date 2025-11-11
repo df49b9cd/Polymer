@@ -1,13 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using Hugo;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OmniRelay.Configuration;
 using OmniRelay.Core;
@@ -18,8 +13,10 @@ using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 namespace OmniRelay.Samples.ConfigToProd;
 
-public sealed class Program
+internal sealed class Program
 {
+    [RequiresDynamicCode("Configures ASP.NET Core hosting and OmniRelay dispatcher services using reflection-heavy APIs.")]
+    [RequiresUnreferencedCode("Configures ASP.NET Core hosting and OmniRelay dispatcher services using reflection-heavy APIs.")]
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -70,22 +67,22 @@ public sealed class Program
 
         app.MapGet("/readyz", (ProbeState probeState) =>
         {
-            return probeState.IsReady
-                ? Results.Ok(new
-                {
-                    status = "ready",
-                    since = probeState.ReadySinceUtc,
-                    diagnostics = probeState.DiagnosticsSatisfied
-                })
+            return ProbeState.IsReady
+                ? TypedResults.Json(
+                    new ReadyStatusPayload(
+                        Status: "ready",
+                        Since: ProbeState.ReadySinceUtc,
+                        Diagnostics: ProbeState.DiagnosticsSatisfied),
+                    ConfigToProdJsonContext.Default.ReadyStatusPayload)
                 : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         });
 
-        app.MapGet("/", (IConfiguration config, IHostEnvironment env) => Results.Json(new
-        {
-            service = config.GetValue<string>("omnirelay:service"),
-            environment = env.EnvironmentName,
-            message = "Config-to-Prod template running"
-        }));
+        app.MapGet("/", (IConfiguration config, IHostEnvironment env) => TypedResults.Json(
+            new RootStatusPayload(
+                Service: config.GetValue<string>("omnirelay:service"),
+                Environment: env.EnvironmentName,
+                Message: "Config-to-Prod template running"),
+            ConfigToProdJsonContext.Default.RootStatusPayload));
 
         await app.RunAsync().ConfigureAwait(false);
     }
@@ -169,32 +166,16 @@ internal sealed class OpsHandlers(ILogger<OpsHandlers> logger)
 
 internal sealed record OpsPingRequest(string Message)
 {
-    public string Message
-    {
-        get => field;
-        init => field = value;
-    } = Message;
+    public string Message { get; init; } = Message;
 }
 
 internal sealed record OpsPingResponse(string Message, DateTimeOffset IssuedAt, string Transport)
 {
-    public string Message
-    {
-        get => field;
-        init => field = value;
-    } = Message;
+    public string Message { get; init; } = Message;
 
-    public DateTimeOffset IssuedAt
-    {
-        get => field;
-        init => field = value;
-    } = IssuedAt;
+    public DateTimeOffset IssuedAt { get; init; } = IssuedAt;
 
-    public string Transport
-    {
-        get => field;
-        init => field = value;
-    } = Transport;
+    public string Transport { get; init; } = Transport;
 }
 
 internal sealed class DispatcherHealthCheck(OmniRelayDispatcher dispatcher) : IHealthCheck
@@ -232,34 +213,20 @@ internal sealed class DiagnosticsToggleWatcher(
 
     private void Apply(DiagnosticsControlOptions options)
     {
-        probeState.SetDiagnostics(options.RuntimeMetricsEnabled);
-        logger.LogInformation("Diagnostics toggles updated. Runtime metrics enabled: {Enabled}", options.RuntimeMetricsEnabled);
+        probeState.SetDiagnostics(DiagnosticsControlOptions.RuntimeMetricsEnabled);
+        logger.LogInformation("Diagnostics toggles updated. Runtime metrics enabled: {Enabled}", DiagnosticsControlOptions.RuntimeMetricsEnabled);
     }
 }
 
 internal sealed class ProbeState(IOptions<ProbeOptions> options, ILogger<ProbeState> logger)
 {
-    private readonly ProbeOptions _options = options.Value;
+    public static bool DiagnosticsSatisfied { get; private set; }
 
-    public bool DiagnosticsSatisfied
-    {
-        get => field;
-        private set => field = value;
-    }
+    public static bool WarmupComplete { get; private set; }
 
-    public bool WarmupComplete
-    {
-        get => field;
-        private set => field = value;
-    }
+    public static DateTimeOffset? ReadySinceUtc { get; private set; }
 
-    public DateTimeOffset? ReadySinceUtc
-    {
-        get => field;
-        private set => field = value;
-    }
-
-    public bool IsReady => WarmupComplete && (!_options.RequireDiagnosticsToggle || DiagnosticsSatisfied);
+    public static bool IsReady => WarmupComplete && (!ProbeOptions.RequireDiagnosticsToggle || DiagnosticsSatisfied);
 
     public void MarkWarm()
     {
@@ -277,31 +244,38 @@ internal sealed class ProbeState(IOptions<ProbeOptions> options, ILogger<ProbeSt
 
     public void SetDiagnostics(bool enabled)
     {
-        DiagnosticsSatisfied = ! _options.RequireDiagnosticsToggle || enabled;
-        logger.LogInformation("Diagnostics requirement {Requirement} with toggle={Toggle}.", _options.RequireDiagnosticsToggle ? "enabled" : "disabled", enabled);
+        DiagnosticsSatisfied = !ProbeOptions.RequireDiagnosticsToggle || enabled;
+        logger.LogInformation("Diagnostics requirement {Requirement} with toggle={Toggle}.", ProbeOptions.RequireDiagnosticsToggle ? "enabled" : "disabled", enabled);
     }
 }
 
 internal sealed record DiagnosticsControlOptions
 {
-    public bool RuntimeMetricsEnabled
+    public static bool RuntimeMetricsEnabled
     {
         get => field;
-        init => field = value;
+        set => field = value;
     }
 }
 
 internal sealed record ProbeOptions
 {
-    public TimeSpan ReadyAfter
-    {
-        get => field;
-        init => field = value;
-    } = TimeSpan.FromSeconds(2);
+    public TimeSpan ReadyAfter { get; init; } = TimeSpan.FromSeconds(2);
 
-    public bool RequireDiagnosticsToggle
+    public static bool RequireDiagnosticsToggle
     {
         get => field;
-        init => field = value;
+        set => field = value;
     }
 }
+
+internal sealed record ReadyStatusPayload(string Status, DateTimeOffset? Since, bool Diagnostics);
+
+internal sealed record RootStatusPayload(string? Service, string? Environment, string Message);
+
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Serialization,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(ReadyStatusPayload))]
+[JsonSerializable(typeof(RootStatusPayload))]
+internal partial class ConfigToProdJsonContext : JsonSerializerContext;

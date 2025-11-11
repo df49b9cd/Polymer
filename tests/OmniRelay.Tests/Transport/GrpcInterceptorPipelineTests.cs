@@ -139,46 +139,29 @@ public class GrpcInterceptorPipelineTests
         Metadata? requestHeaders = null,
         CancellationToken cancellationToken = default) : ServerCallContext
     {
-        private readonly string _method = method;
-        private readonly string _host = host;
-        private readonly string _peer = peer;
-        private readonly DateTime _deadline = deadline ?? DateTime.UtcNow.AddMinutes(1);
-        private readonly Metadata _requestHeaders = requestHeaders ?? [];
-        private readonly CancellationToken _cancellationToken = cancellationToken;
-        private readonly Metadata _responseTrailers = [];
-        private readonly AuthContext _authContext = new(null, []);
-
         protected override Task WriteResponseHeadersAsyncCore(Metadata responseHeaders) => Task.CompletedTask;
 
         protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions? options) =>
             throw new NotSupportedException();
 
-        protected override string MethodCore => _method;
+        protected override string MethodCore { get; } = method;
 
-        protected override string HostCore => _host;
+        protected override string HostCore { get; } = host;
 
-        protected override string PeerCore => _peer;
+        protected override string PeerCore { get; } = peer;
 
-        protected override DateTime DeadlineCore => _deadline;
+        protected override DateTime DeadlineCore { get; } = deadline ?? DateTime.UtcNow.AddMinutes(1);
 
-        protected override Metadata RequestHeadersCore => _requestHeaders;
+        protected override Metadata RequestHeadersCore { get; } = requestHeaders ?? [];
 
-        protected override CancellationToken CancellationTokenCore => _cancellationToken;
+        protected override CancellationToken CancellationTokenCore { get; } = cancellationToken;
 
-        protected override Metadata ResponseTrailersCore => _responseTrailers;
+        protected override Metadata ResponseTrailersCore { get; } = [];
 
-        protected override Status StatusCore
-        {
-            get => field;
-            set => field = value;
-        }
+        protected override Status StatusCore { get; set; }
 
-        protected override WriteOptions? WriteOptionsCore
-        {
-            get => field;
-            set => field = value;
-        }
+        protected override WriteOptions? WriteOptionsCore { get; set; }
 
-        protected override AuthContext AuthContextCore => _authContext;
+        protected override AuthContext AuthContextCore { get; } = new(null, []);
     }
 }

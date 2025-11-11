@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OmniRelay.ResourceLeaseReplicator.ObjectStorage</AssemblyName>
+    <RootNamespace>OmniRelay.Dispatcher</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OmniRelay/OmniRelay.csproj" />
+  </ItemGroup>
+</Project>

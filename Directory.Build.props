@@ -6,8 +6,13 @@
     <OmniRelayVersion>0.2.0</OmniRelayVersion>
     <RepositoryUrl>https://github.com/df49b9cd/OmniRelay</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <!-- Enable NuGet lock files for deterministic restores across CI and dev machines -->
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' != 'false'">
@@ -22,6 +27,12 @@
     <DebugType>embedded</DebugType>
     <ContinuousIntegrationBuild Condition="'$(ContinuousIntegrationBuild)' == ''">$(CI)</ContinuousIntegrationBuild>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+
 
   <PropertyGroup Condition="'$(IsPackable)' != 'false' and '$(OutputType)' == 'Library'">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

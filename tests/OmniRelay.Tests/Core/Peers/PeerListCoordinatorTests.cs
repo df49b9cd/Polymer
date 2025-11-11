@@ -14,11 +14,10 @@ public sealed class PeerListCoordinatorTests
     [Fact]
     public async Task AcquireAsync_AllPeersBusyWithoutDeadline_ReturnsResourceExhausted()
     {
-        using var coordinator = new PeerListCoordinator(new IPeer[]
-        {
+        using var coordinator = new PeerListCoordinator([
             new TestPeer("peer-1", PeerState.Available, maxConcurrency: 0),
             new TestPeer("peer-2", PeerState.Available, maxConcurrency: 0)
-        });
+        ]);
 
         var meta = new RequestMeta(service: "svc");
 
@@ -31,10 +30,9 @@ public sealed class PeerListCoordinatorTests
     [Fact]
     public async Task AcquireAsync_NoAvailabilityBeforeDeadline_ReturnsDeadlineExceeded()
     {
-        using var coordinator = new PeerListCoordinator(new IPeer[]
-        {
+        using var coordinator = new PeerListCoordinator([
             new TestPeer("peer-1", PeerState.Unavailable)
-        });
+        ]);
 
         var meta = new RequestMeta(service: "svc", deadline: DateTimeOffset.UtcNow.AddMilliseconds(-1));
 

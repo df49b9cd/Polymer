@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Hugo;
 
 namespace OmniRelay.Core.Peers;
@@ -25,6 +22,16 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
     }
 
     public TwoRandomPeerChooser(IEnumerable<IPeer> peers, Random? random = null, PeerLeaseHealthTracker? leaseHealthTracker = null)
+        : this(peers, random, (IPeerHealthSnapshotProvider?)leaseHealthTracker)
+    {
+    }
+
+    public TwoRandomPeerChooser(IEnumerable<IPeer> peers, IPeerHealthSnapshotProvider? leaseHealthProvider)
+        : this(peers, random: null, leaseHealthProvider)
+    {
+    }
+
+    public TwoRandomPeerChooser(IEnumerable<IPeer> peers, Random? random, IPeerHealthSnapshotProvider? leaseHealthProvider)
     {
         ArgumentNullException.ThrowIfNull(peers);
         var snapshot = peers.ToList();
@@ -33,7 +40,7 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
             throw new ArgumentException("At least one peer must be provided.", nameof(peers));
         }
 
-        _coordinator = new PeerListCoordinator(snapshot, leaseHealthTracker);
+        _coordinator = new PeerListCoordinator(snapshot, leaseHealthProvider);
         _random = random ?? Random.Shared;
     }
 

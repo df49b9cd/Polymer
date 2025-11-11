@@ -1,13 +1,7 @@
-using System.Diagnostics.Metrics;
-using System.Net.Http;
-using Microsoft.AspNetCore.Builder;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OmniRelay.Configuration;
 using OmniRelay.Dispatcher;
@@ -18,8 +12,10 @@ using OpenTelemetry.Trace;
 
 namespace OmniRelay.Samples.ObservabilityCli;
 
-public static class Program
+internal static class Program
 {
+    [RequiresDynamicCode("Configures ASP.NET Core and OpenTelemetry features that rely on reflection.")]
+    [RequiresUnreferencedCode("Configures ASP.NET Core and OpenTelemetry features that rely on reflection.")]
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -56,11 +52,9 @@ public static class Program
 
         var app = builder.Build();
 
-        app.MapGet("/", (PlaygroundState state) => Results.Json(new
-        {
-            state.ServiceName,
-            state.LastScriptStatus
-        }));
+        app.MapGet("/", (PlaygroundState state) => TypedResults.Json(
+            new PlaygroundSummary(state.ServiceName, PlaygroundState.LastScriptStatus),
+            ObservabilityCliJsonContext.Default.PlaygroundSummary));
 
         app.MapHealthChecks("/healthz", new HealthCheckOptions
         {
@@ -72,26 +66,25 @@ public static class Program
             }
         });
 
-        app.MapGet("/readyz", (PlaygroundState state) =>
-        {
-            return state.Ready
-                ? Results.Ok(new { status = "ready", since = state.ReadySince })
-                : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
-        });
+        app.MapGet("/readyz", (PlaygroundState _) => PlaygroundState.Ready
+            ? TypedResults.Json(
+                new ReadyStatus(PlaygroundState.ReadySince),
+                ObservabilityCliJsonContext.Default.ReadyStatus)
+            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
 
         app.MapPrometheusScrapingEndpoint("/metrics");
 
         await app.RunAsync().ConfigureAwait(false);
     }
 
+    [RequiresUnreferencedCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue<T>(String)")]
     private static void ConfigureOpenTelemetry(WebApplicationBuilder builder)
     {
         var resourceBuilder = ResourceBuilder.CreateDefault()
             .AddService(serviceName: builder.Configuration.GetValue<string>("omnirelay:service") ?? "observability-cli-playground")
-            .AddAttributes(new KeyValuePair<string, object>[]
-            {
-                new("deployment.environment", builder.Environment.EnvironmentName ?? "Unknown")
-            });
+            .AddAttributes([
+                new KeyValuePair<string, object>("deployment.environment", builder.Environment.EnvironmentName)
+            ]);
 
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
@@ -120,7 +113,7 @@ internal sealed class SampleInvocationService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Delay(options.Value.InitialDelay, stoppingToken).ConfigureAwait(false);
-        state.MarkReady();
+        PlaygroundState.MarkReady();
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -130,12 +123,12 @@ internal sealed class SampleInvocationService(
                 var response = await client.GetAsync(options.Value.IntrospectUrl, stoppingToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
                 var payload = await response.Content.ReadAsByteArrayAsync(stoppingToken).ConfigureAwait(false);
-                state.LastScriptStatus = $"introspect-ok bytes={payload.Length}";
+                PlaygroundState.LastScriptStatus = $"introspect-ok bytes={payload.Length}";
                 logger.LogInformation("Introspection script succeeded ({Bytes} bytes).", payload.Length);
             }
             catch (Exception ex)
             {
-                state.LastScriptStatus = $"introspect-failed: {ex.Message}";
+                PlaygroundState.LastScriptStatus = $"introspect-failed: {ex.Message}";
                 logger.LogWarning(ex, "Introspection script failed");
             }
 
@@ -158,7 +151,7 @@ internal sealed class ProbeHealth(PlaygroundState state) : IHealthCheck
 {
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
-        return state.Ready
+        return PlaygroundState.Ready
             ? Task.FromResult(HealthCheckResult.Healthy("ready"))
             : Task.FromResult(HealthCheckResult.Degraded("waiting for scripts"));
     }
@@ -166,52 +159,24 @@ internal sealed class ProbeHealth(PlaygroundState state) : IHealthCheck
 
 internal sealed record PlaygroundOptions
 {
-    public TimeSpan InitialDelay
-    {
-        get => field;
-        init => field = value;
-    } = TimeSpan.FromSeconds(3);
+    public TimeSpan InitialDelay { get; init; } = TimeSpan.FromSeconds(3);
 
-    public TimeSpan ScriptInterval
-    {
-        get => field;
-        init => field = value;
-    } = TimeSpan.FromSeconds(15);
+    public TimeSpan ScriptInterval { get; init; } = TimeSpan.FromSeconds(15);
 
-    public string IntrospectUrl
-    {
-        get => field;
-        init => field = value;
-    } = "http://127.0.0.1:7130/omnirelay/introspect";
+    public string IntrospectUrl { get; init; } = "http://127.0.0.1:7130/omnirelay/introspect";
 }
 
 internal sealed class PlaygroundState
 {
-    public string ServiceName
-    {
-        get => field;
-        set => field = value;
-    } = "observability-cli-playground";
+    public string ServiceName { get; set; } = "observability-cli-playground";
 
-    public string? LastScriptStatus
-    {
-        get => field;
-        set => field = value;
-    }
+    public static string? LastScriptStatus { get; set; }
 
-    public bool Ready
-    {
-        get => field;
-        private set => field = value;
-    }
+    public static bool Ready { get; private set; }
 
-    public DateTimeOffset? ReadySince
-    {
-        get => field;
-        private set => field = value;
-    }
+    public static DateTimeOffset? ReadySince { get; private set; }
 
-    public void MarkReady()
+    public static void MarkReady()
     {
         if (!Ready)
         {
@@ -220,9 +185,20 @@ internal sealed class PlaygroundState
         }
     }
 
-    public void Reset()
+    public static void Reset()
     {
         Ready = false;
         ReadySince = null;
     }
 }
+
+internal sealed record PlaygroundSummary(string ServiceName, string? LastScriptStatus);
+
+internal sealed record ReadyStatus(DateTimeOffset? Since);
+
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Serialization,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(PlaygroundSummary))]
+[JsonSerializable(typeof(ReadyStatus))]
+internal partial class ObservabilityCliJsonContext : JsonSerializerContext;

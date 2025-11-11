@@ -15,9 +15,9 @@ using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests;
 using OmniRelay.Tests.Protos;
+using OmniRelay.TestSupport;
 using Xunit;
 
 namespace OmniRelay.CodeGen.IntegrationTests;
@@ -453,25 +453,13 @@ public class CodegenWorkflowIntegrationTests
 
     private sealed class LoopbackTestService : TestServiceOmniRelay.ITestService
     {
-        public ConcurrentQueue<RequestMeta> UnaryMetas
-        {
-            get => field;
-        } = new();
+        public ConcurrentQueue<RequestMeta> UnaryMetas { get; } = new();
 
-        public ConcurrentQueue<RequestMeta> ServerStreamMetas
-        {
-            get => field;
-        } = new();
+        public ConcurrentQueue<RequestMeta> ServerStreamMetas { get; } = new();
 
-        public ConcurrentQueue<RequestMeta> ClientStreamMetas
-        {
-            get => field;
-        } = new();
+        public ConcurrentQueue<RequestMeta> ClientStreamMetas { get; } = new();
 
-        public ConcurrentQueue<RequestMeta> DuplexStreamMetas
-        {
-            get => field;
-        } = new();
+        public ConcurrentQueue<RequestMeta> DuplexStreamMetas { get; } = new();
 
         public ValueTask<Response<UnaryResponse>> UnaryCallAsync(Request<UnaryRequest> request, CancellationToken cancellationToken)
         {

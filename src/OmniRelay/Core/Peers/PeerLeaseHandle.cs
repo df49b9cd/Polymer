@@ -14,21 +14,9 @@ public readonly record struct PeerLeaseHandle(long SequenceId, int Attempt, Guid
     /// <summary>Convert the handle back into a SafeTaskQueue ownership token.</summary>
     public TaskQueueOwnershipToken ToToken() => new(SequenceId, Attempt, LeaseId);
 
-    public long SequenceId
-    {
-        get => field;
-        init => field = value;
-    } = SequenceId;
+    public long SequenceId { get; init; } = SequenceId;
 
-    public int Attempt
-    {
-        get => field;
-        init => field = value;
-    } = Attempt;
+    public int Attempt { get; init; } = Attempt;
 
-    public Guid LeaseId
-    {
-        get => field;
-        init => field = value;
-    } = LeaseId;
+    public Guid LeaseId { get; init; } = LeaseId;
 }

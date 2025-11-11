@@ -8,23 +8,11 @@ namespace OmniRelay.Transport.Grpc;
 /// </summary>
 public sealed record GrpcCompressionOptions
 {
-    public IReadOnlyList<ICompressionProvider> Providers
-    {
-        get => field;
-        init => field = value;
-    } = [];
+    public IReadOnlyList<ICompressionProvider> Providers { get; init; } = [];
 
-    public string? DefaultAlgorithm
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? DefaultAlgorithm { get; init; }
 
-    public CompressionLevel? DefaultCompressionLevel
-    {
-        get => field;
-        init => field = value;
-    }
+    public CompressionLevel? DefaultCompressionLevel { get; init; }
 
     /// <summary>
     /// Validates that the configured default algorithm has a corresponding registered provider.

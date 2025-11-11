@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Threading;
 using Hugo;
 using Hugo.Policies;
 using OmniRelay.Core;
@@ -22,7 +19,6 @@ namespace OmniRelay.Dispatcher;
 /// </summary>
 public sealed class Dispatcher
 {
-    private readonly string _serviceName;
     private readonly ProcedureRegistry _procedures = new();
     private readonly ImmutableArray<DispatcherOptions.DispatcherLifecycleComponent> _lifecycleDescriptors;
     private readonly ImmutableArray<DispatcherOptions.DispatcherLifecycleComponent> _lifecycleStartOrder;
@@ -52,7 +48,7 @@ public sealed class Dispatcher
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        _serviceName = options.ServiceName;
+        ServiceName = options.ServiceName;
         _lifecycleDescriptors = [.. options.ComponentDescriptors];
         _lifecycleStartOrder = [.. options.UniqueComponents];
         _outbounds = BuildOutboundCollections(options.OutboundBuilders);
@@ -69,7 +65,7 @@ public sealed class Dispatcher
         _outboundDuplexMiddleware = [.. options.DuplexOutboundMiddleware];
         _startRetryPolicy = options.StartRetryPolicy;
         _stopRetryPolicy = options.StopRetryPolicy;
-        Codecs = new CodecRegistry(_serviceName, options.CodecRegistrations);
+        Codecs = new CodecRegistry(ServiceName, options.CodecRegistrations);
 
         BindDispatcherAwareComponents(_lifecycleDescriptors);
         _httpOutboundMiddlewareRegistry = options.HttpOutboundMiddleware.Build();
@@ -79,7 +75,7 @@ public sealed class Dispatcher
     }
 
     /// <summary>Gets the service name this dispatcher serves.</summary>
-    public string ServiceName => _serviceName;
+    public string ServiceName { get; }
 
     /// <summary>Gets the current lifecycle status.</summary>
     public DispatcherStatus Status
@@ -114,10 +110,10 @@ public sealed class Dispatcher
     {
         ArgumentNullException.ThrowIfNull(spec);
 
-        if (!string.Equals(spec.Service, _serviceName, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(spec.Service, ServiceName, StringComparison.OrdinalIgnoreCase))
         {
             return Err<Unit>(CreateDispatcherError(
-                $"Procedure '{spec.FullName}' does not match dispatcher service '{_serviceName}'.",
+                $"Procedure '{spec.FullName}' does not match dispatcher service '{ServiceName}'.",
                 OmniRelayStatusCode.InvalidArgument));
         }
 
@@ -141,7 +137,7 @@ public sealed class Dispatcher
 
         var builder = new UnaryProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -153,7 +149,7 @@ public sealed class Dispatcher
 
         var builder = new UnaryProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -165,7 +161,7 @@ public sealed class Dispatcher
 
         var builder = new OnewayProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -177,7 +173,7 @@ public sealed class Dispatcher
 
         var builder = new OnewayProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -189,7 +185,7 @@ public sealed class Dispatcher
 
         var builder = new StreamProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -201,7 +197,7 @@ public sealed class Dispatcher
 
         var builder = new StreamProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -213,7 +209,7 @@ public sealed class Dispatcher
 
         var builder = new ClientStreamProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -225,7 +221,7 @@ public sealed class Dispatcher
 
         var builder = new ClientStreamProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -237,7 +233,7 @@ public sealed class Dispatcher
 
         var builder = new DuplexProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>
@@ -249,12 +245,12 @@ public sealed class Dispatcher
 
         var builder = new DuplexProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(_serviceName, trimmed));
+        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
     }
 
     /// <summary>Attempts to get a procedure by name and kind.</summary>
     public bool TryGetProcedure(string name, ProcedureKind kind, out ProcedureSpec spec) =>
-        _procedures.TryGet(_serviceName, name, kind, out spec);
+        _procedures.TryGet(ServiceName, name, kind, out spec);
 
     /// <summary>Returns a snapshot of all registered procedures.</summary>
     public IReadOnlyCollection<ProcedureSpec> ListProcedures() =>
@@ -314,7 +310,7 @@ public sealed class Dispatcher
 
         if (!_outbounds.TryGetValue(service, out var collection))
         {
-            if (string.Equals(service, _serviceName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(service, ServiceName, StringComparison.OrdinalIgnoreCase))
             {
                 collection = new OutboundCollection(
                     service,
@@ -363,7 +359,7 @@ public sealed class Dispatcher
                 procedure,
                 ProcedureKind.Stream,
                 transport,
-                $"Stream procedure '{procedure}' is not registered for service '{_serviceName}'.")
+                $"Stream procedure '{procedure}' is not registered for service '{ServiceName}'.")
             .Map(spec => MiddlewareComposer.ComposeStreamInbound(
                 CombineMiddleware(_inboundStreamMiddleware, spec.Middleware),
                 spec.Handler))
@@ -391,7 +387,7 @@ public sealed class Dispatcher
                 procedure,
                 ProcedureKind.Duplex,
                 transport,
-                $"Duplex stream procedure '{procedure}' is not registered for service '{_serviceName}'.")
+                $"Duplex stream procedure '{procedure}' is not registered for service '{ServiceName}'.")
             .Map(spec => MiddlewareComposer.ComposeDuplexInbound(
                 CombineMiddleware(_inboundDuplexMiddleware, spec.Middleware),
                 spec.Handler))
@@ -421,7 +417,7 @@ public sealed class Dispatcher
                 procedure,
                 ProcedureKind.ClientStream,
                 transport,
-                $"Client stream procedure '{procedure}' is not registered for service '{_serviceName}'.")
+                $"Client stream procedure '{procedure}' is not registered for service '{ServiceName}'.")
             .Map(spec =>
             {
                 var call = ClientStreamCall.Create(requestMeta);
@@ -505,7 +501,7 @@ public sealed class Dispatcher
                     {
                         var aggregate = AggregateErrors(
                             "Dispatcher start failed and rollback reported additional errors.",
-                            new[] { startError, rollbackResult.Error! });
+                            [startError, rollbackResult.Error!]);
                         return Err<Unit>(aggregate);
                     }
 
@@ -673,7 +669,7 @@ public sealed class Dispatcher
             [.. _outboundDuplexMiddleware.Select(static m => m.GetType().FullName ?? m.GetType().Name)]);
 
         return new DispatcherIntrospection(
-            _serviceName,
+            ServiceName,
             Status,
             procedures,
             components,
@@ -710,13 +706,13 @@ public sealed class Dispatcher
         string? missingMessage = null)
         where TProcedure : ProcedureSpec
     {
-        if (_procedures.TryGet(_serviceName, procedure, kind, out var spec) &&
+        if (_procedures.TryGet(ServiceName, procedure, kind, out var spec) &&
             spec is TProcedure typed)
         {
             return Ok(typed);
         }
 
-        var message = missingMessage ?? $"{kind} procedure '{procedure}' is not registered for service '{_serviceName}'.";
+        var message = missingMessage ?? $"{kind} procedure '{procedure}' is not registered for service '{ServiceName}'.";
         var error = OmniRelayErrorAdapter.FromStatus(
             OmniRelayStatusCode.Unimplemented,
             message,

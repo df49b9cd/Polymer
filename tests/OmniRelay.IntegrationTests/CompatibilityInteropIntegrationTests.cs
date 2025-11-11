@@ -9,10 +9,11 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Hugo;
 using Google.Protobuf;
+using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -22,8 +23,8 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using OmniRelay.YabInterop.Protos;
@@ -64,7 +65,7 @@ public sealed class CompatibilityInteropIntegrationTests
                 protocolCapture.TrySetResult(request.Meta.Headers.TryGetValue(HttpTransportHeaders.Protocol, out var protocol) ? protocol : "missing");
                 callerCapture.TrySetResult(request.Meta.Caller);
 
-                var responseBytes = Encoding.UTF8.GetBytes("{\"message\":\"interop\"}");
+                var responseBytes = "{\"message\":\"interop\"}"u8.ToArray();
                 var meta = new ResponseMeta(encoding: MediaTypeNames.Application.Json);
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(responseBytes, meta)));
             });
@@ -203,7 +204,7 @@ public sealed class CompatibilityInteropIntegrationTests
             (request, _) =>
             {
                 protocolCapture.TrySetResult(request.Meta.Headers.TryGetValue(HttpTransportHeaders.Protocol, out var protocol) ? protocol : "missing");
-                var responseBytes = Encoding.UTF8.GetBytes("{\"message\":\"curl-http3\"}");
+                var responseBytes = "{\"message\":\"curl-http3\"}"u8.ToArray();
                 var meta = new ResponseMeta(encoding: MediaTypeNames.Application.Json);
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(responseBytes, meta)));
             },
@@ -271,7 +272,7 @@ public sealed class CompatibilityInteropIntegrationTests
                 protocolCapture.TrySetResult(request.Meta.Headers.TryGetValue(HttpTransportHeaders.Protocol, out var protocol) ? protocol : "missing");
                 callerCapture.TrySetResult(request.Meta.Caller);
 
-                var body = Encoding.UTF8.GetBytes("{\"message\":\"proxy-ok\"}");
+                var body = "{\"message\":\"proxy-ok\"}"u8.ToArray();
                 var meta = new ResponseMeta(encoding: MediaTypeNames.Application.Json);
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(body, meta)));
             });
@@ -379,7 +380,7 @@ public sealed class CompatibilityInteropIntegrationTests
             {
                 protocolCapture.TrySetResult(request.Meta.Headers.TryGetValue(HttpTransportHeaders.Protocol, out var protocol) ? protocol : "missing");
                 callerCapture.TrySetResult(request.Meta.Caller);
-                var body = Encoding.UTF8.GetBytes("{\"message\":\"envoy-ok\"}");
+                var body = "{\"message\":\"envoy-ok\"}"u8.ToArray();
                 var meta = new ResponseMeta(encoding: MediaTypeNames.Application.Json);
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(body, meta)));
             });
@@ -387,7 +388,7 @@ public sealed class CompatibilityInteropIntegrationTests
         await backendDispatcher.StartOrThrowAsync(ct);
 
         using var configDir = new TempDirectory();
-        var configPath = configDir.Resolve("envoy.yaml");
+        var configPath = TempDirectory.Resolve("envoy.yaml");
         await File.WriteAllTextAsync(configPath, BuildEnvoyConfig(backendPort), Encoding.UTF8, ct);
 
         var proxyPort = TestPortAllocator.GetRandomPort();
@@ -396,7 +397,7 @@ public sealed class CompatibilityInteropIntegrationTests
             [
                 "run",
                 "--rm",
-                "-v", $"{configDir.Path}:/etc/envoy",
+                "-v", $"{TempDirectory.Path}:/etc/envoy",
                 "-p", $"{proxyPort}:10000",
                 envoyImage,
                 "-c", "/etc/envoy/envoy.yaml"
@@ -468,11 +469,14 @@ public sealed class CompatibilityInteropIntegrationTests
         frontOptions.AddTeeUnaryOutbound("rolling-upgrade", null, primaryOutbound, shadowOutbound, teeOptions);
 
         var frontDispatcher = new OmniRelay.Dispatcher.Dispatcher(frontOptions);
-        var serializerOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         var upstreamClient = frontDispatcher.CreateJsonClient<ShadowPingRequest, ShadowPingResponse>(
             "rolling-upgrade",
             "shadow::check",
-            builder => builder.SerializerOptions = serializerOptions);
+            builder =>
+            {
+                builder.Encoding = MediaTypeNames.Application.Json;
+                builder.SerializerContext = CompatibilityInteropJsonContext.Default;
+            });
 
         frontDispatcher.RegisterJsonUnary<ShadowPingRequest, ShadowPingResponse>(
             "rolling::ping",
@@ -497,7 +501,11 @@ public sealed class CompatibilityInteropIntegrationTests
 
                 return Response<ShadowPingResponse>.Create(upstream.Value.Body, upstream.Value.Meta);
             },
-            builder => builder.SerializerOptions = serializerOptions);
+            builder =>
+            {
+                builder.Encoding = MediaTypeNames.Application.Json;
+                builder.SerializerContext = CompatibilityInteropJsonContext.Default;
+            });
 
         await frontDispatcher.StartOrThrowAsync(ct);
 
@@ -513,9 +521,11 @@ public sealed class CompatibilityInteropIntegrationTests
 
             var response = await client.SendAsync(request, ct);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var payload = await response.Content.ReadAsStringAsync(ct);
-            using var json = JsonDocument.Parse(payload);
-            Assert.Equal("primary", json.RootElement.GetProperty("cluster").GetString());
+            var payload = await response.Content.ReadAsByteArrayAsync(ct);
+            var responseBody = JsonSerializer.Deserialize(
+                payload,
+                CompatibilityInteropJsonContext.Default.ShadowPingResponse);
+            Assert.Equal("primary", responseBody?.Cluster);
 
             var shadowMeta = await shadowCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
             Assert.Equal("beta-canary", shadowMeta.Headers["x-shadow-route"]);
@@ -736,15 +746,14 @@ public sealed class CompatibilityInteropIntegrationTests
 internal sealed class CapturingUnaryOutbound : IUnaryOutbound
 {
     private readonly string _clusterLabel;
-    private readonly TaskCompletionSource<RequestMeta> _capture;
 
     public CapturingUnaryOutbound(string clusterLabel, TaskCompletionSource<RequestMeta> capture)
     {
         _clusterLabel = clusterLabel;
-        _capture = capture;
+        Capture = capture;
     }
 
-    public TaskCompletionSource<RequestMeta> Capture => _capture;
+    public TaskCompletionSource<RequestMeta> Capture { get; }
 
     public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
@@ -754,14 +763,14 @@ internal sealed class CapturingUnaryOutbound : IUnaryOutbound
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken = default)
     {
-        _capture.TrySetResult(request.Meta);
+        Capture.TrySetResult(request.Meta);
         var shadowHeader = request.Meta.Headers.TryGetValue("x-shadow-route", out var header)
             ? header
             : "absent";
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ShadowPingResponse(_clusterLabel, shadowHeader),
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            CompatibilityInteropJsonContext.Default.ShadowPingResponse);
 
         var meta = new ResponseMeta(encoding: MediaTypeNames.Application.Json);
         return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, meta)));
@@ -771,3 +780,10 @@ internal sealed class CapturingUnaryOutbound : IUnaryOutbound
 internal sealed record ShadowPingRequest(string Phase);
 
 internal sealed record ShadowPingResponse(string Cluster, string ShadowFlag);
+
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Metadata,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(ShadowPingRequest))]
+[JsonSerializable(typeof(ShadowPingResponse))]
+internal partial class CompatibilityInteropJsonContext : JsonSerializerContext;

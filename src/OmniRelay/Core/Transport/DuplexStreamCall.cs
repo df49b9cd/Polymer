@@ -12,9 +12,6 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
 {
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
-    private readonly ChannelWriter<ReadOnlyMemory<byte>> _requestWriter;
-    private readonly ChannelWriter<ReadOnlyMemory<byte>> _responseWriter;
-    private readonly DuplexStreamCallContext _context;
     private bool _requestsCompleted;
     private bool _responsesCompleted;
 
@@ -22,7 +19,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
     {
         RequestMeta = requestMeta ?? throw new ArgumentNullException(nameof(requestMeta));
         ResponseMeta = responseMeta ?? new ResponseMeta();
-        _context = new DuplexStreamCallContext();
+        Context = new DuplexStreamCallContext();
 
         _requests = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
@@ -31,9 +28,9 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             AllowSynchronousContinuations = false
         });
 
-        _requestWriter = new CountingChannelWriter(
+        RequestWriter = new CountingChannelWriter(
             _requests.Writer,
-            () => _context.IncrementRequestMessageCount());
+            () => Context.IncrementRequestMessageCount());
 
         _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
@@ -42,9 +39,9 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             AllowSynchronousContinuations = false
         });
 
-        _responseWriter = new CountingChannelWriter(
+        ResponseWriter = new CountingChannelWriter(
             _responses.Writer,
-            () => _context.IncrementResponseMessageCount());
+            () => Context.IncrementResponseMessageCount());
     }
 
     /// <summary>
@@ -60,16 +57,16 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
     public ResponseMeta ResponseMeta { get; private set; }
 
     /// <inheritdoc />
-    public DuplexStreamCallContext Context => _context;
+    public DuplexStreamCallContext Context { get; }
 
     /// <inheritdoc />
-    public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _requestWriter;
+    public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter { get; }
 
     /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _requests.Reader;
 
     /// <inheritdoc />
-    public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _responseWriter;
+    public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter { get; }
 
     /// <inheritdoc />
     public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _responses.Reader;
@@ -88,7 +85,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         _requestsCompleted = true;
         TryCompleteChannel(_requests.Writer, error, RequestMeta.Transport);
         var status = ResolveCompletionStatus(error);
-        _context.TrySetRequestCompletion(status, error);
+        Context.TrySetRequestCompletion(status, error);
         return ValueTask.CompletedTask;
     }
 
@@ -103,7 +100,7 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         _responsesCompleted = true;
         TryCompleteChannel(_responses.Writer, error, RequestMeta.Transport);
         var status = ResolveCompletionStatus(error);
-        _context.TrySetResponseCompletion(status, error);
+        Context.TrySetResponseCompletion(status, error);
         return ValueTask.CompletedTask;
     }
 
@@ -112,8 +109,8 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
     {
         _requests.Writer.TryComplete();
         _responses.Writer.TryComplete();
-        _context.TrySetRequestCompletion(StreamCompletionStatus.Cancelled);
-        _context.TrySetResponseCompletion(StreamCompletionStatus.Cancelled);
+        Context.TrySetRequestCompletion(StreamCompletionStatus.Cancelled);
+        Context.TrySetResponseCompletion(StreamCompletionStatus.Cancelled);
         return ValueTask.CompletedTask;
     }
 

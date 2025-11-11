@@ -1,22 +1,23 @@
 <Solution>
   <Folder Name="/samples/">
-    <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
-    <Project Path="samples/MinimalApiBridge/MinimalApiBridge.csproj" />
-    <Project Path="samples/StreamingAnalytics.Lab/StreamingAnalytics.Lab.csproj" />
-    <Project Path="samples/ConfigToProd.Template/ConfigToProd.Template.csproj" />
-    <Project Path="samples/CodegenTee.Rollout/CodegenTee.Rollout.csproj" />
-    <Project Path="samples/Observability.CliPlayground/Observability.CliPlayground.csproj" />
-    <Project Path="samples/MultiTenant.Gateway/MultiTenant.Gateway.csproj" />
-    <Project Path="samples/HybridRunner/HybridRunner.csproj" />
     <Project Path="samples/ChaosFailover.Lab/ChaosFailover.Lab.csproj" />
-    <Project Path="samples\Configuration.Server\Configuration.Server.csproj" Type="Classic C#" />
-    <Project Path="samples\Shadowing.Server\Shadowing.Server.csproj" Type="Classic C#" />
+    <Project Path="samples/CodegenTee.Rollout/CodegenTee.Rollout.csproj" />
+    <Project Path="samples/ConfigToProd.Template/ConfigToProd.Template.csproj" />
+    <Project Path="samples/HybridRunner/HybridRunner.csproj" />
+    <Project Path="samples/MinimalApiBridge/MinimalApiBridge.csproj" />
+    <Project Path="samples/MultiTenant.Gateway/MultiTenant.Gateway.csproj" />
+    <Project Path="samples/Observability.CliPlayground/Observability.CliPlayground.csproj" />
+    <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
+    <Project Path="samples/ResourceLease.MeshDemo/ResourceLease.MeshDemo.csproj" />
+    <Project Path="samples/StreamingAnalytics.Lab/StreamingAnalytics.Lab.csproj" />
+    <Project Path="samples\Configuration.Server\Configuration.Server.csproj" Type="C#" />
+    <Project Path="samples\Shadowing.Server\Shadowing.Server.csproj" Type="C#" />
   </Folder>
   <Folder Name="/samples/DistributedDemo/">
-    <Project Path="samples\DistributedDemo\Audit\Audit.Service.csproj" Type="Classic C#" />
-    <Project Path="samples\DistributedDemo\Gateway\Gateway.csproj" Type="Classic C#" />
-    <Project Path="samples\DistributedDemo\Inventory\Inventory.Service.csproj" Type="Classic C#" />
-    <Project Path="samples\DistributedDemo\Shared\DistributedDemo.Shared.csproj" Type="Classic C#" />
+    <Project Path="samples\DistributedDemo\Audit\Audit.Service.csproj" Type="C#" />
+    <Project Path="samples\DistributedDemo\Gateway\Gateway.csproj" Type="C#" />
+    <Project Path="samples\DistributedDemo\Inventory\Inventory.Service.csproj" Type="C#" />
+    <Project Path="samples\DistributedDemo\Shared\DistributedDemo.Shared.csproj" Type="C#" />
   </Folder>
   <Folder Name="/SolutionFolder/">
     <File Path="LICENSE" />
@@ -32,16 +33,20 @@
     <Project Path="src/OmniRelay.Codegen.Protobuf.Generator/OmniRelay.Codegen.Protobuf.Generator.csproj" />
     <Project Path="src/OmniRelay.Codegen.Protobuf/OmniRelay.Codegen.Protobuf.csproj" />
     <Project Path="src/OmniRelay.Configuration/OmniRelay.Configuration.csproj" />
+    <Project Path="src/OmniRelay.ResourceLeaseReplicator.Grpc/OmniRelay.ResourceLeaseReplicator.Grpc.csproj" />
+    <Project Path="src/OmniRelay.ResourceLeaseReplicator.ObjectStorage/OmniRelay.ResourceLeaseReplicator.ObjectStorage.csproj" />
+    <Project Path="src/OmniRelay.ResourceLeaseReplicator.Sqlite/OmniRelay.ResourceLeaseReplicator.Sqlite.csproj" />
     <Project Path="src/OmniRelay/OmniRelay.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj" />
+    <Project Path="tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj" />
+    <Project Path="tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample/ProtobufIncrementalSample.csproj" />
     <Project Path="tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj" />
-    <Project Path="tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj" />
     <Project Path="tests/OmniRelay.Tests/OmniRelay.Tests.csproj" />
-    <Project Path="tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj" />
-    <Project Path="tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample/ProtobufIncrementalSample.csproj" />
     <Project Path="tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj" />
+    <File Path="tests\Directory.Build.props" />
   </Folder>
 </Solution>

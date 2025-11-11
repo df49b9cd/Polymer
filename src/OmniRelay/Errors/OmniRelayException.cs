@@ -28,13 +28,13 @@ public sealed class OmniRelayException : Exception
     }
 
     /// <summary>Gets the normalized status code.</summary>
-    public OmniRelayStatusCode StatusCode => field;
+    public OmniRelayStatusCode StatusCode { get; }
 
     /// <summary>Gets the normalized Hugo <c>Error</c> value.</summary>
-    public Error Error => field;
+    public Error Error { get; }
 
     /// <summary>Gets the transport name, if known.</summary>
-    public string? Transport => field;
+    public string? Transport { get; }
 
     private static Error? NormalizeError(Error? error, OmniRelayStatusCode statusCode, string? transport)
     {
@@ -66,4 +66,16 @@ public sealed class OmniRelayException : Exception
 
     private static string? TryReadTransport(Error error) =>
         error.TryGetMetadata(OmniRelayErrorAdapter.TransportMetadataKey, out string? value) ? value : null;
+
+    public OmniRelayException()
+    {
+    }
+
+    public OmniRelayException(string message) : base(message)
+    {
+    }
+
+    public OmniRelayException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
 }

@@ -33,6 +33,10 @@ Quick links to reference topics under `docs/reference/`.
   - `concurrency-primitives.md` — Hugo primitives overview.
   - `deterministic-coordination.md` — guidance for deterministic flows.
   - `result-pipelines.md` — composing results and error flows.
+- ResourceLease mesh
+  - `distributed-task-leasing.md` — end-to-end ResourceLease component reference (contracts, replicators, sharding).
+  - `../architecture/omnirelay-rpc-mesh.md` — architecture/deployment guide plus health/backpressure/failure drills.
+  - `diagnostics.md#resourcelease-mesh-instruments` — metrics emitted by ResourceLease queues, peers, and replicators.
 - Code generation
   - `codegen/protobuf.md` — protoc plugin and generator usage.
 - API reference

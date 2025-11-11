@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Health.V1;
@@ -24,15 +25,15 @@ using OmniRelay.Core;
 using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
-using OmniRelay.Tests.Support;
 using OmniRelay.Errors;
+using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 using static Hugo.Go;
 
 namespace OmniRelay.Tests.Transport;
 
-public class GrpcTransportTests
+public partial class GrpcTransportTests
 {
     static GrpcTransportTests()
     {
@@ -363,7 +364,7 @@ public class GrpcTransportTests
         catch (RpcException)
         {
         }
-        catch (Exception) when (true)
+        catch (Exception)
         {
         }
     }
@@ -1821,9 +1822,8 @@ public class GrpcTransportTests
             await callCts.CancelAsync();
 
             await using var enumerator = session.ReadResponsesAsync(ct).GetAsyncEnumerator(ct);
-            var moveNextTask = enumerator.MoveNextAsync().AsTask();
-            await moveNextTask.WaitAsync(TimeSpan.FromSeconds(10), ct);
-            Assert.True(moveNextTask.Result);
+            var hasItem = await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.True(hasItem);
             Assert.True(enumerator.Current.IsFailure);
             Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!));
         }
@@ -2230,7 +2230,9 @@ public class GrpcTransportTests
                 { EncodingHeaderKey, "application/json" }
             };
 
-            var payload = JsonSerializer.SerializeToUtf8Bytes(new EchoRequest("hello"));
+            var payload = JsonSerializer.SerializeToUtf8Bytes(
+                new EchoRequest("hello"),
+                GrpcTransportJsonContext.Default.EchoRequest);
             var call = channel.CreateCallInvoker().AsyncUnaryCall(method, null, new CallOptions(metadata, cancellationToken: ct), payload);
 
             var responseBytes = await call.ResponseAsync;
@@ -2368,14 +2370,8 @@ public class GrpcTransportTests
     [MemberData(nameof(FromStatusMappings))]
     public void GrpcStatusMapper_FromStatus_MapsExpected(StatusCode statusCode, OmniRelayStatusCode expected)
     {
-        var mapperType = typeof(GrpcOutbound).Assembly.GetType("OmniRelay.Transport.Grpc.GrpcStatusMapper", throwOnError: true)
-            ?? throw new InvalidOperationException("Unable to locate GrpcStatusMapper type.");
-        var method = mapperType.GetMethod("FromStatus", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("Unable to locate FromStatus method.");
-
         var status = new Status(statusCode, "detail");
-        var result = (OmniRelayStatusCode)method.Invoke(null, [status])!;
-
+        var result = GrpcStatusMapper.FromStatus(status);
         Assert.Equal(expected, result);
     }
 
@@ -2383,13 +2379,7 @@ public class GrpcTransportTests
     [MemberData(nameof(ToStatusMappings))]
     public void GrpcStatusMapper_ToStatus_MapsExpected(StatusCode expectedStatusCode, OmniRelayStatusCode polymerStatus)
     {
-        var mapperType = typeof(GrpcOutbound).Assembly.GetType("OmniRelay.Transport.Grpc.GrpcStatusMapper", throwOnError: true)
-            ?? throw new InvalidOperationException("Unable to locate GrpcStatusMapper type.");
-        var method = mapperType.GetMethod("ToStatus", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("Unable to locate ToStatus method.");
-
-        var status = (Status)method.Invoke(null, [polymerStatus, "detail"])!;
-
+        var status = GrpcStatusMapper.ToStatus(polymerStatus, "detail");
         Assert.Equal(expectedStatusCode, status.StatusCode);
     }
 
@@ -2644,23 +2634,11 @@ public class GrpcTransportTests
 
         internal sealed record LogEntry(string CategoryName, LogLevel LogLevel, string Message)
         {
-            public string CategoryName
-            {
-                get => field;
-                init => field = value;
-            } = CategoryName;
+            public string CategoryName { get; init; } = CategoryName;
 
-            public LogLevel LogLevel
-            {
-                get => field;
-                init => field = value;
-            } = LogLevel;
+            public LogLevel LogLevel { get; init; } = LogLevel;
 
-            public string Message
-            {
-                get => field;
-                init => field = value;
-            } = Message;
+            public string Message { get; init; } = Message;
         }
 
         private sealed class CaptureLogger(string categoryName, ConcurrentBag<LogEntry> entries) : ILogger
@@ -2727,7 +2705,6 @@ public class GrpcTransportTests
 
         throw new TimeoutException("The gRPC inbound failed to bind within the allotted time.");
     }
-
 
     private sealed class ServerTaskTracker : IAsyncDisposable
     {
@@ -2809,50 +2786,37 @@ public class GrpcTransportTests
         }
     }
 
-    private sealed record EchoRequest(string Message)
+    internal sealed record EchoRequest(string Message)
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
     }
 
-    private sealed record EchoResponse
+    internal sealed record EchoResponse
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = string.Empty;
+        public string Message { get; init; } = string.Empty;
     }
 
-    private sealed record AggregateChunk(int Amount)
+    internal sealed record AggregateChunk(int Amount)
     {
-        public int Amount
-        {
-            get => field;
-            init => field = value;
-        } = Amount;
+        public int Amount { get; init; } = Amount;
     }
 
-    private sealed record AggregateResponse(int TotalAmount)
+    internal sealed record AggregateResponse(int TotalAmount)
     {
-        public int TotalAmount
-        {
-            get => field;
-            init => field = value;
-        } = TotalAmount;
+        public int TotalAmount { get; init; } = TotalAmount;
     }
 
-    private sealed record ChatMessage(string Message)
+    internal sealed record ChatMessage(string Message)
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
     }
+
+    [JsonSourceGenerationOptions(
+        GenerationMode = JsonSourceGenerationMode.Metadata,
+        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+    [JsonSerializable(typeof(EchoRequest))]
+    [JsonSerializable(typeof(EchoResponse))]
+    private sealed partial class GrpcTransportJsonContext : JsonSerializerContext;
 
     private sealed class DummyCompressionProvider : ICompressionProvider
     {
@@ -2866,7 +2830,7 @@ public class GrpcTransportTests
             EncodingName = encodingName;
         }
 
-        public string EncodingName => field;
+        public string EncodingName { get; }
 
         public Stream CreateCompressionStream(Stream stream, CompressionLevel? compressionLevel) => stream;
 

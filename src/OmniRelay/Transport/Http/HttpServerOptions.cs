@@ -8,23 +8,11 @@ namespace OmniRelay.Transport.Http;
 /// </summary>
 public sealed class HttpServerTlsOptions
 {
-    public X509Certificate2? Certificate
-    {
-        get => field;
-        init => field = value;
-    }
+    public X509Certificate2? Certificate { get; init; }
 
-    public ClientCertificateMode ClientCertificateMode
-    {
-        get => field;
-        init => field = value;
-    } = ClientCertificateMode.NoCertificate;
+    public ClientCertificateMode ClientCertificateMode { get; init; } = ClientCertificateMode.NoCertificate;
 
-    public bool? CheckCertificateRevocation
-    {
-        get => field;
-        init => field = value;
-    }
+    public bool? CheckCertificateRevocation { get; init; }
 }
 
 /// <summary>
@@ -32,77 +20,29 @@ public sealed class HttpServerTlsOptions
 /// </summary>
 public sealed class HttpServerRuntimeOptions
 {
-    public bool EnableHttp3
-    {
-        get => field;
-        set => field = value;
-    }
+    public bool EnableHttp3 { get; set; }
 
-    public long? MaxRequestBodySize
-    {
-        get => field;
-        set => field = value;
-    }
+    public long? MaxRequestBodySize { get; set; }
 
-    public long? MaxInMemoryDecodeBytes
-    {
-        get => field;
-        set => field = value;
-    }
+    public long? MaxInMemoryDecodeBytes { get; set; }
 
-    public int? MaxRequestLineSize
-    {
-        get => field;
-        set => field = value;
-    }
+    public int? MaxRequestLineSize { get; set; }
 
-    public int? MaxRequestHeadersTotalSize
-    {
-        get => field;
-        set => field = value;
-    }
+    public int? MaxRequestHeadersTotalSize { get; set; }
 
-    public TimeSpan? KeepAliveTimeout
-    {
-        get => field;
-        set => field = value;
-    }
+    public TimeSpan? KeepAliveTimeout { get; set; }
 
-    public TimeSpan? RequestHeadersTimeout
-    {
-        get => field;
-        set => field = value;
-    }
+    public TimeSpan? RequestHeadersTimeout { get; set; }
 
-    public TimeSpan? ServerStreamWriteTimeout
-    {
-        get => field;
-        set => field = value;
-    }
+    public TimeSpan? ServerStreamWriteTimeout { get; set; }
 
-    public TimeSpan? DuplexWriteTimeout
-    {
-        get => field;
-        set => field = value;
-    }
+    public TimeSpan? DuplexWriteTimeout { get; set; }
 
-    public int? ServerStreamMaxMessageBytes
-    {
-        get => field;
-        set => field = value;
-    }
+    public int? ServerStreamMaxMessageBytes { get; set; }
 
-    public int? DuplexMaxFrameBytes
-    {
-        get => field;
-        set => field = value;
-    }
+    public int? DuplexMaxFrameBytes { get; set; }
 
-    public Http3RuntimeOptions? Http3
-    {
-        get => field;
-        set => field = value;
-    }
+    public Http3RuntimeOptions? Http3 { get; set; }
 }
 
 /// <summary>
@@ -110,33 +50,13 @@ public sealed class HttpServerRuntimeOptions
 /// </summary>
 public sealed class Http3RuntimeOptions
 {
-    public bool? EnableAltSvc
-    {
-        get => field;
-        init => field = value;
-    }
+    public bool? EnableAltSvc { get; init; }
 
-    public TimeSpan? IdleTimeout
-    {
-        get => field;
-        init => field = value;
-    }
+    public TimeSpan? IdleTimeout { get; init; }
 
-    public TimeSpan? KeepAliveInterval
-    {
-        get => field;
-        init => field = value;
-    }
+    public TimeSpan? KeepAliveInterval { get; init; }
 
-    public int? MaxBidirectionalStreams
-    {
-        get => field;
-        init => field = value;
-    }
+    public int? MaxBidirectionalStreams { get; init; }
 
-    public int? MaxUnidirectionalStreams
-    {
-        get => field;
-        init => field = value;
-    }
+    public int? MaxUnidirectionalStreams { get; init; }
 }

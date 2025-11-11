@@ -3,7 +3,6 @@ using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Middleware;
-using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
@@ -13,7 +12,7 @@ using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 namespace OmniRelay.Samples.MultiTenant.Gateway;
 
-public static class Program
+internal static class Program
 {
     public static async Task Main(string[] args)
     {
@@ -49,14 +48,14 @@ public static class Program
 internal static class GatewayBootstrap
 {
     private static readonly TenantConfig[] Tenants =
-    {
+    [
         new("tenant-a", new Uri("http://localhost:7201")),
         new("tenant-b", new Uri("http://localhost:7202"))
-    };
+    ];
 
     public static GatewayRuntime Build()
     {
-        var httpInbound = new HttpInbound(new[] { "http://127.0.0.1:7210" });
+        var httpInbound = new HttpInbound(["http://127.0.0.1:7210"]);
         var options = new DispatcherOptions("samples.multi-tenant");
         options.AddLifecycle("http-inbound", httpInbound);
 
@@ -88,32 +87,16 @@ internal static class GatewayBootstrap
 
 internal sealed record TenantConfig(string TenantId, Uri Backend)
 {
-    public string TenantId
-    {
-        get => field;
-        init => field = value;
-    } = TenantId;
+    public string TenantId { get; init; } = TenantId;
 
-    public Uri Backend
-    {
-        get => field;
-        init => field = value;
-    } = Backend;
+    public Uri Backend { get; init; } = Backend;
 }
 
 internal sealed record GatewayRuntime(OmniRelayDispatcher Dispatcher, HttpInbound HttpInbound)
 {
-    public OmniRelayDispatcher Dispatcher
-    {
-        get => field;
-        init => field = value;
-    } = Dispatcher;
+    public OmniRelayDispatcher Dispatcher { get; init; } = Dispatcher;
 
-    public HttpInbound HttpInbound
-    {
-        get => field;
-        init => field = value;
-    } = HttpInbound;
+    public HttpInbound HttpInbound { get; init; } = HttpInbound;
 }
 
 internal static class TenantProcedures
@@ -219,24 +202,12 @@ internal sealed class TenantLoggingMiddleware : IUnaryInboundMiddleware
 
 internal sealed record OrderRequest(string Portfolio, decimal Notional)
 {
-    public string Portfolio
-    {
-        get => field;
-        init => field = value;
-    } = Portfolio;
+    public string Portfolio { get; init; } = Portfolio;
 
-    public decimal Notional
-    {
-        get => field;
-        init => field = value;
-    } = Notional;
+    public decimal Notional { get; init; } = Notional;
 }
 
 internal sealed record OrderResponse(string Status)
 {
-    public string Status
-    {
-        get => field;
-        init => field = value;
-    } = Status;
+    public string Status { get; init; } = Status;
 }

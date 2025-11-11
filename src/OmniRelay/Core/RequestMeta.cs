@@ -10,71 +10,27 @@ public sealed record RequestMeta
     private static readonly ImmutableDictionary<string, string> EmptyHeaders =
         ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    public string Service
-    {
-        get => field;
-        init => field = value;
-    } = string.Empty;
+    public string Service { get; init; } = string.Empty;
 
-    public string? Procedure
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? Procedure { get; init; }
 
-    public string? Caller
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? Caller { get; init; }
 
-    public string? Encoding
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? Encoding { get; init; }
 
-    public string? Transport
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? Transport { get; init; }
 
-    public string? ShardKey
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? ShardKey { get; init; }
 
-    public string? RoutingKey
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? RoutingKey { get; init; }
 
-    public string? RoutingDelegate
-    {
-        get => field;
-        init => field = value;
-    }
+    public string? RoutingDelegate { get; init; }
 
-    public TimeSpan? TimeToLive
-    {
-        get => field;
-        init => field = value;
-    }
+    public TimeSpan? TimeToLive { get; init; }
 
-    public DateTimeOffset? Deadline
-    {
-        get => field;
-        init => field = value;
-    }
+    public DateTimeOffset? Deadline { get; init; }
 
-    public ImmutableDictionary<string, string> Headers
-    {
-        get => field;
-        init => field = value;
-    } = EmptyHeaders;
+    public ImmutableDictionary<string, string> Headers { get; init; } = EmptyHeaders;
 
     public RequestMeta()
     {

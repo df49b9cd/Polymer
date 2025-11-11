@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Threading;
 using Hugo;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,41 +10,17 @@ namespace OmniRelay.Core.Transport;
 /// </summary>
 public sealed class TeeOptions
 {
-    public double SampleRate
-    {
-        get => field;
-        init => field = value;
-    } = 1.0;
+    public double SampleRate { get; init; } = 1.0;
 
-    public bool ShadowOnSuccessOnly
-    {
-        get => field;
-        init => field = value;
-    } = true;
+    public bool ShadowOnSuccessOnly { get; init; } = true;
 
-    public Func<RequestMeta, bool>? Predicate
-    {
-        get => field;
-        init => field = value;
-    }
+    public Func<RequestMeta, bool>? Predicate { get; init; }
 
-    public string ShadowHeaderName
-    {
-        get => field;
-        init => field = value;
-    } = "rpc-shadow";
+    public string ShadowHeaderName { get; init; } = "rpc-shadow";
 
-    public string ShadowHeaderValue
-    {
-        get => field;
-        init => field = value;
-    } = "true";
+    public string ShadowHeaderValue { get; init; } = "true";
 
-    public ILoggerFactory? LoggerFactory
-    {
-        get => field;
-        init => field = value;
-    }
+    public ILoggerFactory? LoggerFactory { get; init; }
 }
 
 public sealed record TeeOutboundDiagnostics(
@@ -56,41 +31,17 @@ public sealed record TeeOutboundDiagnostics(
     string ShadowHeaderName,
     string ShadowHeaderValue)
 {
-    public object? Primary
-    {
-        get => field;
-        init => field = value;
-    } = Primary;
+    public object? Primary { get; init; } = Primary;
 
-    public object? Shadow
-    {
-        get => field;
-        init => field = value;
-    } = Shadow;
+    public object? Shadow { get; init; } = Shadow;
 
-    public double SampleRate
-    {
-        get => field;
-        init => field = value;
-    } = SampleRate;
+    public double SampleRate { get; init; } = SampleRate;
 
-    public bool ShadowOnSuccessOnly
-    {
-        get => field;
-        init => field = value;
-    } = ShadowOnSuccessOnly;
+    public bool ShadowOnSuccessOnly { get; init; } = ShadowOnSuccessOnly;
 
-    public string ShadowHeaderName
-    {
-        get => field;
-        init => field = value;
-    } = ShadowHeaderName;
+    public string ShadowHeaderName { get; init; } = ShadowHeaderName;
 
-    public string ShadowHeaderValue
-    {
-        get => field;
-        init => field = value;
-    } = ShadowHeaderValue;
+    public string ShadowHeaderValue { get; init; } = ShadowHeaderValue;
 }
 
 /// <summary>

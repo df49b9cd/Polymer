@@ -10,22 +10,20 @@ namespace OmniRelay.IntegrationTests.Support;
 
 internal sealed class GeneratedTestService : TestServiceOmniRelay.ITestService
 {
-    private TaskCompletionSource<RequestMeta> _unaryMeta = NewProbe();
-    private TaskCompletionSource<RequestMeta> _serverStreamMeta = NewProbe();
-    private TaskCompletionSource<RequestMeta> _clientStreamMeta = NewProbe();
-    private TaskCompletionSource<RequestMeta> _duplexMeta = NewProbe();
+    public TaskCompletionSource<RequestMeta> UnaryMeta { get; private set; } = NewProbe();
 
-    public TaskCompletionSource<RequestMeta> UnaryMeta => _unaryMeta;
-    public TaskCompletionSource<RequestMeta> ServerStreamMeta => _serverStreamMeta;
-    public TaskCompletionSource<RequestMeta> ClientStreamMeta => _clientStreamMeta;
-    public TaskCompletionSource<RequestMeta> DuplexMeta => _duplexMeta;
+    public TaskCompletionSource<RequestMeta> ServerStreamMeta { get; private set; } = NewProbe();
+
+    public TaskCompletionSource<RequestMeta> ClientStreamMeta { get; private set; } = NewProbe();
+
+    public TaskCompletionSource<RequestMeta> DuplexMeta { get; private set; } = NewProbe();
 
     public void ResetProbes()
     {
-        _unaryMeta = NewProbe();
-        _serverStreamMeta = NewProbe();
-        _clientStreamMeta = NewProbe();
-        _duplexMeta = NewProbe();
+        UnaryMeta = NewProbe();
+        ServerStreamMeta = NewProbe();
+        ClientStreamMeta = NewProbe();
+        DuplexMeta = NewProbe();
     }
 
     private static TaskCompletionSource<RequestMeta> NewProbe() =>

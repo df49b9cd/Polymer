@@ -14,15 +14,16 @@ OmniRelay is the .NET port of Uber's YARPC runtime, layered on top of Hugo concu
 
 > Namespaces live under `OmniRelay.*`. NuGet packages, tooling, and assemblies publish as `OmniRelay.*`.
 
-## Current Status
+## Current Feature Set
 
-- HTTP and gRPC transports covering unary, oneway, and server/client/duplex streaming behind a single dispatcher.
-- Middleware set for logging, tracing, metrics, deadlines, retries, panic recovery, and rate limiting across every RPC shape.
-- Codec registry with JSON, protobuf, and raw codecs, including alias metadata surfaced through introspection.
-- Peer management with round-robin, fewest-pending, and two-random-choice choosers, circuit breakers, and per-peer metrics.
-- Operator tooling: `/omnirelay/introspect`, `/healthz`, `/readyz`, the `omnirelay` CLI, and configuration binder for DI hosting.
-- Protobuf automation via a `protoc` plugin and Roslyn incremental generator that emit dispatcher registration helpers and typed clients.
-- Upcoming: richer diagnostics toggles, sample services, cross-language conformance harnesses, and CI matrix coverage (see `todo.md`).
+- **Transports + codecs**: HTTP and gRPC transports covering unary, oneway, and server/client/duplex streaming with JSON, Protobuf, and raw codecs registered through the dispatcher.
+- **Middleware**: Logging, tracing, metrics, deadlines, retries, panic recovery, rate limiting, and peer-circuit breakers applied uniformly across every RPC shape.
+- **Peer + routing layer**: Round-robin, fewest-pending, and two-random-choice choosers; chaos labs; sharding helpers (`ShardedResourceLeaseReplicator`, `BackpressureAwareRateLimiter`) to segment workloads per tenant/resource.
+- **ResourceLease mesh**: Resource-neutral `ResourceLease*` contracts, SafeTaskQueue dispatcher component, durable replicators (SQLite, gRPC, object storage), deterministic state stores (SQLite/FileSystem with Cosmos/Redis guidance), control-plane endpoints, and failure drills. See `docs/architecture/omnirelay-rpc-mesh.md`.
+- **Diagnostics + observability**: `/omnirelay/introspect`, `/healthz`, `/readyz`, runtime tracing/logging toggles, Prometheus + OTLP exporters, mesh health dashboard guidance, and governance-ready replication sinks.
+- **Tooling**: `omnirelay` CLI, configuration binder (`AddOmniRelayDispatcher`), and automation scripts for drain/restore/upgrade flows.
+- **Code generation**: Protobuf `protoc` plug-in + Roslyn incremental generator emitting typed OmniRelay clients and dispatcher registration helpers.
+- **CI status**: Active backlog lives in `todo.md`; new work focuses on conformance harnesses and expanded sample coverage.
 
 ## Repository Layout
 
@@ -208,7 +209,7 @@ Active backlog lives in `todo.md`. Near-term focus:
 ## Further Reading
 
 - `docs/reference/index.md` - docs index for key topics.
-- Architecture and design notes are covered throughout `docs/reference/*` (HTTP transport, streaming, middleware, diagnostics). A dedicated architecture plan will be added in a future update.
+- `docs/architecture/omnirelay-rpc-mesh.md` - end-to-end ResourceLease mesh architecture (replication, diagnostics, failure drills).
 - `docs/reference/http-transport.md` - TLS, proxy placement, SSE behaviour, and tracing guidance for the HTTP transport.
 - `docs/reference/http3-developer-guide.md` - enabling HTTP/3 locally and in staging/production with prerequisites and troubleshooting.
 - `docs/reference/http3-faq.md` - HTTP/3/QUIC troubleshooting FAQ (ALPN, UDP, macOS, curl, etc.).

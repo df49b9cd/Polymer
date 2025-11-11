@@ -4,7 +4,6 @@ using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
-using static Hugo.Go;
 
 namespace OmniRelay.Transport.Http;
 
@@ -45,7 +44,7 @@ public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutb
                     OmniRelayStatusCode.InvalidArgument,
                     "Procedure metadata is required for HTTP duplex streaming calls.",
                     transport: "http"))
-            .ThenValueTaskAsync((req, token) => ConnectAsync(req, token), cancellationToken);
+            .ThenValueTaskAsync(ConnectAsync, cancellationToken);
     }
 
     private async ValueTask<Result<IDuplexStreamCall>> ConnectAsync(
@@ -148,9 +147,5 @@ public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutb
 /// </summary>
 public sealed record HttpDuplexOutboundSnapshot(Uri BaseAddress)
 {
-    public Uri BaseAddress
-    {
-        get => field;
-        init => field = value;
-    } = BaseAddress;
+    public Uri BaseAddress { get; init; } = BaseAddress;
 }

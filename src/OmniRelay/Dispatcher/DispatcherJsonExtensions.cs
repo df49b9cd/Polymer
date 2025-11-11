@@ -5,7 +5,6 @@ using Json.Schema;
 using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Errors;
-using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher;
 
@@ -147,23 +146,11 @@ public readonly record struct JsonUnaryContext(Dispatcher Dispatcher, RequestMet
 {
     public RequestMeta Meta => RequestMeta;
 
-    public Dispatcher Dispatcher
-    {
-        get => field;
-        init => field = value;
-    } = Dispatcher;
+    public Dispatcher Dispatcher { get; init; } = Dispatcher;
 
-    public RequestMeta RequestMeta
-    {
-        get => field;
-        init => field = value;
-    } = RequestMeta;
+    public RequestMeta RequestMeta { get; init; } = RequestMeta;
 
-    public CancellationToken CancellationToken
-    {
-        get => field;
-        init => field = value;
-    } = CancellationToken;
+    public CancellationToken CancellationToken { get; init; } = CancellationToken;
 }
 
 /// <summary>
@@ -171,47 +158,19 @@ public readonly record struct JsonUnaryContext(Dispatcher Dispatcher, RequestMet
 /// </summary>
 public sealed class JsonCodecBuilder<TRequest, TResponse>
 {
-    public JsonSerializerOptions? SerializerOptions
-    {
-        get => field;
-        set => field = value;
-    }
+    public JsonSerializerOptions? SerializerOptions { get; set; }
 
-    public JsonSerializerContext? SerializerContext
-    {
-        get => field;
-        set => field = value;
-    }
+    public JsonSerializerContext? SerializerContext { get; set; }
 
-    public JsonSchema? RequestSchema
-    {
-        get => field;
-        set => field = value;
-    }
+    public JsonSchema? RequestSchema { get; set; }
 
-    public string? RequestSchemaId
-    {
-        get => field;
-        set => field = value;
-    }
+    public string? RequestSchemaId { get; set; }
 
-    public JsonSchema? ResponseSchema
-    {
-        get => field;
-        set => field = value;
-    }
+    public JsonSchema? ResponseSchema { get; set; }
 
-    public string? ResponseSchemaId
-    {
-        get => field;
-        set => field = value;
-    }
+    public string? ResponseSchemaId { get; set; }
 
-    public string Encoding
-    {
-        get => field;
-        set => field = value;
-    } = "json";
+    public string Encoding { get; set; } = "json";
 
     internal JsonCodec<TRequest, TResponse> Build() =>
         new(

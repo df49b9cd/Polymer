@@ -40,10 +40,10 @@ internal static class PeerMetrics
         Meter.CreateCounter<long>("omnirelay.retry.succeeded", unit: "requests", description: "Requests that succeeded after one or more retries.");
 
     private static readonly Counter<long> LeaseAssignmentCounter =
-        Meter.CreateCounter<long>("omnirelay.peer.lease_assignments", unit: "leases", description: "Table lease assignments per peer.");
+        Meter.CreateCounter<long>("omnirelay.peer.lease_assignments", unit: "leases", description: "Resource lease assignments per peer.");
 
     private static readonly Counter<long> LeaseHeartbeatCounter =
-        Meter.CreateCounter<long>("omnirelay.peer.lease_heartbeats", unit: "signals", description: "Heartbeats received from peers holding table leases.");
+        Meter.CreateCounter<long>("omnirelay.peer.lease_heartbeats", unit: "signals", description: "Heartbeats received from peers holding resource leases.");
 
     private static readonly Counter<long> LeaseDisconnectCounter =
         Meter.CreateCounter<long>("omnirelay.peer.lease_disconnects", unit: "signals", description: "Disconnect signals detected for peers with outstanding leases.");
@@ -98,17 +98,17 @@ internal static class PeerMetrics
         RetrySucceededCounter.Add(1, tags);
     }
 
-    internal static void RecordLeaseAssignmentSignal(string peerIdentifier, string? namespaceId, string? tableId)
+    internal static void RecordLeaseAssignmentSignal(string peerIdentifier, string? resourceType, string? resourceId)
     {
         var tags = new TagList { { "rpc.peer", peerIdentifier ?? string.Empty } };
-        if (!string.IsNullOrWhiteSpace(namespaceId))
+        if (!string.IsNullOrWhiteSpace(resourceType))
         {
-            tags.Add("lease.namespace", namespaceId!);
+            tags.Add("lease.resource_type", resourceType!);
         }
 
-        if (!string.IsNullOrWhiteSpace(tableId))
+        if (!string.IsNullOrWhiteSpace(resourceId))
         {
-            tags.Add("lease.table", tableId!);
+            tags.Add("lease.resource_id", resourceId!);
         }
 
         LeaseAssignmentCounter.Add(1, tags);
@@ -127,7 +127,6 @@ internal static class PeerMetrics
 
         LeaseDisconnectCounter.Add(1, tags);
     }
-
 
     private static TagList CreatePeerTags(RequestMeta meta, string peerIdentifier)
     {

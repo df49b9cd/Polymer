@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Errors;
@@ -10,7 +11,7 @@ namespace OmniRelay.Transport.Http;
 /// Internal framing protocol for OmniRelay HTTP duplex streaming over WebSockets.
 /// Handles framing, serialization, and error envelopes.
 /// </summary>
-internal static class HttpDuplexProtocol
+internal static partial class HttpDuplexProtocol
 {
     internal enum FrameType : byte
     {
@@ -23,11 +24,7 @@ internal static class HttpDuplexProtocol
         ResponseError = 0x13
     }
 
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
-    };
+    private static readonly HttpDuplexProtocolJsonContext JsonContext = HttpDuplexProtocolJsonContext.Default;
 
     /// <summary>
     /// Sends a framed WebSocket message with the specified frame type and payload.
@@ -130,7 +127,7 @@ internal static class HttpDuplexProtocol
             Code = error.Code
         };
 
-        return JsonSerializer.SerializeToUtf8Bytes(envelope, SerializerOptions);
+        return JsonSerializer.SerializeToUtf8Bytes(envelope, JsonContext.ErrorEnvelope);
     }
 
     /// <summary>
@@ -152,7 +149,7 @@ internal static class HttpDuplexProtocol
                 : null
         };
 
-        return JsonSerializer.SerializeToUtf8Bytes(envelope, SerializerOptions);
+        return JsonSerializer.SerializeToUtf8Bytes(envelope, JsonContext.ResponseMetaEnvelope);
     }
 
     /// <summary>
@@ -170,7 +167,7 @@ internal static class HttpDuplexProtocol
 
         try
         {
-            var envelope = JsonSerializer.Deserialize<ResponseMetaEnvelope>(payload, SerializerOptions);
+            var envelope = JsonSerializer.Deserialize(payload, JsonContext.ResponseMetaEnvelope);
             if (envelope is null)
             {
                 return new ResponseMeta(transport: transport);
@@ -210,7 +207,7 @@ internal static class HttpDuplexProtocol
     {
         try
         {
-            var envelope = JsonSerializer.Deserialize<ErrorEnvelope>(payload, SerializerOptions);
+            var envelope = JsonSerializer.Deserialize(payload, JsonContext.ErrorEnvelope);
             if (envelope is null)
             {
                 return OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "duplex error", transport: transport);
@@ -241,70 +238,38 @@ internal static class HttpDuplexProtocol
 
     internal readonly record struct Frame(WebSocketMessageType MessageType, FrameType Type, ReadOnlyMemory<byte> Payload)
     {
-        public WebSocketMessageType MessageType
-        {
-            get => field;
-            init => field = value;
-        } = MessageType;
+        public WebSocketMessageType MessageType { get; init; } = MessageType;
 
-        public FrameType Type
-        {
-            get => field;
-            init => field = value;
-        } = Type;
+        public FrameType Type { get; init; } = Type;
 
-        public ReadOnlyMemory<byte> Payload
-        {
-            get => field;
-            init => field = value;
-        } = Payload;
+        public ReadOnlyMemory<byte> Payload { get; init; } = Payload;
     }
+
+    [JsonSourceGenerationOptions(
+        JsonSerializerDefaults.Web,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSerializable(typeof(ErrorEnvelope))]
+    [JsonSerializable(typeof(ResponseMetaEnvelope))]
+    private sealed partial class HttpDuplexProtocolJsonContext : JsonSerializerContext;
 
     private sealed class ErrorEnvelope
     {
-        public string? Status
-        {
-            get => field;
-            set => field = value;
-        }
+        public string? Status { get; set; }
 
-        public string? Message
-        {
-            get => field;
-            set => field = value;
-        }
+        public string? Message { get; set; }
 
-        public string? Code
-        {
-            get => field;
-            set => field = value;
-        }
+        public string? Code { get; set; }
     }
 
     private sealed class ResponseMetaEnvelope
     {
-        public string? Encoding
-        {
-            get => field;
-            set => field = value;
-        }
+        public string? Encoding { get; set; }
 
-        public string? Transport
-        {
-            get => field;
-            set => field = value;
-        }
+        public string? Transport { get; set; }
 
-        public double? TtlMs
-        {
-            get => field;
-            set => field = value;
-        }
+        public double? TtlMs { get; set; }
 
-        public Dictionary<string, string>? Headers
-        {
-            get => field;
-            set => field = value;
-        }
+        public Dictionary<string, string>? Headers { get; set; }
     }
 }

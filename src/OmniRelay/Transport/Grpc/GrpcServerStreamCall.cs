@@ -16,7 +16,6 @@ public sealed class GrpcServerStreamCall : IStreamCall
 {
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
-    private readonly StreamCallContext _context;
     private readonly KeyValuePair<string, object?>[] _baseTags;
     private readonly long _startTimestamp = Stopwatch.GetTimestamp();
     private bool _completed;
@@ -27,7 +26,7 @@ public sealed class GrpcServerStreamCall : IStreamCall
     {
         RequestMeta = requestMeta ?? throw new ArgumentNullException(nameof(requestMeta));
         ResponseMeta = responseMeta ?? new ResponseMeta();
-        _context = new StreamCallContext(StreamDirection.Server);
+        Context = new StreamCallContext(StreamDirection.Server);
         _baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
 
         _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
@@ -54,17 +53,13 @@ public sealed class GrpcServerStreamCall : IStreamCall
     public StreamDirection Direction => StreamDirection.Server;
 
     /// <inheritdoc />
-    public RequestMeta RequestMeta => field;
+    public RequestMeta RequestMeta { get; }
 
     /// <inheritdoc />
-    public ResponseMeta ResponseMeta
-    {
-        get => field;
-        private set => field = value;
-    }
+    public ResponseMeta ResponseMeta { get; private set; }
 
     /// <inheritdoc />
-    public StreamCallContext Context => _context;
+    public StreamCallContext Context { get; }
 
     /// <inheritdoc />
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
@@ -83,7 +78,7 @@ public sealed class GrpcServerStreamCall : IStreamCall
     {
         await _responses.Writer.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
         Interlocked.Increment(ref _responseCount);
-        _context.IncrementMessageCount();
+        Context.IncrementMessageCount();
         GrpcTransportMetrics.ServerServerStreamResponseMessages.Add(1, _baseTags);
     }
 
@@ -112,7 +107,7 @@ public sealed class GrpcServerStreamCall : IStreamCall
             RecordCompletion(status.StatusCode);
         }
 
-        _context.TrySetCompletion(completionStatus, error);
+        Context.TrySetCompletion(completionStatus, error);
 
         return ValueTask.CompletedTask;
     }
@@ -123,7 +118,7 @@ public sealed class GrpcServerStreamCall : IStreamCall
         _responses.Writer.TryComplete();
         _requests.Writer.TryComplete();
         RecordCompletion(StatusCode.Cancelled);
-        _context.TrySetCompletion(StreamCompletionStatus.Cancelled);
+        Context.TrySetCompletion(StreamCompletionStatus.Cancelled);
         return ValueTask.CompletedTask;
     }
 

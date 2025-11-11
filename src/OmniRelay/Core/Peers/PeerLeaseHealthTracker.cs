@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 
@@ -8,7 +7,7 @@ namespace OmniRelay.Core.Peers;
 /// <summary>
 /// Tracks SafeTaskQueue lease heartbeats and membership gossip for metadata peers.
 /// </summary>
-public sealed class PeerLeaseHealthTracker
+public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
 {
     private readonly ConcurrentDictionary<string, PeerLeaseHealthState> _states = new(StringComparer.Ordinal);
     private readonly TimeSpan _heartbeatGracePeriod;
@@ -18,15 +17,16 @@ public sealed class PeerLeaseHealthTracker
     {
         _heartbeatGracePeriod = heartbeatGracePeriod ?? TimeSpan.FromSeconds(30);
         _timeProvider = timeProvider ?? TimeProvider.System;
+        PeerLeaseHealthMetrics.RegisterTracker(this);
     }
 
     /// <summary>Records a new lease assignment for the specified peer.</summary>
-    public void RecordLeaseAssignment(string peerId, PeerLeaseHandle handle, string? namespaceId = null, string? tableId = null)
+    public void RecordLeaseAssignment(string peerId, PeerLeaseHandle handle, string? resourceType = null, string? resourceId = null)
     {
         var state = GetOrCreateState(peerId);
         var now = _timeProvider.GetUtcNow();
-        state.RecordAssignment(handle, now, namespaceId, tableId);
-        PeerMetrics.RecordLeaseAssignmentSignal(peerId, namespaceId, tableId);
+        state.RecordAssignment(handle, now, resourceType, resourceId);
+        PeerMetrics.RecordLeaseAssignmentSignal(peerId, resourceType, resourceId);
     }
 
     /// <summary>Marks the lease as released and records whether it was requeued.</summary>
@@ -77,15 +77,38 @@ public sealed class PeerLeaseHealthTracker
     /// <summary>Returns an immutable snapshot for all tracked peers.</summary>
     public ImmutableArray<PeerLeaseHealthSnapshot> Snapshot()
     {
-        var now = _timeProvider.GetUtcNow();
         var builder = ImmutableArray.CreateBuilder<PeerLeaseHealthSnapshot>(_states.Count);
+        ComputeSummary(builder);
+        return builder.ToImmutable();
+    }
+
+    internal PeerLeaseHealthSummary GetSummary() =>
+        ComputeSummary(builder: null);
+
+    private PeerLeaseHealthSummary ComputeSummary(ImmutableArray<PeerLeaseHealthSnapshot>.Builder? builder)
+    {
+        var now = _timeProvider.GetUtcNow();
+        var healthyCount = 0;
+        var unhealthyCount = 0;
+        var pendingReassignments = 0;
 
         foreach (var state in _states.Values)
         {
-            builder.Add(state.ToSnapshot(now, _heartbeatGracePeriod));
+            var snapshot = state.ToSnapshot(now, _heartbeatGracePeriod);
+            builder?.Add(snapshot);
+            if (snapshot.IsHealthy)
+            {
+                healthyCount++;
+            }
+            else
+            {
+                unhealthyCount++;
+            }
+
+            pendingReassignments += snapshot.PendingReassignments;
         }
 
-        return builder.ToImmutable();
+        return new PeerLeaseHealthSummary(healthyCount, unhealthyCount, pendingReassignments);
     }
 
     private PeerLeaseHealthState GetOrCreateState(string peerId) =>
@@ -107,21 +130,21 @@ public sealed class PeerLeaseHealthTracker
             _peerId = peerId;
         }
 
-        public void RecordAssignment(PeerLeaseHandle handle, DateTimeOffset observedAt, string? namespaceId, string? tableId)
+        public void RecordAssignment(PeerLeaseHandle handle, DateTimeOffset observedAt, string? resourceType, string? resourceId)
         {
             lock (_lock)
             {
                 _activeLeases[handle.LeaseId] = handle;
                 _lastHeartbeat = observedAt;
                 _isDisconnected = false;
-                if (namespaceId is not null)
+                if (resourceType is not null)
                 {
-                    _metadata = _metadata.SetItem("namespace", namespaceId);
+                    _metadata = _metadata.SetItem("resource.type", resourceType);
                 }
 
-                if (tableId is not null)
+                if (resourceId is not null)
                 {
-                    _metadata = _metadata.SetItem("table", tableId);
+                    _metadata = _metadata.SetItem("resource.id", resourceId);
                 }
 
                 if (_pendingReassignments > 0)

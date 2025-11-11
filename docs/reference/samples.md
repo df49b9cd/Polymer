@@ -16,6 +16,7 @@ The repository ships focused sample projects that exercise specific runtime feat
 | Tee shadowing | `samples/Shadowing.Server` | `TeeUnaryOutbound` / `TeeOnewayOutbound` | Mirrors production calls to a shadow stack, shows how to compose typed clients and oneway fan-out while logging both inbound and outbound pipelines. |
 | Distributed demo | `samples/DistributedDemo` | Docker Compose + multi-service topology | Gateway + downstream services communicating via gRPC (Protobuf) and HTTP (JSON), multiple peer choosers, OpenTelemetry collector, and Prometheus scraping. |
 | Observability & CLI playground | `samples/Observability.CliPlayground` | Diagnostics + scripts | Exposes `/omnirelay/introspect`, `/healthz`, `/readyz`, Prometheus metrics, OpenTelemetry traces, and ships ready-made `omnirelay` CLI scripts. |
+| ResourceLease mesh demo | `samples/ResourceLease.MeshDemo` | ResourceLease RPC mesh | Shows resource-neutral lease contracts, durable SQLite replication + deterministic store, role-based dispatcher/diagnostics/seeder/worker processes, Docker Compose lab with Prometheus/Grafana dashboards, Native AOT container images, backpressure hooks, and background workers exercising `resourcelease::*` procedures. |
 
 ## Quickstart Dispatcher
 

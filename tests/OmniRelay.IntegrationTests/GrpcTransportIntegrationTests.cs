@@ -21,9 +21,9 @@ using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
-using OmniRelay.Tests.Protos;
 using OmniRelay.Tests;
+using OmniRelay.Tests.Protos;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http;
@@ -238,7 +238,7 @@ public class GrpcTransportIntegrationTests
             (request, _) =>
             {
                 var meta = new ResponseMeta(encoding: MediaTypeNames.Text.Plain);
-                var payload = Encoding.UTF8.GetBytes("pong");
+                var payload = "pong"u8.ToArray();
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(payload, meta)));
             }));
 

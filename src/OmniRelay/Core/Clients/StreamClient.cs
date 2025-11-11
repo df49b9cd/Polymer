@@ -25,6 +25,7 @@ public sealed class StreamClient<TRequest, TResponse>
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
         ArgumentNullException.ThrowIfNull(outbound);
+        ArgumentNullException.ThrowIfNull(middleware);
 
         var terminal = new StreamOutboundDelegate(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeStreamOutbound(middleware, terminal);
@@ -38,6 +39,8 @@ public sealed class StreamClient<TRequest, TResponse>
         StreamCallOptions options,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var meta = EnsureEncoding(request.Meta);
 
         var encodeResult = _codec.EncodeRequest(request.Body, meta);
@@ -55,19 +58,25 @@ public sealed class StreamClient<TRequest, TResponse>
             yield break;
         }
 
-        await using var callLease = streamResult.Value.AsAsyncDisposable(out var call);
-
-        await foreach (var payload in call.Responses.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        var callLease = streamResult.Value.AsAsyncDisposable(out var call);
+        try
         {
-            var decodeResult = _codec.DecodeResponse(payload, call.ResponseMeta);
-            if (decodeResult.IsFailure)
+            await foreach (var payload in call.Responses.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                await call.CompleteAsync(decodeResult.Error!, cancellationToken).ConfigureAwait(false);
-                yield return OmniRelayErrors.ToResult<Response<TResponse>>(decodeResult.Error!, request.Meta.Transport ?? "stream");
-                yield break;
-            }
+                var decodeResult = _codec.DecodeResponse(payload, call.ResponseMeta);
+                if (decodeResult.IsFailure)
+                {
+                    await call.CompleteAsync(decodeResult.Error!, cancellationToken).ConfigureAwait(false);
+                    yield return OmniRelayErrors.ToResult<Response<TResponse>>(decodeResult.Error!, request.Meta.Transport ?? "stream");
+                    yield break;
+                }
 
-            yield return Ok(Response<TResponse>.Create(decodeResult.Value, call.ResponseMeta));
+                yield return Ok(Response<TResponse>.Create(decodeResult.Value, call.ResponseMeta));
+            }
+        }
+        finally
+        {
+            await callLease.DisposeAsync().ConfigureAwait(false);
         }
     }
 

@@ -39,3 +39,14 @@ dotnet test tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj
 ```
 
 Set `OMNIRELAY_ENABLE_HTTP3_TESTS=true` when you want to exercise HTTP/3 cases; leave it unset to run the rest of the suite on runners without MsQuic.
+
+### ResourceLease mesh chaos suites (coming online)
+
+The integration harness also hosts the new ResourceLease mesh failure drills described in `docs/architecture/omnirelay-rpc-mesh.md` (“Failure Drills” section). Enable them with:
+
+```bash
+OMNIRELAY_ENABLE_RESOURCELEASE_TESTS=true \
+dotnet test tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj
+```
+
+These suites spin up multiple dispatcher hosts with shared replicators/deterministic stores, kill peers mid-flight, and validate that replication lag/peer health metrics remain within documented thresholds. Review the architecture doc for the exact scenarios and required environment knobs (timeouts, deterministic store paths, etc.).

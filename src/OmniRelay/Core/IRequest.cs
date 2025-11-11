@@ -14,16 +14,9 @@ public interface IRequest<out T>
 public sealed record Request<T>(RequestMeta Meta, T Body) : IRequest<T>
 {
     /// <summary>Gets the request metadata.</summary>
-    public RequestMeta Meta
-    {
-        get => field;
-    } = Meta ?? throw new ArgumentNullException(nameof(Meta));
+    public RequestMeta Meta { get; } = Meta ?? throw new ArgumentNullException(nameof(Meta));
 
-    public T Body
-    {
-        get => field;
-        init => field = value;
-    } = Body;
+    public T Body { get; init; } = Body;
 
     /// <summary>
     /// Creates a request from a payload and optional metadata.

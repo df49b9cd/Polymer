@@ -13,8 +13,8 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Codecs;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using Xunit;
@@ -471,11 +471,10 @@ public class HostingConfigurationIntegrationTests
 
     private sealed class RecordingInboundLifecycle(string name) : ILifecycle, IDispatcherAware
     {
-        private readonly string _name = name;
         public Dispatcher.Dispatcher? Dispatcher { get; private set; }
         public bool Started { get; private set; }
         public bool Stopped { get; private set; }
-        public string Name => _name;
+        public string Name { get; } = name;
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
@@ -491,7 +490,7 @@ public class HostingConfigurationIntegrationTests
 
         public void Bind(Dispatcher.Dispatcher dispatcher) => Dispatcher = dispatcher;
 
-        public override string ToString() => _name;
+        public override string ToString() => Name;
     }
 
     private sealed class RecordingOutboundSpec : ICustomOutboundSpec

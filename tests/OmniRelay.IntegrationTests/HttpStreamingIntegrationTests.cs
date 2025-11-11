@@ -123,7 +123,7 @@ public class HttpStreamingIntegrationTests
                 {
                     try
                     {
-                        var payload = Encoding.UTF8.GetBytes("payload-exceeds-limit");
+                        var payload = "payload-exceeds-limit"u8.ToArray();
                         await call.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)

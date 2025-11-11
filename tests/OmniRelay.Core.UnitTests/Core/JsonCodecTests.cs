@@ -12,26 +12,14 @@ public class JsonCodecTests
 {
     private sealed record TestPayload(string Id, int Count)
     {
-        public string Id
-        {
-            get => field;
-            init => field = value;
-        } = Id;
+        public string Id { get; init; } = Id;
 
-        public int Count
-        {
-            get => field;
-            init => field = value;
-        } = Count;
+        public int Count { get; init; } = Count;
     }
 
     private sealed record OptionalPayload(string? Name)
     {
-        public string? Name
-        {
-            get => field;
-            init => field = value;
-        } = Name;
+        public string? Name { get; init; } = Name;
     }
 
     private sealed class ThrowingWriteConverter : JsonConverter<TestPayload>
@@ -110,7 +98,7 @@ public class JsonCodecTests
     {
         var codec = new JsonCodec<TestPayload, TestPayload>();
         var meta = new RequestMeta(service: "svc");
-        var payload = Encoding.UTF8.GetBytes("{\"id\":");
+        var payload = "{\"id\":"u8.ToArray();
 
         var result = codec.DecodeRequest(payload, meta);
 
@@ -136,7 +124,7 @@ public class JsonCodecTests
             responseSchemaId: "schema://json/response");
 
         var meta = new ResponseMeta { Encoding = "json", Transport = "grpc" };
-        var payload = Encoding.UTF8.GetBytes("not json at all");
+        var payload = "not json at all"u8.ToArray();
 
         var result = codec.DecodeResponse(payload, meta);
 
@@ -157,7 +145,7 @@ public class JsonCodecTests
 
         var codec = new JsonCodec<TestPayload, TestPayload>(options: options);
         var meta = new RequestMeta(service: "svc");
-        var payload = Encoding.UTF8.GetBytes("{\"Id\":\"a\",\"Count\":1}");
+        var payload = "{\"Id\":\"a\",\"Count\":1}"u8.ToArray();
 
         var result = codec.DecodeRequest(payload, meta);
 

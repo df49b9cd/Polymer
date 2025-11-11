@@ -150,23 +150,11 @@ public sealed class PeerMetricsTests : IDisposable
 
     private sealed record MetricMeasurement(string Instrument, long Value, KeyValuePair<string, object?>[] Tags)
     {
-        public string Instrument
-        {
-            get => field;
-            init => field = value;
-        } = Instrument;
+        public string Instrument { get; init; } = Instrument;
 
-        public long Value
-        {
-            get => field;
-            init => field = value;
-        } = Value;
+        public long Value { get; init; } = Value;
 
-        public KeyValuePair<string, object?>[] Tags
-        {
-            get => field;
-            init => field = value;
-        } = Tags;
+        public KeyValuePair<string, object?>[] Tags { get; init; } = Tags;
     }
 
     private sealed class MetricListener : IDisposable
@@ -210,10 +198,9 @@ public sealed class PeerMetricsTests : IDisposable
 
     private sealed class CapturingPeer(string identifier) : IPeer
     {
-        private readonly string _identifier = identifier;
         private int _inflight;
 
-        public string Identifier => _identifier;
+        public string Identifier { get; } = identifier;
 
         public PeerStatus Status => new(PeerState.Available, Volatile.Read(ref _inflight), null, null);
 
@@ -229,9 +216,7 @@ public sealed class PeerMetricsTests : IDisposable
 
     private sealed class BusyPeer(string identifier) : IPeer
     {
-        private readonly string _identifier = identifier;
-
-        public string Identifier => _identifier;
+        public string Identifier { get; } = identifier;
 
         public PeerStatus Status => new(PeerState.Available, 1, null, null);
 

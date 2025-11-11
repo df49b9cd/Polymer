@@ -84,3 +84,13 @@ grpcurl -plaintext \
 - Procedures show JSON codecs across transports: unary (`hello::greet`), oneway (`telemetry::publish`), and streaming (`weather::stream`) in `samples/Quickstart.Server/Program.cs:93`.
 
 These code paths are a good starting point for experimenting with middleware ordering, codecs, and outbound routing before wiring the runtime into a production host.
+
+## 7. Next steps: ResourceLease mesh features
+
+Once you are comfortable with transports and middleware, explore the ResourceLease mesh stack:
+
+- Read `docs/architecture/omnirelay-rpc-mesh.md` for the end-to-end architecture (replication, diagnostics, failure drills).
+- Dive into `docs/reference/distributed-task-leasing.md` to wire `ResourceLeaseDispatcherComponent`, durable replicators (SQLite, gRPC, object storage), and deterministic replays.
+- Review `docs/reference/diagnostics.md#resourcelease-mesh-instruments` to export the new lease depth, peer health, and replication lag metrics into your telemetry backend.
+
+Those docs walk through sharding helpers, backpressure listeners, control-plane endpoints, and automation scripts that help you run OmniRelay as a resilient, peer-aware RPC mesh.

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
@@ -10,7 +11,11 @@ namespace OmniRelay.Core;
 /// <summary>
 /// Protobuf codec supporting binary and optional JSON encodings with robust error mapping.
 /// </summary>
-public sealed class ProtobufCodec<TRequest, TResponse>(
+public sealed class ProtobufCodec<
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+TRequest,
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+TResponse>(
     MessageParser<TRequest>? requestParser = null,
     MessageParser<TResponse>? responseParser = null,
     JsonParser? jsonParser = null,
@@ -34,10 +39,7 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
     private readonly JsonFormatter _jsonFormatter = jsonFormatter ?? JsonFormatter.Default;
 
     /// <inheritdoc />
-    public string Encoding
-    {
-        get => field;
-    } = string.IsNullOrWhiteSpace(defaultEncoding)
+    public string Encoding { get; } = string.IsNullOrWhiteSpace(defaultEncoding)
         ? ProtobufEncoding.Protobuf
         : defaultEncoding;
 
@@ -237,7 +239,9 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         return Err<(EncodingKind, string)>(error);
     }
 
-    private static MessageParser<TMessage> ResolveParser<TMessage>(MessageParser<TMessage>? parser)
+    private static MessageParser<TMessage> ResolveParser<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+    TMessage>(MessageParser<TMessage>? parser)
         where TMessage : class, IMessage<TMessage>
     {
         if (parser is not null)
@@ -263,7 +267,9 @@ public sealed class ProtobufCodec<TRequest, TResponse>(
         throw new InvalidOperationException($"Type '{typeof(TMessage).FullName}' does not expose a parser or parameterless constructor.");
     }
 
-    private static MessageDescriptor ResolveDescriptor<TMessage>()
+    private static MessageDescriptor ResolveDescriptor<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+    TMessage>()
         where TMessage : class, IMessage<TMessage>
     {
         var descriptorProperty = typeof(TMessage).GetProperty(

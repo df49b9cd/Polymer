@@ -18,11 +18,7 @@ internal static class TestHelpers
 
         public IReadOnlyCollection<string> Events => [.. _events];
 
-        public Dispatcher? BoundDispatcher
-        {
-            get => field;
-            private set => field = value;
-        }
+        public static Dispatcher? BoundDispatcher { get; private set; }
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
@@ -47,12 +43,12 @@ internal static class TestHelpers
     {
         private readonly Channel<ReadOnlyMemory<byte>> _requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
         private readonly Channel<ReadOnlyMemory<byte>> _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
-        private readonly StreamCallContext _context = new(StreamDirection.Server);
 
         public StreamDirection Direction => StreamDirection.Server;
         public RequestMeta RequestMeta => new();
         public ResponseMeta ResponseMeta => new();
-        public StreamCallContext Context => _context;
+        public StreamCallContext Context { get; } = new(StreamDirection.Server);
+
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
         public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
@@ -63,11 +59,11 @@ internal static class TestHelpers
     {
         private readonly Channel<ReadOnlyMemory<byte>> _requests = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
         private readonly Channel<ReadOnlyMemory<byte>> _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
-        private readonly DuplexStreamCallContext _context = new();
 
         public RequestMeta RequestMeta => new();
         public ResponseMeta ResponseMeta => new();
-        public DuplexStreamCallContext Context => _context;
+        public DuplexStreamCallContext Context { get; } = new();
+
         public ChannelWriter<ReadOnlyMemory<byte>> RequestWriter => _requests.Writer;
         public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _requests.Reader;
         public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _responses.Writer;
@@ -79,10 +75,7 @@ internal static class TestHelpers
 
     private sealed class DummyClientStreamTransportCall(RequestMeta requestMeta) : IClientStreamTransportCall
     {
-        public RequestMeta RequestMeta
-        {
-            get => field;
-        } = requestMeta;
+        public RequestMeta RequestMeta { get; } = requestMeta;
 
         public ResponseMeta ResponseMeta => new();
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Response =>
@@ -94,11 +87,7 @@ internal static class TestHelpers
 
     internal sealed class TestCodec<TRequest, TResponse> : ICodec<TRequest, TResponse>
     {
-        public string Encoding
-        {
-            get => field;
-            set => field = value;
-        } = "test/encoding";
+        public string Encoding { get; set; } = "test/encoding";
 
         public Result<byte[]> EncodeRequest(TRequest value, RequestMeta meta) => Ok(Array.Empty<byte>());
         public Result<TRequest> DecodeRequest(ReadOnlyMemory<byte> payload, RequestMeta meta) => Ok(default(TRequest)!);

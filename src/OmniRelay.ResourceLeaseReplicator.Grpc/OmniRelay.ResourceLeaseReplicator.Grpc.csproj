@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OmniRelay.ResourceLeaseReplicator.Grpc</AssemblyName>
+    <RootNamespace>OmniRelay.Dispatcher</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OmniRelay/OmniRelay.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Protobuf Include="ResourceLeaseReplication.proto" GrpcServices="Both" />
+  </ItemGroup>
+</Project>

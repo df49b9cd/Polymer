@@ -54,7 +54,7 @@ public class ProtobufCodecTests
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
         var meta = new RequestMeta(service: "svc", procedure: "echo", encoding: ProtobufEncoding.ApplicationJson);
-        var payload = Encoding.UTF8.GetBytes("\"decoded\"");
+        var payload = "\"decoded\""u8.ToArray();
 
         var result = codec.DecodeRequest(payload, meta);
 

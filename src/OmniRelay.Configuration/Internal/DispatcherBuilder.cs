@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Security;
 using System.Reflection;
@@ -168,6 +169,7 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresUnreferencedCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue<T>(String)")]
     private void ConfigureCustomInbounds(DispatcherOptions dispatcherOptions)
     {
         if (_customInboundSpecs.Count == 0)
@@ -312,6 +314,7 @@ internal sealed class DispatcherBuilder
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 
+    [RequiresUnreferencedCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue<T>(String)")]
     private void ConfigureCustomOutbounds(
         DispatcherOptions dispatcherOptions,
         string service,
@@ -808,7 +811,7 @@ internal sealed class DispatcherBuilder
         // (for control-plane endpoints) in that container.
 
         var addMetrics = ShouldExposePrometheusMetrics();
-        var addControlPlane = TryGetDiagnosticsControlPlaneOptions(out _);
+        var addControlPlane = TryGetDiagnosticsControlPlaneOptions(out var controlPlaneOptions);
 
         if (!addMetrics && !addControlPlane)
         {
@@ -817,6 +820,11 @@ internal sealed class DispatcherBuilder
 
         var scrapePath = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
         var rootRuntime = _serviceProvider.GetService<IDiagnosticsRuntime>();
+        var peerHealthProviders = controlPlaneOptions.EnableLeaseHealthDiagnostics
+            ? _serviceProvider.GetServices<IPeerHealthSnapshotProvider>()
+                .Where(static provider => provider is not null)
+                .ToArray()
+            : [];
 
         return services =>
         {
@@ -853,6 +861,11 @@ internal sealed class DispatcherBuilder
                 if (rootLoggerFactory is not null)
                 {
                     services.AddSingleton(rootLoggerFactory);
+                }
+
+                if (controlPlaneOptions.EnableLeaseHealthDiagnostics && peerHealthProviders.Length > 0)
+                {
+                    services.AddSingleton<IEnumerable<IPeerHealthSnapshotProvider>>(peerHealthProviders);
                 }
             }
         };
@@ -1044,10 +1057,14 @@ internal sealed class DispatcherBuilder
             return false;
         }
 
-        options = new DiagnosticsControlPlaneOptions(enableLogging, enableSampling);
-        return enableLogging || enableSampling;
+        var hasPeerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>().Any();
+
+        options = new DiagnosticsControlPlaneOptions(enableLogging, enableSampling, hasPeerHealthProviders);
+        return enableLogging || enableSampling || hasPeerHealthProviders;
     }
 
+    [RequiresDynamicCode("Calls Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions.MapGet(String, Delegate)")]
+    [RequiresUnreferencedCode("Calls Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions.MapGet(String, Delegate)")]
     private static void ConfigureDiagnosticsControlPlane(WebApplication app, DiagnosticsControlPlaneOptions options)
     {
         if (options.EnableLoggingToggle)
@@ -1107,42 +1124,52 @@ internal sealed class DispatcherBuilder
                 return Results.NoContent();
             });
         }
+
+        if (options.EnableLeaseHealthDiagnostics)
+        {
+            app.MapGet("/omnirelay/control/lease-health", (IEnumerable<IPeerHealthSnapshotProvider> providers) =>
+            {
+                var builder = ImmutableArray.CreateBuilder<PeerLeaseHealthSnapshot>();
+                foreach (var provider in providers)
+                {
+                    if (provider is null)
+                    {
+                        continue;
+                    }
+
+                    var snapshot = provider.Snapshot();
+                    if (!snapshot.IsDefaultOrEmpty)
+                    {
+                        builder.AddRange(snapshot);
+                    }
+                }
+
+                var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(builder.ToImmutable());
+                return Results.Json(diagnostics);
+            });
+        }
     }
 
-    private readonly record struct DiagnosticsControlPlaneOptions(bool EnableLoggingToggle, bool EnableSamplingToggle)
+    private readonly record struct DiagnosticsControlPlaneOptions(bool EnableLoggingToggle, bool EnableSamplingToggle, bool EnableLeaseHealthDiagnostics)
     {
-        public bool EnableLoggingToggle
-        {
-            get => field;
-            init => field = value;
-        } = EnableLoggingToggle;
+        public bool EnableLoggingToggle { get; init; } = EnableLoggingToggle;
 
-        public bool EnableSamplingToggle
-        {
-            get => field;
-            init => field = value;
-        } = EnableSamplingToggle;
+        public bool EnableSamplingToggle { get; init; } = EnableSamplingToggle;
+
+        public bool EnableLeaseHealthDiagnostics { get; init; } = EnableLeaseHealthDiagnostics;
     }
 
     private sealed record DiagnosticsLogLevelRequest(string? Level)
     {
-        public string? Level
-        {
-            get => field;
-            init => field = value;
-        } = Level;
+        public string? Level { get; init; } = Level;
     }
 
     private sealed record DiagnosticsSamplingRequest(double? Probability)
     {
-        public double? Probability
-        {
-            get => field;
-            init => field = value;
-        } = Probability;
+        public double? Probability { get; init; } = Probability;
     }
 
-    private GrpcServerRuntimeOptions? BuildGrpcServerRuntimeOptions(GrpcServerRuntimeConfiguration configuration)
+    private static GrpcServerRuntimeOptions? BuildGrpcServerRuntimeOptions(GrpcServerRuntimeConfiguration configuration)
     {
         var interceptors = ResolveServerInterceptorTypes(configuration.Interceptors);
         var enableHttp3 = configuration.EnableHttp3 ?? false;
@@ -1830,23 +1857,11 @@ internal sealed class DispatcherBuilder
         IList<string> Converters,
         string? ContextTypeName)
     {
-        public JsonSerializerOptionsConfiguration Options
-        {
-            get => field;
-            init => field = value;
-        } = Options;
+        public JsonSerializerOptionsConfiguration Options { get; init; } = Options;
 
-        public IList<string> Converters
-        {
-            get => field;
-            init => field = value;
-        } = Converters;
+        public IList<string> Converters { get; init; } = Converters;
 
-        public string? ContextTypeName
-        {
-            get => field;
-            init => field = value;
-        } = ContextTypeName;
+        public string? ContextTypeName { get; init; } = ContextTypeName;
     }
 
     private void ApplyMiddleware(DispatcherOptions dispatcherOptions)
@@ -1935,6 +1950,7 @@ internal sealed class DispatcherBuilder
         return Uri.TryCreate($"http://{value}", UriKind.Absolute, out var fallback) ? fallback.ToString() : throw new OmniRelayConfigurationException($"The value '{value}' for {context} is not a valid URI.");
     }
 
+    [RequiresUnreferencedCode("Calls System.Reflection.Assembly.GetType(String, Boolean, Boolean)")]
     private static Type ResolveType(string typeName)
     {
         var resolved = Type.GetType(typeName, throwOnError: false, ignoreCase: false);

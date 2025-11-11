@@ -35,8 +35,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           cache: true
-          cache-dependency-path: |
-            **/packages.lock.json
           global-json-file: global.json
           dotnet-quality: 'preview'
 
@@ -48,8 +46,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore (locked mode)
-        run: dotnet restore OmniRelay.slnx --locked-mode
+      - name: Restore
+        run: dotnet restore OmniRelay.slnx
 
       - name: Determine package version
         id: version
@@ -142,6 +140,9 @@ jobs:
             "src/OmniRelay.Configuration/OmniRelay.Configuration.csproj"
             "src/OmniRelay.Codegen.Protobuf.Core/OmniRelay.Codegen.Protobuf.Core.csproj"
             "src/OmniRelay.Codegen.Protobuf.Generator/OmniRelay.Codegen.Protobuf.Generator.csproj"
+            "src/OmniRelay.ResourceLeaseReplicator.Sqlite/OmniRelay.ResourceLeaseReplicator.Sqlite.csproj"
+            "src/OmniRelay.ResourceLeaseReplicator.ObjectStorage/OmniRelay.ResourceLeaseReplicator.ObjectStorage.csproj"
+            "src/OmniRelay.ResourceLeaseReplicator.Grpc/OmniRelay.ResourceLeaseReplicator.Grpc.csproj"
           )
 
           for project in "${projects[@]}"; do

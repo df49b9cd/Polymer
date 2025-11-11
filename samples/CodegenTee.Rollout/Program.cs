@@ -1,18 +1,17 @@
-using System.Threading;
+using System.Diagnostics.CodeAnalysis;
 using Hugo;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
-using OmniRelay.Samples.CodegenTee;
-using static Hugo.Go;
 using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;
 
 namespace OmniRelay.Samples.CodegenTee.Rollout;
 
-public static class Program
+internal static class Program
 {
-    public static async Task Main(string[] args)
+    [SuppressMessage("Globalization", "CA1303:Do not pass literals as localized parameters", Justification = "Sample-only console output.")]
+    public static async Task Main()
     {
         await using var primary = await RiskDeployment.StartAsync(new RiskServiceV1("risk-primary")).ConfigureAwait(false);
         await using var shadow = await RiskDeployment.StartAsync(new RiskServiceV2("risk-shadow")).ConfigureAwait(false);
@@ -63,17 +62,16 @@ public static class Program
 internal sealed class RiskDeployment : IAsyncDisposable
 {
     public const string ServiceName = "risk-service";
-    private readonly OmniRelayDispatcher _dispatcher;
     private bool _disposed;
 
     private RiskDeployment(OmniRelayDispatcher dispatcher, RiskServiceBase service)
     {
-        _dispatcher = dispatcher;
+        Dispatcher = dispatcher;
         Service = service;
     }
 
     public RiskServiceBase Service { get; }
-    public OmniRelayDispatcher Dispatcher => _dispatcher;
+    public OmniRelayDispatcher Dispatcher { get; }
 
     public static async Task<RiskDeployment> StartAsync(RiskServiceBase implementation)
     {
@@ -92,18 +90,17 @@ internal sealed class RiskDeployment : IAsyncDisposable
         }
 
         _disposed = true;
-        await _dispatcher.StopOrThrowAsync().ConfigureAwait(false);
+        await Dispatcher.StopOrThrowAsync().ConfigureAwait(false);
     }
 }
 
 internal sealed class RolloutHarness : IAsyncDisposable
 {
     public const string OutboundKey = "tee-risk";
-    private readonly OmniRelayDispatcher _dispatcher;
 
-    private RolloutHarness(OmniRelayDispatcher dispatcher) => _dispatcher = dispatcher;
+    private RolloutHarness(OmniRelayDispatcher dispatcher) => Dispatcher = dispatcher;
 
-    public OmniRelayDispatcher Dispatcher => _dispatcher;
+    public OmniRelayDispatcher Dispatcher { get; }
 
     public static async Task<RolloutHarness> StartAsync(RiskDeployment primary, RiskDeployment shadow)
     {
@@ -140,7 +137,7 @@ internal sealed class RolloutHarness : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _dispatcher.StopOrThrowAsync().ConfigureAwait(false);
+        await Dispatcher.StopOrThrowAsync().ConfigureAwait(false);
     }
 }
 

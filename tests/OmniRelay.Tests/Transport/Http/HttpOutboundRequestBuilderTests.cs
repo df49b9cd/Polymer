@@ -49,7 +49,7 @@ public sealed class HttpOutboundRequestBuilderTests
 
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(Encoding.UTF8.GetBytes("{\"message\":\"ok\"}"))
+                Content = new ByteArrayContent("{\"message\":\"ok\"}"u8.ToArray())
             };
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Json);
             return response;
@@ -77,7 +77,7 @@ public sealed class HttpOutboundRequestBuilderTests
             timeToLive: ttl,
             deadline: deadline,
             headers: [KeyValuePair.Create("X-Correlation-Id", "cor-123")]);
-        var payload = Encoding.UTF8.GetBytes("ping");
+        var payload = "ping"u8.ToArray();
         var request = new Request<ReadOnlyMemory<byte>>(meta, payload);
 
         var ct = TestContext.Current.CancellationToken;

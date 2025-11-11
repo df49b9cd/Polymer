@@ -35,7 +35,7 @@ public class HttpOutboundMiddlewareTests
 
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(Encoding.UTF8.GetBytes("{\"message\":\"ok\"}"))
+                Content = new ByteArrayContent("{\"message\":\"ok\"}"u8.ToArray())
             };
             response.Headers.TryAddWithoutValidation(HttpTransportHeaders.Encoding, "application/json");
             return await Task.FromResult(response);
@@ -66,7 +66,7 @@ public class HttpOutboundMiddlewareTests
             encoding: "application/json",
             transport: "http");
 
-        var payload = Encoding.UTF8.GetBytes("{\"message\":\"ping\"}");
+        var payload = "{\"message\":\"ping\"}"u8.ToArray();
         var request = new Request<ReadOnlyMemory<byte>>(requestMeta, payload);
 
         var unary = (IUnaryOutbound)outbound;
@@ -116,7 +116,7 @@ public class HttpOutboundMiddlewareTests
             procedure: "enqueue",
             transport: "http");
 
-        var payload = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("task"));
+        var payload = new ReadOnlyMemory<byte>("task"u8.ToArray());
         var request = new Request<ReadOnlyMemory<byte>>(requestMeta, payload);
 
         var result = await ((IOnewayOutbound)outbound).CallAsync(request, ct);

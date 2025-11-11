@@ -29,8 +29,8 @@ internal static class ExternalTool
         var extensions = OperatingSystem.IsWindows()
             ? (Environment.GetEnvironmentVariable("PATHEXT")?
                 .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                ?? new[] { ".exe", ".cmd", ".bat" })
-            : new[] { string.Empty };
+                ?? [".exe", ".cmd", ".bat"])
+            : [string.Empty];
 
         foreach (var segment in segments)
         {

@@ -1,5 +1,3 @@
-using System;
-
 namespace OmniRelay.Core.Peers;
 
 /// <summary>

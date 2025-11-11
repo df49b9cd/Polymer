@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.Threading.Channels;
 using Hugo;
@@ -44,61 +43,87 @@ public sealed class RpcTracingMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next) =>
-        InvokeUnaryCoreAsync(
+        UnaryInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeUnaryCoreAsync(
             "yarpcore.rpc.inbound.unary",
             ActivityKind.Server,
             request,
             cancellationToken,
             (req, token) => next(req, token),
             allowParentExtraction: true);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next) =>
-        InvokeUnaryCoreAsync(
+        UnaryOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeUnaryCoreAsync(
             "yarpcore.rpc.outbound.unary",
             ActivityKind.Client,
             request,
             cancellationToken,
             (req, token) => next(req, token),
             allowParentExtraction: false);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next) =>
-        InvokeOnewayCoreAsync(
+        OnewayInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeOnewayCoreAsync(
             "yarpcore.rpc.inbound.oneway",
             ActivityKind.Server,
             request,
             cancellationToken,
             (req, token) => next(req, token),
             allowParentExtraction: true);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next) =>
-        InvokeOnewayCoreAsync(
+        OnewayOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeOnewayCoreAsync(
             "yarpcore.rpc.outbound.oneway",
             ActivityKind.Client,
             request,
             cancellationToken,
             (req, token) => next(req, token),
             allowParentExtraction: false);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next) =>
-        InvokeStreamCoreAsync(
+        StreamInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeStreamCoreAsync(
             $"yarpcore.rpc.inbound.stream.{options.Direction.ToString().ToLowerInvariant()}",
             ActivityKind.Server,
             request,
@@ -106,14 +131,21 @@ public sealed class RpcTracingMiddleware :
             cancellationToken,
             (req, callOptions, token) => next(req, callOptions, token),
             allowParentExtraction: true);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next) =>
-        InvokeStreamCoreAsync(
+        StreamOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeStreamCoreAsync(
             $"yarpcore.rpc.outbound.stream.{options.Direction.ToString().ToLowerInvariant()}",
             ActivityKind.Client,
             request,
@@ -121,54 +153,74 @@ public sealed class RpcTracingMiddleware :
             cancellationToken,
             (req, callOptions, token) => next(req, callOptions, token),
             allowParentExtraction: false);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next) =>
-        InvokeClientStreamInboundAsync(
+        ClientStreamInboundDelegate next)
+    {
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeClientStreamInboundAsync(
             "yarpcore.rpc.inbound.client_stream",
             context,
             cancellationToken,
             next);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next) =>
-        InvokeClientStreamOutboundAsync(
+        ClientStreamOutboundDelegate next)
+    {
+        requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeClientStreamOutboundAsync(
             "yarpcore.rpc.outbound.client_stream",
             requestMeta,
             cancellationToken,
             next);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next) =>
-        InvokeDuplexCoreAsync(
+        DuplexInboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeDuplexCoreAsync(
             "yarpcore.rpc.inbound.duplex",
             ActivityKind.Server,
             request,
             cancellationToken,
             (req, token) => next(req, token),
             allowParentExtraction: true);
+    }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next) =>
-        InvokeDuplexCoreAsync(
+        DuplexOutboundDelegate next)
+    {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
+        return InvokeDuplexCoreAsync(
             "yarpcore.rpc.outbound.duplex",
             ActivityKind.Client,
             request,
             cancellationToken,
             (req, token) => next(req, token),
             allowParentExtraction: false);
+    }
 
     private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeUnaryCoreAsync(
         string spanName,
@@ -758,11 +810,17 @@ public sealed class RpcTracingMiddleware :
             }
         }
 
-        private void CloseActivity()
-        {
-            var activity = Interlocked.Exchange(ref _activity, null);
-            activity?.Stop();
-        }
+    private void CloseActivity()
+    {
+        var activity = Interlocked.Exchange(ref _activity, null);
+        activity?.Stop();
+    }
+}
+
+    private static T EnsureNotNull<T>(T? value, string paramName) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(value, paramName);
+        return value;
     }
 
     private sealed class TracingDuplexStreamCall(IDuplexStreamCall inner, Activity activity) : IDuplexStreamCall
@@ -856,3 +914,4 @@ public sealed class RpcTracingMiddleware :
         }
     }
 }
+

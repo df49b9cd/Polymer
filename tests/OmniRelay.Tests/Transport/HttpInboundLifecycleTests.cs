@@ -10,8 +10,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
-using OmniRelay.TestSupport;
 using OmniRelay.Tests.Support;
+using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
@@ -266,7 +266,7 @@ public class HttpInboundLifecycleTests
         using var rejectedResponse = await httpClient.PostAsync("/", new ByteArrayContent([]), ct);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, rejectedResponse.StatusCode);
-        _ = rejectedResponse.Headers.TryGetValues("Retry-After", out var retryAfterValues);
+        Assert.True(rejectedResponse.Headers.TryGetValues("Retry-After", out var retryAfterValues));
         Assert.Contains("1", retryAfterValues);
         Assert.Equal(2, rejectedResponse.Version.Major);
         Assert.True(rejectedResponse.Headers.TryGetValues(HttpTransportHeaders.Protocol, out var protocolValues));

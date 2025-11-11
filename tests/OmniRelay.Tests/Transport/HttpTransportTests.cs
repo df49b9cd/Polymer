@@ -80,29 +80,17 @@ public class HttpTransportTests
 
     private sealed record EchoRequest(string Message)
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
     }
 
     private sealed record EchoResponse
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = string.Empty;
+        public string Message { get; init; } = string.Empty;
     }
 
     private sealed record ChatMessage(string Message)
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
     }
 
     [Fact(Timeout = 30000)]
@@ -326,7 +314,7 @@ public class HttpTransportTests
                 {
                     try
                     {
-                        var payload = Encoding.UTF8.GetBytes("this-payload-is-way-too-long");
+                        var payload = "this-payload-is-way-too-long"u8.ToArray();
                         await call.WriteAsync(payload, cancellationToken);
                     }
                     catch (OperationCanceledException)

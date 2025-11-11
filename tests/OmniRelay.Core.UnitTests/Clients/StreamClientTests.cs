@@ -18,19 +18,13 @@ namespace OmniRelay.Core.UnitTests.Clients;
 
 public class StreamClientTests
 {
-    public sealed class Req {
-        public int V
-        {
-            get => field;
-            init => field = value;
-        }
+    public sealed class Req
+    {
+        public int V { get; init; }
     }
-    public sealed class Res {
-        public string? S
-        {
-            get => field;
-            init => field = value;
-        }
+    public sealed class Res
+    {
+        public string? S { get; init; }
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

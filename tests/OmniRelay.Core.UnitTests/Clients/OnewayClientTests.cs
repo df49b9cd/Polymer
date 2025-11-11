@@ -14,12 +14,9 @@ namespace OmniRelay.Core.UnitTests.Clients;
 
 public class OnewayClientTests
 {
-    public sealed class Req {
-        public string? V
-        {
-            get => field;
-            init => field = value;
-        }
+    public sealed class Req
+    {
+        public string? V { get; init; }
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

@@ -183,7 +183,7 @@ public sealed class GrpcTransportInterceptorBuilder
     }
 }
 
-public readonly struct GrpcClientServiceInterceptorBuilder
+public readonly struct GrpcClientServiceInterceptorBuilder : IEquatable<GrpcClientServiceInterceptorBuilder>
 {
     private readonly GrpcTransportInterceptorBuilder.ClientServiceBuilder _builder;
 
@@ -200,9 +200,34 @@ public readonly struct GrpcClientServiceInterceptorBuilder
 
     public GrpcClientProcedureInterceptorBuilder ForProcedure(string procedure) =>
         _builder.ForProcedure(procedure);
+
+    public override bool Equals(object obj)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override int GetHashCode()
+    {
+        throw new NotImplementedException();
+    }
+
+    public static bool operator ==(GrpcClientServiceInterceptorBuilder left, GrpcClientServiceInterceptorBuilder right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(GrpcClientServiceInterceptorBuilder left, GrpcClientServiceInterceptorBuilder right)
+    {
+        return !(left == right);
+    }
+
+    public bool Equals(GrpcClientServiceInterceptorBuilder other)
+    {
+        throw new NotImplementedException();
+    }
 }
 
-public readonly struct GrpcClientProcedureInterceptorBuilder
+public readonly struct GrpcClientProcedureInterceptorBuilder : IEquatable<GrpcClientProcedureInterceptorBuilder>
 {
     private readonly List<Interceptor> _interceptors;
 
@@ -218,9 +243,34 @@ public readonly struct GrpcClientProcedureInterceptorBuilder
         _interceptors.Add(interceptor);
         return this;
     }
+
+    public override bool Equals(object obj)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override int GetHashCode()
+    {
+        throw new NotImplementedException();
+    }
+
+    public static bool operator ==(GrpcClientProcedureInterceptorBuilder left, GrpcClientProcedureInterceptorBuilder right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(GrpcClientProcedureInterceptorBuilder left, GrpcClientProcedureInterceptorBuilder right)
+    {
+        return !(left == right);
+    }
+
+    public bool Equals(GrpcClientProcedureInterceptorBuilder other)
+    {
+        throw new NotImplementedException();
+    }
 }
 
-public readonly struct GrpcServerProcedureInterceptorBuilder
+public readonly struct GrpcServerProcedureInterceptorBuilder : IEquatable<GrpcServerProcedureInterceptorBuilder>
 {
     private readonly List<Interceptor> _interceptors;
 
@@ -235,5 +285,30 @@ public readonly struct GrpcServerProcedureInterceptorBuilder
 
         _interceptors.Add(interceptor);
         return this;
+    }
+
+    public override bool Equals(object obj)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override int GetHashCode()
+    {
+        throw new NotImplementedException();
+    }
+
+    public static bool operator ==(GrpcServerProcedureInterceptorBuilder left, GrpcServerProcedureInterceptorBuilder right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(GrpcServerProcedureInterceptorBuilder left, GrpcServerProcedureInterceptorBuilder right)
+    {
+        return !(left == right);
+    }
+
+    public bool Equals(GrpcServerProcedureInterceptorBuilder other)
+    {
+        throw new NotImplementedException();
     }
 }

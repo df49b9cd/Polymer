@@ -297,127 +297,55 @@ namespace OmniRelay.Samples.Quickstart
         HttpInbound HttpInbound,
         GrpcInbound GrpcInbound)
     {
-        public Dispatcher.Dispatcher Dispatcher
-        {
-            get => field;
-            init => field = value;
-        } = Dispatcher;
+        public Dispatcher.Dispatcher Dispatcher { get; init; } = Dispatcher;
 
-        public HttpInbound HttpInbound
-        {
-            get => field;
-            init => field = value;
-        } = HttpInbound;
+        public HttpInbound HttpInbound { get; init; } = HttpInbound;
 
-        public GrpcInbound GrpcInbound
-        {
-            get => field;
-            init => field = value;
-        } = GrpcInbound;
+        public GrpcInbound GrpcInbound { get; init; } = GrpcInbound;
     }
 
     internal sealed record GreetRequest(string Name)
     {
-        public string Name
-        {
-            get => field;
-            init => field = value;
-        } = Name;
+        public string Name { get; init; } = Name;
     }
 
     internal sealed record GreetResponse(string Message, string Transport, DateTimeOffset IssuedAt)
     {
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
 
-        public string Transport
-        {
-            get => field;
-            init => field = value;
-        } = Transport;
+        public string Transport { get; init; } = Transport;
 
-        public DateTimeOffset IssuedAt
-        {
-            get => field;
-            init => field = value;
-        } = IssuedAt;
+        public DateTimeOffset IssuedAt { get; init; } = IssuedAt;
     }
 
     internal sealed record TelemetryEvent(string Level, string Area, string Message)
     {
-        public string Level
-        {
-            get => field;
-            init => field = value;
-        } = Level;
+        public string Level { get; init; } = Level;
 
-        public string Area
-        {
-            get => field;
-            init => field = value;
-        } = Area;
+        public string Area { get; init; } = Area;
 
-        public string Message
-        {
-            get => field;
-            init => field = value;
-        } = Message;
+        public string Message { get; init; } = Message;
     }
 
     internal sealed record WeatherStreamRequest(string Location, int Count = 5, int IntervalSeconds = 1)
     {
-        public string Location
-        {
-            get => field;
-            init => field = value;
-        } = Location;
+        public string Location { get; init; } = Location;
 
-        public int Count
-        {
-            get => field;
-            init => field = value;
-        } = Count;
+        public int Count { get; init; } = Count;
 
-        public int IntervalSeconds
-        {
-            get => field;
-            init => field = value;
-        } = IntervalSeconds;
+        public int IntervalSeconds { get; init; } = IntervalSeconds;
     }
 
     internal sealed record WeatherUpdate(string Location, int Sequence, string Summary, int TemperatureC, DateTimeOffset Timestamp)
     {
-        public string Location
-        {
-            get => field;
-            init => field = value;
-        } = Location;
+        public string Location { get; init; } = Location;
 
-        public int Sequence
-        {
-            get => field;
-            init => field = value;
-        } = Sequence;
+        public int Sequence { get; init; } = Sequence;
 
-        public string Summary
-        {
-            get => field;
-            init => field = value;
-        } = Summary;
+        public string Summary { get; init; } = Summary;
 
-        public int TemperatureC
-        {
-            get => field;
-            init => field = value;
-        } = TemperatureC;
+        public int TemperatureC { get; init; } = TemperatureC;
 
-        public DateTimeOffset Timestamp
-        {
-            get => field;
-            init => field = value;
-        } = Timestamp;
+        public DateTimeOffset Timestamp { get; init; } = Timestamp;
     }
 }

@@ -463,44 +463,33 @@ public class DispatcherTests
 
     private sealed class StubLifecycle : ILifecycle
     {
-        public int StartCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        private int _startCalls;
+        private int _stopCalls;
 
-        public int StopCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        public int StartCalls => _startCalls;
+
+        public int StopCalls => _stopCalls;
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
-            StartCalls++;
+            Interlocked.Increment(ref _startCalls);
             return ValueTask.CompletedTask;
         }
 
         public ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
-            StopCalls++;
+            Interlocked.Increment(ref _stopCalls);
             return ValueTask.CompletedTask;
         }
     }
 
     private sealed class StubUnaryOutbound : IUnaryOutbound
     {
-        public int StartCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        private int _startCalls;
+        private int _stopCalls;
 
-        public int StopCalls
-        {
-            get => field;
-            private set => field = value;
-        }
+        public int StartCalls => _startCalls;
+        public int StopCalls => _stopCalls;
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(
             IRequest<ReadOnlyMemory<byte>> request,
@@ -509,13 +498,13 @@ public class DispatcherTests
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
-            StartCalls++;
+            Interlocked.Increment(ref _startCalls);
             return ValueTask.CompletedTask;
         }
 
         public ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
-            StopCalls++;
+            Interlocked.Increment(ref _stopCalls);
             return ValueTask.CompletedTask;
         }
     }

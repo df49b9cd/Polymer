@@ -29,6 +29,9 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         UnaryInboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, cancellationToken).ConfigureAwait(false);
@@ -45,6 +48,9 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         UnaryOutboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, cancellationToken).ConfigureAwait(false);
@@ -61,6 +67,9 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         OnewayInboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, cancellationToken).ConfigureAwait(false);
@@ -77,6 +86,9 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         OnewayOutboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, cancellationToken).ConfigureAwait(false);
@@ -94,6 +106,11 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         StreamInboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, options, cancellationToken).ConfigureAwait(false);
@@ -111,6 +128,11 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         StreamOutboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        options = EnsureNotNull(options, nameof(options));
+
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, options, cancellationToken).ConfigureAwait(false);
@@ -127,6 +149,8 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         ClientStreamInboundDelegate next)
     {
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(context, cancellationToken).ConfigureAwait(false);
@@ -143,6 +167,9 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         ClientStreamOutboundDelegate next)
     {
+        requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(requestMeta, cancellationToken).ConfigureAwait(false);
@@ -159,6 +186,9 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         DuplexInboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, cancellationToken).ConfigureAwait(false);
@@ -175,6 +205,9 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         CancellationToken cancellationToken,
         DuplexOutboundDelegate next)
     {
+        request = EnsureNotNull(request, nameof(request));
+        next = EnsureNotNull(next, nameof(next));
+
         try
         {
             return await next(request, cancellationToken).ConfigureAwait(false);
@@ -196,4 +229,11 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
 
         return Err<T>(error);
     }
+
+    private static T EnsureNotNull<T>(T? value, string paramName) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(value, paramName);
+        return value;
+    }
 }
+

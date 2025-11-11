@@ -16,4 +16,8 @@ public sealed class OmniRelayConfigurationException : Exception
         : base(message, innerException)
     {
     }
+
+    public OmniRelayConfigurationException()
+    {
+    }
 }

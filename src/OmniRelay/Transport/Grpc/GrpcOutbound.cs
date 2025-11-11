@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -185,14 +184,14 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 IPAddress.TryParse(uri.Host, out var ip) && IPAddress.IsLoopback(ip));
 
             if (allLoopback)
-        {
-            sockets.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
-        }
+            {
+                sockets.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+            }
 
-        if (_clientRuntimeOptions is not null)
-        {
-            ApplyClientRuntimeOptions(_channelOptions, _clientRuntimeOptions);
-        }
+            if (_clientRuntimeOptions is not null)
+            {
+                ApplyClientRuntimeOptions(_channelOptions, _clientRuntimeOptions);
+            }
         }
     }
 
@@ -915,7 +914,6 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private sealed class GrpcPeer(Uri address, GrpcOutbound owner, PeerCircuitBreakerOptions breakerOptions) : IPeer, IAsyncDisposable, IPeerTelemetry, IPeerObservable
     {
         private readonly GrpcOutbound _owner = owner ?? throw new ArgumentNullException(nameof(owner));
-        private readonly Uri _address = address ?? throw new ArgumentNullException(nameof(address));
         private readonly PeerCircuitBreaker _breaker = new(breakerOptions);
         private readonly Hugo.RwMutex _subscriberMutex = new();
         private HashSet<IPeerSubscriber>? _subscribers;
@@ -929,9 +927,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         private long _failureCount;
         private readonly LatencyTracker _latencyTracker = new();
 
-        public Uri Address => _address;
+        public Uri Address { get; } = address ?? throw new ArgumentNullException(nameof(address));
 
-        public string Identifier => _address.ToString();
+        public string Identifier => Address.ToString();
 
         public PeerStatus Status
         {
@@ -966,7 +964,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         public void Start()
         {
             var options = CloneChannelOptions();
-            _channel = GrpcChannel.ForAddress(_address, options);
+            _channel = GrpcChannel.ForAddress(Address, options);
             var invoker = _owner.AttachClientInterceptors(_channel.CreateCallInvoker());
 
             _callInvoker = invoker;
@@ -1573,7 +1571,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             interceptors.Add(new GrpcClientLoggingInterceptor(loggerFactory.CreateLogger<GrpcClientLoggingInterceptor>()));
         }
 
-        return interceptors?.ToArray() ?? Array.Empty<Interceptor>();
+        return interceptors?.ToArray() ?? [];
     }
 
     private GrpcChannelOptions CreateHttp2FallbackOptions()

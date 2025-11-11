@@ -144,7 +144,7 @@ public sealed class HttpOutboundMiddlewareBuilder
 
 }
 
-public readonly struct HttpOutboundServiceMiddlewareBuilder
+public readonly struct HttpOutboundServiceMiddlewareBuilder : IEquatable<HttpOutboundServiceMiddlewareBuilder>
 {
     private readonly HttpOutboundMiddlewareBuilder.ServiceBuilder _builder;
 
@@ -171,9 +171,34 @@ public readonly struct HttpOutboundServiceMiddlewareBuilder
     /// <returns>A builder to configure per-procedure middleware.</returns>
     public HttpOutboundProcedureMiddlewareBuilder ForProcedure(string procedure) =>
         _builder.ForProcedure(procedure);
+
+    public override bool Equals(object obj)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override int GetHashCode()
+    {
+        throw new NotImplementedException();
+    }
+
+    public static bool operator ==(HttpOutboundServiceMiddlewareBuilder left, HttpOutboundServiceMiddlewareBuilder right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(HttpOutboundServiceMiddlewareBuilder left, HttpOutboundServiceMiddlewareBuilder right)
+    {
+        return !(left == right);
+    }
+
+    public bool Equals(HttpOutboundServiceMiddlewareBuilder other)
+    {
+        throw new NotImplementedException();
+    }
 }
 
-public readonly struct HttpOutboundProcedureMiddlewareBuilder
+public readonly struct HttpOutboundProcedureMiddlewareBuilder : IEquatable<HttpOutboundProcedureMiddlewareBuilder>
 {
     private readonly List<IHttpClientMiddleware> _middleware;
 
@@ -193,5 +218,30 @@ public readonly struct HttpOutboundProcedureMiddlewareBuilder
 
         _middleware.Add(middleware);
         return this;
+    }
+
+    public override bool Equals(object obj)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override int GetHashCode()
+    {
+        throw new NotImplementedException();
+    }
+
+    public static bool operator ==(HttpOutboundProcedureMiddlewareBuilder left, HttpOutboundProcedureMiddlewareBuilder right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(HttpOutboundProcedureMiddlewareBuilder left, HttpOutboundProcedureMiddlewareBuilder right)
+    {
+        return !(left == right);
+    }
+
+    public bool Equals(HttpOutboundProcedureMiddlewareBuilder other)
+    {
+        throw new NotImplementedException();
     }
 }
