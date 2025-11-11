@@ -74,9 +74,8 @@ public sealed class MeshGossipCertificateProvider : IDisposable
         }
 
         var raw = File.ReadAllBytes(path);
-        var cert = _options.Tls.CertificatePassword is { Length: > 0 } password
-            ? new X509Certificate2(raw, password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable)
-            : new X509Certificate2(raw, (string?)null, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable);
+        var flags = X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable;
+        var cert = X509CertificateLoader.LoadPkcs12(raw, _options.Tls.CertificatePassword, flags);
 
         _certificate?.Dispose();
         _certificate = cert;
