@@ -812,12 +812,12 @@ public sealed class RpcTracingMiddleware :
             }
         }
 
-    private void CloseActivity()
-    {
-        var activity = Interlocked.Exchange(ref _activity, null);
-        activity?.Stop();
+        private void CloseActivity()
+        {
+            var activity = Interlocked.Exchange(ref _activity, null);
+            activity?.Stop();
+        }
     }
-}
 
 #pragma warning restore CA1068
 

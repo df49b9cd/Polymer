@@ -115,11 +115,11 @@ internal static class HybridProcedures
 }
 
 internal static class DashboardStream
-    {
-        public static ValueTask<Result<IStreamCall>> CreateAsync(
-            ChannelReader<ProgressUpdate> updates,
-            IRequest<ReadOnlyMemory<byte>> request,
-        CancellationToken cancellationToken)
+{
+    public static ValueTask<Result<IStreamCall>> CreateAsync(
+        ChannelReader<ProgressUpdate> updates,
+        IRequest<ReadOnlyMemory<byte>> request,
+    CancellationToken cancellationToken)
     {
         var call = ServerStreamCall.Create(request.Meta, new ResponseMeta(encoding: "application/json"));
 

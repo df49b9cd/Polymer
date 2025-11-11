@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
-using DistributedDemo.Inventory.Protos;
 using DistributedDemo.Contracts;
+using DistributedDemo.Inventory.Protos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

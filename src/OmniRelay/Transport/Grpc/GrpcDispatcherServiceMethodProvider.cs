@@ -781,7 +781,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
         }
     }
 
-    #pragma warning disable CA2016 // IServerStreamWriter.WriteAsync does not accept a CancellationToken.
+#pragma warning disable CA2016 // IServerStreamWriter.WriteAsync does not accept a CancellationToken.
     private static async Task WriteGrpcMessageAsync(
         IServerStreamWriter<byte[]> responseStream,
         ReadOnlyMemory<byte> payload,
@@ -808,7 +808,7 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
             throw new TimeoutException("The write operation timed out.");
         }
     }
-    #pragma warning restore CA2016
+#pragma warning restore CA2016
 
     private static void ApplySuccessTrailers(ServerCallContext callContext, ResponseMeta responseMeta)
     {

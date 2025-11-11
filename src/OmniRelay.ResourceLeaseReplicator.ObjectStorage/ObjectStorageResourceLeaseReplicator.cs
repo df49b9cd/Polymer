@@ -25,7 +25,7 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
         _keyPrefix = keyPrefix ?? string.Empty;
         _sinks = sinks is null
             ? []
-            : [..sinks.Where(s => s is not null)];
+            : [.. sinks.Where(s => s is not null)];
     }
 
     public async ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
