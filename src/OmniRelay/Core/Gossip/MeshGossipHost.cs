@@ -283,7 +283,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 await Task.Delay(_options.Interval, cancellationToken).ConfigureAwait(false);
                 await ExecuteRoundAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 break;
             }
@@ -378,7 +378,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 _membership.Sweep(suspicion, leave);
                 RecordMetrics(_membership.Snapshot());
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 break;
             }
