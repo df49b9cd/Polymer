@@ -219,6 +219,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
 
             if (state.LastFailure is { } failure && now - failure < _options.ElectionBackoff)
             {
+                await ObserveStoreAsync(state, cancellationToken).ConfigureAwait(false);
                 return;
             }
 

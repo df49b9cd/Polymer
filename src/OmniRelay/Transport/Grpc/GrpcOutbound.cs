@@ -1124,6 +1124,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         private readonly double[] _buffer;
         private readonly Hugo.Mutex _mutex = new();
+        private bool _disposed;
         private int _count;
         private int _nextIndex;
         private double _sum;
@@ -1131,7 +1132,6 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         public LatencyTracker(int capacity = 256)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
-
             _buffer = new double[capacity];
         }
 
@@ -1142,51 +1142,85 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 return;
             }
 
+            if (Volatile.Read(ref _disposed))
+            {
+                return;
+            }
+
             var value = Math.Max(0, durationMilliseconds);
 
-            using var scope = _mutex.EnterScope();
-            if (_count == _buffer.Length)
+            try
             {
-                _sum -= _buffer[_nextIndex];
-            }
-            else
-            {
-                _count++;
-            }
+                using var scope = _mutex.EnterScope();
+                if (_count == _buffer.Length)
+                {
+                    _sum -= _buffer[_nextIndex];
+                }
+                else
+                {
+                    _count++;
+                }
 
-            _buffer[_nextIndex] = value;
-            _sum += value;
-            _nextIndex = (_nextIndex + 1) % _buffer.Length;
+                _buffer[_nextIndex] = value;
+                _sum += value;
+                _nextIndex = (_nextIndex + 1) % _buffer.Length;
+            }
+            catch (ObjectDisposedException)
+            {
+                // Tracker was disposed concurrently; ignore late samples.
+            }
         }
 
         public LatencySnapshot Snapshot()
         {
-            using var scope = _mutex.EnterScope();
-            if (_count == 0)
+            if (Volatile.Read(ref _disposed))
             {
                 return LatencySnapshot.Empty;
             }
 
-            var samples = new double[_count];
-            if (_count == _buffer.Length)
+            try
             {
-                for (var i = 0; i < _count; i++)
+                using var scope = _mutex.EnterScope();
+                if (_count == 0)
                 {
-                    var index = (_nextIndex + i) % _buffer.Length;
-                    samples[i] = _buffer[index];
+                    return LatencySnapshot.Empty;
                 }
+
+                var samples = new double[_count];
+                if (_count == _buffer.Length)
+                {
+                    for (var i = 0; i < _count; i++)
+                    {
+                        var index = (_nextIndex + i) % _buffer.Length;
+                        samples[i] = _buffer[index];
+                    }
+                }
+                else
+                {
+                    Array.Copy(_buffer, samples, _count);
+                }
+
+                Array.Sort(samples);
+                var average = _sum / _count;
+                var p50 = CalculatePercentile(samples, 0.50);
+                var p90 = CalculatePercentile(samples, 0.90);
+                var p99 = CalculatePercentile(samples, 0.99);
+                return new LatencySnapshot(average, p50, p90, p99);
             }
-            else
+            catch (ObjectDisposedException)
             {
-                Array.Copy(_buffer, samples, _count);
+                return LatencySnapshot.Empty;
+            }
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, true))
+            {
+                return;
             }
 
-            Array.Sort(samples);
-            var average = _sum / _count;
-            var p50 = CalculatePercentile(samples, 0.50);
-            var p90 = CalculatePercentile(samples, 0.90);
-            var p99 = CalculatePercentile(samples, 0.99);
-            return new LatencySnapshot(average, p50, p90, p99);
+            _mutex.Dispose();
         }
 
         private static double CalculatePercentile(double[] samples, double percentile)
@@ -1207,11 +1241,6 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             var fraction = position - lowerIndex;
             return samples[lowerIndex] + (samples[upperIndex] - samples[lowerIndex]) * fraction;
-        }
-
-        public void Dispose()
-        {
-            _mutex.Dispose();
         }
     }
 
