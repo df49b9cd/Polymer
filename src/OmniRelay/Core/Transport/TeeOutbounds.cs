@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using Hugo;
 using Microsoft.Extensions.Logging;
@@ -47,7 +48,7 @@ public sealed record TeeOutboundDiagnostics(
 /// <summary>
 /// Unary outbound that forwards calls to a primary outbound and optionally shadows to a secondary outbound.
 /// </summary>
-public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
+public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic, IDisposable
 {
     private readonly IUnaryOutbound _primary;
     private readonly IUnaryOutbound _shadow;
@@ -55,6 +56,17 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
     private readonly ILogger _logger;
     private readonly WaitGroup _shadowWork = new();
     private CancellationTokenSource _shadowCts = new();
+    private bool _disposed;
+    private static readonly Action<ILogger, string, string, string?, Exception?> ShadowUnaryFailureLog =
+        LoggerMessage.Define<string, string, string?>(
+            LogLevel.Debug,
+            new EventId(1000, "ShadowUnaryFailure"),
+            "Shadow unary call failed for {Service}::{Procedure}: {Message}");
+    private static readonly Action<ILogger, string, string, Exception?> ShadowUnaryExceptionLog =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Warning,
+            new EventId(1001, "ShadowUnaryException"),
+            "Shadow unary call threw for {Service}::{Procedure}");
 
     /// <summary>
     /// Creates a tee unary outbound given primary and shadow outbounds.
@@ -174,11 +186,7 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
                 var result = await _shadow.CallAsync(teeRequest, shadowToken).ConfigureAwait(false);
                 if (result.IsFailure)
                 {
-                    _logger.LogDebug(
-                        "Shadow unary call failed for {Service}::{Procedure}: {Message}",
-                        teeMeta.Service,
-                        teeMeta.Procedure,
-                        result.Error?.Message);
+                    ShadowUnaryFailureLog(_logger, teeMeta.Service, teeMeta.Procedure ?? string.Empty, result.Error?.Message, null);
                 }
             }
             catch (OperationCanceledException) when (shadowToken.IsCancellationRequested)
@@ -186,11 +194,7 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(
-                    ex,
-                    "Shadow unary call threw for {Service}::{Procedure}",
-                    teeMeta.Service,
-                    teeMeta.Procedure);
+                ShadowUnaryExceptionLog(_logger, teeMeta.Service, teeMeta.Procedure ?? string.Empty, ex);
             }
         }, _shadowCts.Token);
     }
@@ -270,12 +274,24 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic
             throw new ResultException(error);
         }
     }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _shadowCts.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }
 
 /// <summary>
 /// Oneway outbound that forwards calls to a primary outbound and optionally shadows to a secondary outbound.
 /// </summary>
-public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
+public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic, IDisposable
 {
     private readonly IOnewayOutbound _primary;
     private readonly IOnewayOutbound _shadow;
@@ -283,6 +299,17 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
     private readonly ILogger _logger;
     private readonly WaitGroup _shadowWork = new();
     private CancellationTokenSource _shadowCts = new();
+    private bool _disposed;
+    private static readonly Action<ILogger, string, string, string?, Exception?> ShadowOnewayFailureLog =
+        LoggerMessage.Define<string, string, string?>(
+            LogLevel.Debug,
+            new EventId(2000, "ShadowOnewayFailure"),
+            "Shadow oneway call failed for {Service}::{Procedure}: {Message}");
+    private static readonly Action<ILogger, string, string, Exception?> ShadowOnewayExceptionLog =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Warning,
+            new EventId(2001, "ShadowOnewayException"),
+            "Shadow oneway call threw for {Service}::{Procedure}");
 
     /// <summary>
     /// Creates a tee oneway outbound given primary and shadow outbounds.
@@ -402,11 +429,7 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
                 var result = await _shadow.CallAsync(teeRequest, shadowToken).ConfigureAwait(false);
                 if (result.IsFailure)
                 {
-                    _logger.LogDebug(
-                        "Shadow oneway call failed for {Service}::{Procedure}: {Message}",
-                        teeMeta.Service,
-                        teeMeta.Procedure,
-                        result.Error?.Message);
+                    ShadowOnewayFailureLog(_logger, teeMeta.Service, teeMeta.Procedure ?? string.Empty, result.Error?.Message, null);
                 }
             }
             catch (OperationCanceledException) when (shadowToken.IsCancellationRequested)
@@ -414,11 +437,7 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(
-                    ex,
-                    "Shadow oneway call threw for {Service}::{Procedure}",
-                    teeMeta.Service,
-                    teeMeta.Procedure);
+                ShadowOnewayExceptionLog(_logger, teeMeta.Service, teeMeta.Procedure ?? string.Empty, ex);
             }
         }, _shadowCts.Token);
     }
@@ -497,5 +516,17 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic
         {
             throw new ResultException(error);
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _shadowCts.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

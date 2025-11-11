@@ -327,7 +327,7 @@ public class RateLimitingMiddlewareTests
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _channel.Writer;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _channel.Reader;
 
-        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
         public ValueTask DisposeAsync() => ValueTask.FromException(new InvalidOperationException("dispose failure"));
     }

@@ -51,7 +51,7 @@ internal static class TestHelpers
 
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
-        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
@@ -68,8 +68,8 @@ internal static class TestHelpers
         public ChannelReader<ReadOnlyMemory<byte>> RequestReader => _requests.Reader;
         public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _responses.Writer;
         public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _responses.Reader;
-        public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
-        public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 

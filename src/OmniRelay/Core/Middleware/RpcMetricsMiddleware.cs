@@ -488,14 +488,14 @@ public sealed class RpcMetricsMiddleware :
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _inner.Requests;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _inner.Responses;
 
-        public async ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
+        public async ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default)
         {
-            if (error is not null)
+            if (fault is not null)
             {
-                _completionError = error;
+                _completionError = fault;
             }
 
-            await _inner.CompleteAsync(error, cancellationToken).ConfigureAwait(false);
+            await _inner.CompleteAsync(fault, cancellationToken).ConfigureAwait(false);
         }
 
         public async ValueTask DisposeAsync()
@@ -598,24 +598,24 @@ public sealed class RpcMetricsMiddleware :
         public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _inner.ResponseWriter;
         public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
-        public async ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default)
+        public async ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default)
         {
-            if (error is not null)
+            if (fault is not null)
             {
-                _requestError = error;
+                _requestError = fault;
             }
 
-            await _inner.CompleteRequestsAsync(error, cancellationToken).ConfigureAwait(false);
+            await _inner.CompleteRequestsAsync(fault, cancellationToken).ConfigureAwait(false);
         }
 
-        public async ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default)
+        public async ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default)
         {
-            if (error is not null)
+            if (fault is not null)
             {
-                _responseError = error;
+                _responseError = fault;
             }
 
-            await _inner.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
+            await _inner.CompleteResponsesAsync(fault, cancellationToken).ConfigureAwait(false);
         }
 
         public async ValueTask DisposeAsync()
@@ -641,4 +641,3 @@ public sealed class RpcMetricsMiddleware :
         }
     }
 }
-

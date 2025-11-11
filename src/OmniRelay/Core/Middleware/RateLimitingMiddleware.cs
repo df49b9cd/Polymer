@@ -302,8 +302,8 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _inner.Requests;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _inner.Responses;
 
-        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteAsync(error, cancellationToken);
+        public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteAsync(fault, cancellationToken);
 
         public async ValueTask DisposeAsync()
         {
@@ -359,11 +359,11 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _inner.ResponseWriter;
         public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
-        public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteRequestsAsync(error, cancellationToken);
+        public ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteRequestsAsync(fault, cancellationToken);
 
-        public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteResponsesAsync(error, cancellationToken);
+        public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteResponsesAsync(fault, cancellationToken);
 
         public async ValueTask DisposeAsync()
         {
@@ -378,4 +378,3 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         }
     }
 }
-
