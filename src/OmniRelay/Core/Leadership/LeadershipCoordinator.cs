@@ -128,6 +128,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
 
                 PublishLoss(state, lease, LeadershipEventKind.SteppedDown, "shutdown");
                 state.Lease = null;
+                state.LastFailure = null;
             }
         }
     }
@@ -205,6 +206,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
         {
             PublishLoss(state, lease, LeadershipEventKind.Expired, "lease expired");
             state.Lease = null;
+            state.LastFailure = null;
         }
 
         var isLocalEligible = IsLocalEligible(gossipView);
@@ -258,9 +260,10 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
             if (state.Lease is { } previous && !string.Equals(previous.LeaderId, NodeId, StringComparison.Ordinal))
             {
                 PublishObservedLoss(state, previous, "observed release");
-                state.Lease = null;
             }
 
+            state.Lease = null;
+            state.LastFailure = null;
             return;
         }
 
@@ -323,6 +326,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
         {
             PublishLoss(state, expired, LeadershipEventKind.Expired, "lease expired during renew");
             state.Lease = null;
+            state.LastFailure = null;
             return;
         }
 
@@ -339,6 +343,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
         {
             PublishLoss(state, state.Lease, LeadershipEventKind.Lost, "lease revoked");
             state.Lease = null;
+            state.LastFailure = null;
         }
     }
 
