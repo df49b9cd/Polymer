@@ -32,7 +32,7 @@ internal static class ResourceLeaseReplicationGrpcMapper
             : new ResourceLeaseErrorInfo(message.Error.Message, message.Error.Code);
 
         var metadata = message.Metadata.Count == 0
-            ? ImmutableDictionary<string, string>.Empty
+            ? []
             : message.Metadata.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase);
 
         return new ResourceLeaseReplicationEvent(

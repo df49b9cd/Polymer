@@ -65,6 +65,6 @@ public class ProcedureBuilderTests
             IRequest<ReadOnlyMemory<byte>> request,
             StreamCallOptions options,
             CancellationToken cancellationToken,
-            StreamInboundDelegate next) => next(request, options, cancellationToken);
+            StreamInboundHandler next) => next(request, options, cancellationToken);
     }
 }

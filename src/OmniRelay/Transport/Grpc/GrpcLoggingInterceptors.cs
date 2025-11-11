@@ -6,7 +6,7 @@ using OmniRelay.Core;
 
 namespace OmniRelay.Transport.Grpc;
 
-public sealed class GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterceptor> logger) : Interceptor
+public sealed partial class GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterceptor> logger) : Interceptor
 {
     private readonly ILogger<GrpcClientLoggingInterceptor> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -24,7 +24,7 @@ public sealed class GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterc
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Starting gRPC client unary call {Method}", methodName);
+            ClientLog.ClientCallStart(_logger, methodName);
         }
 
         var call = continuation(request, context);
@@ -66,10 +66,7 @@ public sealed class GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterc
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation(
-                "Completed gRPC client unary call {Method} in {Elapsed:F2} ms",
-                methodName,
-                elapsed);
+            ClientLog.ClientCallSuccess(_logger, methodName, elapsed);
         }
     }
 
@@ -81,17 +78,24 @@ public sealed class GrpcClientLoggingInterceptor(ILogger<GrpcClientLoggingInterc
 
         if (_logger.IsEnabled(LogLevel.Warning))
         {
-            _logger.LogWarning(
-                "Failed gRPC client unary call {Method} in {Elapsed:F2} ms with status {Status}: {Detail}",
-                methodName,
-                elapsed,
-                statusCode,
-                detail);
+            ClientLog.ClientCallFailure(_logger, methodName, elapsed, statusCode, detail);
         }
+    }
+
+    private static partial class ClientLog
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Starting gRPC client unary call {Method}")]
+        public static partial void ClientCallStart(ILogger logger, string method);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Completed gRPC client unary call {Method} in {Elapsed:F2} ms")]
+        public static partial void ClientCallSuccess(ILogger logger, string method, double elapsed);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "Failed gRPC client unary call {Method} in {Elapsed:F2} ms with status {Status}: {Detail}")]
+        public static partial void ClientCallFailure(ILogger logger, string method, double elapsed, StatusCode status, string? detail);
     }
 }
 
-public sealed class GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterceptor> logger) : Interceptor
+public sealed partial class GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterceptor> logger) : Interceptor
 {
     private readonly ILogger<GrpcServerLoggingInterceptor> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -109,7 +113,7 @@ public sealed class GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterc
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Handling gRPC server unary call {Method}", methodName);
+            ServerLog.ServerCallStart(_logger, methodName);
         }
 
         try
@@ -138,10 +142,7 @@ public sealed class GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterc
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation(
-                "Completed gRPC server unary call {Method} in {Elapsed:F2} ms",
-                methodName,
-                elapsed);
+            ServerLog.ServerCallSuccess(_logger, methodName, elapsed);
         }
     }
 
@@ -153,15 +154,21 @@ public sealed class GrpcServerLoggingInterceptor(ILogger<GrpcServerLoggingInterc
 
         if (_logger.IsEnabled(LogLevel.Warning))
         {
-            _logger.LogWarning(
-                "Failed gRPC server unary call {Method} in {Elapsed:F2} ms with status {Status}: {Detail}",
-                methodName,
-                elapsed,
-                statusCode,
-                detail);
+            ServerLog.ServerCallFailure(_logger, methodName, elapsed, statusCode, detail);
         }
     }
 
+    private static partial class ServerLog
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Handling gRPC server unary call {Method}")]
+        public static partial void ServerCallStart(ILogger logger, string method);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Completed gRPC server unary call {Method} in {Elapsed:F2} ms")]
+        public static partial void ServerCallSuccess(ILogger logger, string method, double elapsed);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "Failed gRPC server unary call {Method} in {Elapsed:F2} ms with status {Status}: {Detail}")]
+        public static partial void ServerCallFailure(ILogger logger, string method, double elapsed, StatusCode status, string? detail);
+    }
 }
 
 internal static class GrpcLoggingScopeHelper

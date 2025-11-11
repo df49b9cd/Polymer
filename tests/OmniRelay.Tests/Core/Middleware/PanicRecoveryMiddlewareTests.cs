@@ -22,7 +22,7 @@ public sealed class PanicRecoveryMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryInboundDelegate)((_, _) => throw new InvalidOperationException("boom")));
+            (UnaryInboundHandler)((_, _) => throw new InvalidOperationException("boom")));
 
         Assert.True(result.IsFailure);
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
@@ -44,7 +44,7 @@ public sealed class PanicRecoveryMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((_, _) => throw new ApplicationException("fail")));
+            (UnaryOutboundHandler)((_, _) => throw new ApplicationException("fail")));
 
         Assert.True(result.IsFailure);
         Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));

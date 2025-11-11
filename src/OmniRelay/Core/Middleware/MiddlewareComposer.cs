@@ -8,9 +8,9 @@ namespace OmniRelay.Core.Middleware;
 public static class MiddlewareComposer
 {
     /// <summary>Composes a unary outbound middleware pipeline.</summary>
-    public static UnaryOutboundDelegate ComposeUnaryOutbound(
+    public static UnaryOutboundHandler ComposeUnaryOutbound(
         IReadOnlyList<IUnaryOutboundMiddleware>? middleware,
-        UnaryOutboundDelegate terminal)
+        UnaryOutboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -32,9 +32,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes a unary inbound middleware pipeline.</summary>
-    public static UnaryInboundDelegate ComposeUnaryInbound(
+    public static UnaryInboundHandler ComposeUnaryInbound(
         IReadOnlyList<IUnaryInboundMiddleware>? middleware,
-        UnaryInboundDelegate terminal)
+        UnaryInboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -56,9 +56,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes an oneway outbound middleware pipeline.</summary>
-    public static OnewayOutboundDelegate ComposeOnewayOutbound(
+    public static OnewayOutboundHandler ComposeOnewayOutbound(
         IReadOnlyList<IOnewayOutboundMiddleware>? middleware,
-        OnewayOutboundDelegate terminal)
+        OnewayOutboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -80,9 +80,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes an oneway inbound middleware pipeline.</summary>
-    public static OnewayInboundDelegate ComposeOnewayInbound(
+    public static OnewayInboundHandler ComposeOnewayInbound(
         IReadOnlyList<IOnewayInboundMiddleware>? middleware,
-        OnewayInboundDelegate terminal)
+        OnewayInboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -104,9 +104,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes a server-streaming outbound middleware pipeline.</summary>
-    public static StreamOutboundDelegate ComposeStreamOutbound(
+    public static StreamOutboundHandler ComposeStreamOutbound(
         IReadOnlyList<IStreamOutboundMiddleware>? middleware,
-        StreamOutboundDelegate terminal)
+        StreamOutboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -128,9 +128,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes a server-streaming inbound middleware pipeline.</summary>
-    public static StreamInboundDelegate ComposeStreamInbound(
+    public static StreamInboundHandler ComposeStreamInbound(
         IReadOnlyList<IStreamInboundMiddleware>? middleware,
-        StreamInboundDelegate terminal)
+        StreamInboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -152,9 +152,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes a client-stream inbound middleware pipeline.</summary>
-    public static ClientStreamInboundDelegate ComposeClientStreamInbound(
+    public static ClientStreamInboundHandler ComposeClientStreamInbound(
         IReadOnlyList<IClientStreamInboundMiddleware>? middleware,
-        ClientStreamInboundDelegate terminal)
+        ClientStreamInboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -176,9 +176,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes a client-stream outbound middleware pipeline.</summary>
-    public static ClientStreamOutboundDelegate ComposeClientStreamOutbound(
+    public static ClientStreamOutboundHandler ComposeClientStreamOutbound(
         IReadOnlyList<IClientStreamOutboundMiddleware>? middleware,
-        ClientStreamOutboundDelegate terminal)
+        ClientStreamOutboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -200,9 +200,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes a duplex inbound middleware pipeline.</summary>
-    public static DuplexInboundDelegate ComposeDuplexInbound(
+    public static DuplexInboundHandler ComposeDuplexInbound(
         IReadOnlyList<IDuplexInboundMiddleware>? middleware,
-        DuplexInboundDelegate terminal)
+        DuplexInboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -224,9 +224,9 @@ public static class MiddlewareComposer
     }
 
     /// <summary>Composes a duplex outbound middleware pipeline.</summary>
-    public static DuplexOutboundDelegate ComposeDuplexOutbound(
+    public static DuplexOutboundHandler ComposeDuplexOutbound(
         IReadOnlyList<IDuplexOutboundMiddleware>? middleware,
-        DuplexOutboundDelegate terminal)
+        DuplexOutboundHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 

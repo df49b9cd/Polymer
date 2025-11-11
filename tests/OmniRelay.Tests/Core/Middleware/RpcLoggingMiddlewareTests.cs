@@ -25,7 +25,7 @@ public sealed class RpcLoggingMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryInboundDelegate)((req, token) => ValueTask.FromResult(Ok(response))));
+            (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(response))));
 
         Assert.True(result.IsSuccess);
         TestLogger<RpcLoggingMiddleware>.LogEntry entry = Assert.Single(logger.Entries);
@@ -49,7 +49,7 @@ public sealed class RpcLoggingMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error))));
+            (UnaryOutboundHandler)((req, token) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error))));
 
         Assert.True(result.IsFailure);
         TestLogger<RpcLoggingMiddleware>.LogEntry entry = Assert.Single(logger.Entries);
@@ -74,7 +74,7 @@ public sealed class RpcLoggingMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryInboundDelegate)((req, token) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
+            (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
 
         Assert.True(result.IsSuccess);
         Assert.Empty(logger.Entries);
@@ -115,7 +115,7 @@ public sealed class RpcLoggingMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryInboundDelegate)((req, token) =>
+            (UnaryInboundHandler)((req, token) =>
             {
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, responseMeta)));
             }));

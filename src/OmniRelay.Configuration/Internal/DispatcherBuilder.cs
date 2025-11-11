@@ -15,9 +15,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OmniRelay.Configuration.Models;
 using OmniRelay.Core;
 using OmniRelay.Core.Diagnostics;
+using OmniRelay.Core.Gossip;
+using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Peers;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
@@ -30,16 +33,20 @@ namespace OmniRelay.Configuration.Internal;
 /// <summary>
 /// Builds a configured <see cref="Dispatcher.Dispatcher"/> from bound <see cref="Models.OmniRelayConfigurationOptions"/> and the service provider.
 /// </summary>
-internal sealed class DispatcherBuilder
+internal sealed partial class DispatcherBuilder
 {
     private readonly OmniRelayConfigurationOptions _options;
     private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
     private readonly Dictionary<string, HttpOutbound> _httpOutboundCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, GrpcOutbound> _grpcOutboundCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly IReadOnlyDictionary<string, ICustomInboundSpec> _customInboundSpecs;
-    private readonly IReadOnlyDictionary<string, ICustomOutboundSpec> _customOutboundSpecs;
-    private readonly IReadOnlyDictionary<string, ICustomPeerChooserSpec> _customPeerSpecs;
+    private readonly Dictionary<string, ICustomInboundSpec> _customInboundSpecs;
+    private readonly Dictionary<string, ICustomOutboundSpec> _customOutboundSpecs;
+    private readonly Dictionary<string, ICustomPeerChooserSpec> _customPeerSpecs;
+    private static readonly JsonSerializerOptions LeadershipEventJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter<LeadershipEventKind>(JsonNamingPolicy.CamelCase) }
+    };
 
     public DispatcherBuilder(OmniRelayConfigurationOptions options, IServiceProvider serviceProvider, IConfiguration configuration)
     {
@@ -61,6 +68,8 @@ internal sealed class DispatcherBuilder
     }
 
     /// <summary>Constructs a new dispatcher based on the current options and DI configuration.</summary>
+    [RequiresDynamicCode("OmniRelay dispatcher bootstrapping relies on reflection-heavy configuration binding.")]
+    [RequiresUnreferencedCode("OmniRelay dispatcher bootstrapping relies on reflection-heavy configuration binding.")]
     public Dispatcher.Dispatcher Build()
     {
         var serviceName = _options.Service?.Trim();
@@ -75,10 +84,13 @@ internal sealed class DispatcherBuilder
         ConfigureInbounds(dispatcherOptions);
         ConfigureOutbounds(dispatcherOptions);
         ConfigureEncodings(dispatcherOptions);
+        ConfigureMeshComponents(dispatcherOptions);
 
         return new Dispatcher.Dispatcher(dispatcherOptions);
     }
 
+    [RequiresDynamicCode("Inbound configuration relies on reflection-heavy diagnostics wiring.")]
+    [RequiresUnreferencedCode("Custom inbound specs are resolved via reflection and configuration binding.")]
     private void ConfigureInbounds(DispatcherOptions dispatcherOptions)
     {
         ConfigureHttpInbounds(dispatcherOptions);
@@ -86,6 +98,8 @@ internal sealed class DispatcherBuilder
         ConfigureCustomInbounds(dispatcherOptions);
     }
 
+    [RequiresDynamicCode("HTTP inbound diagnostics rely on minimal APIs and reflection.")]
+    [RequiresUnreferencedCode("HTTP inbound diagnostics rely on minimal APIs and reflection.")]
     private void ConfigureHttpInbounds(DispatcherOptions dispatcherOptions)
     {
         var index = 0;
@@ -135,9 +149,12 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresDynamicCode("gRPC inbound configuration instantiates interceptors via dependency injection.")]
+    [RequiresUnreferencedCode("gRPC inbound configuration instantiates interceptors via dependency injection.")]
     private void ConfigureGrpcInbounds(DispatcherOptions dispatcherOptions)
     {
         var index = 0;
+        var configureServices = CreateGrpcInboundServiceConfigurator();
         foreach (var inbound in _options.Inbounds.Grpc)
         {
             if (inbound.Urls.Count == 0)
@@ -161,6 +178,7 @@ internal sealed class DispatcherBuilder
                 name,
                 new GrpcInbound(
                     urls,
+                    configureServices: configureServices,
                     serverRuntimeOptions: runtimeOptions,
                     serverTlsOptions: tlsOptions,
                     telemetryOptions: telemetryOptions));
@@ -211,6 +229,8 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresUnreferencedCode("Custom outbound specs are resolved via reflection and configuration binding.")]
+    [RequiresDynamicCode("Custom outbound bindings use configuration binder reflection.")]
     private void ConfigureOutbounds(DispatcherOptions dispatcherOptions)
     {
         foreach (var (service, config) in _options.Outbounds)
@@ -230,6 +250,8 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresDynamicCode("Custom outbound bindings use configuration binder reflection.")]
+    [RequiresUnreferencedCode("Custom outbound bindings use configuration binder reflection.")]
     private void RegisterOutboundSet(
         DispatcherOptions dispatcherOptions,
         string service,
@@ -406,7 +428,7 @@ internal sealed class DispatcherBuilder
             ? "default"
             : FormattableString.Invariant($"http3={runtimeOptions.EnableHttp3};ver={runtimeOptions.RequestVersion?.ToString() ?? "null"};policy={runtimeOptions.VersionPolicy?.ToString() ?? "null"}");
 
-        var cacheKey = FormattableString.Invariant($"{service}|{configuration.Key ?? OutboundCollection.DefaultKey}|{uri}|{configuration.ClientName ?? string.Empty}|{runtimeKey}");
+        var cacheKey = FormattableString.Invariant($"{service}|{configuration.Key ?? OutboundRegistry.DefaultKey}|{uri}|{configuration.ClientName ?? string.Empty}|{runtimeKey}");
 
         if (_httpOutboundCache.TryGetValue(cacheKey, out var cached))
         {
@@ -482,6 +504,8 @@ internal sealed class DispatcherBuilder
         };
     }
 
+    [RequiresDynamicCode("gRPC outbound configuration instantiates interceptors via dependency injection.")]
+    [RequiresUnreferencedCode("gRPC outbound configuration instantiates interceptors via dependency injection.")]
     private GrpcOutbound CreateGrpcOutbound(string service, GrpcOutboundTargetConfiguration configuration, IConfigurationSection? configurationSection)
     {
         var endpoints = configuration.Endpoints;
@@ -560,7 +584,7 @@ internal sealed class DispatcherBuilder
                 endpointHttp3Support: h3Support);
         }
 
-        var cacheKey = FormattableString.Invariant($"{service}|{configuration.Key ?? OutboundCollection.DefaultKey}|{remoteService}|{string.Join(",", uris.Select(u => u.ToString()))}|{configuration.PeerChooser ?? "round-robin"}");
+        var cacheKey = FormattableString.Invariant($"{service}|{configuration.Key ?? OutboundRegistry.DefaultKey}|{remoteService}|{string.Join(",", uris.Select(u => u.ToString()))}|{configuration.PeerChooser ?? "round-robin"}");
 
         if (_grpcOutboundCache.TryGetValue(cacheKey, out var cachedOutbound))
         {
@@ -701,7 +725,9 @@ internal sealed class DispatcherBuilder
         RemoteCertificateValidationCallback? validationCallback = null;
         if (configuration.AllowUntrustedCertificates == true)
         {
-            validationCallback = (_, _, _, _) => true;
+#pragma warning disable CA5359 // Allow opt-in developer experience for untrusted clusters.
+            validationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
         }
 
         return new GrpcClientTlsOptions
@@ -711,6 +737,8 @@ internal sealed class DispatcherBuilder
         };
     }
 
+    [RequiresDynamicCode("Client interceptors are instantiated via dependency injection.")]
+    [RequiresUnreferencedCode("Client interceptors are instantiated via dependency injection.")]
     private GrpcClientRuntimeOptions? BuildGrpcClientRuntimeOptions(GrpcClientRuntimeConfiguration configuration)
     {
         if (configuration is null)
@@ -751,7 +779,9 @@ internal sealed class DispatcherBuilder
         };
     }
 
-    private IReadOnlyList<Interceptor> ResolveClientInterceptors(IEnumerable<string> typeNames)
+    [RequiresDynamicCode("Instantiates interceptors via dependency injection.")]
+    [RequiresUnreferencedCode("Instantiates interceptors via dependency injection.")]
+    private List<Interceptor> ResolveClientInterceptors(IEnumerable<string> typeNames)
     {
         var resolved = new List<Interceptor>();
         foreach (var typeName in typeNames)
@@ -775,6 +805,8 @@ internal sealed class DispatcherBuilder
         return resolved;
     }
 
+    [RequiresDynamicCode("Diagnostics control plane endpoints use minimal APIs with reflection.")]
+    [RequiresUnreferencedCode("Diagnostics control plane endpoints use minimal APIs with reflection.")]
     private Action<WebApplication>? CreateHttpInboundAppConfigurator()
     {
         var actions = new List<Action<WebApplication>>();
@@ -825,6 +857,7 @@ internal sealed class DispatcherBuilder
                 .Where(static provider => provider is not null)
                 .ToArray()
             : [];
+        var gossipAgent = controlPlaneOptions.GossipAgent;
 
         return services =>
         {
@@ -836,7 +869,7 @@ internal sealed class DispatcherBuilder
                 otel.ConfigureResource(resource => resource.AddService(serviceName: serviceName));
                 otel.WithMetrics(builder =>
                 {
-                    builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
+                    builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Core.Gossip", "OmniRelay.Core.Leadership", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
                     builder.AddPrometheusExporter(options =>
                     {
                         options.ScrapeEndpointPath = scrapePath;
@@ -867,7 +900,35 @@ internal sealed class DispatcherBuilder
                 {
                     services.AddSingleton<IEnumerable<IPeerHealthSnapshotProvider>>(peerHealthProviders);
                 }
+
+                if (controlPlaneOptions.EnablePeerDiagnostics && gossipAgent is not null)
+                {
+                    services.AddSingleton(gossipAgent);
+                }
+
+                if (controlPlaneOptions.EnableLeadershipDiagnostics && controlPlaneOptions.LeadershipObserver is not null)
+                {
+                    services.AddSingleton(controlPlaneOptions.LeadershipObserver);
+                }
             }
+        };
+    }
+
+    private Action<IServiceCollection>? CreateGrpcInboundServiceConfigurator()
+    {
+        var leadershipOptions = _serviceProvider.GetService<IOptions<LeadershipOptions>>()?.Value;
+        var leadershipObserver = leadershipOptions?.Enabled == true
+            ? _serviceProvider.GetService<ILeadershipObserver>()
+            : null;
+        if (leadershipObserver is null)
+        {
+            return null;
+        }
+
+        return services =>
+        {
+            services.AddSingleton(leadershipObserver);
+            services.AddSingleton<LeadershipControlGrpcService>();
         };
     }
 
@@ -1049,7 +1110,12 @@ internal sealed class DispatcherBuilder
 
         var enableLogging = runtime.EnableLoggingLevelToggle ?? false;
         var enableSampling = runtime.EnableTraceSamplingToggle ?? false;
-        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling);
+        var hasPeerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>().Any();
+        var gossipAgent = _serviceProvider.GetService<IMeshGossipAgent>();
+        var enablePeerDiagnostics = gossipAgent is not null && gossipAgent.IsEnabled;
+        var leadershipObserver = _serviceProvider.GetService<ILeadershipObserver>();
+        var enableLeadershipDiagnostics = leadershipObserver is not null;
+        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling || hasPeerHealthProviders || enablePeerDiagnostics || enableLeadershipDiagnostics);
 
         if (!enableControlPlane)
         {
@@ -1057,10 +1123,15 @@ internal sealed class DispatcherBuilder
             return false;
         }
 
-        var hasPeerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>().Any();
-
-        options = new DiagnosticsControlPlaneOptions(enableLogging, enableSampling, hasPeerHealthProviders);
-        return enableLogging || enableSampling || hasPeerHealthProviders;
+        options = new DiagnosticsControlPlaneOptions(
+            enableLogging,
+            enableSampling,
+            hasPeerHealthProviders,
+            enablePeerDiagnostics,
+            enableLeadershipDiagnostics,
+            gossipAgent,
+            leadershipObserver);
+        return enableLogging || enableSampling || hasPeerHealthProviders || enablePeerDiagnostics || enableLeadershipDiagnostics;
     }
 
     [RequiresDynamicCode("Calls Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions.MapGet(String, Delegate)")]
@@ -1148,27 +1219,163 @@ internal sealed class DispatcherBuilder
                 return Results.Json(diagnostics);
             });
         }
+
+        if (options.EnablePeerDiagnostics)
+        {
+            static IResult HandlePeers(IMeshGossipAgent agent)
+            {
+                var snapshot = agent.Snapshot();
+                var peers = snapshot.Members.Select(member => new
+                {
+                    member.NodeId,
+                    status = member.Status.ToString(),
+                    member.LastSeen,
+                    rttMs = member.RoundTripTimeMs,
+                    metadata = new
+                    {
+                        member.Metadata.Role,
+                        member.Metadata.ClusterId,
+                        member.Metadata.Region,
+                        member.Metadata.MeshVersion,
+                        member.Metadata.Http3Support,
+                        member.Metadata.Endpoint,
+                        member.Metadata.MetadataVersion,
+                        Labels = member.Metadata.Labels
+                    }
+                });
+
+                return Results.Json(new
+                {
+                    snapshot.SchemaVersion,
+                    snapshot.GeneratedAt,
+                    snapshot.LocalNodeId,
+                    peers
+                });
+            }
+
+            app.MapGet("/control/peers", HandlePeers);
+            app.MapGet("/omnirelay/control/peers", HandlePeers);
+        }
+
+        if (options.EnableLeadershipDiagnostics && options.LeadershipObserver is not null)
+        {
+            app.MapGet("/control/leaders", (HttpRequest request, ILeadershipObserver observer) =>
+            {
+                var snapshot = observer.Snapshot();
+                if (request.Query.TryGetValue("scope", out var scopeValues) && !string.IsNullOrWhiteSpace(scopeValues))
+                {
+                    var scopeFilter = scopeValues.ToString();
+                    var filtered = snapshot.Tokens
+                        .Where(token => string.Equals(token.Scope, scopeFilter, StringComparison.OrdinalIgnoreCase))
+                        .ToImmutableArray();
+                    snapshot = new LeadershipSnapshot(snapshot.GeneratedAt, filtered);
+                }
+
+                return Results.Json(snapshot);
+            });
+            app.MapGet("/control/events/leadership", async (HttpContext context, ILeadershipObserver observer, ILogger<LeadershipEventStreamMarker> logger) =>
+            {
+                await StreamLeadershipEventsAsync(context, observer, logger).ConfigureAwait(false);
+            });
+        }
     }
 
-    private readonly record struct DiagnosticsControlPlaneOptions(bool EnableLoggingToggle, bool EnableSamplingToggle, bool EnableLeaseHealthDiagnostics)
+    [RequiresDynamicCode("Serializes leadership events using System.Text.Json.")]
+    [RequiresUnreferencedCode("Serializes leadership events using System.Text.Json.")]
+    private static async Task StreamLeadershipEventsAsync(HttpContext context, ILeadershipObserver observer, ILogger<LeadershipEventStreamMarker> logger)
+    {
+        context.Response.Headers.CacheControl = "no-cache";
+        context.Response.Headers["Content-Type"] = "text/event-stream";
+        var scopeFilter = context.Request.Query.TryGetValue("scope", out var scopeValues)
+            ? scopeValues.ToString()
+            : null;
+        var scopeLabel = string.IsNullOrWhiteSpace(scopeFilter) ? "*" : scopeFilter!;
+        var transport = context.Request.Protocol;
+        LeadershipDiagnosticsLog.LeadershipStreamOpened(logger, scopeLabel, transport);
+
+        try
+        {
+            await foreach (var leadershipEvent in observer.SubscribeAsync(scopeFilter, context.RequestAborted).ConfigureAwait(false))
+            {
+                var payload = JsonSerializer.Serialize(leadershipEvent, LeadershipEventJsonOptions);
+                await context.Response.WriteAsync($"data: {payload}\\n\\n", context.RequestAborted).ConfigureAwait(false);
+                await context.Response.Body.FlushAsync(context.RequestAborted).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            LeadershipDiagnosticsLog.LeadershipStreamClosed(logger, scopeLabel);
+        }
+    }
+
+    private readonly record struct DiagnosticsControlPlaneOptions(
+        bool EnableLoggingToggle,
+        bool EnableSamplingToggle,
+        bool EnableLeaseHealthDiagnostics,
+        bool EnablePeerDiagnostics,
+        bool EnableLeadershipDiagnostics,
+        IMeshGossipAgent? GossipAgent,
+        ILeadershipObserver? LeadershipObserver)
     {
         public bool EnableLoggingToggle { get; init; } = EnableLoggingToggle;
 
         public bool EnableSamplingToggle { get; init; } = EnableSamplingToggle;
 
         public bool EnableLeaseHealthDiagnostics { get; init; } = EnableLeaseHealthDiagnostics;
+
+        public bool EnablePeerDiagnostics
+        {
+            get => field;
+            init => field = value;
+        } = EnablePeerDiagnostics;
+
+        public bool EnableLeadershipDiagnostics
+        {
+            get => field;
+            init => field = value;
+        } = EnableLeadershipDiagnostics;
+
+        public IMeshGossipAgent? GossipAgent
+        {
+            get => field;
+            init => field = value;
+        } = GossipAgent;
+
+        public ILeadershipObserver? LeadershipObserver
+        {
+            get => field;
+            init => field = value;
+        } = LeadershipObserver;
     }
 
-    private sealed record DiagnosticsLogLevelRequest(string? Level)
+    internal sealed record DiagnosticsLogLevelRequest(string? Level)
     {
         public string? Level { get; init; } = Level;
     }
 
-    private sealed record DiagnosticsSamplingRequest(double? Probability)
+    internal sealed record DiagnosticsSamplingRequest(double? Probability)
     {
         public double? Probability { get; init; } = Probability;
     }
 
+    internal sealed class LeadershipEventStreamMarker
+    {
+    }
+
+    private static partial class LeadershipDiagnosticsLog
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Leadership SSE stream opened (scope={Scope}, transport={Transport}).")]
+        public static partial void LeadershipStreamOpened(ILogger logger, string scope, string transport);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Leadership SSE stream closed (scope={Scope}).")]
+        public static partial void LeadershipStreamClosed(ILogger logger, string scope);
+    }
+
+    [RequiresDynamicCode("Server interceptors are instantiated via dependency injection.")]
+    [RequiresUnreferencedCode("Server interceptors are instantiated via dependency injection.")]
     private static GrpcServerRuntimeOptions? BuildGrpcServerRuntimeOptions(GrpcServerRuntimeConfiguration configuration)
     {
         var interceptors = ResolveServerInterceptorTypes(configuration.Interceptors);
@@ -1210,7 +1417,9 @@ internal sealed class DispatcherBuilder
         };
     }
 
-    private static IReadOnlyList<Type> ResolveServerInterceptorTypes(IEnumerable<string> typeNames)
+    [RequiresDynamicCode("Resolves interceptor types via reflection.")]
+    [RequiresUnreferencedCode("Resolves interceptor types via reflection.")]
+    private static List<Type> ResolveServerInterceptorTypes(IEnumerable<string> typeNames)
     {
         var resolved = new List<Type>();
         foreach (var typeName in typeNames)
@@ -1280,8 +1489,28 @@ internal sealed class DispatcherBuilder
         };
     }
 
+    [RequiresDynamicCode("JSON codec registration relies on reflection.")]
+    [RequiresUnreferencedCode("JSON codec registration relies on reflection.")]
     private void ConfigureEncodings(DispatcherOptions dispatcherOptions) => ConfigureJsonEncodings(dispatcherOptions);
 
+    private void ConfigureMeshComponents(DispatcherOptions dispatcherOptions)
+    {
+        var gossipAgent = _serviceProvider.GetService<IMeshGossipAgent>();
+        if (gossipAgent is not null && gossipAgent.IsEnabled)
+        {
+            dispatcherOptions.AddLifecycle("mesh-gossip", gossipAgent);
+        }
+
+        var leadershipCoordinator = _serviceProvider.GetService<LeadershipCoordinator>();
+        var leadershipOptions = _serviceProvider.GetService<IOptions<LeadershipOptions>>()?.Value;
+        if (leadershipCoordinator is not null && leadershipOptions?.Enabled == true)
+        {
+            dispatcherOptions.AddLifecycle("mesh-leadership", leadershipCoordinator);
+        }
+    }
+
+    [RequiresDynamicCode("JSON codec registration relies on reflection.")]
+    [RequiresUnreferencedCode("JSON codec registration relies on reflection.")]
     private void ConfigureJsonEncodings(DispatcherOptions dispatcherOptions)
     {
         var jsonConfig = _options.Encodings?.Json;
@@ -1324,6 +1553,8 @@ internal sealed class DispatcherBuilder
         return profiles;
     }
 
+    [RequiresDynamicCode("JSON codec registration relies on reflection.")]
+    [RequiresUnreferencedCode("JSON codec registration relies on reflection.")]
     private static void RegisterJsonCodec(
         DispatcherOptions dispatcherOptions,
         JsonCodecRegistrationConfiguration registration,
@@ -1342,7 +1573,7 @@ internal sealed class DispatcherBuilder
         var requestType = ResolveType(registration.RequestType, $"json codec registration for '{procedure}'");
         var responseType = ResolveResponseType(registration, kind, procedure);
 
-        var materials = BuildJsonCodecMaterials(profiles, registration, requestType, responseType);
+        var materials = BuildJsonCodecMaterials(profiles, registration, requestType);
 
         var encoding = string.IsNullOrWhiteSpace(registration.Encoding)
             ? "application/json"
@@ -1374,11 +1605,12 @@ internal sealed class DispatcherBuilder
             registration.Aliases);
     }
 
+    [RequiresDynamicCode("JSON serializer contexts and converters rely on reflection.")]
+    [RequiresUnreferencedCode("JSON serializer contexts and converters rely on reflection.")]
     private static (JsonSerializerOptions Options, JsonSerializerContext? Context) BuildJsonCodecMaterials(
         IDictionary<string, JsonProfileDescriptor> profiles,
         JsonCodecRegistrationConfiguration registration,
-        Type requestType,
-        Type responseType)
+        Type requestType)
     {
         JsonSerializerOptions options = CreateDefaultJsonSerializerOptions();
         JsonProfileDescriptor? profile = null;
@@ -1403,6 +1635,8 @@ internal sealed class DispatcherBuilder
         return (options, context);
     }
 
+    [RequiresDynamicCode("JsonSerializerContext types are instantiated via reflection.")]
+    [RequiresUnreferencedCode("JsonSerializerContext types are instantiated via reflection.")]
     private static JsonSerializerContext? CreateSerializerContext(string? contextTypeName, JsonSerializerOptions options, string procedure)
     {
         if (string.IsNullOrWhiteSpace(contextTypeName))
@@ -1479,6 +1713,8 @@ internal sealed class DispatcherBuilder
         throw new OmniRelayConfigurationException($"JSON codec registration for '{procedure}' specifies invalid procedure kind '{value}'.");
     }
 
+    [RequiresDynamicCode("Type resolution relies on runtime reflection.")]
+    [RequiresUnreferencedCode("Type resolution relies on runtime reflection.")]
     private static Type ResolveType(string? typeName, string description)
     {
         if (string.IsNullOrWhiteSpace(typeName))
@@ -1495,6 +1731,8 @@ internal sealed class DispatcherBuilder
         return type;
     }
 
+    [RequiresDynamicCode("Response type resolution uses reflection.")]
+    [RequiresUnreferencedCode("Response type resolution uses reflection.")]
     private static Type ResolveResponseType(JsonCodecRegistrationConfiguration registration, ProcedureKind kind, string procedure)
     {
         if (kind == ProcedureKind.Oneway)
@@ -1510,6 +1748,8 @@ internal sealed class DispatcherBuilder
         return ResolveType(registration.ResponseType, $"json codec registration for '{procedure}'");
     }
 
+    [RequiresDynamicCode("Json codecs are instantiated via generic reflection.")]
+    [RequiresUnreferencedCode("Json codecs are instantiated via generic reflection.")]
     private static object CreateJsonCodecInstance(
         Type requestType,
         Type responseType,
@@ -1546,6 +1786,8 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresDynamicCode("Dispatcher codec registration uses reflection.")]
+    [RequiresUnreferencedCode("Dispatcher codec registration uses reflection.")]
     private static void RegisterCodecWithDispatcher(
         DispatcherOptions dispatcherOptions,
         ProcedureCodecScope scope,
@@ -1584,6 +1826,8 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresDynamicCode("Dispatcher codec registration uses reflection.")]
+    [RequiresUnreferencedCode("Dispatcher codec registration uses reflection.")]
     private static void RegisterInboundCodec(
         DispatcherOptions dispatcherOptions,
         ProcedureKind kind,
@@ -1615,6 +1859,8 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresDynamicCode("Dispatcher codec registration uses reflection.")]
+    [RequiresUnreferencedCode("Dispatcher codec registration uses reflection.")]
     private static void RegisterOutboundCodec(
         DispatcherOptions dispatcherOptions,
         ProcedureKind kind,
@@ -1647,6 +1893,8 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresDynamicCode("Dispatcher option registration uses generic reflection.")]
+    [RequiresUnreferencedCode("Dispatcher option registration uses generic reflection.")]
     private static void InvokeCodecRegistration(
         DispatcherOptions dispatcherOptions,
         string methodName,
@@ -1663,6 +1911,8 @@ internal sealed class DispatcherBuilder
         generic.Invoke(dispatcherOptions, [procedure, codec, aliases]);
     }
 
+    [RequiresDynamicCode("Dispatcher option registration uses generic reflection.")]
+    [RequiresUnreferencedCode("Dispatcher option registration uses generic reflection.")]
     private static void InvokeCodecRegistration(
         DispatcherOptions dispatcherOptions,
         string methodName,
@@ -1680,6 +1930,8 @@ internal sealed class DispatcherBuilder
         generic.Invoke(dispatcherOptions, [service, procedure, codec, aliases]);
     }
 
+    [RequiresDynamicCode("Dispatcher option registration uses generic reflection.")]
+    [RequiresUnreferencedCode("Dispatcher option registration uses generic reflection.")]
     private static void InvokeOnewayCodecRegistration(
         DispatcherOptions dispatcherOptions,
         string methodName,
@@ -1695,6 +1947,8 @@ internal sealed class DispatcherBuilder
         generic.Invoke(dispatcherOptions, [procedure, codec, aliases]);
     }
 
+    [RequiresDynamicCode("Dispatcher option registration uses generic reflection.")]
+    [RequiresUnreferencedCode("Dispatcher option registration uses generic reflection.")]
     private static void InvokeOnewayCodecRegistration(
         DispatcherOptions dispatcherOptions,
         string methodName,
@@ -1718,6 +1972,8 @@ internal sealed class DispatcherBuilder
             PropertyNameCaseInsensitive = true
         };
 
+    [RequiresDynamicCode("JSON converters are instantiated via reflection.")]
+    [RequiresUnreferencedCode("JSON converters are instantiated via reflection.")]
     private static void ApplyJsonSerializerOptions(
         JsonSerializerOptions target,
         JsonSerializerOptionsConfiguration configuration,
@@ -1812,6 +2068,8 @@ internal sealed class DispatcherBuilder
         }
     }
 
+    [RequiresDynamicCode("JSON converters are instantiated via reflection.")]
+    [RequiresUnreferencedCode("JSON converters are instantiated via reflection.")]
     private static void AddJsonConverter(JsonSerializerOptions target, string converterTypeName)
     {
         if (string.IsNullOrWhiteSpace(converterTypeName))
@@ -1864,6 +2122,8 @@ internal sealed class DispatcherBuilder
         public string? ContextTypeName { get; init; } = ContextTypeName;
     }
 
+    [RequiresDynamicCode("Middleware instances are created via dependency injection and reflection.")]
+    [RequiresUnreferencedCode("Middleware instances are created via dependency injection and reflection.")]
     private void ApplyMiddleware(DispatcherOptions dispatcherOptions)
     {
         var inbound = _options.Middleware.Inbound;
@@ -1882,6 +2142,8 @@ internal sealed class DispatcherBuilder
         AddMiddleware(outbound.Duplex, dispatcherOptions.DuplexOutboundMiddleware);
     }
 
+    [RequiresDynamicCode("Middleware instances are created via dependency injection and reflection.")]
+    [RequiresUnreferencedCode("Middleware instances are created via dependency injection and reflection.")]
     private void AddMiddleware<TMiddleware>(IEnumerable<string> typeNames, IList<TMiddleware> targetList)
     {
         foreach (var typeName in typeNames)
@@ -1950,6 +2212,7 @@ internal sealed class DispatcherBuilder
         return Uri.TryCreate($"http://{value}", UriKind.Absolute, out var fallback) ? fallback.ToString() : throw new OmniRelayConfigurationException($"The value '{value}' for {context} is not a valid URI.");
     }
 
+    [RequiresDynamicCode("Type resolution relies on runtime reflection.")]
     [RequiresUnreferencedCode("Calls System.Reflection.Assembly.GetType(String, Boolean, Boolean)")]
     private static Type ResolveType(string typeName)
     {

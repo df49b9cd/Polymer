@@ -28,7 +28,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc", procedure: "proc");
 
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await middleware.InvokeAsync(MakeRequest(meta), TestContext.Current.CancellationToken, next);
 
         Assert.True(result.IsFailure);
@@ -44,7 +44,7 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (request, callOptions, ct) =>
+        StreamOutboundHandler next = (request, callOptions, ct) =>
             ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), options, TestContext.Current.CancellationToken, next);
@@ -69,7 +69,7 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (request, callOptions, ct) =>
+        StreamOutboundHandler next = (request, callOptions, ct) =>
             ValueTask.FromResult(Err<IStreamCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "test")));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), options, TestContext.Current.CancellationToken, next);
@@ -88,7 +88,7 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (request, callOptions, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(request.Meta)));
+        StreamOutboundHandler next = (request, callOptions, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(request.Meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), options, TestContext.Current.CancellationToken, next);
         Assert.True(result.IsSuccess);
@@ -113,7 +113,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
         {
             var call = new TestClientStreamCall(requestMeta);
             return ValueTask.FromResult(Ok<IClientStreamTransportCall>(call));
@@ -143,7 +143,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
         {
             var call = new TestClientStreamCall(
                 requestMeta,
@@ -170,7 +170,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
             ValueTask.FromResult(Err<IClientStreamTransportCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "test")));
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
@@ -188,7 +188,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        DuplexOutboundDelegate next = (request, ct) =>
+        DuplexOutboundHandler next = (request, ct) =>
             ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), TestContext.Current.CancellationToken, next);
@@ -212,7 +212,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        DuplexOutboundDelegate next = (request, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(request.Meta)));
+        DuplexOutboundHandler next = (request, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(request.Meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), TestContext.Current.CancellationToken, next);
         Assert.True(result.IsSuccess);
@@ -239,7 +239,7 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var invoked = false;
 
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             invoked = true;
             return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -258,7 +258,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        StreamOutboundDelegate next = (request, options, ct) =>
+        StreamOutboundHandler next = (request, options, ct) =>
             ValueTask.FromResult(Ok<IStreamCall>(new ThrowingStreamCall(request.Meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), new StreamCallOptions(StreamDirection.Server), TestContext.Current.CancellationToken, next);
@@ -327,7 +327,7 @@ public class RateLimitingMiddlewareTests
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _channel.Writer;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _channel.Reader;
 
-        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
         public ValueTask DisposeAsync() => ValueTask.FromException(new InvalidOperationException("dispose failure"));
     }

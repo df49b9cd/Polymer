@@ -84,13 +84,13 @@ public abstract class ProcedureBuilderBase<TBuilder, TMiddleware>
 /// </summary>
 public sealed class UnaryProcedureBuilder : ProcedureBuilderBase<UnaryProcedureBuilder, IUnaryInboundMiddleware>
 {
-    private UnaryInboundDelegate? _handler;
+    private UnaryInboundHandler? _handler;
 
     public UnaryProcedureBuilder()
     {
     }
 
-    internal UnaryProcedureBuilder(UnaryInboundDelegate handler)
+    internal UnaryProcedureBuilder(UnaryInboundHandler handler)
     {
         Handle(handler);
     }
@@ -98,7 +98,7 @@ public sealed class UnaryProcedureBuilder : ProcedureBuilderBase<UnaryProcedureB
     /// <summary>
     /// Configures the unary handler. Must be supplied exactly once.
     /// </summary>
-    public UnaryProcedureBuilder Handle(UnaryInboundDelegate handler)
+    public UnaryProcedureBuilder Handle(UnaryInboundHandler handler)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;
@@ -127,13 +127,13 @@ public sealed class UnaryProcedureBuilder : ProcedureBuilderBase<UnaryProcedureB
 /// </summary>
 public sealed class OnewayProcedureBuilder : ProcedureBuilderBase<OnewayProcedureBuilder, IOnewayInboundMiddleware>
 {
-    private OnewayInboundDelegate? _handler;
+    private OnewayInboundHandler? _handler;
 
     public OnewayProcedureBuilder()
     {
     }
 
-    internal OnewayProcedureBuilder(OnewayInboundDelegate handler)
+    internal OnewayProcedureBuilder(OnewayInboundHandler handler)
     {
         Handle(handler);
     }
@@ -141,7 +141,7 @@ public sealed class OnewayProcedureBuilder : ProcedureBuilderBase<OnewayProcedur
     /// <summary>
     /// Configures the oneway handler. Must be supplied exactly once.
     /// </summary>
-    public OnewayProcedureBuilder Handle(OnewayInboundDelegate handler)
+    public OnewayProcedureBuilder Handle(OnewayInboundHandler handler)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;
@@ -170,14 +170,14 @@ public sealed class OnewayProcedureBuilder : ProcedureBuilderBase<OnewayProcedur
 /// </summary>
 public sealed class StreamProcedureBuilder : ProcedureBuilderBase<StreamProcedureBuilder, IStreamInboundMiddleware>
 {
-    private StreamInboundDelegate? _handler;
+    private StreamInboundHandler? _handler;
     private StreamIntrospectionMetadata? _metadata;
 
     public StreamProcedureBuilder()
     {
     }
 
-    internal StreamProcedureBuilder(StreamInboundDelegate handler)
+    internal StreamProcedureBuilder(StreamInboundHandler handler)
     {
         Handle(handler);
     }
@@ -185,7 +185,7 @@ public sealed class StreamProcedureBuilder : ProcedureBuilderBase<StreamProcedur
     /// <summary>
     /// Configures the stream handler. Must be supplied exactly once.
     /// </summary>
-    public StreamProcedureBuilder Handle(StreamInboundDelegate handler)
+    public StreamProcedureBuilder Handle(StreamInboundHandler handler)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;
@@ -224,14 +224,14 @@ public sealed class StreamProcedureBuilder : ProcedureBuilderBase<StreamProcedur
 /// </summary>
 public sealed class ClientStreamProcedureBuilder : ProcedureBuilderBase<ClientStreamProcedureBuilder, IClientStreamInboundMiddleware>
 {
-    private ClientStreamInboundDelegate? _handler;
+    private ClientStreamInboundHandler? _handler;
     private ClientStreamIntrospectionMetadata? _metadata;
 
     public ClientStreamProcedureBuilder()
     {
     }
 
-    internal ClientStreamProcedureBuilder(ClientStreamInboundDelegate handler)
+    internal ClientStreamProcedureBuilder(ClientStreamInboundHandler handler)
     {
         Handle(handler);
     }
@@ -239,7 +239,7 @@ public sealed class ClientStreamProcedureBuilder : ProcedureBuilderBase<ClientSt
     /// <summary>
     /// Configures the client stream handler. Must be supplied exactly once.
     /// </summary>
-    public ClientStreamProcedureBuilder Handle(ClientStreamInboundDelegate handler)
+    public ClientStreamProcedureBuilder Handle(ClientStreamInboundHandler handler)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;
@@ -278,14 +278,14 @@ public sealed class ClientStreamProcedureBuilder : ProcedureBuilderBase<ClientSt
 /// </summary>
 public sealed class DuplexProcedureBuilder : ProcedureBuilderBase<DuplexProcedureBuilder, IDuplexInboundMiddleware>
 {
-    private DuplexInboundDelegate? _handler;
+    private DuplexInboundHandler? _handler;
     private DuplexIntrospectionMetadata? _metadata;
 
     public DuplexProcedureBuilder()
     {
     }
 
-    internal DuplexProcedureBuilder(DuplexInboundDelegate handler)
+    internal DuplexProcedureBuilder(DuplexInboundHandler handler)
     {
         Handle(handler);
     }
@@ -293,7 +293,7 @@ public sealed class DuplexProcedureBuilder : ProcedureBuilderBase<DuplexProcedur
     /// <summary>
     /// Configures the duplex stream handler. Must be supplied exactly once.
     /// </summary>
-    public DuplexProcedureBuilder Handle(DuplexInboundDelegate handler)
+    public DuplexProcedureBuilder Handle(DuplexInboundHandler handler)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;

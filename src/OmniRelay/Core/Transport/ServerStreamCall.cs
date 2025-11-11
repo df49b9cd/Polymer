@@ -65,7 +65,7 @@ public sealed class ServerStreamCall : IStreamCall
     }
 
     /// <inheritdoc />
-    public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
+    public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default)
     {
         if (_completed)
         {
@@ -73,20 +73,20 @@ public sealed class ServerStreamCall : IStreamCall
         }
 
         _completed = true;
-        var status = ResolveCompletionStatus(error);
+        var status = ResolveCompletionStatus(fault);
 
-        if (error is null)
+        if (fault is null)
         {
             _responses.Writer.TryComplete();
         }
         else
         {
             var transport = RequestMeta.Transport ?? "stream";
-            var exception = OmniRelayErrors.FromError(error, transport);
+            var exception = OmniRelayErrors.FromError(fault, transport);
             _responses.Writer.TryComplete(exception);
         }
 
-        Context.TrySetCompletion(status, error);
+        Context.TrySetCompletion(status, fault);
         return ValueTask.CompletedTask;
     }
 
@@ -99,14 +99,14 @@ public sealed class ServerStreamCall : IStreamCall
         return ValueTask.CompletedTask;
     }
 
-    private static StreamCompletionStatus ResolveCompletionStatus(Error? error)
+    private static StreamCompletionStatus ResolveCompletionStatus(Error? fault)
     {
-        if (error is null)
+        if (fault is null)
         {
             return StreamCompletionStatus.Succeeded;
         }
 
-        return OmniRelayErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(fault) switch
         {
             OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted

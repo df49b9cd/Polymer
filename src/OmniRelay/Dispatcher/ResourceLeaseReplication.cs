@@ -30,7 +30,7 @@ public sealed record ResourceLeaseReplicationEvent(
             payload,
             error,
             metadata is null
-                ? ImmutableDictionary<string, string>.Empty
+                ? []
                 : metadata.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase));
 
     public long SequenceNumber { get; init; } = SequenceNumber;
@@ -111,7 +111,7 @@ public sealed class InMemoryResourceLeaseReplicator : IResourceLeaseReplicator
         IResourceLeaseReplicationSink[] sinks;
         lock (_sinks)
         {
-            sinks = _sinks.ToArray();
+            sinks = [.. _sinks];
         }
 
         foreach (var sink in sinks)

@@ -31,7 +31,7 @@ public sealed class OmniRelayException : Exception
     public OmniRelayStatusCode StatusCode { get; }
 
     /// <summary>Gets the normalized Hugo <c>Error</c> value.</summary>
-    public Error Error { get; }
+    public Error Error { get; } = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unknown, "An unknown error occurred.");
 
     /// <summary>Gets the transport name, if known.</summary>
     public string? Transport { get; }

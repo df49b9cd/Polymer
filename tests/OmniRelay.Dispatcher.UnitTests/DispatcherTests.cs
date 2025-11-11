@@ -227,7 +227,7 @@ public class DispatcherTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryInboundDelegate next)
+            UnaryInboundHandler next)
         {
             sink.Add(name);
             return next(request, cancellationToken);

@@ -12,7 +12,7 @@ namespace OmniRelay.Core.Clients;
 /// </summary>
 public sealed class StreamClient<TRequest, TResponse>
 {
-    private readonly StreamOutboundDelegate _pipeline;
+    private readonly StreamOutboundHandler _pipeline;
     private readonly ICodec<TRequest, TResponse> _codec;
 
     /// <summary>
@@ -27,7 +27,7 @@ public sealed class StreamClient<TRequest, TResponse>
         ArgumentNullException.ThrowIfNull(outbound);
         ArgumentNullException.ThrowIfNull(middleware);
 
-        var terminal = new StreamOutboundDelegate(outbound.CallAsync);
+        var terminal = new StreamOutboundHandler(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeStreamOutbound(middleware, terminal);
     }
 

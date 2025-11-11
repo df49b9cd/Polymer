@@ -9,7 +9,7 @@ namespace OmniRelay.Dispatcher;
 /// <summary>
 /// Stores deterministic records as JSON documents on the filesystem.
 /// </summary>
-public sealed partial class FileSystemDeterministicStateStore : IDeterministicStateStore
+public sealed partial class FileSystemDeterministicStateStore : IDeterministicStateStore, IDisposable
 {
     private readonly string _root;
     private readonly ReaderWriterLockSlim _lock = new();
@@ -97,6 +97,12 @@ public sealed partial class FileSystemDeterministicStateStore : IDeterministicSt
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
         var directory = Path.Combine(_root, hash[..2]);
         return Path.Combine(directory, $"{hash}.json");
+    }
+
+    public void Dispose()
+    {
+        _lock.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private sealed record RecordModel(string Kind, int Version, DateTimeOffset RecordedAt, byte[] Payload)

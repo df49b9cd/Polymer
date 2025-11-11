@@ -46,7 +46,7 @@ public sealed class SqliteResourceLeaseReplicatorTests
             "peer",
             new ResourceLeaseItemPayload("type", "id", "pk", "json", [], new Dictionary<string, string> { ["owner"] = "test" }),
             null,
-            ImmutableDictionary<string, string>.Empty);
+            []);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {

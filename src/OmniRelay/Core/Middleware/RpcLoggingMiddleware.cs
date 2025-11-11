@@ -28,7 +28,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -45,7 +45,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -62,7 +62,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -79,7 +79,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next)
+        OnewayOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -97,7 +97,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
@@ -116,7 +116,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next)
+        StreamOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
@@ -134,7 +134,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler next)
     {
         next = EnsureNotNull(next, nameof(next));
 
@@ -150,7 +150,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next)
+        ClientStreamOutboundHandler next)
     {
         requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
         next = EnsureNotNull(next, nameof(next));
@@ -166,7 +166,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next)
+        DuplexInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -182,7 +182,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next)
+        DuplexOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -247,6 +247,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     private bool ShouldLogFailure(Error error, bool loggedRequest) =>
         _options.ShouldLogError?.Invoke(error) ?? loggedRequest;
 
+#pragma warning disable CA1848
     private void LogSuccess(string pipeline, RequestMeta meta, TimeSpan duration, ResponseMeta? responseMeta, Activity? activity)
     {
         if (!_logger.IsEnabled(_options.SuccessLogLevel))
@@ -315,11 +316,12 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
             meta.Procedure ?? string.Empty,
             meta.Transport ?? "unknown");
     }
+#pragma warning restore CA1848
 
     private static T EnsureNotNull<T>(T? value, string paramName) where T : class
     {
         ArgumentNullException.ThrowIfNull(value, paramName);
         return value;
     }
-}
 
+}

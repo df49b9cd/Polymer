@@ -5,6 +5,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// Applies deadlines from request metadata (absolute or TTL) by linking a cancellation token.
 /// Works for unary, oneway, server/client/duplex streaming in both inbound and outbound directions.
@@ -27,7 +29,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -42,7 +44,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -57,7 +59,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next)
+        OnewayOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -72,7 +74,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -88,7 +90,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next)
+        StreamOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
@@ -106,7 +108,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
@@ -123,7 +125,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler next)
     {
         next = EnsureNotNull(next, nameof(next));
 
@@ -137,7 +139,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next)
+        ClientStreamOutboundHandler next)
     {
         requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
         next = EnsureNotNull(next, nameof(next));
@@ -152,7 +154,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next)
+        DuplexOutboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -167,7 +169,7 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next)
+        DuplexInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -271,3 +273,4 @@ public sealed class DeadlineMiddleware(DeadlineOptions? options = null) :
     }
 }
 
+#pragma warning restore CA1068

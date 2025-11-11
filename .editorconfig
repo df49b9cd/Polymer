@@ -310,6 +310,12 @@ dotnet_diagnostic.IDE0200.severity = warning
 dotnet_style_allow_multiple_blank_lines_experimental = false
 dotnet_diagnostic.IDE2000.severity = warning
 
+# Disable performance logging analyzer for sample apps (developer guidance only).
+[samples/**.cs]
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.IDE0060.severity = none
+
 [{test,tests,testassets,examples,perf,scripts,stress}/**.cs]
 # CA1018: Mark attributes with AttributeUsageAttribute
 dotnet_diagnostic.CA1018.severity = suggestion

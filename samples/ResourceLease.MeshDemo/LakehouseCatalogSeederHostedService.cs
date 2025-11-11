@@ -169,7 +169,7 @@ internal sealed class LakehouseCatalogSeederHostedService : BackgroundService
         return LakehouseCatalogOperationType.Vacuum;
     }
 
-    private IReadOnlyList<string> GenerateInitialSchema()
+    private List<string> GenerateInitialSchema()
     {
         var columns = new List<string>
         {

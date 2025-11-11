@@ -108,12 +108,12 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
     public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
     /// <inheritdoc />
-    public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-        _inner.CompleteRequestsAsync(error, cancellationToken);
+    public ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+        _inner.CompleteRequestsAsync(fault, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-        _inner.CompleteResponsesAsync(error, cancellationToken);
+    public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+        _inner.CompleteResponsesAsync(fault, cancellationToken);
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()

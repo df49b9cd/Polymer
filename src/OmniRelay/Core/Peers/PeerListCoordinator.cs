@@ -5,6 +5,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Peers;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay peer coordination contract.
+
 /// <summary>
 /// Central coordinator that tracks peer availability, subscriptions, and selection.
 /// </summary>
@@ -47,7 +49,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     }
 
     public ImmutableArray<PeerLeaseHealthSnapshot> LeaseHealth =>
-        _leaseHealthProvider?.Snapshot() ?? ImmutableArray<PeerLeaseHealthSnapshot>.Empty;
+        _leaseHealthProvider?.Snapshot() ?? [];
 
     public void UpdatePeers(IEnumerable<IPeer> peers)
     {
@@ -312,7 +314,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         return attempted ? AcquisitionAttemptResult.Busy : AcquisitionAttemptResult.NoAvailablePeers;
     }
 
-    private static bool RemoveCandidate(IList<IPeer> peers, IPeer candidate)
+    private static bool RemoveCandidate(List<IPeer> peers, IPeer candidate)
     {
         for (var i = 0; i < peers.Count; i++)
         {
@@ -377,3 +379,5 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         Success
     }
 }
+
+#pragma warning restore CA1068

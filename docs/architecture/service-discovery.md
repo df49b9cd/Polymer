@@ -166,6 +166,52 @@ Each subsection outlines the feature, why the mesh needs it, and objective succe
   - Leader transitions are observable (Prometheus counter + log) and take < 5s; only one leader issues shard assignments at a time (verified via fencing token).
   - Removing any routing-capable node triggers automatic leader failover and other nodes resume work without manual restarts.
 
+### Implementation snapshot (v1)
+
+- `MeshGossipHost` (`src/OmniRelay/Core/Gossip/`) now runs inside every OmniRelay host via `AddMeshGossipAgent`. It uses HTTP/3 + mTLS, reloads the same bootstrap certificates as the transports, and auto-starts/stops with the dispatcher lifecycle. Fanout, suspicion timers, retransmit budgets, metadata refresh, and port/adverts are all configurable through `mesh:gossip:*` settings (see table below). Configuration can be supplied via `appsettings` or environment variables such as `MESH_GOSSIP__ROLE=gateway`.
+- Prometheus/OpenTelemetry instrumentation exposes `mesh_gossip_members`, `mesh_gossip_rtt_ms`, and `mesh_gossip_messages_total` meters. `AddOmniRelayDispatcher` registers the `OmniRelay.Core.Gossip` meter so dashboards can chart membership counts, RTT, and failure rates next to RPC metrics.
+- Structured logs now describe gossip events once per transition: peer joins, recovers, becomes suspect, or leaves. Logs include `peerId`, `role`, `clusterId`, `region`, `meshVersion`, and whether HTTP/3 was negotiated.
+- `/control/peers` (and its legacy alias `/omnirelay/control/peers`) is available on every HTTP inbound whenever gossip is enabled. It returns the gossip snapshot (status, lastSeen, RTT, metadata) even before the persistent registry ships, fulfilling the diagnostics requirement from DISC-001.
+- Peer health diagnostics reuse gossip metadata by pushing labels (`mesh.role`, `mesh.cluster`, etc.) into `PeerLeaseHealthTracker`, so `/omnirelay/control/lease-health` stays consistent with `/control/peers`.
+- Sample configurations:
+  - `samples/ResourceLease.MeshDemo/appsettings.Development.json` – single-node dev defaults that enable gossip with a self-signed cert and loopback seeds.
+  - `samples/ResourceLease.MeshDemo/appsettings.Production.json` – production-friendly template showing separate ports, TLS paths, certificate pinning, and fanout overrides.
+
+#### Configuration knobs
+
+| Setting | Description | Default |
+| --- | --- | --- |
+| `mesh:gossip:enabled` | Turns the gossip agent on/off. | `true` |
+| `mesh:gossip:nodeId` / `role` / `clusterId` / `region` / `meshVersion` | Metadata embedded in every envelope for policy/diagnostics. | Machine name + `worker`/`local`/`dev`. |
+| `mesh:gossip:port` / `bindAddress` / `advertiseHost` / `advertisePort` | Listener + advertised endpoint. | `0.0.0.0:17421`, advertises host name. |
+| `mesh:gossip:fanout` | Number of peers to ping each interval. | `3` |
+| `mesh:gossip:interval` | Interval between gossip rounds. | `00:00:01` |
+| `mesh:gossip:suspicionInterval` | Grace period before a peer becomes suspect. | `00:00:05` |
+| `mesh:gossip:pingTimeout` | Timeout for outbound gossip HTTP calls. | `00:00:02` |
+| `mesh:gossip:retransmitLimit` | Retries before marking a peer dead. | `3` |
+| `mesh:gossip:metadataRefreshPeriod` | How often the agent bumps its metadata version. | `00:00:30` |
+| `mesh:gossip:seedPeers` | Static bootstrap peers (`host:port`). | Empty (optional). |
+| `mesh:gossip:tls:*` (`certificatePath`, `certificatePassword`, `checkCertificateRevocation`, `allowedThumbprints`) | mTLS settings shared with the dispatcher. Certificates are reloaded automatically if rotated on disk. | Path/env specific. |
+
+Env overrides follow standard ASP.NET Core conventions (for example `MESH_GOSSIP__TLS__CERTIFICATEPATH=/mnt/certs/gossip.pfx`).
+
+#### Metrics + alerts
+
+| Metric | Purpose | Alert hint |
+| --- | --- | --- |
+| `mesh_gossip_members{mesh.status=alive|suspect|left}` | Member counts per status. | Alert if `mesh.status="suspect"` climbs steadily or `alive` drops suddenly. |
+| `mesh_gossip_rtt_ms` | Histogram for gossip round-trip time per peer. | Alert if P95 > gossip interval × 2. |
+| `mesh_gossip_messages_total{mesh.direction,mesh.outcome}` | Outbound/inbound success/failure counters. | Alert on sustained `mesh.outcome="failure"` growth. |
+
+Grafana/Prometheus rules from DISC-001 now have concrete signals to target, and the sample dashboards already include the new meters.
+
+### Leadership service (v1)
+
+- `LeadershipCoordinator` + `LeadershipEventHub` (under `src/OmniRelay/Core/Leadership/`) run alongside every dispatcher once `mesh:leadership` is configured. Coordinators pull gossip metadata, acquire fenced leases through the shared `ILeadershipStore`, and publish transitions into the hub so HTTP + gRPC endpoints can stay in sync.
+- `/control/leaders` returns JSON snapshots (optionally filtered by `?scope=`) while `/control/events/leadership` pushes SSE updates that log the negotiated HTTP protocol and include `leaderId`, `term`, `fenceToken`, and expiry timestamps. The gRPC inbound now exposes `LeadershipControlService.Subscribe` (HTTP/3 default, HTTP/2 downgrade) defined in `Core/Leadership/Protos/leadership_control.proto` for the same event stream over Protobuf.
+- Metrics `mesh_leadership_transitions_total`, `mesh_leadership_election_duration_ms`, and `mesh_leadership_split_brain_total` measure churn, convergence time, and split-brain detections. Coordinators also emit structured warnings when incumbents disappear from gossip so runbooks can link straight to the offending scope.
+- Operators can query `omnirelay mesh leaders status` (new CLI subcommand) to print the current tokens or `--watch` the SSE feed locally. ResourceLease demo configs were updated with sample `scopes` + `shards` so the leadership service starts automatically in dev/prod templates, satisfying the quick-start requirement in this section.
+
 ## 2. Shard ownership + routing metadata
 
 - **Feature**: Maintain consistent-hash or rendezvous maps that describe which mesh node owns each shard/task queue, version them, and expose via RPC/HTTP (`/control/shards`) plus watch streams.

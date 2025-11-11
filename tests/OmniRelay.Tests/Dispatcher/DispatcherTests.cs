@@ -514,7 +514,7 @@ public class DispatcherTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryOutboundDelegate next) => next(request, cancellationToken);
+            UnaryOutboundHandler next) => next(request, cancellationToken);
     }
 
     private sealed class PassthroughUnaryInboundMiddleware : IUnaryInboundMiddleware
@@ -522,7 +522,7 @@ public class DispatcherTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryInboundDelegate next) => next(request, cancellationToken);
+            UnaryInboundHandler next) => next(request, cancellationToken);
     }
 
     private sealed class RecordingUnaryInboundMiddleware(string name, IList<string> order) : IUnaryInboundMiddleware
@@ -533,7 +533,7 @@ public class DispatcherTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryInboundDelegate next)
+            UnaryInboundHandler next)
         {
             _order.Add(_name);
             return next(request, cancellationToken);

@@ -223,7 +223,7 @@ public static class OmniRelayErrors
         return new OmniRelayException(exception.StatusCode, exception.Message, updatedError, transport, exception);
     }
 
-    private static IReadOnlyDictionary<string, object?> CreateExceptionMetadata(Exception exception, string stage) =>
+    private static Dictionary<string, object?> CreateExceptionMetadata(Exception exception, string stage) =>
         new Dictionary<string, object?>
         {
             ["stage"] = stage,

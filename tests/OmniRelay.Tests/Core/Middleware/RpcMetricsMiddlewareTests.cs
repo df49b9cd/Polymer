@@ -26,7 +26,7 @@ public sealed class RpcMetricsMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryInboundDelegate)((req, token) => ValueTask.FromResult(Ok(response))));
+            (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(response))));
 
         Assert.True(result.IsSuccess);
 
@@ -55,7 +55,7 @@ public sealed class RpcMetricsMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error))));
+            (UnaryOutboundHandler)((req, token) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error))));
 
         Assert.True(result.IsFailure);
 

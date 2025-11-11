@@ -26,6 +26,14 @@ An end-to-end sample that highlights how OmniRelay’s ResourceLease mesh can co
 
 Set roles via environment variable (`MESHDEMO_meshDemo__roles=dispatcher,worker`) or CLI overrides (`--meshDemo:roles=dispatcher,worker`). Values are case-insensitive and accept comma-separated lists.
 
+## Gossip + peer diagnostics
+
+- The sample ships with `mesh:gossip` settings so every node participates in the OmniRelay gossip mesh. `appsettings.Development.json` enables gossip automatically with a self-signed certificate (drop one at `samples/ResourceLease.MeshDemo/certs/dev-gossip.pfx` or repoint the setting), loopback seed list, and port `17901`. Production-style knobs (fanout, TLS paths, certificate pinning, seed peers) live in `appsettings.Production.json`.
+- Need a quick dev cert? Run `dotnet dev-certs https -ep certs/dev-gossip.pfx -p changeit` from the sample directory and set `mesh:gossip:tls:certificatePassword` accordingly.
+- Override any setting via the normal ASP.NET Core environment syntax. Example: `MESH_GOSSIP__ROLE=worker`, `MESH_GOSSIP__SEEDPEERS__0=mesh-a.internal:47901`, `MESH_GOSSIP__TLS__CERTIFICATEPATH=/etc/omnirelay/certs/gossip.pfx`.
+- `/control/peers` (and `/omnirelay/control/peers`) returns the live gossip snapshot—peer IDs, status, RTT, and metadata—even before the service registry is online. Pair it with `/demo/lease-health` to compare gossip health with lease tracker snapshots.
+- Gossip metrics (`mesh_gossip_members`, `mesh_gossip_rtt_ms`, `mesh_gossip_messages_total`) are scraped via the sample’s Prometheus deployment and visualised on the provided Grafana dashboard.
+
 ## Distributed mesh quickstart
 
 Run each command from the repository root in separate terminals. Update `rpcUrl` if the dispatcher is hosted elsewhere.

@@ -68,7 +68,7 @@ public class RpcMetricsMiddlewareTests
         var middleware = new RpcMetricsMiddleware(options);
 
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await middleware.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
         Assert.True(result.IsSuccess);
@@ -90,7 +90,7 @@ public class RpcMetricsMiddlewareTests
         var middleware = new RpcMetricsMiddleware(options);
 
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
         var result = await middleware.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
         Assert.True(result.IsFailure);
@@ -111,7 +111,7 @@ public class RpcMetricsMiddlewareTests
         var middleware = new RpcMetricsMiddleware(options);
 
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
-        UnaryOutboundDelegate next = (req, ct) => throw new InvalidOperationException("boom");
+        UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             middleware.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next).AsTask());
@@ -136,7 +136,7 @@ public class RpcMetricsMiddlewareTests
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
         var callOptions = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
+        StreamOutboundHandler next = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
 
         var success = await middleware.InvokeAsync(request, callOptions, TestContext.Current.CancellationToken, next);
         Assert.True(success.IsSuccess);
@@ -167,7 +167,7 @@ public class RpcMetricsMiddlewareTests
 
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
         {
             var call = new TestClientStreamCall(requestMeta, Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
             return ValueTask.FromResult(Ok<IClientStreamTransportCall>(call));
@@ -197,7 +197,7 @@ public class RpcMetricsMiddlewareTests
 
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
             ValueTask.FromResult(Ok<IClientStreamTransportCall>(new ThrowingClientStreamCall(requestMeta)));
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
@@ -224,7 +224,7 @@ public class RpcMetricsMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-        DuplexOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
+        DuplexOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
 
         var result = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
         Assert.True(result.IsSuccess);
@@ -252,11 +252,11 @@ public class RpcMetricsMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-        OnewayOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
+        OnewayOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
         var success = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
         Assert.True(success.IsSuccess);
 
-        OnewayOutboundDelegate failingNext = (req, ct) => ValueTask.FromResult(Err<OnewayAck>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
+        OnewayOutboundHandler failingNext = (req, ct) => ValueTask.FromResult(Err<OnewayAck>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
         var failure = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, failingNext);
         Assert.True(failure.IsFailure);
 
@@ -279,11 +279,11 @@ public class RpcMetricsMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         var context = new ClientStreamRequestContext(meta, Channel.CreateUnbounded<ReadOnlyMemory<byte>>().Reader);
 
-        ClientStreamInboundDelegate successDelegate = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        ClientStreamInboundHandler successDelegate = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var success = await middleware.InvokeAsync(context, TestContext.Current.CancellationToken, successDelegate);
         Assert.True(success.IsSuccess);
 
-        ClientStreamInboundDelegate failureDelegate = (ctx, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
+        ClientStreamInboundHandler failureDelegate = (ctx, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
         var failure = await middleware.InvokeAsync(context, TestContext.Current.CancellationToken, failureDelegate);
         Assert.True(failure.IsFailure);
 

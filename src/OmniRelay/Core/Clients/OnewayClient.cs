@@ -9,7 +9,7 @@ namespace OmniRelay.Core.Clients;
 /// </summary>
 public sealed class OnewayClient<TRequest>
 {
-    private readonly OnewayOutboundDelegate _pipeline;
+    private readonly OnewayOutboundHandler _pipeline;
     private readonly ICodec<TRequest, object> _codec;
 
     /// <summary>
@@ -24,7 +24,7 @@ public sealed class OnewayClient<TRequest>
 
         ArgumentNullException.ThrowIfNull(outbound);
 
-        var terminal = new OnewayOutboundDelegate(outbound.CallAsync);
+        var terminal = new OnewayOutboundHandler(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeOnewayOutbound(middleware, terminal);
     }
 

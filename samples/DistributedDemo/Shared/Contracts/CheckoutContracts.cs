@@ -1,4 +1,4 @@
-namespace DistributedDemo.Shared.Contracts;
+namespace DistributedDemo.Contracts;
 
 public sealed record CheckoutRequest(string OrderId, string Sku, int Quantity, string Currency);
 

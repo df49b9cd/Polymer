@@ -9,7 +9,7 @@ namespace OmniRelay.Core.Clients;
 /// </summary>
 public sealed class UnaryClient<TRequest, TResponse>
 {
-    private readonly UnaryOutboundDelegate _pipeline;
+    private readonly UnaryOutboundHandler _pipeline;
     private readonly ICodec<TRequest, TResponse> _codec;
 
     /// <summary>
@@ -21,7 +21,7 @@ public sealed class UnaryClient<TRequest, TResponse>
         ArgumentNullException.ThrowIfNull(outbound);
         ArgumentNullException.ThrowIfNull(middleware);
 
-        var terminal = new UnaryOutboundDelegate(outbound.CallAsync);
+        var terminal = new UnaryOutboundHandler(outbound.CallAsync);
         _pipeline = MiddlewareComposer.ComposeUnaryOutbound(middleware, terminal);
     }
 

@@ -19,7 +19,7 @@ public class MiddlewareComposerTests
             new TrackingUnaryOutboundMiddleware("b", transcript)
         };
 
-        var terminal = new UnaryOutboundDelegate((_, _) =>
+        var terminal = new UnaryOutboundHandler((_, _) =>
         {
             transcript.Add("terminal");
             return ValueTask.FromResult(
@@ -47,7 +47,7 @@ public class MiddlewareComposerTests
     [Fact]
     public void ComposeOnewayOutbound_WithNoMiddlewareReturnsTerminal()
     {
-        OnewayOutboundDelegate terminal = static (_, _) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
+        OnewayOutboundHandler terminal = static (_, _) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
 
         var composed = MiddlewareComposer.ComposeOnewayOutbound(null, terminal);
 
@@ -64,7 +64,7 @@ public class MiddlewareComposerTests
             new TrackingClientStreamOutboundMiddleware("b", transcript)
         };
 
-        var terminal = new ClientStreamOutboundDelegate((meta, _) =>
+        var terminal = new ClientStreamOutboundHandler((meta, _) =>
         {
             transcript.Add("terminal");
             return ValueTask.FromResult(Ok<IClientStreamTransportCall>(new StubClientStreamTransportCall(meta)));
@@ -96,7 +96,7 @@ public class MiddlewareComposerTests
         public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryOutboundDelegate next)
+            UnaryOutboundHandler next)
         {
             _transcript.Add($"before:{_name}");
             var result = await next(request, cancellationToken);
@@ -113,7 +113,7 @@ public class MiddlewareComposerTests
         public async ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
             RequestMeta requestMeta,
             CancellationToken cancellationToken,
-            ClientStreamOutboundDelegate next)
+            ClientStreamOutboundHandler next)
         {
             _transcript.Add($"before:{_name}");
             var result = await next(requestMeta, cancellationToken);

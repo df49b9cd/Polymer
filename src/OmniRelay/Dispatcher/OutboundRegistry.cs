@@ -6,7 +6,7 @@ namespace OmniRelay.Dispatcher;
 /// <summary>
 /// Resolves outbound transports by key for a remote service across all RPC shapes.
 /// </summary>
-public sealed class OutboundCollection
+public sealed class OutboundRegistry
 {
     public const string DefaultKey = "default";
 
@@ -16,7 +16,7 @@ public sealed class OutboundCollection
     private readonly ImmutableDictionary<string, IClientStreamOutbound> _clientStream;
     private readonly ImmutableDictionary<string, IDuplexOutbound> _duplex;
 
-    internal OutboundCollection(
+    internal OutboundRegistry(
         string service,
         ImmutableDictionary<string, IUnaryOutbound> unary,
         ImmutableDictionary<string, IOnewayOutbound> oneway,

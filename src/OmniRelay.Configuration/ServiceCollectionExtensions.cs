@@ -8,6 +8,8 @@ using Microsoft.Extensions.Options;
 using OmniRelay.Configuration.Internal;
 using OmniRelay.Configuration.Models;
 using OmniRelay.Core.Diagnostics;
+using OmniRelay.Core.Gossip;
+using OmniRelay.Core.Leadership;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -41,6 +43,22 @@ public static class OmniRelayServiceCollectionExtensions
         var (minimumLevel, overrides) = ParseLoggingConfiguration(snapshot.Logging);
 
         services.Configure<OmniRelayConfigurationOptions>(configuration);
+
+        var gossipSection = configuration.GetSection("mesh:gossip");
+        if (gossipSection.Exists())
+        {
+            services.AddMeshGossipAgent(gossipSection);
+        }
+        else
+        {
+            services.TryAddSingleton<IMeshGossipAgent>(NullMeshGossipAgent.Instance);
+        }
+
+        var leadershipSection = configuration.GetSection("mesh:leadership");
+        if (leadershipSection.Exists())
+        {
+            services.AddLeadershipCoordinator(leadershipSection);
+        }
 
         // Ensure HttpClientFactory is available so named HTTP outbounds can be used if configured.
         services.AddHttpClient();
@@ -115,7 +133,7 @@ public static class OmniRelayServiceCollectionExtensions
         {
             openTelemetryBuilder.WithMetrics(builder =>
             {
-                builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
+                builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Core.Gossip", "OmniRelay.Core.Leadership", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
 
                 if (prometheusEnabled)
                 {
@@ -234,7 +252,7 @@ public static class OmniRelayServiceCollectionExtensions
         }
 
         throw new OmniRelayConfigurationException(
-            $"OTLP protocol '{protocol}' is not valid. Supported values: {string.Join(", ", Enum.GetNames(typeof(OtlpExportProtocol)))}.");
+            $"OTLP protocol '{protocol}' is not valid. Supported values: {string.Join(", ", Enum.GetNames<OtlpExportProtocol>())}.");
     }
 
     private static void ValidateBasicConfiguration(OmniRelayConfigurationOptions options)

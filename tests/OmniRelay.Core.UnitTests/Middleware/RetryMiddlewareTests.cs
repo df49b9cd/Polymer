@@ -26,7 +26,7 @@ public class RetryMiddlewareTests
         var mw = new RetryMiddleware(options);
 
         var attempts = 0;
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(Error.Timeout()));
@@ -47,7 +47,7 @@ public class RetryMiddlewareTests
         var mw = new RetryMiddleware(options);
 
         var attempts = 0;
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(Error.Timeout()));
@@ -69,7 +69,7 @@ public class RetryMiddlewareTests
 
         var attempts = 0;
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "retry", transport: "test");
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             if (attempts < 2)
@@ -97,7 +97,7 @@ public class RetryMiddlewareTests
 
         var attempts = 0;
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "nope", transport: "test");
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
@@ -122,7 +122,7 @@ public class RetryMiddlewareTests
 
         var attempts = 0;
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "retry", transport: "test");
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
@@ -147,7 +147,7 @@ public class RetryMiddlewareTests
         var attempts = 0;
         var nonRetryable = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "nope", transport: "test");
 
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             if (attempts < 3)

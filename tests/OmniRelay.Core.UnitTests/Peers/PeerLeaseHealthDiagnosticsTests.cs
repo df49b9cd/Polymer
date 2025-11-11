@@ -19,8 +19,8 @@ public class PeerLeaseHealthDiagnosticsTests
                 IsHealthy: true,
                 ActiveAssignments: 1,
                 PendingReassignments: 1,
-                ActiveLeases: ImmutableArray<PeerLeaseHandle>.Empty,
-                Metadata: ImmutableDictionary<string, string>.Empty),
+                ActiveLeases: [],
+                Metadata: []),
             new PeerLeaseHealthSnapshot(
                 "unhealthy",
                 now,
@@ -28,8 +28,8 @@ public class PeerLeaseHealthDiagnosticsTests
                 IsHealthy: false,
                 ActiveAssignments: 0,
                 PendingReassignments: 2,
-                ActiveLeases: ImmutableArray<PeerLeaseHandle>.Empty,
-                Metadata: ImmutableDictionary<string, string>.Empty));
+                ActiveLeases: [],
+                Metadata: []));
 
         var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(snapshots);
 

@@ -159,7 +159,7 @@ internal sealed class TenantQuotaMiddleware : IUnaryInboundMiddleware
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         var tenant = request.Meta.Headers.TryGetValue("x-tenant-id", out var value) ? value : null;
         if (tenant is null)
@@ -190,7 +190,7 @@ internal sealed class TenantLoggingMiddleware : IUnaryInboundMiddleware
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         var tenant = request.Meta.Headers.TryGetValue("x-tenant-id", out var value) ? value : "unknown";
         Console.WriteLine($"[{tenant}] {request.Meta.Procedure} called");

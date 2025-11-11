@@ -23,7 +23,7 @@ public class MiddlewareComposerTests
         var m3 = new RecordingMiddleware("m3", order);
         var meta = new RequestMeta(service: "svc");
 
-        UnaryOutboundDelegate terminal = (req, ct) =>
+        UnaryOutboundHandler terminal = (req, ct) =>
         {
             order.Add("terminal");
             return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -41,43 +41,43 @@ public class MiddlewareComposerTests
     {
         var meta = new RequestMeta(service: "svc");
 
-        UnaryOutboundDelegate unaryOut = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryOutboundHandler unaryOut = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         Assert.Same(unaryOut, MiddlewareComposer.ComposeUnaryOutbound(null, unaryOut));
         Assert.Same(unaryOut, MiddlewareComposer.ComposeUnaryOutbound([], unaryOut));
 
-        UnaryInboundDelegate unaryIn = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryInboundHandler unaryIn = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         Assert.Same(unaryIn, MiddlewareComposer.ComposeUnaryInbound(null, unaryIn));
         Assert.Same(unaryIn, MiddlewareComposer.ComposeUnaryInbound([], unaryIn));
 
-        OnewayOutboundDelegate onewayOut = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
+        OnewayOutboundHandler onewayOut = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
         Assert.Same(onewayOut, MiddlewareComposer.ComposeOnewayOutbound(null, onewayOut));
         Assert.Same(onewayOut, MiddlewareComposer.ComposeOnewayOutbound([], onewayOut));
 
-        OnewayInboundDelegate onewayIn = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
+        OnewayInboundHandler onewayIn = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
         Assert.Same(onewayIn, MiddlewareComposer.ComposeOnewayInbound(null, onewayIn));
         Assert.Same(onewayIn, MiddlewareComposer.ComposeOnewayInbound([], onewayIn));
 
-        StreamOutboundDelegate streamOut = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
+        StreamOutboundHandler streamOut = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
         Assert.Same(streamOut, MiddlewareComposer.ComposeStreamOutbound(null, streamOut));
         Assert.Same(streamOut, MiddlewareComposer.ComposeStreamOutbound([], streamOut));
 
-        StreamInboundDelegate streamIn = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
+        StreamInboundHandler streamIn = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
         Assert.Same(streamIn, MiddlewareComposer.ComposeStreamInbound(null, streamIn));
         Assert.Same(streamIn, MiddlewareComposer.ComposeStreamInbound([], streamIn));
 
-        ClientStreamInboundDelegate clientStreamIn = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        ClientStreamInboundHandler clientStreamIn = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         Assert.Same(clientStreamIn, MiddlewareComposer.ComposeClientStreamInbound(null, clientStreamIn));
         Assert.Same(clientStreamIn, MiddlewareComposer.ComposeClientStreamInbound([], clientStreamIn));
 
-        ClientStreamOutboundDelegate clientStreamOut = (requestMeta, ct) => ValueTask.FromResult(Ok<IClientStreamTransportCall>(CreateClientStreamCall(requestMeta)));
+        ClientStreamOutboundHandler clientStreamOut = (requestMeta, ct) => ValueTask.FromResult(Ok<IClientStreamTransportCall>(CreateClientStreamCall(requestMeta)));
         Assert.Same(clientStreamOut, MiddlewareComposer.ComposeClientStreamOutbound(null, clientStreamOut));
         Assert.Same(clientStreamOut, MiddlewareComposer.ComposeClientStreamOutbound([], clientStreamOut));
 
-        DuplexInboundDelegate duplexIn = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
+        DuplexInboundHandler duplexIn = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
         Assert.Same(duplexIn, MiddlewareComposer.ComposeDuplexInbound(null, duplexIn));
         Assert.Same(duplexIn, MiddlewareComposer.ComposeDuplexInbound([], duplexIn));
 
-        DuplexOutboundDelegate duplexOut = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
+        DuplexOutboundHandler duplexOut = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
         Assert.Same(duplexOut, MiddlewareComposer.ComposeDuplexOutbound(null, duplexOut));
         Assert.Same(duplexOut, MiddlewareComposer.ComposeDuplexOutbound([], duplexOut));
     }
@@ -293,7 +293,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryInboundDelegate next)
+            UnaryInboundHandler next)
         {
             _order.Add($"{_id}:unary-in");
             return next(request, cancellationToken);
@@ -302,7 +302,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryOutboundDelegate next)
+            UnaryOutboundHandler next)
         {
             _order.Add($"{_id}:unary-out");
             return next(request, cancellationToken);
@@ -311,7 +311,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<OnewayAck>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            OnewayInboundDelegate next)
+            OnewayInboundHandler next)
         {
             _order.Add($"{_id}:oneway-in");
             return next(request, cancellationToken);
@@ -320,7 +320,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<OnewayAck>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            OnewayOutboundDelegate next)
+            OnewayOutboundHandler next)
         {
             _order.Add($"{_id}:oneway-out");
             return next(request, cancellationToken);
@@ -330,7 +330,7 @@ public class MiddlewareComposerTests
             IRequest<ReadOnlyMemory<byte>> request,
             StreamCallOptions options,
             CancellationToken cancellationToken,
-            StreamInboundDelegate next)
+            StreamInboundHandler next)
         {
             _order.Add($"{_id}:stream-in");
             return next(request, options, cancellationToken);
@@ -340,7 +340,7 @@ public class MiddlewareComposerTests
             IRequest<ReadOnlyMemory<byte>> request,
             StreamCallOptions options,
             CancellationToken cancellationToken,
-            StreamOutboundDelegate next)
+            StreamOutboundHandler next)
         {
             _order.Add($"{_id}:stream-out");
             return next(request, options, cancellationToken);
@@ -349,7 +349,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             ClientStreamRequestContext context,
             CancellationToken cancellationToken,
-            ClientStreamInboundDelegate next)
+            ClientStreamInboundHandler next)
         {
             _order.Add($"{_id}:client-stream-in");
             return next(context, cancellationToken);
@@ -358,7 +358,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
             RequestMeta requestMeta,
             CancellationToken cancellationToken,
-            ClientStreamOutboundDelegate next)
+            ClientStreamOutboundHandler next)
         {
             _order.Add($"{_id}:client-stream-out");
             return next(requestMeta, cancellationToken);
@@ -367,7 +367,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            DuplexInboundDelegate next)
+            DuplexInboundHandler next)
         {
             _order.Add($"{_id}:duplex-in");
             return next(request, cancellationToken);
@@ -376,7 +376,7 @@ public class MiddlewareComposerTests
         public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            DuplexOutboundDelegate next)
+            DuplexOutboundHandler next)
         {
             _order.Add($"{_id}:duplex-out");
             return next(request, cancellationToken);

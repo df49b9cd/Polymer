@@ -27,7 +27,7 @@ public sealed class RetryMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) =>
+            (UnaryOutboundHandler)((req, token) =>
             {
                 attempt++;
                 if (attempt < 2)
@@ -59,7 +59,7 @@ public sealed class RetryMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) =>
+            (UnaryOutboundHandler)((req, token) =>
             {
                 attempt++;
                 return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
@@ -87,7 +87,7 @@ public sealed class RetryMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) =>
+            (UnaryOutboundHandler)((req, token) =>
             {
                 attempt++;
                 return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));

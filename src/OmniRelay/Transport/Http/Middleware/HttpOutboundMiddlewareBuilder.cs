@@ -172,30 +172,15 @@ public readonly struct HttpOutboundServiceMiddlewareBuilder : IEquatable<HttpOut
     public HttpOutboundProcedureMiddlewareBuilder ForProcedure(string procedure) =>
         _builder.ForProcedure(procedure);
 
-    public override bool Equals(object obj)
-    {
-        throw new NotImplementedException();
-    }
+    public override bool Equals(object? obj) => obj is HttpOutboundServiceMiddlewareBuilder other && Equals(other);
 
-    public override int GetHashCode()
-    {
-        throw new NotImplementedException();
-    }
+    public override int GetHashCode() => _builder?.GetHashCode() ?? 0;
 
-    public static bool operator ==(HttpOutboundServiceMiddlewareBuilder left, HttpOutboundServiceMiddlewareBuilder right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(HttpOutboundServiceMiddlewareBuilder left, HttpOutboundServiceMiddlewareBuilder right) => left.Equals(right);
 
-    public static bool operator !=(HttpOutboundServiceMiddlewareBuilder left, HttpOutboundServiceMiddlewareBuilder right)
-    {
-        return !(left == right);
-    }
+    public static bool operator !=(HttpOutboundServiceMiddlewareBuilder left, HttpOutboundServiceMiddlewareBuilder right) => !(left == right);
 
-    public bool Equals(HttpOutboundServiceMiddlewareBuilder other)
-    {
-        throw new NotImplementedException();
-    }
+    public bool Equals(HttpOutboundServiceMiddlewareBuilder other) => ReferenceEquals(_builder, other._builder);
 }
 
 public readonly struct HttpOutboundProcedureMiddlewareBuilder : IEquatable<HttpOutboundProcedureMiddlewareBuilder>
@@ -220,28 +205,13 @@ public readonly struct HttpOutboundProcedureMiddlewareBuilder : IEquatable<HttpO
         return this;
     }
 
-    public override bool Equals(object obj)
-    {
-        throw new NotImplementedException();
-    }
+    public override bool Equals(object? obj) => obj is HttpOutboundProcedureMiddlewareBuilder other && Equals(other);
 
-    public override int GetHashCode()
-    {
-        throw new NotImplementedException();
-    }
+    public override int GetHashCode() => _middleware?.GetHashCode() ?? 0;
 
-    public static bool operator ==(HttpOutboundProcedureMiddlewareBuilder left, HttpOutboundProcedureMiddlewareBuilder right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(HttpOutboundProcedureMiddlewareBuilder left, HttpOutboundProcedureMiddlewareBuilder right) => left.Equals(right);
 
-    public static bool operator !=(HttpOutboundProcedureMiddlewareBuilder left, HttpOutboundProcedureMiddlewareBuilder right)
-    {
-        return !(left == right);
-    }
+    public static bool operator !=(HttpOutboundProcedureMiddlewareBuilder left, HttpOutboundProcedureMiddlewareBuilder right) => !(left == right);
 
-    public bool Equals(HttpOutboundProcedureMiddlewareBuilder other)
-    {
-        throw new NotImplementedException();
-    }
+    public bool Equals(HttpOutboundProcedureMiddlewareBuilder other) => ReferenceEquals(_middleware, other._middleware);
 }

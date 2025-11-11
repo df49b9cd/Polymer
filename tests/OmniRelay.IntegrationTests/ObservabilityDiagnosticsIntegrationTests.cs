@@ -204,7 +204,7 @@ public class ObservabilityDiagnosticsIntegrationTests
 
             middlewareContext.Request.Content = new ByteArrayContent(outboundRequest.Body.ToArray());
 
-            HttpClientMiddlewareDelegate terminal = (_, _) =>
+            HttpClientMiddlewareHandler terminal = (_, _) =>
             {
                 var fakeResponse = new HttpResponseMessage(HttpStatusCode.OK)
                 {
@@ -213,7 +213,7 @@ public class ObservabilityDiagnosticsIntegrationTests
                 return ValueTask.FromResult(fakeResponse);
             };
 
-            using var fakeResponse = await httpClientLogging.InvokeAsync(middlewareContext, ct, terminal);
+            using var fakeResponse = await httpClientLogging.InvokeAsync(middlewareContext, terminal, ct);
             Assert.Equal(HttpStatusCode.OK, fakeResponse.StatusCode);
         }
         finally

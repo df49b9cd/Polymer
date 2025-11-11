@@ -41,7 +41,7 @@ public class RpcTracingMiddlewareTests
         var mw = new RpcTracingMiddleware(null, new RpcTracingOptions { ActivitySource = source, InjectOutgoingContext = true });
         var meta = new RequestMeta(service: "svc", procedure: "proc");
 
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             Assert.True(req.Meta.TryGetHeader("traceparent", out var tp) && !string.IsNullOrEmpty(tp));
             return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -68,7 +68,7 @@ public class RpcTracingMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc").WithHeader("traceparent", parent!.Id!);
 
         Activity? captured = null;
-        UnaryInboundDelegate next = (req, ct) =>
+        UnaryInboundHandler next = (req, ct) =>
         {
             captured = Activity.Current;
             return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -96,7 +96,7 @@ public class RpcTracingMiddlewareTests
         var mw = new RpcTracingMiddleware(runtime, new RpcTracingOptions { ActivitySource = source });
 
         Activity? captured = null;
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             captured = Activity.Current;
             return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -123,7 +123,7 @@ public class RpcTracingMiddlewareTests
 
         var mw = new RpcTracingMiddleware(null, new RpcTracingOptions { ActivitySource = source });
         var meta = new RequestMeta(service: "svc", procedure: "proc");
-        UnaryOutboundDelegate next = (req, ct) => throw new InvalidOperationException("boom");
+        UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next).AsTask());
@@ -151,7 +151,7 @@ public class RpcTracingMiddlewareTests
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (req, opt, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
+        StreamOutboundHandler next = (req, opt, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
 
         var result = await middleware.InvokeAsync(request, options, TestContext.Current.CancellationToken, next);
         Assert.True(result.IsSuccess);
@@ -180,7 +180,7 @@ public class RpcTracingMiddlewareTests
         var middleware = new RpcTracingMiddleware(null, new RpcTracingOptions { ActivitySource = source });
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
         {
             var call = Substitute.For<IClientStreamTransportCall>();
             call.RequestMeta.Returns(requestMeta);
@@ -222,7 +222,7 @@ public class RpcTracingMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-        OnewayOutboundDelegate next = (req, ct) => ValueTask.FromResult(Err<OnewayAck>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
+        OnewayOutboundHandler next = (req, ct) => ValueTask.FromResult(Err<OnewayAck>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
 
         var result = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
         Assert.True(result.IsFailure);
@@ -250,7 +250,7 @@ public class RpcTracingMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
-        DuplexOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
+        DuplexOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
 
         var result = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
         Assert.True(result.IsSuccess);
@@ -281,7 +281,7 @@ public class RpcTracingMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         var context = new ClientStreamRequestContext(meta, Channel.CreateUnbounded<ReadOnlyMemory<byte>>().Reader);
 
-        ClientStreamInboundDelegate next = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        ClientStreamInboundHandler next = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await middleware.InvokeAsync(context, TestContext.Current.CancellationToken, next);
 
         Assert.True(result.IsSuccess);

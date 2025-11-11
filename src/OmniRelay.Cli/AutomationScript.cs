@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace OmniRelay.Cli;
 
 internal sealed record AutomationScript

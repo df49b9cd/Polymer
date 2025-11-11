@@ -41,7 +41,7 @@ public sealed class RpcTracingMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryInboundDelegate)((req, token) => ValueTask.FromResult(Ok(response))));
+            (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(response))));
 
         Assert.True(result.IsSuccess);
         var activity = Assert.Single(activities);
@@ -78,7 +78,7 @@ public sealed class RpcTracingMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) =>
+            (UnaryOutboundHandler)((req, token) =>
             {
                 capturedMeta = req.Meta;
                 return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));

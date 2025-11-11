@@ -15,7 +15,7 @@ public static class ProtobufCallAdapters
     /// <summary>
     /// Creates a unary inbound handler that decodes the request with the provided codec and encodes the response.
     /// </summary>
-    public static UnaryInboundDelegate CreateUnaryHandler<TRequest, TResponse>(
+    public static UnaryInboundHandler CreateUnaryHandler<TRequest, TResponse>(
         ProtobufCodec<TRequest, TResponse> codec,
         Func<Request<TRequest>, CancellationToken, ValueTask<Response<TResponse>>> handler)
         where TRequest : class, IMessage<TRequest>
@@ -43,7 +43,7 @@ public static class ProtobufCallAdapters
     /// <summary>
     /// Creates a server-stream inbound handler that decodes requests and provides a typed writer.
     /// </summary>
-    public static StreamInboundDelegate CreateServerStreamHandler<TRequest, TResponse>(
+    public static StreamInboundHandler CreateServerStreamHandler<TRequest, TResponse>(
         ProtobufCodec<TRequest, TResponse> codec,
         Func<Request<TRequest>, ProtobufServerStreamWriter<TRequest, TResponse>, CancellationToken, ValueTask> handler)
         where TRequest : class, IMessage<TRequest>
@@ -58,7 +58,7 @@ public static class ProtobufCallAdapters
     /// <summary>
     /// Creates a client-stream inbound handler that exposes a typed reader and encodes the single response.
     /// </summary>
-    public static ClientStreamInboundDelegate CreateClientStreamHandler<TRequest, TResponse>(
+    public static ClientStreamInboundHandler CreateClientStreamHandler<TRequest, TResponse>(
         ProtobufCodec<TRequest, TResponse> codec,
         Func<ProtobufClientStreamContext<TRequest, TResponse>, CancellationToken, ValueTask<Response<TResponse>>> handler)
         where TRequest : class, IMessage<TRequest>
@@ -80,7 +80,7 @@ public static class ProtobufCallAdapters
     /// <summary>
     /// Creates a duplex-stream inbound handler that exposes typed read/write operations over a duplex call.
     /// </summary>
-    public static DuplexInboundDelegate CreateDuplexHandler<TRequest, TResponse>(
+    public static DuplexInboundHandler CreateDuplexHandler<TRequest, TResponse>(
         ProtobufCodec<TRequest, TResponse> codec,
         Func<ProtobufDuplexStreamContext<TRequest, TResponse>, CancellationToken, ValueTask> handler)
         where TRequest : class, IMessage<TRequest>

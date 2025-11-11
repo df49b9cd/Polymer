@@ -135,12 +135,12 @@ public class HttpOutboundMiddlewareTests
     {
         public async ValueTask<HttpResponseMessage> InvokeAsync(
             HttpClientMiddlewareContext context,
-            CancellationToken cancellationToken,
-            HttpClientMiddlewareDelegate next)
+            HttpClientMiddlewareHandler nextHandler,
+            CancellationToken cancellationToken)
         {
             log.Add(id);
             onInvoke?.Invoke(context);
-            return await next(context, cancellationToken);
+            return await nextHandler(context, cancellationToken);
         }
     }
 

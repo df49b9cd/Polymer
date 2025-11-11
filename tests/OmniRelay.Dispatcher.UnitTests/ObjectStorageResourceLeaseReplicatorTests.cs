@@ -42,7 +42,7 @@ public sealed class ObjectStorageResourceLeaseReplicatorTests
             "peer",
             new ResourceLeaseItemPayload("type", "id", "partition", "json", [], null, "req"),
             null,
-            ImmutableDictionary<string, string>.Empty);
+            []);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {

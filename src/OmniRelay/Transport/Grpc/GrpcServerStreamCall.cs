@@ -83,7 +83,7 @@ public sealed class GrpcServerStreamCall : IStreamCall
     }
 
     /// <inheritdoc />
-    public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
+    public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default)
     {
         if (_completed)
         {
@@ -92,22 +92,22 @@ public sealed class GrpcServerStreamCall : IStreamCall
 
         _completed = true;
 
-        var completionStatus = ResolveCompletionStatus(error);
+        var completionStatus = ResolveCompletionStatus(fault);
 
-        if (error is null)
+        if (fault is null)
         {
             _responses.Writer.TryComplete();
             RecordCompletion(StatusCode.OK);
         }
         else
         {
-            var exception = OmniRelayErrors.FromError(error, GrpcTransportConstants.TransportName);
+            var exception = OmniRelayErrors.FromError(fault, GrpcTransportConstants.TransportName);
             _responses.Writer.TryComplete(exception);
-            var status = GrpcStatusMapper.ToStatus(OmniRelayErrorAdapter.ToStatus(error), exception.Message);
+            var status = GrpcStatusMapper.ToStatus(OmniRelayErrorAdapter.ToStatus(fault), exception.Message);
             RecordCompletion(status.StatusCode);
         }
 
-        Context.TrySetCompletion(completionStatus, error);
+        Context.TrySetCompletion(completionStatus, fault);
 
         return ValueTask.CompletedTask;
     }
@@ -122,14 +122,14 @@ public sealed class GrpcServerStreamCall : IStreamCall
         return ValueTask.CompletedTask;
     }
 
-    private static StreamCompletionStatus ResolveCompletionStatus(Error? error)
+    private static StreamCompletionStatus ResolveCompletionStatus(Error? fault)
     {
-        if (error is null)
+        if (fault is null)
         {
             return StreamCompletionStatus.Succeeded;
         }
 
-        return OmniRelayErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(fault) switch
         {
             OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted

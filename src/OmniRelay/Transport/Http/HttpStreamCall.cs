@@ -73,7 +73,7 @@ public sealed class HttpStreamCall : IStreamCall
     }
 
     /// <inheritdoc />
-    public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
+    public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default)
     {
         if (_completed)
         {
@@ -82,19 +82,19 @@ public sealed class HttpStreamCall : IStreamCall
 
         _completed = true;
 
-        var status = ResolveCompletionStatus(error);
+        var status = ResolveCompletionStatus(fault);
 
-        if (error is null)
+        if (fault is null)
         {
             _responses.Writer.TryComplete();
         }
         else
         {
-            var exception = OmniRelayErrors.FromError(error, "http");
+            var exception = OmniRelayErrors.FromError(fault, "http");
             _responses.Writer.TryComplete(exception);
         }
 
-        Context.TrySetCompletion(status, error);
+        Context.TrySetCompletion(status, fault);
 
         return ValueTask.CompletedTask;
     }
@@ -108,14 +108,14 @@ public sealed class HttpStreamCall : IStreamCall
         return ValueTask.CompletedTask;
     }
 
-    private static StreamCompletionStatus ResolveCompletionStatus(Error? error)
+    private static StreamCompletionStatus ResolveCompletionStatus(Error? fault)
     {
-        if (error is null)
+        if (fault is null)
         {
             return StreamCompletionStatus.Succeeded;
         }
 
-        return OmniRelayErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(fault) switch
         {
             OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted

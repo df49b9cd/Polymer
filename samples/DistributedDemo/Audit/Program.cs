@@ -1,4 +1,4 @@
-using DistributedDemo.Shared.Contracts;
+using DistributedDemo.Contracts;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -87,7 +87,7 @@ internal sealed class ConsoleAuditLogger : IOnewayInboundMiddleware
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         Console.WriteLine($"[audit] --> {request.Meta.Procedure}");
         var result = await next(request, cancellationToken).ConfigureAwait(false);

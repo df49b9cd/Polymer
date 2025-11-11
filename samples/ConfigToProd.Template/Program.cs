@@ -15,9 +15,13 @@ namespace OmniRelay.Samples.ConfigToProd;
 
 internal sealed class Program
 {
+    [UnconditionalSuppressMessage("AOT", "IL2026", Justification = "Template configures OmniRelay components dynamically.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Template configures OmniRelay components dynamically.")]
+    public static Task Main(string[] args) => RunAsync(args);
+
     [RequiresDynamicCode("Configures ASP.NET Core hosting and OmniRelay dispatcher services using reflection-heavy APIs.")]
     [RequiresUnreferencedCode("Configures ASP.NET Core hosting and OmniRelay dispatcher services using reflection-heavy APIs.")]
-    public static async Task Main(string[] args)
+    private static async Task RunAsync(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -67,12 +71,12 @@ internal sealed class Program
 
         app.MapGet("/readyz", (ProbeState probeState) =>
         {
-            return ProbeState.IsReady
+            return probeState.IsReady
                 ? TypedResults.Json(
                     new ReadyStatusPayload(
                         Status: "ready",
-                        Since: ProbeState.ReadySinceUtc,
-                        Diagnostics: ProbeState.DiagnosticsSatisfied),
+                        Since: probeState.ReadySinceUtc,
+                        Diagnostics: probeState.DiagnosticsSatisfied),
                     ConfigToProdJsonContext.Default.ReadyStatusPayload)
                 : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         });
@@ -220,32 +224,35 @@ internal sealed class DiagnosticsToggleWatcher(
 
 internal sealed class ProbeState(IOptions<ProbeOptions> options, ILogger<ProbeState> logger)
 {
-    public static bool DiagnosticsSatisfied { get; private set; }
+    private readonly ProbeOptions _options = options.Value;
+    private readonly ILogger<ProbeState> _logger = logger;
 
-    public static bool WarmupComplete { get; private set; }
+    public bool DiagnosticsSatisfied { get; private set; }
 
-    public static DateTimeOffset? ReadySinceUtc { get; private set; }
+    public bool WarmupComplete { get; private set; }
 
-    public static bool IsReady => WarmupComplete && (!ProbeOptions.RequireDiagnosticsToggle || DiagnosticsSatisfied);
+    public DateTimeOffset? ReadySinceUtc { get; private set; }
+
+    public bool IsReady => WarmupComplete && (!_options.RequireDiagnosticsToggle || DiagnosticsSatisfied);
 
     public void MarkWarm()
     {
         WarmupComplete = true;
         ReadySinceUtc = DateTimeOffset.UtcNow;
-        logger.LogInformation("Probe warm-up complete. Ready state satisfied.");
+        _logger.LogInformation("Probe warm-up complete. Ready state satisfied.");
     }
 
     public void MarkNotReady()
     {
         WarmupComplete = false;
         ReadySinceUtc = null;
-        logger.LogInformation("Probe state reset to not ready.");
+        _logger.LogInformation("Probe state reset to not ready.");
     }
 
     public void SetDiagnostics(bool enabled)
     {
-        DiagnosticsSatisfied = !ProbeOptions.RequireDiagnosticsToggle || enabled;
-        logger.LogInformation("Diagnostics requirement {Requirement} with toggle={Toggle}.", ProbeOptions.RequireDiagnosticsToggle ? "enabled" : "disabled", enabled);
+        DiagnosticsSatisfied = !_options.RequireDiagnosticsToggle || enabled;
+        _logger.LogInformation("Diagnostics requirement {Requirement} with toggle={Toggle}.", _options.RequireDiagnosticsToggle ? "enabled" : "disabled", enabled);
     }
 }
 
@@ -262,11 +269,7 @@ internal sealed record ProbeOptions
 {
     public TimeSpan ReadyAfter { get; init; } = TimeSpan.FromSeconds(2);
 
-    public static bool RequireDiagnosticsToggle
-    {
-        get => field;
-        set => field = value;
-    }
+    public bool RequireDiagnosticsToggle { get; init; }
 }
 
 internal sealed record ReadyStatusPayload(string Status, DateTimeOffset? Since, bool Diagnostics);

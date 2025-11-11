@@ -7,6 +7,8 @@
     <PackageTags>omnirelay;yarpc;rpc;grpc;http;middleware</PackageTags>
     <PackageReadmeFile>OmniRelay.README.md</PackageReadmeFile>
     <PackageIcon>omnirelay-icon.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,6 +16,7 @@
     <PackageReference Include="Grpc.AspNetCore.Server" />
     <PackageReference Include="Grpc.Net.Client" />
     <PackageReference Include="Grpc.HealthCheck" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="JsonSchema.Net" />
     <PackageReference Include="OpenTelemetry" />
@@ -26,6 +29,10 @@
   <ItemGroup>
     <None Include="..\..\docs\nuget\OmniRelay.md" Pack="true" PackagePath="OmniRelay.README.md" Visible="false" />
     <None Include="..\..\branding\omnirelay-icon.png" Pack="true" PackagePath="omnirelay-icon.png" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Core/Leadership/Protos/leadership_control.proto" GrpcServices="Server" />
   </ItemGroup>
 
 </Project>

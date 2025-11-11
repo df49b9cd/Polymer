@@ -237,7 +237,7 @@ public class OmniRelayConfigurationTests
         var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
 
         var clientConfig = dispatcher.ClientConfigOrThrow("reports");
-        Assert.True(clientConfig.TryGetUnary(OutboundCollection.DefaultKey, out var outbound));
+        Assert.True(clientConfig.TryGetUnary(OutboundRegistry.DefaultKey, out var outbound));
         Assert.IsType<OmniRelay.Transport.Grpc.GrpcOutbound>(outbound);
         Assert.Equal("sticky", TestPeerChooserSpec.LastMode);
     }

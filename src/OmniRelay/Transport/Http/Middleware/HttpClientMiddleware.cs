@@ -12,12 +12,12 @@ public enum HttpOutboundCallKind
 }
 
 /// <summary>
-/// Delegate representing the continuation of an HTTP middleware pipeline.
+/// Handler representing the continuation of an HTTP middleware pipeline.
 /// </summary>
 /// <param name="context">The call context that can be inspected or mutated.</param>
 /// <param name="cancellationToken">Cancellation token for the call.</param>
 /// <returns>The HTTP response message.</returns>
-public delegate ValueTask<HttpResponseMessage> HttpClientMiddlewareDelegate(
+public delegate ValueTask<HttpResponseMessage> HttpClientMiddlewareHandler(
     HttpClientMiddlewareContext context,
     CancellationToken cancellationToken);
 
@@ -30,12 +30,12 @@ public interface IHttpClientMiddleware
     /// Invokes the middleware.
     /// </summary>
     /// <param name="context">The HTTP request context.</param>
+    /// <param name="nextHandler">Continuation delegate representing the remaining pipeline.</param>
     /// <param name="cancellationToken">Cancellation token for the call.</param>
-    /// <param name="next">Continuation delegate representing the remaining pipeline.</param>
     ValueTask<HttpResponseMessage> InvokeAsync(
         HttpClientMiddlewareContext context,
-        CancellationToken cancellationToken,
-        HttpClientMiddlewareDelegate next);
+        HttpClientMiddlewareHandler nextHandler,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -98,9 +98,9 @@ public sealed class HttpClientMiddlewareContext(
 /// </summary>
 public static class HttpClientMiddlewareComposer
 {
-    public static HttpClientMiddlewareDelegate Compose(
+    public static HttpClientMiddlewareHandler Compose(
         IReadOnlyList<IHttpClientMiddleware>? middleware,
-        HttpClientMiddlewareDelegate terminal)
+        HttpClientMiddlewareHandler terminal)
     {
         ArgumentNullException.ThrowIfNull(terminal);
 
@@ -115,7 +115,7 @@ public static class HttpClientMiddlewareComposer
             var current = middleware[index];
             var captured = next;
             next = (context, cancellationToken) =>
-                current.InvokeAsync(context, cancellationToken, captured);
+                current.InvokeAsync(context, captured, cancellationToken);
         }
 
         return next;

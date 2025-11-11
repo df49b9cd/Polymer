@@ -9,7 +9,7 @@ namespace OmniRelay.Dispatcher;
 /// </summary>
 public sealed class ClientConfiguration
 {
-    private readonly OutboundCollection _outbounds;
+    private readonly OutboundRegistry _outbounds;
     private readonly ImmutableArray<IUnaryOutboundMiddleware> _unaryMiddleware;
     private readonly ImmutableArray<IOnewayOutboundMiddleware> _onewayMiddleware;
     private readonly ImmutableArray<IStreamOutboundMiddleware> _streamMiddleware;
@@ -17,7 +17,7 @@ public sealed class ClientConfiguration
     private readonly ImmutableArray<IDuplexOutboundMiddleware> _duplexMiddleware;
 
     internal ClientConfiguration(
-        OutboundCollection outbounds,
+        OutboundRegistry outbounds,
         ImmutableArray<IUnaryOutboundMiddleware> unaryMiddleware,
         ImmutableArray<IOnewayOutboundMiddleware> onewayMiddleware,
         ImmutableArray<IStreamOutboundMiddleware> streamMiddleware,

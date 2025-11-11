@@ -11,21 +11,7 @@ namespace OmniRelay.Codegen.Protobuf.Generator;
 public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
 {
     private static readonly Lazy<string?> DependencyDirectory = new(ResolveDependencyDirectory);
-
-    [RequiresAssemblyFiles("Calls OmniRelay.Codegen.Protobuf.Generator.ProtobufIncrementalGenerator.ResolveAssemblyFromDependencies(AssemblyLoadContext, AssemblyName)")]
-    static ProtobufIncrementalGenerator()
-    {
-        var directory = DependencyDirectory.Value;
-        if (string.IsNullOrEmpty(directory))
-        {
-            return;
-        }
-
-        AssemblyLoadContext.Default.Resolving += ResolveAssemblyFromDependencies;
-        PreloadDependency(directory, "Google.Protobuf");
-        PreloadDependency(directory, "OmniRelay.Codegen.Protobuf.Core");
-        PreloadDependency(directory, "OmniRelay");
-    }
+    private static int _resolverInitialized;
 
     private static readonly DiagnosticDescriptor DescriptorReadError = new(
         id: "POLYPROT001",
@@ -45,6 +31,8 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        EnsureDependencyResolver();
+
         var descriptorSets = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".pb", StringComparison.OrdinalIgnoreCase))
             .Select((file, _) => ReadDescriptorSet(file.Path))
@@ -81,6 +69,27 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
                 spc.AddSource(hintName, file.Content);
             }
         });
+    }
+
+    private static void EnsureDependencyResolver()
+    {
+        if (System.Threading.Interlocked.CompareExchange(ref _resolverInitialized, 1, 0) != 0)
+        {
+            return;
+        }
+
+        var directory = DependencyDirectory.Value;
+        if (string.IsNullOrEmpty(directory))
+        {
+            return;
+        }
+
+#pragma warning disable IL2026, IL3002
+        AssemblyLoadContext.Default.Resolving += ResolveAssemblyFromDependencies;
+        PreloadDependency(directory, "Google.Protobuf");
+        PreloadDependency(directory, "OmniRelay.Codegen.Protobuf.Core");
+        PreloadDependency(directory, "OmniRelay");
+#pragma warning restore IL2026, IL3002
     }
 
     private static DescriptorResult ReadDescriptorSet(string path)
@@ -123,6 +132,7 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         Exception? ParseException);
 
 #pragma warning disable RS1035 // Do not do file IO in analyzers
+#pragma warning disable IL2026, IL3002
     [RequiresUnreferencedCode("Calls System.Runtime.Loader.AssemblyLoadContext.LoadFromAssemblyPath(String)")]
     [RequiresAssemblyFiles("Calls System.Reflection.Assembly.Location")]
     private static Assembly? ResolveAssemblyFromDependencies(AssemblyLoadContext context, AssemblyName name)
@@ -157,6 +167,7 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
 
         return null;
     }
+#pragma warning restore IL2026, IL3002
 
     private static string? ResolveDependencyDirectory()
     {
@@ -189,7 +200,7 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
             var candidate = Path.Combine(directory, $"{assemblyName}.dll");
             if (File.Exists(candidate))
             {
-                _ = AssemblyLoadContext.Default.LoadFromAssemblyPath(candidate);
+                LoadDependency(candidate);
             }
         }
         catch
@@ -198,4 +209,11 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
         }
     }
 #pragma warning restore RS1035
+
+#pragma warning disable IL2026, IL3002
+    private static void LoadDependency(string path)
+    {
+        _ = AssemblyLoadContext.Default.LoadFromAssemblyPath(path);
+    }
+#pragma warning restore IL2026, IL3002
 }

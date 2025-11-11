@@ -114,7 +114,7 @@ public sealed class PeerMetricsTests : IDisposable
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((_, _) =>
+            (UnaryOutboundHandler)((_, _) =>
             {
                 attempt++;
                 if (attempt < 2)

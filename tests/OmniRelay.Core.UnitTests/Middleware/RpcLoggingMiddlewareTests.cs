@@ -39,7 +39,7 @@ public class RpcLoggingMiddlewareTests
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var mw = new RpcLoggingMiddleware(logger);
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http", encoding: "json");
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta(encoding: "json"))));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta(encoding: "json"))));
 
         var res = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
         Assert.True(res.IsSuccess);
@@ -52,7 +52,7 @@ public class RpcLoggingMiddlewareTests
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var mw = new RpcLoggingMiddleware(logger);
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
 
         var res = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
         Assert.True(res.IsFailure);
@@ -70,7 +70,7 @@ public class RpcLoggingMiddlewareTests
         var mw = new RpcLoggingMiddleware(logger, options);
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
 
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
         Assert.True(result.IsSuccess);
@@ -84,7 +84,7 @@ public class RpcLoggingMiddlewareTests
         var mw = new RpcLoggingMiddleware(logger);
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
 
-        UnaryOutboundDelegate next = (req, ct) => throw new ApplicationException("boom");
+        UnaryOutboundHandler next = (req, ct) => throw new ApplicationException("boom");
 
         var exception = await Assert.ThrowsAsync<ApplicationException>(async () =>
             await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next));
@@ -106,7 +106,7 @@ public class RpcLoggingMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "fail", transport: "http");
 
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
 
         var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
@@ -125,7 +125,7 @@ public class RpcLoggingMiddlewareTests
         };
         var mw = new RpcLoggingMiddleware(logger, options);
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
-        UnaryOutboundDelegate next = (req, ct) => throw new InvalidOperationException("boom");
+        UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next));

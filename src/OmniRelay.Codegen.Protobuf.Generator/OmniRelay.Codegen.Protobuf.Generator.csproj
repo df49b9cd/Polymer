@@ -15,10 +15,12 @@
     <PackageTags>omnirelay;yarpc;protobuf;codegen;roslyn;incremental</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageType>Analyzer</PackageType>
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);NU5128;1591;RS1041</NoWarn>
     <PackageReadmeFile>OmniRelay.Codegen.Protobuf.Generator.README.md</PackageReadmeFile>
     <PackageIcon>omnirelay-icon.png</PackageIcon>
     <PackageReleaseNotes>Telemetry-less analyzer packaging; bundles OmniRelay runtime dependencies.</PackageReleaseNotes>
+    <PublishAot>false</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>

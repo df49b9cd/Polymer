@@ -18,7 +18,7 @@ public class FewestPendingPeerChooserTests
     [Fact(Timeout = TestTimeouts.Default)]
     public void RequiresAtLeastOnePeer()
     {
-        Assert.Throws<ArgumentException>(() => new FewestPendingPeerChooser(Array.Empty<IPeer>()));
+        Assert.Throws<ArgumentException>(() => new FewestPendingPeerChooser([]));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

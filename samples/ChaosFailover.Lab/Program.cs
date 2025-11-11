@@ -202,7 +202,7 @@ internal sealed class OutboundRetryMiddleware(int maxAttempts) : IUnaryOutboundM
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler next)
     {
         var attempt = 0;
         Result<Response<ReadOnlyMemory<byte>>> result;
@@ -222,7 +222,7 @@ internal sealed class OutboundDeadlineMiddleware(TimeSpan timeout) : IUnaryOutbo
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler next)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(timeout);

@@ -22,5 +22,5 @@ internal static class ResourceLeaseMetrics
     }
 
     internal static void RecordBackpressureState(bool isActive) =>
-        BackpressureTransitions.Add(1);
+        BackpressureTransitions.Add(1, KeyValuePair.Create<string, object?>("state", isActive ? "active" : "inactive"));
 }

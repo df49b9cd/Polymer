@@ -541,7 +541,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         }
     }
 
-    private IReadOnlyDictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string>? additional)
+    private Dictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string>? additional)
     {
         var snapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -828,7 +828,7 @@ public sealed record ResourceLeaseWorkItem(
         }
 
         var attributes = payload.Attributes is null
-            ? ImmutableDictionary<string, string>.Empty
+            ? []
             : payload.Attributes.ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
         var body = payload.Body ?? [];
@@ -846,7 +846,7 @@ public sealed record ResourceLeaseWorkItem(
     public ResourceLeaseItemPayload ToPayload()
     {
         var attributes = Attributes.Count == 0
-            ? ImmutableDictionary<string, string>.Empty
+            ? []
             : Attributes;
 
         return new ResourceLeaseItemPayload(

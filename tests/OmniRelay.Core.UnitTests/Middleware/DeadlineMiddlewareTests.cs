@@ -22,7 +22,7 @@ public class DeadlineMiddlewareTests
     {
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", deadline: DateTimeOffset.UtcNow.AddSeconds(-1));
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
 
         var res = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
         Assert.True(res.IsFailure);
@@ -34,7 +34,7 @@ public class DeadlineMiddlewareTests
     {
         var mw = new DeadlineMiddleware(new DeadlineOptions { MinimumLeadTime = TimeSpan.FromSeconds(5) });
         var meta = new RequestMeta(service: "svc", procedure: "proc", timeToLive: TimeSpan.FromSeconds(1));
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
 
         var res = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
         Assert.True(res.IsFailure);
@@ -47,7 +47,7 @@ public class DeadlineMiddlewareTests
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", deadline: DateTimeOffset.UtcNow.AddMilliseconds(50));
         var called = false;
-        UnaryOutboundDelegate next = async (req, ct) =>
+        UnaryOutboundHandler next = async (req, ct) =>
         {
             called = true;
             await Task.Delay(TimeSpan.FromSeconds(5), ct);
@@ -66,7 +66,7 @@ public class DeadlineMiddlewareTests
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", timeToLive: TimeSpan.Zero);
 
-        OnewayInboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
+        OnewayInboundHandler next = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
         var result = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
 
         Assert.True(result.IsFailure);
@@ -82,16 +82,16 @@ public class DeadlineMiddlewareTests
         var streamOptions = new StreamCallOptions(StreamDirection.Server);
         var clientStreamContext = new ClientStreamRequestContext(meta, Channel.CreateUnbounded<ReadOnlyMemory<byte>>().Reader);
 
-        UnaryOutboundDelegate unaryOutbound = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
-        UnaryInboundDelegate unaryInbound = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
-        OnewayOutboundDelegate onewayOutbound = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
-        OnewayInboundDelegate onewayInbound = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
-        StreamOutboundDelegate streamOutbound = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
-        StreamInboundDelegate streamInbound = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
-        ClientStreamInboundDelegate clientStreamInbound = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
-        ClientStreamOutboundDelegate clientStreamOutbound = (m, ct) => ValueTask.FromResult(Ok<IClientStreamTransportCall>(CreateClientStreamCall(meta)));
-        DuplexOutboundDelegate duplexOutbound = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
-        DuplexInboundDelegate duplexInbound = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
+        UnaryOutboundHandler unaryOutbound = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryInboundHandler unaryInbound = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        OnewayOutboundHandler onewayOutbound = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
+        OnewayInboundHandler onewayInbound = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
+        StreamOutboundHandler streamOutbound = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
+        StreamInboundHandler streamInbound = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
+        ClientStreamInboundHandler clientStreamInbound = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        ClientStreamOutboundHandler clientStreamOutbound = (m, ct) => ValueTask.FromResult(Ok<IClientStreamTransportCall>(CreateClientStreamCall(meta)));
+        DuplexOutboundHandler duplexOutbound = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
+        DuplexInboundHandler duplexInbound = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
 
         Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, unaryOutbound)).IsSuccess);
         Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, unaryInbound)).IsSuccess);
@@ -111,7 +111,7 @@ public class DeadlineMiddlewareTests
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", timeToLive: TimeSpan.FromMilliseconds(250));
 
-        UnaryInboundDelegate next = async (req, ct) =>
+        UnaryInboundHandler next = async (req, ct) =>
         {
             await Task.Delay(TimeSpan.FromSeconds(5), ct);
             return Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty));

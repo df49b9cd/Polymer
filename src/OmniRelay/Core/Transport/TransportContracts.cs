@@ -2,55 +2,55 @@ using Hugo;
 
 namespace OmniRelay.Core.Transport;
 
-/// <summary>Delegate for unary outbound calls.</summary>
-public delegate ValueTask<Result<Response<ReadOnlyMemory<byte>>>> UnaryOutboundDelegate(
+/// <summary>Handler signature for unary outbound calls.</summary>
+public delegate ValueTask<Result<Response<ReadOnlyMemory<byte>>>> UnaryOutboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for unary inbound handlers.</summary>
-public delegate ValueTask<Result<Response<ReadOnlyMemory<byte>>>> UnaryInboundDelegate(
+/// <summary>Handler signature for unary inbound handlers.</summary>
+public delegate ValueTask<Result<Response<ReadOnlyMemory<byte>>>> UnaryInboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for oneway outbound calls.</summary>
-public delegate ValueTask<Result<OnewayAck>> OnewayOutboundDelegate(
+/// <summary>Handler signature for oneway outbound calls.</summary>
+public delegate ValueTask<Result<OnewayAck>> OnewayOutboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for oneway inbound handlers.</summary>
-public delegate ValueTask<Result<OnewayAck>> OnewayInboundDelegate(
+/// <summary>Handler signature for oneway inbound handlers.</summary>
+public delegate ValueTask<Result<OnewayAck>> OnewayInboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for streaming outbound calls.</summary>
-public delegate ValueTask<Result<IStreamCall>> StreamOutboundDelegate(
-    IRequest<ReadOnlyMemory<byte>> request,
-    StreamCallOptions options,
-    CancellationToken cancellationToken);
-
-/// <summary>Delegate for streaming inbound handlers.</summary>
-public delegate ValueTask<Result<IStreamCall>> StreamInboundDelegate(
+/// <summary>Handler signature for streaming outbound calls.</summary>
+public delegate ValueTask<Result<IStreamCall>> StreamOutboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     StreamCallOptions options,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for client-stream inbound handlers.</summary>
-public delegate ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ClientStreamInboundDelegate(
+/// <summary>Handler signature for streaming inbound handlers.</summary>
+public delegate ValueTask<Result<IStreamCall>> StreamInboundHandler(
+    IRequest<ReadOnlyMemory<byte>> request,
+    StreamCallOptions options,
+    CancellationToken cancellationToken);
+
+/// <summary>Handler signature for client-stream inbound handlers.</summary>
+public delegate ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ClientStreamInboundHandler(
     ClientStreamRequestContext context,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for client-stream outbound calls.</summary>
-public delegate ValueTask<Result<IClientStreamTransportCall>> ClientStreamOutboundDelegate(
+/// <summary>Handler signature for client-stream outbound calls.</summary>
+public delegate ValueTask<Result<IClientStreamTransportCall>> ClientStreamOutboundHandler(
     RequestMeta requestMeta,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for duplex streaming outbound calls.</summary>
-public delegate ValueTask<Result<IDuplexStreamCall>> DuplexOutboundDelegate(
+/// <summary>Handler signature for duplex streaming outbound calls.</summary>
+public delegate ValueTask<Result<IDuplexStreamCall>> DuplexOutboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     CancellationToken cancellationToken);
 
-/// <summary>Delegate for duplex streaming inbound handlers.</summary>
-public delegate ValueTask<Result<IDuplexStreamCall>> DuplexInboundDelegate(
+/// <summary>Handler signature for duplex streaming inbound handlers.</summary>
+public delegate ValueTask<Result<IDuplexStreamCall>> DuplexInboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     CancellationToken cancellationToken);
 

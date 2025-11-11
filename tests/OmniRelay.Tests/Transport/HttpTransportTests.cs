@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -333,8 +334,21 @@ public class HttpTransportTests
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "stream::oversized");
         httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/event-stream");
 
-        using var response = await httpClient.GetAsync("/", HttpCompletionOption.ResponseHeadersRead, ct);
-        Assert.True(response.IsSuccessStatusCode);
+        HttpResponseMessage? response = null;
+
+        try
+        {
+            response = await httpClient.GetAsync("/", HttpCompletionOption.ResponseHeadersRead, ct);
+            Assert.True(response.IsSuccessStatusCode);
+        }
+        catch (HttpRequestException exception) when (IsConnectionReset(exception))
+        {
+            // Some platforms surface the aborted connection as a connection reset.
+        }
+        finally
+        {
+            response?.Dispose();
+        }
 
         await WaitForCompletionAsync(ct);
 
@@ -363,6 +377,18 @@ public class HttpTransportTests
 
                 await Task.Delay(50, cancellationToken);
             }
+        }
+
+        static bool IsConnectionReset(HttpRequestException exception)
+        {
+            if (exception.InnerException is IOException ioException &&
+                ioException.InnerException is SocketException socketException &&
+                socketException.SocketErrorCode == SocketError.ConnectionReset)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 

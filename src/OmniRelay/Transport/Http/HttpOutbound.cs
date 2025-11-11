@@ -26,7 +26,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
     private HttpOutboundMiddlewareRegistry? _middlewareRegistry;
     private string? _middlewareService;
     private int _middlewareConfigured;
-    private ConcurrentDictionary<string, HttpClientMiddlewareDelegate>? _middlewarePipelines;
+    private ConcurrentDictionary<string, HttpClientMiddlewareHandler>? _middlewarePipelines;
 
     /// <summary>
     /// Creates a new HTTP outbound transport targeting a specific endpoint.
@@ -492,7 +492,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
 
         _middlewareService = string.IsNullOrWhiteSpace(service) ? string.Empty : service;
         _middlewareRegistry = registry;
-        _middlewarePipelines = new ConcurrentDictionary<string, HttpClientMiddlewareDelegate>(StringComparer.OrdinalIgnoreCase);
+        _middlewarePipelines = new ConcurrentDictionary<string, HttpClientMiddlewareHandler>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -528,7 +528,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
 
         var cacheKey = BuildCacheKey(callKind, requestMeta.Procedure);
         var pipelines = _middlewarePipelines;
-        HttpClientMiddlewareDelegate pipeline;
+        HttpClientMiddlewareHandler pipeline;
 
         if (pipelines is not null)
         {
@@ -542,7 +542,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         var context = new HttpClientMiddlewareContext(httpRequest, requestMeta, callKind, completionOption);
         return pipeline(context, cancellationToken);
 
-        HttpClientMiddlewareDelegate ComposePipeline(IReadOnlyList<IHttpClientMiddleware> source)
+        HttpClientMiddlewareHandler ComposePipeline(IReadOnlyList<IHttpClientMiddleware> source)
         {
             return HttpClientMiddlewareComposer.Compose(source, Terminal);
         }

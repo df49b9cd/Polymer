@@ -255,7 +255,7 @@ public static class DispatcherClientExtensions
         if (!success || outbound is null)
         {
             throw new KeyNotFoundException(
-                $"No {outboundType} outbound registered for service '{service}' with key '{outboundKey ?? OutboundCollection.DefaultKey}'.");
+                $"No {outboundType} outbound registered for service '{service}' with key '{outboundKey ?? OutboundRegistry.DefaultKey}'.");
         }
 
         return outbound;

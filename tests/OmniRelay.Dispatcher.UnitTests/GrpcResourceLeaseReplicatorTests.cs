@@ -34,7 +34,7 @@ public sealed class GrpcResourceLeaseReplicatorTests
             "peer-a",
             new ResourceLeaseItemPayload("resource", "id", "pk", "json", []),
             new ResourceLeaseErrorInfo("info", "code"),
-            ImmutableDictionary<string, string>.Empty);
+            []);
 
     private sealed class RecordingClient : IGrpcResourceLeaseReplicatorClient
     {

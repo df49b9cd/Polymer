@@ -24,7 +24,7 @@ namespace OmniRelay.Transport.Grpc;
 /// </summary>
 public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound, IOutboundDiagnostic, IGrpcClientInterceptorSink
 {
-    private readonly IReadOnlyList<Uri> _addresses;
+    private readonly List<Uri> _addresses;
     private readonly string _remoteService;
     private readonly GrpcChannelOptions _channelOptions;
     private readonly GrpcClientTlsOptions? _clientTlsOptions;
@@ -121,7 +121,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             throw new ArgumentException("At least one address must be provided for the gRPC outbound.", nameof(addresses));
         }
 
-        _addresses = addressArray;
+        _addresses = [.. addressArray];
         _remoteService = string.IsNullOrWhiteSpace(remoteService)
             ? throw new ArgumentException("Remote service name must be provided.", nameof(remoteService))
             : remoteService;
@@ -185,7 +185,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (allLoopback)
             {
+#pragma warning disable CA5359 // Loopback development scenarios require disabling certificate validation.
                 sockets.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
             }
 
             if (_clientRuntimeOptions is not null)
@@ -1029,6 +1031,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             _state = PeerState.Unknown;
             _inflight = 0;
             NotifySubscribers();
+            _latencyTracker.Dispose();
             return ValueTask.CompletedTask;
         }
 
@@ -1117,10 +1120,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         }
     }
 
-    private sealed class LatencyTracker
+    private sealed class LatencyTracker : IDisposable
     {
         private readonly double[] _buffer;
         private readonly Hugo.Mutex _mutex = new();
+        private bool _disposed;
         private int _count;
         private int _nextIndex;
         private double _sum;
@@ -1128,7 +1132,6 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         public LatencyTracker(int capacity = 256)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
-
             _buffer = new double[capacity];
         }
 
@@ -1139,51 +1142,85 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 return;
             }
 
+            if (Volatile.Read(ref _disposed))
+            {
+                return;
+            }
+
             var value = Math.Max(0, durationMilliseconds);
 
-            using var scope = _mutex.EnterScope();
-            if (_count == _buffer.Length)
+            try
             {
-                _sum -= _buffer[_nextIndex];
-            }
-            else
-            {
-                _count++;
-            }
+                using var scope = _mutex.EnterScope();
+                if (_count == _buffer.Length)
+                {
+                    _sum -= _buffer[_nextIndex];
+                }
+                else
+                {
+                    _count++;
+                }
 
-            _buffer[_nextIndex] = value;
-            _sum += value;
-            _nextIndex = (_nextIndex + 1) % _buffer.Length;
+                _buffer[_nextIndex] = value;
+                _sum += value;
+                _nextIndex = (_nextIndex + 1) % _buffer.Length;
+            }
+            catch (ObjectDisposedException)
+            {
+                // Tracker was disposed concurrently; ignore late samples.
+            }
         }
 
         public LatencySnapshot Snapshot()
         {
-            using var scope = _mutex.EnterScope();
-            if (_count == 0)
+            if (Volatile.Read(ref _disposed))
             {
                 return LatencySnapshot.Empty;
             }
 
-            var samples = new double[_count];
-            if (_count == _buffer.Length)
+            try
             {
-                for (var i = 0; i < _count; i++)
+                using var scope = _mutex.EnterScope();
+                if (_count == 0)
                 {
-                    var index = (_nextIndex + i) % _buffer.Length;
-                    samples[i] = _buffer[index];
+                    return LatencySnapshot.Empty;
                 }
+
+                var samples = new double[_count];
+                if (_count == _buffer.Length)
+                {
+                    for (var i = 0; i < _count; i++)
+                    {
+                        var index = (_nextIndex + i) % _buffer.Length;
+                        samples[i] = _buffer[index];
+                    }
+                }
+                else
+                {
+                    Array.Copy(_buffer, samples, _count);
+                }
+
+                Array.Sort(samples);
+                var average = _sum / _count;
+                var p50 = CalculatePercentile(samples, 0.50);
+                var p90 = CalculatePercentile(samples, 0.90);
+                var p99 = CalculatePercentile(samples, 0.99);
+                return new LatencySnapshot(average, p50, p90, p99);
             }
-            else
+            catch (ObjectDisposedException)
             {
-                Array.Copy(_buffer, samples, _count);
+                return LatencySnapshot.Empty;
+            }
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, true))
+            {
+                return;
             }
 
-            Array.Sort(samples);
-            var average = _sum / _count;
-            var p50 = CalculatePercentile(samples, 0.50);
-            var p90 = CalculatePercentile(samples, 0.90);
-            var p99 = CalculatePercentile(samples, 0.99);
-            return new LatencySnapshot(average, p50, p90, p99);
+            _mutex.Dispose();
         }
 
         private static double CalculatePercentile(double[] samples, double percentile)
@@ -1234,8 +1271,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _inner.Requests;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _inner.Responses;
 
-        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteAsync(error, cancellationToken);
+        public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteAsync(fault, cancellationToken);
 
         public async ValueTask DisposeAsync()
         {
@@ -1291,11 +1328,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _inner.ResponseWriter;
         public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
-        public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteRequestsAsync(error, cancellationToken);
+        public ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteRequestsAsync(fault, cancellationToken);
 
-        public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteResponsesAsync(error, cancellationToken);
+        public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteResponsesAsync(fault, cancellationToken);
 
         public async ValueTask DisposeAsync()
         {
@@ -1382,7 +1419,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (allLoopback)
             {
+#pragma warning disable CA5359 // Loopback development scenarios require disabling certificate validation.
                 handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
             }
         }
 
@@ -1604,7 +1643,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
             if (allLoopback)
             {
+#pragma warning disable CA5359 // Loopback development scenarios require disabling certificate validation.
                 handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
             }
 
             options.HttpHandler = handler;

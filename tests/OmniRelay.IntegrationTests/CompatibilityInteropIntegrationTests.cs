@@ -544,7 +544,7 @@ public sealed class CompatibilityInteropIntegrationTests
         string serviceName,
         Uri baseAddress,
         string procedure,
-        UnaryInboundDelegate handler,
+        UnaryInboundHandler handler,
         HttpServerRuntimeOptions? runtimeOptions = null,
         HttpServerTlsOptions? tlsOptions = null)
     {

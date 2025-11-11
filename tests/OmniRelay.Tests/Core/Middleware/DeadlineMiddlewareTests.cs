@@ -24,7 +24,7 @@ public sealed class DeadlineMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) =>
+            (UnaryOutboundHandler)((req, token) =>
             {
                 invoked = true;
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -49,7 +49,7 @@ public sealed class DeadlineMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryInboundDelegate)(async (req, token) =>
+            (UnaryInboundHandler)(async (req, token) =>
             {
                 await Task.Delay(TimeSpan.FromSeconds(5), token);
                 return Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty));
@@ -75,7 +75,7 @@ public sealed class DeadlineMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) =>
+            (UnaryOutboundHandler)((req, token) =>
             {
                 invoked = true;
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -97,7 +97,7 @@ public sealed class DeadlineMiddlewareTests
         var result = await middleware.InvokeAsync(
             request,
             CancellationToken.None,
-            (UnaryOutboundDelegate)((req, token) =>
+            (UnaryOutboundHandler)((req, token) =>
             {
                 invoked = true;
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));

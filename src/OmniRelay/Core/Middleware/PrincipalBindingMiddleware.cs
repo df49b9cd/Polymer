@@ -28,7 +28,7 @@ public sealed class PrincipalBindingMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -40,7 +40,7 @@ public sealed class PrincipalBindingMiddleware :
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
@@ -53,7 +53,7 @@ public sealed class PrincipalBindingMiddleware :
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
@@ -67,7 +67,7 @@ public sealed class PrincipalBindingMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler next)
     {
         next = EnsureNotNull(next, nameof(next));
 
@@ -78,7 +78,7 @@ public sealed class PrincipalBindingMiddleware :
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next)
+        DuplexInboundHandler next)
     {
         request = EnsureNotNull(request, nameof(request));
         next = EnsureNotNull(next, nameof(next));
