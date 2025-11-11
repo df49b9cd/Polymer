@@ -83,7 +83,7 @@ public sealed class MeshGossipMemberSnapshot
 }
 
 /// <summary>Enum representing gossip membership states.</summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<MeshGossipMemberStatus>))]
 public enum MeshGossipMemberStatus
 {
     Alive,
