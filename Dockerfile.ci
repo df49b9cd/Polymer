@@ -1,3 +1,46 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0
+# syntax=docker/dockerfile:1.7
+
+ARG DOTNET_VERSION=10.0.100
+
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-bookworm-slim AS base
+
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    NUGET_XMLDOC_MODE=skip
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG CI_USER=dotnet
+ARG CI_UID=1000
+ARG CI_GID=1000
+
+ENV CI_USER=${CI_USER} \
+    CI_UID=${CI_UID} \
+    CI_GID=${CI_GID}
+
+RUN groupadd --gid "${CI_GID}" "${CI_USER}" \
+    && useradd --uid "${CI_UID}" --gid "${CI_GID}" --create-home --shell /bin/bash "${CI_USER}"
 
 WORKDIR /work
+RUN chown "${CI_USER}:${CI_USER}" /work
+USER "${CI_USER}"
+
+ENV NUGET_PACKAGES=/home/${CI_USER}/.nuget/packages
+
+FROM base AS ci
+WORKDIR /repo
+
+COPY --chown=${CI_USER}:${CI_USER} global.json Directory.Build.props Directory.Packages.props OmniRelay.slnx ./
+COPY --chown=${CI_USER}:${CI_USER} src ./src
+COPY --chown=${CI_USER}:${CI_USER} tests ./tests
+
+RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES} \
+    dotnet restore OmniRelay.slnx
+RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES} \
+    dotnet build OmniRelay.slnx -c Release --no-restore
+RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES} \
+    dotnet test tests/OmniRelay.Tests/OmniRelay.Tests.csproj -c Release --no-build --logger "trx;LogFileName=testResults.trx"
+
+CMD ["bash"]
