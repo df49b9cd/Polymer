@@ -36,14 +36,18 @@ public sealed class HttpClientLoggingMiddlewareTests
             static (_, _) => ValueTask.FromResult(new HttpResponseMessage(HttpStatusCode.OK)),
             CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(2, logger.Entries.Count);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        logger.Entries.Count.ShouldBe(2);
 
         foreach (var entry in logger.Entries)
         {
-            Assert.NotNull(entry.Scope);
-            Assert.Contains(entry.Scope!, pair => pair.Key == "rpc.request_id" && string.Equals(pair.Value?.ToString(), "req-123", StringComparison.Ordinal));
-            Assert.Contains(entry.Scope!, pair => pair.Key == "rpc.peer" && string.Equals(pair.Value?.ToString(), "10.0.0.1", StringComparison.Ordinal));
+            entry.Scope.ShouldNotBeNull();
+            entry.Scope!.ShouldContain(pair =>
+                pair.Key == "rpc.request_id" &&
+                string.Equals(pair.Value == null ? null : pair.Value.ToString(), "req-123", StringComparison.Ordinal));
+            entry.Scope.ShouldContain(pair =>
+                pair.Key == "rpc.peer" &&
+                string.Equals(pair.Value == null ? null : pair.Value.ToString(), "10.0.0.1", StringComparison.Ordinal));
         }
     }
 }

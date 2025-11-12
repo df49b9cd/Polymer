@@ -24,21 +24,21 @@ public sealed class OmniRelayExceptionFilterTests
 
         await filter.OnExceptionAsync(exceptionContext);
 
-        Assert.True(exceptionContext.ExceptionHandled);
-        var result = Assert.IsType<ObjectResult>(exceptionContext.Result);
-        Assert.Equal(HttpStatusMapper.ToStatusCode(OmniRelayStatusCode.DeadlineExceeded), result.StatusCode);
+        exceptionContext.ExceptionHandled.ShouldBeTrue();
+        var result = exceptionContext.Result.ShouldBeOfType<ObjectResult>();
+        result.StatusCode.ShouldBe(HttpStatusMapper.ToStatusCode(OmniRelayStatusCode.DeadlineExceeded));
 
-        var payload = Assert.IsType<Dictionary<string, object?>>(result.Value);
-        Assert.Equal("deadline", payload["message"]);
-        Assert.Equal(nameof(OmniRelayStatusCode.DeadlineExceeded), payload["status"]);
-        Assert.Equal(OmniRelayErrorAdapter.GetStatusName(OmniRelayStatusCode.DeadlineExceeded), payload["code"]);
-        var metadata = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(payload["metadata"]);
-        Assert.Equal("http", metadata["omnirelay.transport"]);
-        Assert.True(metadata.TryGetValue(OmniRelayErrorAdapter.RetryableMetadataKey, out var retryable));
-        Assert.Equal(true, retryable);
+        var payload = result.Value.ShouldBeOfType<Dictionary<string, object?>>();
+        payload["message"].ShouldBe("deadline");
+        payload["status"].ShouldBe(nameof(OmniRelayStatusCode.DeadlineExceeded));
+        payload["code"].ShouldBe(OmniRelayErrorAdapter.GetStatusName(OmniRelayStatusCode.DeadlineExceeded));
+        var metadata = payload["metadata"].ShouldBeAssignableTo<IReadOnlyDictionary<string, object?>>();
+        metadata["omnirelay.transport"].ShouldBe("http");
+        metadata.TryGetValue(OmniRelayErrorAdapter.RetryableMetadataKey, out var retryable).ShouldBeTrue();
+        retryable.ShouldBe(true);
 
-        Assert.Equal("http", httpContext.Response.Headers[HttpTransportHeaders.Transport]);
-        Assert.Equal(nameof(OmniRelayStatusCode.DeadlineExceeded), httpContext.Response.Headers[HttpTransportHeaders.Status]);
-        Assert.Equal("deadline", httpContext.Response.Headers[HttpTransportHeaders.ErrorMessage]);
+        httpContext.Response.Headers[HttpTransportHeaders.Transport].ToString().ShouldBe("http");
+        httpContext.Response.Headers[HttpTransportHeaders.Status].ToString().ShouldBe(nameof(OmniRelayStatusCode.DeadlineExceeded));
+        httpContext.Response.Headers[HttpTransportHeaders.ErrorMessage].ToString().ShouldBe("deadline");
     }
 }

@@ -17,13 +17,13 @@ public class HttpStreamCallTests
         await call.WriteAsync(new byte[] { 0x01 }, TestContext.Current.CancellationToken);
         await call.WriteAsync(new byte[] { 0x02 }, TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, call.Context.MessageCount);
+        call.Context.MessageCount.ShouldBe(2);
 
         await call.CompleteAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(StreamCompletionStatus.Succeeded, call.Context.CompletionStatus);
-        Assert.Null(call.Context.CompletionError);
-        Assert.True(call.Context.CompletedAtUtc.HasValue);
+        call.Context.CompletionStatus.ShouldBe(StreamCompletionStatus.Succeeded);
+        call.Context.CompletionError.ShouldBeNull();
+        call.Context.CompletedAtUtc.HasValue.ShouldBeTrue();
 
         await call.DisposeAsync();
     }
@@ -37,8 +37,8 @@ public class HttpStreamCallTests
 
         await call.CompleteAsync(error, TestContext.Current.CancellationToken);
 
-        Assert.Equal(StreamCompletionStatus.Cancelled, call.Context.CompletionStatus);
-        Assert.Same(error, call.Context.CompletionError);
+        call.Context.CompletionStatus.ShouldBe(StreamCompletionStatus.Cancelled);
+        call.Context.CompletionError.ShouldBeSameAs(error);
 
         await call.DisposeAsync();
     }
@@ -51,6 +51,6 @@ public class HttpStreamCallTests
 
         await call.DisposeAsync();
 
-        Assert.Equal(StreamCompletionStatus.Cancelled, call.Context.CompletionStatus);
+        call.Context.CompletionStatus.ShouldBe(StreamCompletionStatus.Cancelled);
     }
 }

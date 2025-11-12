@@ -43,16 +43,16 @@ public sealed class RpcTracingMiddlewareTests
             CancellationToken.None,
             (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(response))));
 
-        Assert.True(result.IsSuccess);
-        var activity = Assert.Single(activities);
-        Assert.Equal(ActivityKind.Server, activity.Kind);
-        Assert.Equal("yarpcore.rpc.inbound.unary", activity.DisplayName);
-        Assert.Equal(ActivityStatusCode.Ok, activity.Status);
-        Assert.Equal(parent.TraceId, activity.TraceId);
-        Assert.Equal("svc", activity.GetTagItem("rpc.service"));
-        Assert.Equal("echo::call", activity.GetTagItem("rpc.method"));
-        Assert.Equal("grpc", activity.GetTagItem("rpc.transport"));
-        Assert.Equal("application/json", activity.GetTagItem("rpc.response.encoding"));
+        result.IsSuccess.ShouldBeTrue();
+        var activity = activities.ShouldHaveSingleItem();
+        activity.Kind.ShouldBe(ActivityKind.Server);
+        activity.DisplayName.ShouldBe("yarpcore.rpc.inbound.unary");
+        activity.Status.ShouldBe(ActivityStatusCode.Ok);
+        activity.TraceId.ShouldBe(parent.TraceId);
+        activity.GetTagItem("rpc.service").ShouldBe("svc");
+        activity.GetTagItem("rpc.method").ShouldBe("echo::call");
+        activity.GetTagItem("rpc.transport").ShouldBe("grpc");
+        activity.GetTagItem("rpc.response.encoding").ShouldBe("application/json");
     }
 
     [Fact]
@@ -84,16 +84,16 @@ public sealed class RpcTracingMiddlewareTests
                 return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
             }));
 
-        Assert.True(result.IsFailure);
-        Assert.NotNull(capturedMeta);
-        Assert.True(capturedMeta!.TryGetHeader("traceparent", out var traceParentHeader));
-        Assert.False(string.IsNullOrEmpty(traceParentHeader));
+        result.IsFailure.ShouldBeTrue();
+        capturedMeta.ShouldNotBeNull();
+        capturedMeta!.TryGetHeader("traceparent", out var traceParentHeader).ShouldBeTrue();
+        string.IsNullOrEmpty(traceParentHeader).ShouldBeFalse();
 
-        var activity = Assert.Single(activities);
-        Assert.Equal(ActivityKind.Client, activity.Kind);
-        Assert.Equal(ActivityStatusCode.Error, activity.Status);
-        Assert.Equal("boom", activity.GetTagItem("rpc.error_message"));
-        Assert.Equal(traceParentHeader, activity.Id);
+        var activity = activities.ShouldHaveSingleItem();
+        activity.Kind.ShouldBe(ActivityKind.Client);
+        activity.Status.ShouldBe(ActivityStatusCode.Error);
+        activity.GetTagItem("rpc.error_message").ShouldBe("boom");
+        activity.Id.ShouldBe(traceParentHeader);
     }
 
     private static ActivityListener CreateListener(string sourceName, List<Activity> activities)

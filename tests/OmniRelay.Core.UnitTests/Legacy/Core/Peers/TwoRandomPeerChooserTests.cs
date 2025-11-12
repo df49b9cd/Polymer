@@ -16,8 +16,8 @@ public sealed class TwoRandomPeerChooserTests
         var meta = new RequestMeta(service: "svc");
 
         var lease = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsSuccess);
-        Assert.Equal("idle", lease.Value.Peer.Identifier);
+        lease.IsSuccess.ShouldBeTrue();
+        lease.Value.Peer.Identifier.ShouldBe("idle");
         await lease.Value.DisposeAsync();
     }
 
@@ -29,8 +29,8 @@ public sealed class TwoRandomPeerChooserTests
         var meta = new RequestMeta(service: "svc");
 
         var lease = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsSuccess);
-        Assert.Equal("single", lease.Value.Peer.Identifier);
+        lease.IsSuccess.ShouldBeTrue();
+        lease.Value.Peer.Identifier.ShouldBe("single");
         await lease.Value.DisposeAsync();
     }
 

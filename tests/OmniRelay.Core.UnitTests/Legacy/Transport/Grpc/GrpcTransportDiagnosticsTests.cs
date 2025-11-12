@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using Grpc.Core;
 using OmniRelay.Transport.Grpc;
@@ -18,7 +19,7 @@ public sealed class GrpcTransportDiagnosticsTests
             address: new Uri("https://example.test:5001"),
             operation: "unary");
 
-        Assert.Null(activity);
+        activity.ShouldBeNull();
     }
 
     [Fact]
@@ -33,12 +34,12 @@ public sealed class GrpcTransportDiagnosticsTests
             address: new Uri("https://example.test:8443/echo"),
             operation: "unary");
 
-        Assert.NotNull(activity);
-        Assert.Equal("grpc", (string?)activity!.GetTagItem("rpc.system"));
-        Assert.Equal("backend", (string?)activity.GetTagItem("rpc.service"));
-        Assert.Equal("backend::Echo", (string?)activity.GetTagItem("rpc.method"));
-        Assert.Equal("example.test", (string?)activity.GetTagItem("net.peer.name"));
-        Assert.Equal(8443, (int)activity.GetTagItem("net.peer.port")!);
+        activity.ShouldNotBeNull();
+        ((string?)activity!.GetTagItem("rpc.system")).ShouldBe("grpc");
+        ((string?)activity.GetTagItem("rpc.service")).ShouldBe("backend");
+        ((string?)activity.GetTagItem("rpc.method")).ShouldBe("backend::Echo");
+        ((string?)activity.GetTagItem("net.peer.name")).ShouldBe("example.test");
+        ((int)activity.GetTagItem("net.peer.port")!).ShouldBe(8443);
 
         using var ipActivity = GrpcTransportDiagnostics.StartClientActivity(
             remoteService: "backend",
@@ -46,9 +47,9 @@ public sealed class GrpcTransportDiagnosticsTests
             address: new Uri("https://127.0.0.1:9443/echo"),
             operation: "unary");
 
-        Assert.NotNull(ipActivity);
-        Assert.Equal("127.0.0.1", (string?)ipActivity!.GetTagItem("net.peer.ip"));
-        Assert.Equal(9443, (int)ipActivity.GetTagItem("net.peer.port")!);
+        ipActivity.ShouldNotBeNull();
+        ((string?)ipActivity!.GetTagItem("net.peer.ip")).ShouldBe("127.0.0.1");
+        ((int)ipActivity.GetTagItem("net.peer.port")!).ShouldBe(9443);
     }
 
     [Fact]
@@ -63,17 +64,17 @@ public sealed class GrpcTransportDiagnosticsTests
             address: new Uri("https://example.test:5900"),
             operation: "unary");
 
-        Assert.NotNull(activity);
+        activity.ShouldNotBeNull();
 
         GrpcTransportDiagnostics.SetStatus(activity, StatusCode.OK);
-        Assert.Equal(ActivityStatusCode.Ok, activity!.Status);
+        activity!.Status.ShouldBe(ActivityStatusCode.Ok);
 
         var ex = new InvalidOperationException("boom");
         GrpcTransportDiagnostics.RecordException(activity, ex, StatusCode.Internal);
 
-        Assert.Equal(ActivityStatusCode.Error, activity.Status);
-        var exceptionEvent = Assert.Single(activity.Events, evt => evt.Name == "exception");
-        Assert.Contains(exceptionEvent.Tags!, tag => tag.Key == "exception.message" && Equals(tag.Value, "boom"));
+        activity.Status.ShouldBe(ActivityStatusCode.Error);
+        var exceptionEvent = activity.Events.Where(evt => evt.Name == "exception").ShouldHaveSingleItem();
+        exceptionEvent.Tags!.ShouldContain(tag => tag.Key == "exception.message" && Equals(tag.Value, "boom"));
     }
 
     [Fact]
@@ -82,19 +83,19 @@ public sealed class GrpcTransportDiagnosticsTests
         var parseMethod = typeof(GrpcTransportDiagnostics).GetMethod(
             "ParseHttpProtocol",
             BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(parseMethod);
+        parseMethod.ShouldNotBeNull();
 
         var http3 = InvokeParse(parseMethod, "HTTP/3.0");
-        Assert.Equal(("http", "3.0"), http3);
+        http3.ShouldBe(("http", "3.0"));
 
         var http2 = InvokeParse(parseMethod, "HTTP/2");
-        Assert.Equal(("http", "2"), http2);
+        http2.ShouldBe(("http", "2"));
 
         var custom = InvokeParse(parseMethod, "grpc");
-        Assert.Equal(("grpc", (string?)null), custom);
+        custom.ShouldBe(("grpc", (string?)null));
 
         var missing = InvokeParse(parseMethod, null);
-        Assert.Equal(((string?)null, (string?)null), missing);
+        missing.ShouldBe(((string?)null, (string?)null));
     }
 
     [Fact]
@@ -103,11 +104,11 @@ public sealed class GrpcTransportDiagnosticsTests
         var extract = typeof(GrpcTransportDiagnostics).GetMethod(
             "ExtractParentContext",
             BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(extract);
+        extract.ShouldNotBeNull();
 
         var metadata = new Metadata { { "traceparent", "not-a-valid-trace" } };
         var context = (ActivityContext?)extract!.Invoke(null, [metadata]);
-        Assert.False(context.HasValue);
+        context.HasValue.ShouldBeFalse();
     }
 
     [Fact]
@@ -116,7 +117,7 @@ public sealed class GrpcTransportDiagnosticsTests
         var extract = typeof(GrpcTransportDiagnostics).GetMethod(
             "ExtractParentContext",
             BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(extract);
+        extract.ShouldNotBeNull();
 
         var traceId = ActivityTraceId.CreateRandom();
         var spanId = ActivitySpanId.CreateRandom();
@@ -127,16 +128,16 @@ public sealed class GrpcTransportDiagnosticsTests
         };
 
         var context = (ActivityContext?)extract!.Invoke(null, [metadata]);
-        Assert.True(context.HasValue);
-        Assert.Equal(traceId, context.Value.TraceId);
-        Assert.Equal(spanId, context.Value.SpanId);
-        Assert.Equal("congo=t61rcWkgMzE", context.Value.TraceState);
+        context.HasValue.ShouldBeTrue();
+        context.Value.TraceId.ShouldBe(traceId);
+        context.Value.SpanId.ShouldBe(spanId);
+        context.Value.TraceState.ShouldBe("congo=t61rcWkgMzE");
     }
 
     private static (string? Name, string? Version) InvokeParse(MethodInfo parseMethod, string? protocol)
     {
         var result = parseMethod.Invoke(null, [protocol]);
-        Assert.NotNull(result);
+        result.ShouldNotBeNull();
         return ((string? Name, string? Version))result!;
     }
 

@@ -18,7 +18,7 @@ public class GrpcInterceptorPipelineTests
         builder.ForClientService("backend").ForProcedure("Echo").Use(new RecordingClientInterceptor("procedure", log));
 
         var registry = builder.BuildClientRegistry();
-        Assert.NotNull(registry);
+        registry.ShouldNotBeNull();
 
         var composite = new CompositeClientInterceptor(registry!, "backend");
         var invoker = new RecordingCallInvoker(log);
@@ -30,8 +30,8 @@ public class GrpcInterceptorPipelineTests
         var call = interceptedInvoker.AsyncUnaryCall(method, host: null, options: new CallOptions(), request: []);
         var response = await call.ResponseAsync;
 
-        Assert.Empty(response);
-        Assert.Equal(new[] { "global", "service", "procedure", "terminal" }, log);
+        response.ShouldBeEmpty();
+        log.ShouldBe(new[] { "global", "service", "procedure", "terminal" });
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class GrpcInterceptorPipelineTests
         builder.ForServerProcedure("Echo").Use(new RecordingServerInterceptor("procedure", log));
 
         var registry = builder.BuildServerRegistry();
-        Assert.NotNull(registry);
+        registry.ShouldNotBeNull();
 
         var composite = new CompositeServerInterceptor(registry!);
 
@@ -58,8 +58,8 @@ public class GrpcInterceptorPipelineTests
                 return Task.FromResult(Array.Empty<byte>());
             });
 
-        Assert.Empty(result);
-        Assert.Equal(new[] { "global", "procedure", "terminal" }, log);
+        result.ShouldBeEmpty();
+        log.ShouldBe(new[] { "global", "procedure", "terminal" });
     }
 
     private sealed class RecordingClientInterceptor(string id, IList<string> log) : Interceptor

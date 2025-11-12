@@ -28,13 +28,13 @@ public class TeeOutboundTests
 
             var result = await tee.CallAsync(request, ct);
 
-            Assert.True(result.IsSuccess);
+            result.IsSuccess.ShouldBeTrue();
 
-            Assert.Equal(1, primary.CallCount);
-            Assert.True(SpinWait.SpinUntil(() => shadow.CallCount == 1, TimeSpan.FromSeconds(1)));
+            primary.CallCount.ShouldBe(1);
+            SpinWait.SpinUntil(() => shadow.CallCount == 1, TimeSpan.FromSeconds(1)).ShouldBeTrue();
 
-            Assert.True(shadow.LastRequestMeta.TryGetHeader("rpc-shadow", out var shadowHeader));
-            Assert.Equal("true", shadowHeader);
+            shadow.LastRequestMeta.TryGetHeader("rpc-shadow", out var shadowHeader).ShouldBeTrue();
+            shadowHeader.ShouldBe("true");
         }
         finally
         {
@@ -55,9 +55,9 @@ public class TeeOutboundTests
         var ct = TestContext.Current.CancellationToken;
         var result = await tee.CallAsync(request, ct);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(1, primary.CallCount);
-        Assert.Equal(0, shadow.CallCount);
+        result.IsSuccess.ShouldBeFalse();
+        primary.CallCount.ShouldBe(1);
+        shadow.CallCount.ShouldBe(0);
     }
 
     [Fact]
@@ -73,9 +73,9 @@ public class TeeOutboundTests
         var ct = TestContext.Current.CancellationToken;
         var result = await tee.CallAsync(request, ct);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, primary.CallCount);
-        Assert.Equal(0, shadow.CallCount);
+        result.IsSuccess.ShouldBeTrue();
+        primary.CallCount.ShouldBe(1);
+        shadow.CallCount.ShouldBe(0);
     }
 
     [Fact]
@@ -91,9 +91,9 @@ public class TeeOutboundTests
         var ct = TestContext.Current.CancellationToken;
         var result = await tee.CallAsync(request, ct);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, primary.CallCount);
-        Assert.True(SpinWait.SpinUntil(() => shadow.CallCount == 1, TimeSpan.FromSeconds(1)));
+        result.IsSuccess.ShouldBeTrue();
+        primary.CallCount.ShouldBe(1);
+        SpinWait.SpinUntil(() => shadow.CallCount == 1, TimeSpan.FromSeconds(1)).ShouldBeTrue();
     }
 
     [Fact]
@@ -103,10 +103,10 @@ public class TeeOutboundTests
         var shadow = StubUnaryOutbound.Success();
         var tee = new TeeUnaryOutbound(primary, shadow, new TeeOptions { LoggerFactory = NullLoggerFactory.Instance });
 
-        var diagnostics = Assert.IsType<TeeOutboundDiagnostics>(tee.GetOutboundDiagnostics());
-        Assert.NotNull(diagnostics.Primary);
-        Assert.NotNull(diagnostics.Shadow);
-        Assert.Equal(1.0, diagnostics.SampleRate);
+        var diagnostics = tee.GetOutboundDiagnostics().ShouldBeOfType<TeeOutboundDiagnostics>();
+        diagnostics.Primary.ShouldNotBeNull();
+        diagnostics.Shadow.ShouldNotBeNull();
+        diagnostics.SampleRate.ShouldBe(1.0);
     }
 
     private sealed class StubUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic

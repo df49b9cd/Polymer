@@ -26,12 +26,12 @@ public sealed class RateLimitingMiddlewareTests
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
         var lease = await limiter.AcquireAsync(1, CancellationToken.None);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
 
         var result = await middleware.InvokeAsync(request, CancellationToken.None, (UnaryOutboundHandler)((req, token) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
 
         lease.Dispose();
     }
@@ -52,9 +52,9 @@ public sealed class RateLimitingMiddlewareTests
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
         var result1 = await middleware.InvokeAsync(request, CancellationToken.None, (UnaryOutboundHandler)((req, token) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
-        Assert.True(result1.IsSuccess);
+        result1.IsSuccess.ShouldBeTrue();
 
         var result2 = await middleware.InvokeAsync(request, CancellationToken.None, (UnaryOutboundHandler)((req, token) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
-        Assert.True(result2.IsSuccess);
+        result2.IsSuccess.ShouldBeTrue();
     }
 }

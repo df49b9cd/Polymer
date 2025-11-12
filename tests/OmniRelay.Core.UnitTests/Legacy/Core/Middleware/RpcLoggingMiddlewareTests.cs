@@ -27,13 +27,13 @@ public sealed class RpcLoggingMiddlewareTests
             CancellationToken.None,
             (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(response))));
 
-        Assert.True(result.IsSuccess);
-        TestLogger<RpcLoggingMiddleware>.LogEntry entry = Assert.Single(logger.Entries);
-        Assert.Equal(LogLevel.Information, entry.LogLevel);
-        Assert.Contains("inbound unary", entry.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("svc", entry.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("echo::call", entry.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.NotNull(entry.Scope);
+        result.IsSuccess.ShouldBeTrue();
+        TestLogger<RpcLoggingMiddleware>.LogEntry entry = logger.Entries.ShouldHaveSingleItem();
+        entry.LogLevel.ShouldBe(LogLevel.Information);
+        entry.Message.ShouldContain("inbound unary", Case.Insensitive);
+        entry.Message.ShouldContain("svc", Case.Insensitive);
+        entry.Message.ShouldContain("echo::call", Case.Insensitive);
+        entry.Scope.ShouldNotBeNull();
     }
 
     [Fact]
@@ -51,11 +51,11 @@ public sealed class RpcLoggingMiddlewareTests
             CancellationToken.None,
             (UnaryOutboundHandler)((req, token) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error))));
 
-        Assert.True(result.IsFailure);
-        TestLogger<RpcLoggingMiddleware>.LogEntry entry = Assert.Single(logger.Entries);
-        Assert.Equal(LogLevel.Warning, entry.LogLevel);
-        Assert.Contains("failed", entry.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("boom", entry.Message, StringComparison.OrdinalIgnoreCase);
+        result.IsFailure.ShouldBeTrue();
+        TestLogger<RpcLoggingMiddleware>.LogEntry entry = logger.Entries.ShouldHaveSingleItem();
+        entry.LogLevel.ShouldBe(LogLevel.Warning);
+        entry.Message.ShouldContain("failed", Case.Insensitive);
+        entry.Message.ShouldContain("boom", Case.Insensitive);
     }
 
     [Fact]
@@ -76,8 +76,8 @@ public sealed class RpcLoggingMiddlewareTests
             CancellationToken.None,
             (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))));
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(logger.Entries);
+        result.IsSuccess.ShouldBeTrue();
+        logger.Entries.ShouldBeEmpty();
     }
 
     [Fact]
@@ -122,15 +122,25 @@ public sealed class RpcLoggingMiddlewareTests
 
         activity.Stop();
 
-        Assert.True(result.IsSuccess);
-        TestLogger<RpcLoggingMiddleware>.LogEntry entry = Assert.Single(logger.Entries);
+        result.IsSuccess.ShouldBeTrue();
+        TestLogger<RpcLoggingMiddleware>.LogEntry entry = logger.Entries.ShouldHaveSingleItem();
 
-        Assert.NotNull(entry.Scope);
+        entry.Scope.ShouldNotBeNull();
         var scope = entry.Scope!;
-        Assert.Contains(scope, kvp => kvp.Key == "rpc.request_id" && string.Equals(kvp.Value?.ToString(), "req-123", StringComparison.Ordinal));
-        Assert.Contains(scope, kvp => kvp.Key == "rpc.peer" && string.Equals(kvp.Value?.ToString(), "peer-1", StringComparison.Ordinal));
-        Assert.Contains(scope, kvp => kvp.Key == "activity.trace_id" && !string.IsNullOrEmpty(kvp.Value?.ToString()));
-        Assert.Contains(scope, kvp => kvp.Key == "custom.key" && string.Equals(kvp.Value?.ToString(), "custom-value", StringComparison.Ordinal));
-        Assert.Contains(scope, kvp => kvp.Key == "rpc.response_encoding" && string.Equals(kvp.Value?.ToString(), "application/json", StringComparison.Ordinal));
+        scope.ShouldContain(kvp =>
+            kvp.Key == "rpc.request_id" &&
+            string.Equals(kvp.Value == null ? null : kvp.Value.ToString(), "req-123", StringComparison.Ordinal));
+        scope.ShouldContain(kvp =>
+            kvp.Key == "rpc.peer" &&
+            string.Equals(kvp.Value == null ? null : kvp.Value.ToString(), "peer-1", StringComparison.Ordinal));
+        scope.ShouldContain(kvp =>
+            kvp.Key == "activity.trace_id" &&
+            !string.IsNullOrEmpty(kvp.Value == null ? null : kvp.Value.ToString()));
+        scope.ShouldContain(kvp =>
+            kvp.Key == "custom.key" &&
+            string.Equals(kvp.Value == null ? null : kvp.Value.ToString(), "custom-value", StringComparison.Ordinal));
+        scope.ShouldContain(kvp =>
+            kvp.Key == "rpc.response_encoding" &&
+            string.Equals(kvp.Value == null ? null : kvp.Value.ToString(), "application/json", StringComparison.Ordinal));
     }
 }

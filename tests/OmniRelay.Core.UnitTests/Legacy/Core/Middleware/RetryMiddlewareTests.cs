@@ -38,8 +38,8 @@ public sealed class RetryMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             }));
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, attempt);
+        result.IsSuccess.ShouldBeTrue();
+        attempt.ShouldBe(2);
     }
 
     [Fact]
@@ -65,8 +65,8 @@ public sealed class RetryMiddlewareTests
                 return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
             }));
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(1, attempt);
+        result.IsFailure.ShouldBeTrue();
+        attempt.ShouldBe(1);
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public sealed class RetryMiddlewareTests
                 return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
             }));
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(1, attempt);
+        result.IsFailure.ShouldBeTrue();
+        attempt.ShouldBe(1);
     }
 }

@@ -30,9 +30,9 @@ public sealed class DeadlineMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             }));
 
-        Assert.True(result.IsFailure);
-        Assert.False(invoked);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        invoked.ShouldBeFalse();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact]
@@ -55,8 +55,8 @@ public sealed class DeadlineMiddlewareTests
                 return Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty));
             }));
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact]
@@ -81,9 +81,9 @@ public sealed class DeadlineMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             }));
 
-        Assert.True(result.IsFailure);
-        Assert.False(invoked);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        invoked.ShouldBeFalse();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class DeadlineMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             }));
 
-        Assert.True(result.IsSuccess);
-        Assert.True(invoked);
+        result.IsSuccess.ShouldBeTrue();
+        invoked.ShouldBeTrue();
     }
 }

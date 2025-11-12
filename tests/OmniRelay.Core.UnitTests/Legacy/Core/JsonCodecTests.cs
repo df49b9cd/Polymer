@@ -20,11 +20,11 @@ public class JsonCodecTests
 
         var result = codec.EncodeRequest(new Sample("alpha", 3), request);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         using var document = JsonDocument.Parse(result.Value);
-        Assert.Equal("alpha", document.RootElement.GetProperty("name").GetString());
-        Assert.Equal(3, document.RootElement.GetProperty("count").GetInt32());
-        Assert.False(document.RootElement.TryGetProperty("description", out _));
+        document.RootElement.GetProperty("name").GetString().ShouldBe("alpha");
+        document.RootElement.GetProperty("count").GetInt32().ShouldBe(3);
+        document.RootElement.TryGetProperty("description", out _).ShouldBeFalse();
     }
 
     [Fact]
@@ -36,9 +36,9 @@ public class JsonCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
+        status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact]
@@ -49,12 +49,12 @@ public class JsonCodecTests
         var meta = new ResponseMeta(encoding: "json");
 
         var encoded = codec.EncodeResponse(response, meta);
-        Assert.True(encoded.IsSuccess);
+        encoded.IsSuccess.ShouldBeTrue();
 
         var decoded = codec.DecodeResponse(encoded.Value, meta);
 
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal(response, decoded.Value);
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.ShouldBe(response);
     }
 
     [Fact]
@@ -70,10 +70,10 @@ public class JsonCodecTests
 
         var result = codec.EncodeRequest(new Sample("alpha", 3), request);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         using var document = JsonDocument.Parse(result.Value);
-        Assert.True(document.RootElement.TryGetProperty("description", out var description));
-        Assert.Equal(JsonValueKind.Null, description.ValueKind);
+        document.RootElement.TryGetProperty("description", out var description).ShouldBeTrue();
+        description.ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
     [Fact]
@@ -96,9 +96,9 @@ public class JsonCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
+        status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact]
@@ -120,9 +120,9 @@ public class JsonCodecTests
 
         var result = codec.EncodeResponse(new Sample("alpha", 0), meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
+        status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public class JsonCodecTests
     {
         var context = new JsonCodecIncompleteContext(new JsonSerializerOptions());
 
-        Assert.Throws<InvalidOperationException>(() => new JsonCodec<Sample, Sample>(serializerContext: context));
+        Should.Throw<InvalidOperationException>(() => new JsonCodec<Sample, Sample>(serializerContext: context));
     }
 }
 

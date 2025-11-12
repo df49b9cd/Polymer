@@ -16,8 +16,8 @@ public sealed class FewestPendingPeerChooserTests
         var meta = new RequestMeta(service: "svc");
 
         var lease = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsSuccess);
-        Assert.Equal("idle", lease.Value.Peer.Identifier);
+        lease.IsSuccess.ShouldBeTrue();
+        lease.Value.Peer.Identifier.ShouldBe("idle");
         await lease.Value.DisposeAsync();
     }
 
@@ -30,8 +30,8 @@ public sealed class FewestPendingPeerChooserTests
         var meta = new RequestMeta(service: "svc");
 
         var lease = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(lease.Error!));
+        lease.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(lease.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
     }
 
     private sealed class TestPeer(string identifier, int inflight = 0, int maxConcurrency = int.MaxValue) : IPeer
