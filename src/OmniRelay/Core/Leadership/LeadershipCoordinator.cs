@@ -120,10 +120,17 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
             {
                 await _store.TryReleaseAsync(state.Scope.ScopeId, lease, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                LeadershipCoordinatorLog.FailedToReleaseScope(_logger, state.Scope.ScopeId, ex);
+                // Ignore cancellation during shutdown.
             }
+            // If there is a custom exception type for leadership store errors, catch it here.
+            // Otherwise, let unexpected exceptions propagate.
+            // Example:
+            // catch (LeadershipStoreException ex)
+            // {
+            //     LeadershipCoordinatorLog.FailedToReleaseScope(_logger, state.Scope.ScopeId, ex);
+            // }
 
             PublishLoss(state, lease, LeadershipEventKind.SteppedDown, "shutdown");
             state.Lease = null;
