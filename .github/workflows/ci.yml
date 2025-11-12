@@ -39,10 +39,11 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Build CI image
+        id: build-image
         run: docker build --target ci -f Dockerfile.ci -t omnirelay-ci .
 
       - name: Extract CI artifacts
-        if: always()
+        if: ${{ steps.build-image.outcome == 'success' }}
         id: extract-artifacts
         run: |
           container_id=$(docker create omnirelay-ci)
@@ -53,6 +54,7 @@ jobs:
           docker rm "${container_id}" || true
 
       - name: Upload coverage to Codecov
+        if: ${{ steps.extract-artifacts.outcome == 'success' }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -61,7 +63,7 @@ jobs:
           verbose: true
 
       - name: Upload Test Results
-        if: always()
+        if: ${{ steps.extract-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@v5
         with:
           name: test-results
@@ -70,7 +72,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Coverage Artifacts
-        if: always()
+        if: ${{ steps.extract-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@v5
         with:
           name: coverage
