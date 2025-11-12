@@ -1,5 +1,5 @@
 using System;
-using System.IO;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -8,8 +8,9 @@ namespace OmniRelay.Tests.Support;
 
 internal static class TestCertificateFactory
 {
-    private const string DevCertRelativePath = "tests/TestSupport/devcert.pfx";
-    private const string DevCertPassword = "applepie";
+    internal const string DevCertPassword = "applepie";
+    private static readonly ConcurrentDictionary<string, Lazy<TestCertificateInfo>> Certificates =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public static X509Certificate2 CreateLoopbackCertificate(string subjectName)
     {
@@ -18,60 +19,35 @@ internal static class TestCertificateFactory
             throw new ArgumentException("Subject name is required.", nameof(subjectName));
         }
 
-        var devCert = TryLoadDeveloperCertificate();
-        if (devCert is not null)
-        {
-            return devCert;
-        }
-
-        return CreateEphemeralLoopbackCertificate(subjectName);
+        var info = EnsureDeveloperCertificateInfo(subjectName);
+        return info.CreateCertificate();
     }
 
-    private static X509Certificate2? TryLoadDeveloperCertificate()
+    public static TestCertificateInfo EnsureDeveloperCertificateInfo(string subjectName)
     {
+        if (string.IsNullOrWhiteSpace(subjectName))
+        {
+            throw new ArgumentException("Subject name is required.", nameof(subjectName));
+        }
+
+        return Certificates
+            .GetOrAdd(subjectName, name => new Lazy<TestCertificateInfo>(() => CreateCertificateInfo(name)))
+            .Value;
+    }
+
+    private static TestCertificateInfo CreateCertificateInfo(string subjectName)
+    {
+        using var certificate = CreateEphemeralLoopbackCertificate(subjectName);
+        var export = certificate.Export(X509ContentType.Pfx, DevCertPassword);
         try
         {
-            var root = TryResolveRepositoryRoot();
-            if (root is null)
-            {
-                return null;
-            }
-
-            var candidatePath = Path.Combine(root, DevCertRelativePath);
-            if (!File.Exists(candidatePath))
-            {
-                return null;
-            }
-
-            return X509CertificateLoader.LoadPkcs12FromFile(candidatePath, DevCertPassword, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
+            var data = Convert.ToBase64String(export);
+            return new TestCertificateInfo(subjectName, DevCertPassword, data);
         }
-        catch
+        finally
         {
-            return null;
+            CryptographicOperations.ZeroMemory(export);
         }
-    }
-
-    private static string? TryResolveRepositoryRoot()
-    {
-        var directory = AppContext.BaseDirectory;
-        while (!string.IsNullOrEmpty(directory))
-        {
-            if (File.Exists(Path.Combine(directory, "OmniRelay.slnx")) ||
-                File.Exists(Path.Combine(directory, "OmniRelay.sln")))
-            {
-                return directory;
-            }
-
-            var parent = Directory.GetParent(directory);
-            if (parent is null)
-            {
-                break;
-            }
-
-            directory = parent.FullName;
-        }
-
-        return null;
     }
 
     private static X509Certificate2 CreateEphemeralLoopbackCertificate(string subjectName)

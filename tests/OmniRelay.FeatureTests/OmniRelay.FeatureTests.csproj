@@ -26,4 +26,8 @@
   <ItemGroup>
     <None Include="appsettings.featuretests.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\TestSupport\TestCertificateFactory.cs" Link="Support/TestCertificateFactory.cs" />
+  </ItemGroup>
 </Project>

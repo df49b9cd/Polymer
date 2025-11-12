@@ -1753,6 +1753,7 @@ public partial class GrpcTransportTests
 
                 var pump = Task.Run(async () =>
                 {
+                    Error? completionError = null;
                     try
                     {
                         var handshake = codec.EncodeResponse(new ChatMessage("ready"), call.ResponseMeta);
@@ -1787,10 +1788,16 @@ public partial class GrpcTransportTests
                     catch (OperationCanceledException)
                     {
                         serverCancelled.TrySetResult(true);
+                        completionError = OmniRelayErrorAdapter.FromStatus(
+                            OmniRelayStatusCode.Cancelled,
+                            "Client cancelled duplex session.",
+                            transport: GrpcTransportConstants.TransportName);
                     }
                     finally
                     {
-                        await call.CompleteResponsesAsync(cancellationToken: cancellationToken);
+                        await call.CompleteResponsesAsync(
+                            completionError,
+                            completionError is not null ? CancellationToken.None : cancellationToken);
                     }
                 }, cancellationToken);
 

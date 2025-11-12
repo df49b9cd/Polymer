@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OmniRelay.Configuration;
+using OmniRelay.Tests.Support;
 using Xunit;
 
 namespace OmniRelay.FeatureTests.Fixtures;
@@ -25,11 +26,14 @@ public sealed class FeatureTestApplication : IAsyncLifetime
     {
         Options = options ?? throw new ArgumentNullException(nameof(options));
         Containers = new FeatureTestContainers(Options.ContainerOptions);
+        Certificate = TestCertificateFactory.EnsureDeveloperCertificateInfo("CN=OmniRelay.FeatureTests");
     }
 
     public FeatureTestApplicationOptions Options { get; }
 
     public FeatureTestContainers Containers { get; }
+
+    internal TestCertificateInfo Certificate { get; }
 
     public IConfigurationRoot Configuration { get; private set; } = default!;
 
@@ -69,8 +73,11 @@ public sealed class FeatureTestApplication : IAsyncLifetime
 
     private IConfigurationRoot BuildConfiguration()
     {
+        var tlsDefaults = TestCertificateConfiguration.BuildTlsDefaults(Certificate, "FeatureTests");
+
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
+            .AddInMemoryCollection(tlsDefaults)
             .AddJsonFile("appsettings.featuretests.json", optional: false)
             .AddEnvironmentVariables(prefix: Options.EnvironmentPrefix);
 
@@ -104,5 +111,3 @@ public sealed record FeatureTestApplicationOptions
         };
     }
 }
-
-

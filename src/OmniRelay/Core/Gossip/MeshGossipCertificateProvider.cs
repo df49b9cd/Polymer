@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
@@ -26,7 +27,9 @@ public sealed class MeshGossipCertificateProvider : IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_options.Tls.CertificatePath);
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_options.Tls.CertificatePath) ||
+        !string.IsNullOrWhiteSpace(_options.Tls.CertificateData);
 
     public X509Certificate2 GetCertificate()
     {
@@ -53,6 +56,11 @@ public sealed class MeshGossipCertificateProvider : IDisposable
             return true;
         }
 
+        if (!string.IsNullOrWhiteSpace(_options.Tls.CertificateData))
+        {
+            return false;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var reloadInterval = _options.Tls.ReloadIntervalOverride ?? _options.CertificateReloadInterval;
         if (reloadInterval > TimeSpan.Zero && now - _lastLoaded >= reloadInterval)
@@ -72,21 +80,53 @@ public sealed class MeshGossipCertificateProvider : IDisposable
 
     private void ReloadLocked()
     {
-        var path = ResolveCertificatePath();
-        if (!File.Exists(path))
-        {
-            throw new FileNotFoundException($"Mesh gossip certificate '{path}' was not found.");
-        }
-
-        var raw = File.ReadAllBytes(path);
         var flags = X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable;
-        var cert = X509CertificateLoader.LoadPkcs12(raw, _options.Tls.CertificatePassword, flags);
+        X509Certificate2 cert;
+        string source;
+        DateTime? lastWrite = null;
+
+        if (!string.IsNullOrWhiteSpace(_options.Tls.CertificateData))
+        {
+            byte[] rawBytes;
+            try
+            {
+                rawBytes = Convert.FromBase64String(_options.Tls.CertificateData);
+            }
+            catch (FormatException ex)
+            {
+                throw new InvalidOperationException("mesh:gossip:tls:certificateData is not valid Base64.", ex);
+            }
+
+            try
+            {
+                cert = X509CertificateLoader.LoadPkcs12(rawBytes, _options.Tls.CertificatePassword, flags);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(rawBytes);
+            }
+
+            source = "inline certificate data";
+        }
+        else
+        {
+            var path = ResolveCertificatePath();
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException($"Mesh gossip certificate '{path}' was not found.");
+            }
+
+            var raw = File.ReadAllBytes(path);
+            cert = X509CertificateLoader.LoadPkcs12(raw, _options.Tls.CertificatePassword, flags);
+            source = path;
+            lastWrite = File.GetLastWriteTimeUtc(path);
+        }
 
         _certificate?.Dispose();
         _certificate = cert;
         _lastLoaded = DateTimeOffset.UtcNow;
-        _lastWrite = File.GetLastWriteTimeUtc(path);
-        CertificateLoadedLog(_logger, path, cert.Subject, null);
+        _lastWrite = lastWrite ?? DateTime.MinValue;
+        CertificateLoadedLog(_logger, source, cert.Subject, null);
     }
 
     private string ResolveCertificatePath()

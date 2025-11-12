@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Security;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -689,7 +690,7 @@ internal sealed partial class DispatcherBuilder
         }
 
         var hasValues =
-            !string.IsNullOrWhiteSpace(configuration.CertificatePath) ||
+            HasCertificateMaterial(configuration.CertificatePath, configuration.CertificateData) ||
             !string.IsNullOrWhiteSpace(configuration.CertificatePassword) ||
             configuration.AllowUntrustedCertificates.HasValue ||
             !string.IsNullOrWhiteSpace(configuration.TargetNameOverride);
@@ -700,21 +701,14 @@ internal sealed partial class DispatcherBuilder
         }
 
         var certificates = new X509Certificate2Collection();
-        if (!string.IsNullOrWhiteSpace(configuration.CertificatePath))
+        var clientCertificate = LoadCertificate(
+            configuration.CertificatePath,
+            configuration.CertificateData,
+            configuration.CertificatePassword,
+            "gRPC client TLS");
+        if (clientCertificate is not null)
         {
-            var path = ResolvePath(configuration.CertificatePath!);
-            if (!File.Exists(path))
-            {
-                throw new OmniRelayConfigurationException($"Client TLS certificate file '{path}' could not be found.");
-            }
-
-            X509Certificate2 cert;
-#pragma warning disable SYSLIB0057
-            cert = string.IsNullOrEmpty(configuration.CertificatePassword)
-                ? new X509Certificate2(path)
-                : new X509Certificate2(path, configuration.CertificatePassword);
-#pragma warning restore SYSLIB0057
-            certificates.Add(cert);
+            certificates.Add(clientCertificate);
         }
 
         if (!string.IsNullOrWhiteSpace(configuration.TargetNameOverride))
@@ -1055,23 +1049,21 @@ internal sealed partial class DispatcherBuilder
 
     private static HttpServerTlsOptions? BuildHttpServerTlsOptions(HttpServerTlsConfiguration configuration)
     {
-        if (configuration is null || string.IsNullOrWhiteSpace(configuration.CertificatePath))
+        if (configuration is null)
         {
             return null;
         }
 
-        var path = ResolvePath(configuration.CertificatePath!);
-        if (!File.Exists(path))
-        {
-            throw new OmniRelayConfigurationException($"HTTP server certificate '{path}' could not be found.");
-        }
+        var certificate = LoadCertificate(
+            configuration.CertificatePath,
+            configuration.CertificateData,
+            configuration.CertificatePassword,
+            "HTTP server TLS");
 
-        X509Certificate2 certificate;
-#pragma warning disable SYSLIB0057
-        certificate = string.IsNullOrEmpty(configuration.CertificatePassword)
-            ? new X509Certificate2(path)
-            : new X509Certificate2(path, configuration.CertificatePassword);
-#pragma warning restore SYSLIB0057
+        if (certificate is null)
+        {
+            return null;
+        }
 
         var mode = ParseClientCertificateMode(configuration.ClientCertificateMode);
 
@@ -1081,6 +1073,55 @@ internal sealed partial class DispatcherBuilder
             ClientCertificateMode = mode,
             CheckCertificateRevocation = configuration.CheckCertificateRevocation
         };
+    }
+
+    private static bool HasCertificateMaterial(string? path, string? data)
+        => !string.IsNullOrWhiteSpace(path) || !string.IsNullOrWhiteSpace(data);
+
+    private static X509Certificate2? LoadCertificate(string? path, string? base64Data, string? password, string context)
+    {
+        if (!string.IsNullOrWhiteSpace(base64Data))
+        {
+            byte[] rawBytes;
+            try
+            {
+                rawBytes = Convert.FromBase64String(base64Data);
+            }
+            catch (FormatException ex)
+            {
+                throw new OmniRelayConfigurationException($"{context} certificateData is not valid Base64.", ex);
+            }
+
+            try
+            {
+#pragma warning disable SYSLIB0057
+                return string.IsNullOrEmpty(password)
+                    ? new X509Certificate2(rawBytes)
+                    : new X509Certificate2(rawBytes, password, X509KeyStorageFlags.Exportable);
+#pragma warning restore SYSLIB0057
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(rawBytes);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            var resolved = ResolvePath(path);
+            if (!File.Exists(resolved))
+            {
+                throw new OmniRelayConfigurationException($"{context} certificate '{resolved}' could not be found.");
+            }
+
+#pragma warning disable SYSLIB0057
+            return string.IsNullOrEmpty(password)
+                ? new X509Certificate2(resolved)
+                : new X509Certificate2(resolved, password);
+#pragma warning restore SYSLIB0057
+        }
+
+        return null;
     }
 
     private bool ShouldExposePrometheusMetrics()
@@ -1445,22 +1486,21 @@ internal sealed partial class DispatcherBuilder
 
     private static GrpcServerTlsOptions? BuildGrpcServerTlsOptions(GrpcServerTlsConfiguration configuration)
     {
-        if (string.IsNullOrWhiteSpace(configuration.CertificatePath))
+        if (configuration is null)
         {
             return null;
         }
 
-        var path = ResolvePath(configuration.CertificatePath!);
-        if (!File.Exists(path))
-        {
-            throw new OmniRelayConfigurationException($"gRPC server certificate '{path}' could not be found.");
-        }
+        var certificate = LoadCertificate(
+            configuration.CertificatePath,
+            configuration.CertificateData,
+            configuration.CertificatePassword,
+            "gRPC server TLS");
 
-#pragma warning disable SYSLIB0057
-        var certificate = string.IsNullOrEmpty(configuration.CertificatePassword)
-            ? new X509Certificate2(path)
-            : new X509Certificate2(path, configuration.CertificatePassword);
-#pragma warning restore SYSLIB0057
+        if (certificate is null)
+        {
+            return null;
+        }
 
         var mode = ParseClientCertificateMode(configuration.ClientCertificateMode);
 

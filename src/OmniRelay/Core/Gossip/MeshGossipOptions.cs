@@ -106,6 +106,10 @@ public sealed class MeshGossipTlsOptions
     public string? CertificatePath { get; set; }
         = Environment.GetEnvironmentVariable("MESH_GOSSIP_CERT_PATH");
 
+    /// <summary>Base64-encoded PKCS12 certificate data (takes precedence over <see cref="CertificatePath" />).</summary>
+    public string? CertificateData { get; set; }
+        = Environment.GetEnvironmentVariable("MESH_GOSSIP_CERT_DATA");
+
     /// <summary>Password for the certificate if required.</summary>
     public string? CertificatePassword { get; set; }
         = Environment.GetEnvironmentVariable("MESH_GOSSIP_CERT_PASSWORD");

@@ -142,7 +142,28 @@ public class OmniRelayConfigurationTests
 
         using var provider = services.BuildServiceProvider();
         var ex = Should.Throw<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
-        ex.Message.ShouldContain("gRPC server certificate");
+        ex.Message.ShouldContain("gRPC server TLS certificate");
+    }
+
+    [Fact]
+    public void AddOmniRelayDispatcher_InvalidGrpcTlsCertificateData_Throws()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["polymer:service"] = "gateway",
+                ["polymer:inbounds:grpc:0:urls:0"] = "https://127.0.0.1:9090",
+                ["polymer:inbounds:grpc:0:tls:certificateData"] = "not-base64!!"
+            }!)
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+
+        using var provider = services.BuildServiceProvider();
+        var ex = Should.Throw<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
+        ex.Message.ShouldContain("certificateData");
     }
 
     [Fact]

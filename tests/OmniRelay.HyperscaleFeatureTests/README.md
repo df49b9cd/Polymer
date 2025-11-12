@@ -59,6 +59,11 @@ Hyperscale validation suite focused on OmniRelay behaving as a distributed RPC f
 | BackpressurePropagation_CrossRegion | Saturating a shard in one region should emit backpressure signals that flow to the global leader and downstream clients, preventing thundering herds. | Drive sustained load, monitor backpressure counters, and confirm clients see throttling headers/events. |
 | Telemetry_LeadershipAndShardSignals | Leadership changes, shard assignments, and failover events emit OpenTelemetry traces/metrics that can be scraped for alerting. | Enable OTEL exporters, capture span/metric names, and ensure counters remain monotonic across restarts. |
 
+## TLS & Certificates
+- `HyperscaleTestEnvironment` exposes `AddDefaultOmniRelayConfiguration` so cluster fixtures can pull HTTPS + mTLS defaults directly into their configuration builders without duplicating TLS plumbing (`tests/OmniRelay.HyperscaleFeatureTests/Infrastructure/HyperscaleTestEnvironment.cs`).
+- The helper shares the same in-memory PKCS#12 blob from `TestCertificateFactory`, so every node in a simulated cluster trusts the same short-lived root without ever persisting keys to disk.
+- Future multi-node fixtures should call the helper before wiring containers so every node trusts the same short-lived root, keeping control-plane negotiations realistic.
+
 ## Example Flow
 1. `Given` a `GlobalLeaderWithTwoRegions` topology.
 2. `When` we pause the global leader container for 15 seconds and promote the west region.

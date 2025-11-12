@@ -26,6 +26,10 @@ Feature-level coverage for OmniRelay that exercises dispatcher bootstrapping, co
 | Persistence_PostgresEventStore | Handlers that persist envelopes to Postgres/EventStore resume work after a restart, proving storage + checkpoint integration. | Requires `FeatureTestContainers.EnsurePostgresAsync/EnsureEventStoreAsync` and gating on `ContainersEnabled`. |
 | ObjectStorageAndBus_AttachmentsAndFanout | File attachments land in MinIO while async notifications fan out via NATS to prove object storage + bus wiring stay consistent. | Containers required; assert MinIO object metadata + NATS subscribers receive mirrored payloads. |
 
+## TLS & Certificates
+- `FeatureTestApplication` asks `TestCertificateFactory` for an in-memory PKCS#12 blob and injects the resulting `certificateData` + password into configuration so HTTPS and mTLS are always enabled without touching disk (`tests/OmniRelay.FeatureTests/Fixtures/FeatureTestApplication.cs`).
+- Certificates are regenerated in-memory on process start, so there is nothing to pre-provision locally and CI automatically gets a fresh instance every run.
+
 ## Reasoning
 - Feature-level validation mirrors how stakeholders talk about value, so failures map directly to user impact instead of implementation detail.
 - Building on the same DI extensions (`AddOmniRelayDispatcher`) reduces skew between tests and production bootstrapping, keeping assertions honest.

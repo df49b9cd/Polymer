@@ -89,6 +89,8 @@ public sealed class GrpcServerTlsConfiguration
 {
     public string? CertificatePath { get; set; }
 
+    public string? CertificateData { get; set; }
+
     public string? CertificatePassword { get; set; }
 
     public bool? CheckCertificateRevocation { get; set; }
@@ -150,6 +152,8 @@ public sealed class Http3ServerRuntimeConfiguration
 public sealed class HttpServerTlsConfiguration
 {
     public string? CertificatePath { get; set; }
+
+    public string? CertificateData { get; set; }
 
     public string? CertificatePassword { get; set; }
 
@@ -276,6 +280,8 @@ public sealed class GrpcClientRuntimeConfiguration
 public sealed class GrpcClientTlsConfiguration
 {
     public string? CertificatePath { get; set; }
+
+    public string? CertificateData { get; set; }
 
     public string? CertificatePassword { get; set; }
 
