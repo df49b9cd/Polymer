@@ -224,7 +224,7 @@ public sealed class MeshGossipMembershipTableTests
         {
             SchemaVersion = MeshGossipOptions.CurrentSchemaVersion,
             Sender = senderMetadata,
-            Members = [],
+            Members = Array.Empty<MeshGossipMemberSnapshot>(),
             Sequence = 1
         };
 

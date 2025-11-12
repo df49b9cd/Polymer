@@ -352,7 +352,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             catch (Exception ex)
             {
                 MeshGossipMetrics.RecordMessage("outbound", "failure");
-                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString() ?? "unknown", ex);
+                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
             }
         }
 
