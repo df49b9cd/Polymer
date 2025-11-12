@@ -39,59 +39,24 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Build CI image
-        run: docker build -f Dockerfile.ci -t omnirelay-ci .
+        run: docker build --target ci -f Dockerfile.ci -t omnirelay-ci .
 
-      - name: Restore (locked mode)
-        run: >
-          docker run --rm
-          -v ${{ github.workspace }}:/work
-          -v $HOME/.nuget/packages:/root/.nuget/packages
-          -w /work
-          -e DOTNET_NOLOGO=1
-          -e DOTNET_CLI_TELEMETRY_OPTOUT=1
-          omnirelay-ci
-          dotnet restore OmniRelay.slnx --locked-mode
-
-      - name: Build (with binlog)
-        run: |
-          mkdir -p artifacts/build
-          docker run --rm \
-            -v ${{ github.workspace }}:/work \
-            -v $HOME/.nuget/packages:/root/.nuget/packages \
-            -w /work \
-            -e DOTNET_NOLOGO=1 \
-            -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
-            omnirelay-ci \
-            dotnet build OmniRelay.slnx --configuration Release -bl:artifacts/build/build.binlog
-
-      - name: Test (with coverage and TRX)
-        run: >
-          docker run --rm
-          -v ${{ github.workspace }}:/work
-          -v $HOME/.nuget/packages:/root/.nuget/packages
-          -w /work
-          -e DOTNET_NOLOGO=1
-          -e DOTNET_CLI_TELEMETRY_OPTOUT=1
-          omnirelay-ci
-          bash -c "dotnet test OmniRelay.slnx --configuration Release --no-build --collect:\"XPlat Code Coverage\" --logger \"trx;LogFileName=test-results.trx\""
-
-      - name: Gather coverage artifacts
+      - name: Extract CI artifacts
         if: always()
-        shell: bash
+        id: extract-artifacts
         run: |
-          mkdir -p artifacts/coverage
-          shopt -s globstar nullglob
-          for f in **/*coverage.cobertura.xml; do
-            dest="artifacts/coverage/${f//\//_}"
-            cp "$f" "$dest" || true
-          done
-          echo "Collected coverage files:"; ls -la artifacts/coverage || true
+          container_id=$(docker create omnirelay-ci)
+          echo "container_id=${container_id}" >> $GITHUB_OUTPUT
+          mkdir -p artifacts/test-results artifacts/coverage
+          docker cp "${container_id}:/repo/artifacts/test-results/." artifacts/test-results || true
+          docker cp "${container_id}:/repo/artifacts/coverage/." artifacts/coverage || true
+          docker rm "${container_id}" || true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: artifacts/coverage/*.xml
+          files: artifacts/coverage/**/*.xml
           fail_ci_if_error: false
           verbose: true
 
@@ -101,15 +66,7 @@ jobs:
         with:
           name: test-results
           path: |
-            **/TestResults/**/*.trx
-          if-no-files-found: ignore
-
-      - name: Upload Build Logs
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: build-logs
-          path: artifacts/build/**
+            artifacts/test-results/**/*.trx
           if-no-files-found: ignore
 
       - name: Upload Coverage Artifacts
