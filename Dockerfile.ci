@@ -1,12 +1,15 @@
 # syntax=docker/dockerfile:1.7
 
 ARG DOTNET_VERSION=10.0.100
+ARG TEST_PROJECTS="tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj"
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble AS base
 
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
-    NUGET_XMLDOC_MODE=skip
+    DOTNET_SKIP_WORKLOAD_VERIFICATION=1 \
+    NUGET_XMLDOC_MODE=skip \
+    OMNIRELAY_ENABLE_HTTP3_TESTS=true
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y git ca-certificates \
@@ -35,8 +38,10 @@ RUN set -eux; \
             useradd --uid "${CI_UID}" --gid "${CI_USER}" --create-home --shell /bin/bash "${CI_USER}"; \
         fi; \
     fi; \
-    mkdir -p /home/${CI_USER}; \
-    chown "${CI_USER}:${CI_USER}" /home/${CI_USER}
+    install -d -m 0755 -o "${CI_USER}" -g "${CI_USER}" /home/${CI_USER}; \
+    install -d -m 0755 -o "${CI_USER}" -g "${CI_USER}" /home/${CI_USER}/.nuget/NuGet; \
+    install -d -m 0755 -o "${CI_USER}" -g "${CI_USER}" /home/${CI_USER}/.nuget/packages; \
+    chown -R "${CI_USER}:${CI_USER}" /home/${CI_USER}
 
 WORKDIR /work
 RUN chown "${CI_USER}:${CI_USER}" /work
@@ -45,6 +50,7 @@ USER "${CI_USER}"
 ENV NUGET_PACKAGES=/home/${CI_USER}/.nuget/packages
 
 FROM base AS ci
+ARG TEST_PROJECTS
 WORKDIR /repo
 
 COPY --chown=${CI_USER}:${CI_USER} global.json Directory.Build.props Directory.Packages.props OmniRelay.slnx ./
@@ -52,11 +58,15 @@ COPY --chown=${CI_USER}:${CI_USER} src ./src
 COPY --chown=${CI_USER}:${CI_USER} tests ./tests
 COPY --chown=${CI_USER}:${CI_USER} samples ./samples
 
-RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES} \
+RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     dotnet restore OmniRelay.slnx
-RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES} \
+RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     dotnet build OmniRelay.slnx -c Release --no-restore
-RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES} \
-    dotnet test OmniRelay.slnx -c Release --no-build --logger "trx;LogFileName=testResults.trx"
+RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
+    set -eux; \
+    for proj in ${TEST_PROJECTS}; do \
+        name=$(basename "${proj%.csproj}"); \
+        dotnet test "${proj}" -c Release --no-build --logger "trx;LogFileName=${name}.trx"; \
+    done
 
 CMD ["bash"]
