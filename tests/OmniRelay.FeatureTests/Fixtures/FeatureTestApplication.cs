@@ -1,8 +1,6 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Testing.Platform.Builder;
 using OmniRelay.Configuration;
 using Xunit;
 
@@ -16,13 +14,16 @@ public sealed class FeatureTestApplication : IAsyncLifetime
     private IHost? _host;
 
     public FeatureTestApplication()
-        : this(null)
+        : this(FeatureTestApplicationOptions.FromEnvironment())
     {
     }
 
-    public FeatureTestApplication(FeatureTestApplicationOptions? options)
+    public static FeatureTestApplication Create(FeatureTestApplicationOptions options)
+        => new(options);
+
+    private FeatureTestApplication(FeatureTestApplicationOptions options)
     {
-        Options = options ?? FeatureTestApplicationOptions.FromEnvironment();
+        Options = options ?? throw new ArgumentNullException(nameof(options));
         Containers = new FeatureTestContainers(Options.ContainerOptions);
     }
 
@@ -36,7 +37,7 @@ public sealed class FeatureTestApplication : IAsyncLifetime
 
     public IServiceProvider Services => FeatureTestHost.Services;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         Configuration = BuildConfiguration();
 
@@ -55,7 +56,7 @@ public sealed class FeatureTestApplication : IAsyncLifetime
         await _host.StartAsync().ConfigureAwait(false);
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_host is not null)
         {
@@ -80,17 +81,6 @@ public sealed class FeatureTestApplication : IAsyncLifetime
 
         return configuration.Build();
     }
-
-    ValueTask IAsyncLifetime.InitializeAsync()
-    {
-        throw new NotImplementedException();
-    }
-
-    ValueTask IAsyncDisposable.DisposeAsync()
-    {
-        throw new NotImplementedException();
-    }
-
 }
 
 public sealed record FeatureTestApplicationOptions
@@ -114,3 +104,5 @@ public sealed record FeatureTestApplicationOptions
         };
     }
 }
+
+
