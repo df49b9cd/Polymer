@@ -1,54 +1,36 @@
-# https://hub.docker.com/_/microsoft-dotnet
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /source
+# syntax=docker/dockerfile:1.7
 
-# copy csproj and restore as distinct layers
-COPY global.json .
-COPY Directory.Build.props .
-COPY Directory.Packages.props .
-COPY src/OmniRelay.Cli/OmniRelay.Cli.csproj OmniRelay.Cli/
-COPY src/OmniRelay.Codegen.Protobuf.Core/OmniRelay.Codegen.Protobuf.Core.csproj OmniRelay.Codegen.Protobuf.Core/
-COPY src/OmniRelay.Codegen.Protobuf.Generator/OmniRelay.Codegen.Protobuf.Generator.csproj OmniRelay.Codegen.Protobuf.Generator/
-COPY src/OmniRelay.Codegen.Protobuf/OmniRelay.Codegen.Protobuf.csproj OmniRelay.Codegen.Protobuf/
-COPY src/OmniRelay.Configuration/OmniRelay.Configuration.csproj OmniRelay.Configuration/
-COPY src/OmniRelay.ResourceLeaseReplicator.Grpc/OmniRelay.ResourceLeaseReplicator.Grpc.csproj OmniRelay.ResourceLeaseReplicator.Grpc/
-COPY src/OmniRelay.ResourceLeaseReplicator.ObjectStorage/OmniRelay.ResourceLeaseReplicator.ObjectStorage.csproj OmniRelay.ResourceLeaseReplicator.ObjectStorage/
-COPY src/OmniRelay.ResourceLeaseReplicator.Sqlite/OmniRelay.ResourceLeaseReplicator.Sqlite.csproj OmniRelay.ResourceLeaseReplicator.Sqlite/
-COPY src/OmniRelay/OmniRelay.csproj OmniRelay/
+ARG DOTNET_VERSION=10.0.100
+ARG TEST_PROJECTS="tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj"
 
-RUN dotnet restore **/*.csproj
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble AS base
 
-# copy and build app and libraries
-COPY src/OmniRelay.Cli/ OmniRelay.Cli/
-COPY src/OmniRelay.Codegen.Protobuf.Core/ OmniRelay.Codegen.Protobuf.Core/
-COPY src/OmniRelay.Codegen.Protobuf.Generator/ OmniRelay.Codegen.Protobuf.Generator/
-COPY src/OmniRelay.Codegen.Protobuf/ OmniRelay.Codegen.Protobuf/
-COPY src/OmniRelay.Configuration/ OmniRelay.Configuration/
-COPY src/OmniRelay.ResourceLeaseReplicator.Grpc/ OmniRelay.ResourceLeaseReplicator.Grpc/
-COPY src/OmniRelay.ResourceLeaseReplicator.ObjectStorage/ OmniRelay.ResourceLeaseReplicator.ObjectStorage/
-COPY src/OmniRelay.ResourceLeaseReplicator.Sqlite/ OmniRelay.ResourceLeaseReplicator.Sqlite/
-COPY src/OmniRelay/ OmniRelay/
-WORKDIR /source/omnirelay
-RUN dotnet build -c Release --no-restore
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    DOTNET_SKIP_WORKLOAD_VERIFICATION=1 \
+    NUGET_XMLDOC_MODE=skip \
+    OMNIRELAY_ENABLE_HTTP3_TESTS=true
 
-# test stage -- exposes optional entrypoint
-# target entrypoint with: docker build --target test
-FROM build AS test
-WORKDIR /source/tests
+WORKDIR /repo
 
-COPY tests/*.csproj .
-RUN dotnet restore tests.csproj
+COPY global.json Directory.Build.props Directory.Packages.props OmniRelay.slnx ./
+COPY src ./src
+COPY tests ./tests
+COPY samples ./samples
+COPY docs ./docs
+COPY branding ./branding
 
-COPY tests/ .
-RUN dotnet build --no-restore
+FROM base AS restore
+RUN dotnet restore OmniRelay.slnx
 
-ENTRYPOINT ["dotnet", "test", "--logger:trx", "--no-restore", "--no-build"]
+FROM restore AS build
+RUN dotnet build OmniRelay.slnx -c Release --no-restore
 
-FROM build AS publish
-RUN dotnet publish -c Release --no-build -o /app
+FROM build AS ci
+ARG TEST_PROJECTS
+RUN for proj in ${TEST_PROJECTS}; do \
+        name=$(basename "${proj%.csproj}"); \
+        dotnet test "${proj}" -c Release --no-build --logger "trx;LogFileName=${name}.trx"; \
+    done
 
-# final stage/image
-FROM mcr.microsoft.com/dotnet/runtime:7.0
-WORKDIR /app
-COPY --from=publish /app .
-ENTRYPOINT ["dotnet", "complexapp.dll"]
+CMD ["bash"]
