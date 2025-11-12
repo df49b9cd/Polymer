@@ -352,10 +352,6 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 
                 MeshGossipMetrics.RecordMessage("outbound", "success");
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
             catch (HttpRequestException ex)
             {
                 MeshGossipMetrics.RecordMessage("outbound", "failure");
@@ -370,6 +366,10 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             {
                 MeshGossipMetrics.RecordMessage("outbound", "failure");
                 MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
         }
 
