@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Diagnostics;
+using OmniRelay.TestSupport;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Diagnostics;
@@ -96,7 +97,7 @@ public class QuicKestrelEventBridgeTests
         Assert.True(predicate());
     }
 
-    [Fact(Timeout = TestTimeouts.Default)]
+    [Http3Fact(Timeout = TestTimeouts.Default)]
     public async Task Logs_Warning_On_HandshakeFailure()
     {
         var (logger, bridge) = await CreateBridgeAsync();
@@ -111,7 +112,7 @@ public class QuicKestrelEventBridgeTests
         Assert.NotNull(entry.scope);
     }
 
-    [Fact(Timeout = TestTimeouts.Default)]
+    [Http3Fact(Timeout = TestTimeouts.Default)]
     public async Task Logs_Information_On_Migration()
     {
         var (logger, bridge) = await CreateBridgeAsync();
@@ -125,7 +126,7 @@ public class QuicKestrelEventBridgeTests
         Assert.Contains("migration", entry.message);
     }
 
-    [Fact(Timeout = TestTimeouts.Default)]
+    [Http3Fact(Timeout = TestTimeouts.Default)]
     public async Task Logs_Debug_On_Kestrel_Http3_When_Debug_Enabled()
     {
         var (logger, bridge) = await CreateBridgeAsync(LogLevel.Debug);
