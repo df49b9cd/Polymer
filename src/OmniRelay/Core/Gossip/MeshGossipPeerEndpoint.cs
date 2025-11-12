@@ -14,27 +14,55 @@ public readonly record struct MeshGossipPeerEndpoint(string Host, int Port)
         }
 
         var trimmed = value.Trim();
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
-        {
-            var host = uri.Host;
-            var port = uri.Port > 0 ? uri.Port : 0;
-            if (port == 0)
-            {
-                return false;
-            }
+        var hasScheme = trimmed.Contains("://", StringComparison.Ordinal);
 
-            endpoint = new MeshGossipPeerEndpoint(host, port);
-            return true;
+        if (hasScheme)
+        {
+            return TryParseAbsoluteUri(trimmed, out endpoint);
         }
 
-        var colon = trimmed.LastIndexOf(':');
-        if (colon <= 0 || colon == trimmed.Length - 1)
+        return TryParseHostPort(trimmed, out endpoint);
+    }
+
+    /// <summary>Builds the HTTPS URI used for gossip POST requests.</summary>
+    public Uri BuildRequestUri() =>
+        new UriBuilder(Uri.UriSchemeHttps, Host, Port, "/mesh/gossip/v1/messages").Uri;
+
+    public override string ToString() => $"{Host}:{Port}";
+
+    private static bool TryParseAbsoluteUri(string value, out MeshGossipPeerEndpoint endpoint)
+    {
+        endpoint = default;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
         {
             return false;
         }
 
-        var hostPart = trimmed[..colon];
-        var portPart = trimmed[(colon + 1)..];
+        if (string.IsNullOrWhiteSpace(uri.Host) || uri.Port <= 0)
+        {
+            return false;
+        }
+
+        if (!AuthorityIncludesPort(uri.Authority))
+        {
+            return false;
+        }
+
+        endpoint = new MeshGossipPeerEndpoint(uri.Host, uri.Port);
+        return true;
+    }
+
+    private static bool TryParseHostPort(string value, out MeshGossipPeerEndpoint endpoint)
+    {
+        endpoint = default;
+        var colon = value.LastIndexOf(':');
+        if (colon <= 0 || colon == value.Length - 1)
+        {
+            return false;
+        }
+
+        var hostPart = value[..colon];
+        var portPart = value[(colon + 1)..];
 
         if (!int.TryParse(portPart, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedPort) || parsedPort <= 0)
         {
@@ -45,9 +73,30 @@ public readonly record struct MeshGossipPeerEndpoint(string Host, int Port)
         return true;
     }
 
-    /// <summary>Builds the HTTPS URI used for gossip POST requests.</summary>
-    public Uri BuildRequestUri() =>
-        new UriBuilder(Uri.UriSchemeHttps, Host, Port, "/mesh/gossip/v1/messages").Uri;
+    private static bool AuthorityIncludesPort(string authority)
+    {
+        if (string.IsNullOrEmpty(authority))
+        {
+            return false;
+        }
 
-    public override string ToString() => $"{Host}:{Port}";
+        if (authority[0] == '[')
+        {
+            var closing = authority.IndexOf(']');
+            if (closing < 0)
+            {
+                return false;
+            }
+
+            if (closing + 1 >= authority.Length || authority[closing + 1] != ':')
+            {
+                return false;
+            }
+
+            return closing + 2 < authority.Length;
+        }
+
+        var colon = authority.LastIndexOf(':');
+        return colon > 0 && colon < authority.Length - 1;
+    }
 }
