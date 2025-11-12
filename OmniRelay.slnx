@@ -47,6 +47,8 @@
     <Project Path="tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj" />
     <Project Path="tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj" />
+    <Project Path="tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj" />
+    <Project Path="tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj" />
     <File Path="tests\Directory.Build.props" />
   </Folder>
 </Solution>
