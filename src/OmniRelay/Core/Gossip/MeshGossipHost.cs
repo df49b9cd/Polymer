@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -353,7 +354,17 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                MeshGossipMetrics.RecordMessage("outbound", "failure");
+                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
+            }
+            catch (TaskCanceledException ex)
+            {
+                MeshGossipMetrics.RecordMessage("outbound", "failure");
+                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
+            }
+            catch (JsonException ex)
             {
                 MeshGossipMetrics.RecordMessage("outbound", "failure");
                 MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
