@@ -82,6 +82,8 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             return ValueTask.CompletedTask;
         }
 
+        fault = NormalizeFault(fault, StreamKind.Request, cancellationToken);
+
         _requestsCompleted = true;
         TryCompleteChannel(_requests.Writer, fault, RequestMeta.Transport);
         var status = ResolveCompletionStatus(fault);
@@ -96,6 +98,8 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         {
             return ValueTask.CompletedTask;
         }
+
+        fault = NormalizeFault(fault, StreamKind.Response, cancellationToken);
 
         _responsesCompleted = true;
         TryCompleteChannel(_responses.Writer, fault, RequestMeta.Transport);
@@ -114,6 +118,27 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         return ValueTask.CompletedTask;
     }
 
+    private Error? NormalizeFault(Error? fault, StreamKind stream, CancellationToken cancellationToken)
+    {
+        if (fault is not null || !cancellationToken.IsCancellationRequested)
+        {
+            return fault;
+        }
+
+        var transport = string.IsNullOrWhiteSpace(RequestMeta.Transport)
+            ? null
+            : RequestMeta.Transport;
+
+        var message = stream == StreamKind.Request
+            ? "The request stream was cancelled."
+            : "The response stream was cancelled.";
+
+        return OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.Cancelled,
+            message,
+            transport: transport);
+    }
+
     private static void TryCompleteChannel(ChannelWriter<ReadOnlyMemory<byte>> writer, Error? fault, string? transport)
     {
         if (fault is null)
@@ -124,6 +149,12 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
 
         var exception = OmniRelayErrors.FromError(fault, transport);
         writer.TryComplete(exception);
+    }
+
+    private enum StreamKind
+    {
+        Request,
+        Response
     }
 
     private static StreamCompletionStatus ResolveCompletionStatus(Error? fault)
