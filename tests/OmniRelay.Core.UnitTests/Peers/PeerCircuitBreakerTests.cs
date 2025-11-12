@@ -22,22 +22,22 @@ public class PeerCircuitBreakerTests
         var options = new PeerCircuitBreakerOptions { FailureThreshold = 2, BaseDelay = TimeSpan.FromMilliseconds(100), MaxDelay = TimeSpan.FromMilliseconds(100), TimeProvider = tp };
         var cb = new PeerCircuitBreaker(options);
 
-        Assert.True(cb.TryEnter()); // initial allowed
+        cb.TryEnter().ShouldBeTrue(); // initial allowed
         cb.OnFailure(); // 1
-        Assert.True(cb.TryEnter()); // still below threshold
+        cb.TryEnter().ShouldBeTrue(); // still below threshold
         cb.OnFailure(); // >= threshold -> suspended
-        Assert.True(cb.IsSuspended);
+        cb.IsSuspended.ShouldBeTrue();
         var until = cb.SuspendedUntil;
-        Assert.NotNull(until);
+        until.ShouldNotBeNull();
 
         // Before suspension end -> cannot enter
-        Assert.False(cb.TryEnter());
+        cb.TryEnter().ShouldBeFalse();
         // Advance time beyond suspension
         tp.Advance(TimeSpan.FromMilliseconds(200));
-        Assert.True(cb.TryEnter()); // enters half-open attempt 1
+        cb.TryEnter().ShouldBeTrue(); // enters half-open attempt 1
         cb.OnSuccess(); // success 1 but threshold=1 -> reset
-        Assert.False(cb.IsSuspended);
-        Assert.True(cb.TryEnter()); // open again
+        cb.IsSuspended.ShouldBeFalse();
+        cb.TryEnter().ShouldBeTrue(); // open again
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -48,10 +48,10 @@ public class PeerCircuitBreakerTests
         var cb = new PeerCircuitBreaker(options);
 
         cb.OnFailure();
-        Assert.True(cb.IsSuspended);
+        cb.IsSuspended.ShouldBeTrue();
         tp.Advance(TimeSpan.FromMilliseconds(200));
-        Assert.True(cb.TryEnter()); // half-open attempt
+        cb.TryEnter().ShouldBeTrue(); // half-open attempt
         cb.OnFailure(); // immediate re-suspend
-        Assert.True(cb.IsSuspended);
+        cb.IsSuspended.ShouldBeTrue();
     }
 }

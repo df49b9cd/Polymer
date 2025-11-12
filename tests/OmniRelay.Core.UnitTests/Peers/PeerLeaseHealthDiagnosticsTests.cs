@@ -33,19 +33,19 @@ public class PeerLeaseHealthDiagnosticsTests
 
         var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(snapshots);
 
-        Assert.Equal(1, diagnostics.Summary.EligiblePeers);
-        Assert.Equal(1, diagnostics.Summary.UnhealthyPeers);
-        Assert.Equal(3, diagnostics.Summary.PendingReassignments);
-        Assert.Equal(2, diagnostics.Peers.Length);
+        diagnostics.Summary.EligiblePeers.ShouldBe(1);
+        diagnostics.Summary.UnhealthyPeers.ShouldBe(1);
+        diagnostics.Summary.PendingReassignments.ShouldBe(3);
+        diagnostics.Peers.Length.ShouldBe(2);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
     public void FromSnapshots_DefaultArrayHandled()
     {
         var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(default);
-        Assert.Equal(0, diagnostics.Summary.EligiblePeers);
-        Assert.Equal(0, diagnostics.Summary.UnhealthyPeers);
-        Assert.Equal(0, diagnostics.Summary.PendingReassignments);
-        Assert.Empty(diagnostics.Peers);
+        diagnostics.Summary.EligiblePeers.ShouldBe(0);
+        diagnostics.Summary.UnhealthyPeers.ShouldBe(0);
+        diagnostics.Summary.PendingReassignments.ShouldBe(0);
+        diagnostics.Peers.ShouldBeEmpty();
     }
 }

@@ -21,8 +21,8 @@ public class RoundRobinPeerChooserTests
     {
         var chooser = new RoundRobinPeerChooser(System.Collections.Immutable.ImmutableArray<IPeer>.Empty);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Unavailable, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.Unavailable);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -40,8 +40,8 @@ public class RoundRobinPeerChooserTests
 
         var chooser = new RoundRobinPeerChooser(p1, p2);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsSuccess);
-        Assert.Same(p1, res.Value.Peer);
+        res.IsSuccess.ShouldBeTrue();
+        res.Value.Peer.ShouldBeSameAs(p1);
         await res.Value.DisposeAsync();
     }
 
@@ -52,8 +52,8 @@ public class RoundRobinPeerChooserTests
         var p2 = Substitute.For<IPeer>(); p2.Identifier.Returns("p2"); p2.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p2.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
         var chooser = new RoundRobinPeerChooser(p1, p2);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -76,8 +76,8 @@ public class RoundRobinPeerChooserTests
 
         var chooser = new RoundRobinPeerChooser([unhealthy, healthy], provider);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsSuccess);
-        Assert.Same(healthy, res.Value.Peer);
+        res.IsSuccess.ShouldBeTrue();
+        res.Value.Peer.ShouldBeSameAs(healthy);
         await res.Value.DisposeAsync();
     }
 
@@ -100,7 +100,7 @@ public class RoundRobinPeerChooserTests
 
         var chooser = new RoundRobinPeerChooser([p1, p2], provider);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
     }
 }
