@@ -19,7 +19,8 @@ Guidance for designing, extending, and running the Core unit-test suite.
 
 ## Methodology
 - Prefer plain xUnit facts with minimal fixtures; share setup via helper builders only when unavoidable.
-- Stub dependencies using simple fakes/mocks implemented directly in the test project to avoid heavy mocking frameworks.
+- Prefer [Shouldly](https://github.com/shouldly/shouldly) extension assertions for readability (e.g., `result.ShouldBeTrue();`) while keeping `Assert.*` for framework-specific helpers.
+- Use [NSubstitute](https://nsubstitute.github.io/) for mocks/fakes when the dependency surface is large or behavior-driven — otherwise, inline hand-written stubs are still encouraged for clarity.
 - Leverage `TestContext.Current.CancellationToken` for deterministic cancellation and `TaskCompletionSource` or channels to assert asynchronous behavior.
 - Assert both state and side effects (e.g., completion statuses, emitted errors, metrics counters) to capture the full contract of each component.
 
@@ -28,3 +29,39 @@ Guidance for designing, extending, and running the Core unit-test suite.
 - Co-locate regression tests with the code they protect (e.g., tests for `DuplexStreamCall` live under `Transport`).
 - Keep tests hermetic: no reliance on wall-clock timers, environment variables, or global static state persisting between tests.
 - Document unusual patterns or prerequisites in the test file header so future contributors understand why the test exists and how to extend it.
+
+## Best Practices
+- **Name tests clearly**: Use `MethodName_Scenario_Result` to highlight the contract being guarded.
+- **Arrange/Act/Assert**: Keep each phase visually separated with blank lines or local helpers to make intent obvious.
+- **One concept per test**: Avoid asserting multiple unrelated behaviors; split into smaller facts when necessary.
+- **Prefer deterministic primitives**: Use `TimeProvider`, fake schedulers, or `TestClock` variants instead of `Task.Delay`.
+- **Guard logging/metrics**: When validating diagnostics, assert specific event ids or messages to prevent logging regressions.
+
+## Common Scenarios
+- **Envelope validation**: Ensure gossip hosts reject incompatible schema versions and continue advertising the latest state.
+- **Membership sweeps**: Simulate peers transitioning from `Alive` → `Suspect` → `Left` by manipulating `TimeProvider`.
+- **Retry/backoff math**: Validate exponential backoff helpers using deterministic sequences.
+- **Middleware invariants**: Confirm cancellation/error translation flows through `RpcMiddleware` components.
+
+## Examples
+```csharp
+[Fact]
+public async Task LeaseTracker_RecordsDisconnects()
+{
+    // Arrange
+    var tracker = new PeerLeaseHealthTracker(timeProvider: new TestTimeProvider());
+    var agent = Substitute.For<IMeshGossipAgent>();
+    agent.LocalMetadata.Returns(new MeshGossipMemberMetadata { NodeId = "node-a" });
+
+    // Act
+    tracker.RecordDisconnect("node-a", "timeout");
+
+    // Assert
+    tracker.Snapshot()
+        .Single(s => s.PeerId == "node-a")
+        .Metadata["disconnect.reason"]
+        .ShouldBe("timeout");
+}
+```
+
+Use the snippet above as a template: inject substitutes for dependencies via NSubstitute, rely on Shouldly for fluent assertions, and keep setup lightweight. Whenever asynchronous work is involved, pass `TestContext.Current.CancellationToken` through to the method under test so the runner can cancel long-running cases.

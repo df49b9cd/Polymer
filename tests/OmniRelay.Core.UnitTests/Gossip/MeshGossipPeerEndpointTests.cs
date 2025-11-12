@@ -14,9 +14,9 @@ public sealed class MeshGossipPeerEndpointTests
     {
         var result = MeshGossipPeerEndpoint.TryParse(input, out var endpoint);
 
-        Assert.True(result);
-        Assert.Equal(expectedHost, endpoint.Host);
-        Assert.Equal(expectedPort, endpoint.Port);
+        result.ShouldBeTrue();
+        endpoint.Host.ShouldBe(expectedHost);
+        endpoint.Port.ShouldBe(expectedPort);
     }
 
     [Theory]
@@ -26,9 +26,9 @@ public sealed class MeshGossipPeerEndpointTests
     {
         var result = MeshGossipPeerEndpoint.TryParse(input, out var endpoint);
 
-        Assert.True(result);
-        Assert.Equal(expectedHost, endpoint.Host);
-        Assert.Equal(expectedPort, endpoint.Port);
+        result.ShouldBeTrue();
+        endpoint.Host.ShouldBe(expectedHost);
+        endpoint.Port.ShouldBe(expectedPort);
     }
 
     [Theory]
@@ -45,8 +45,8 @@ public sealed class MeshGossipPeerEndpointTests
     {
         var result = MeshGossipPeerEndpoint.TryParse(input, out var endpoint);
 
-        Assert.False(result);
-        Assert.Equal(default(MeshGossipPeerEndpoint), endpoint);
+        result.ShouldBeFalse();
+        endpoint.ShouldBe(default(MeshGossipPeerEndpoint));
     }
 
     [Fact]
@@ -55,10 +55,10 @@ public sealed class MeshGossipPeerEndpointTests
         var endpoint = new MeshGossipPeerEndpoint("localhost", 17421);
         var uri = endpoint.BuildRequestUri();
 
-        Assert.Equal("https", uri.Scheme);
-        Assert.Equal("localhost", uri.Host);
-        Assert.Equal(17421, uri.Port);
-        Assert.Equal("/mesh/gossip/v1/messages", uri.AbsolutePath);
+        uri.Scheme.ShouldBe("https");
+        uri.Host.ShouldBe("localhost");
+        uri.Port.ShouldBe(17421);
+        uri.AbsolutePath.ShouldBe("/mesh/gossip/v1/messages");
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class MeshGossipPeerEndpointTests
         var endpoint = new MeshGossipPeerEndpoint("peer.example.com", 8080);
         var result = endpoint.ToString();
 
-        Assert.Equal("peer.example.com:8080", result);
+        result.ShouldBe("peer.example.com:8080");
     }
 
     [Fact]
@@ -78,8 +78,8 @@ public sealed class MeshGossipPeerEndpointTests
         var endpoint3 = new MeshGossipPeerEndpoint("localhost", 8080);
         var endpoint4 = new MeshGossipPeerEndpoint("other", 17421);
 
-        Assert.Equal(endpoint1, endpoint2);
-        Assert.NotEqual(endpoint1, endpoint3);
-        Assert.NotEqual(endpoint1, endpoint4);
+        endpoint1.ShouldBe(endpoint2);
+        endpoint1.ShouldNotBe(endpoint3);
+        endpoint1.ShouldNotBe(endpoint4);
     }
 }

@@ -45,9 +45,9 @@ public sealed class MeshGossipMembershipTableTests
         });
 
         var snapshot = table.Snapshot();
-        var peer = Assert.Single(snapshot.Members.Where(member => member.NodeId == remoteMetadata.NodeId));
-        Assert.Equal("worker", peer.Metadata.Role);
-        Assert.Equal("az-1", peer.Metadata.Labels["mesh.zone"]);
+        var peer = snapshot.Members.Where(member => member.NodeId == remoteMetadata.NodeId).ShouldHaveSingleItem();
+        peer.Metadata.Role.ShouldBe("worker");
+        peer.Metadata.Labels["mesh.zone"].ShouldBe("az-1");
 
         var upgraded = remoteMetadata with
         {
@@ -68,9 +68,9 @@ public sealed class MeshGossipMembershipTableTests
         });
 
         snapshot = table.Snapshot();
-        peer = Assert.Single(snapshot.Members.Where(member => member.NodeId == upgraded.NodeId));
-        Assert.Equal("1.1.0", peer.Metadata.MeshVersion);
-        Assert.Equal("az-2", peer.Metadata.Labels["mesh.zone"]);
+        peer = snapshot.Members.Where(member => member.NodeId == upgraded.NodeId).ShouldHaveSingleItem();
+        peer.Metadata.MeshVersion.ShouldBe("1.1.0");
+        peer.Metadata.Labels["mesh.zone"].ShouldBe("az-2");
     }
 
     [Fact]
@@ -109,14 +109,14 @@ public sealed class MeshGossipMembershipTableTests
         time.Advance(TimeSpan.FromSeconds(6));
         table.Sweep(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(12));
         var snapshot = table.Snapshot();
-        var peer = Assert.Single(snapshot.Members.Where(member => member.NodeId == remoteMetadata.NodeId));
-        Assert.Equal(MeshGossipMemberStatus.Suspect, peer.Status);
+        var peer = snapshot.Members.Where(member => member.NodeId == remoteMetadata.NodeId).ShouldHaveSingleItem();
+        peer.Status.ShouldBe(MeshGossipMemberStatus.Suspect);
 
         time.Advance(TimeSpan.FromSeconds(7));
         table.Sweep(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(12));
         snapshot = table.Snapshot();
-        peer = Assert.Single(snapshot.Members.Where(member => member.NodeId == remoteMetadata.NodeId));
-        Assert.Equal(MeshGossipMemberStatus.Left, peer.Status);
+        peer = snapshot.Members.Where(member => member.NodeId == remoteMetadata.NodeId).ShouldHaveSingleItem();
+        peer.Status.ShouldBe(MeshGossipMemberStatus.Left);
     }
 
     private sealed class TestTimeProvider : TimeProvider
@@ -168,7 +168,7 @@ public sealed class MeshGossipMembershipTableTests
         }
 
         var fanout = table.PickFanout(3);
-        Assert.Equal(3, fanout.Count);
+        fanout.Count.ShouldBe(3);
     }
 
     [Fact]
@@ -188,10 +188,10 @@ public sealed class MeshGossipMembershipTableTests
         var table = new MeshGossipMembershipTable(localMetadata.NodeId, localMetadata, time);
         var snapshot = table.Snapshot();
 
-        Assert.NotEmpty(snapshot.Members);
+        snapshot.Members.ShouldNotBeEmpty();
         var localMember = snapshot.Members.FirstOrDefault(m => m.NodeId == "local");
-        Assert.NotNull(localMember);
-        Assert.Equal(MeshGossipMemberStatus.Alive, localMember.Status);
+        localMember.ShouldNotBeNull();
+        localMember!.Status.ShouldBe(MeshGossipMemberStatus.Alive);
     }
 
     [Fact]
@@ -232,7 +232,7 @@ public sealed class MeshGossipMembershipTableTests
         var snapshot = table.Snapshot();
 
         var sender = snapshot.Members.FirstOrDefault(m => m.NodeId == "sender");
-        Assert.NotNull(sender);
-        Assert.Equal(MeshGossipMemberStatus.Alive, sender.Status);
+        sender.ShouldNotBeNull();
+        sender!.Status.ShouldBe(MeshGossipMemberStatus.Alive);
     }
 }
