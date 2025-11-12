@@ -59,11 +59,16 @@ COPY --chown=${CI_USER}:${CI_USER} tests ./tests
 COPY --chown=${CI_USER}:${CI_USER} samples ./samples
 
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
+    set -eux; \
+    chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
     dotnet restore OmniRelay.slnx
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
+    set -eux; \
+    chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
     dotnet build OmniRelay.slnx -c Release --no-restore
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     set -eux; \
+    chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
     for proj in ${TEST_PROJECTS}; do \
         name=$(basename "${proj%.csproj}"); \
         dotnet test "${proj}" -c Release --no-build --logger "trx;LogFileName=${name}.trx"; \
