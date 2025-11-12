@@ -60,14 +60,30 @@ COPY --chown=${CI_USER}:${CI_USER} branding ./branding
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     set -eux; \
     chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
-    runuser -u "${CI_USER}" -- env NUGET_PACKAGES="${NUGET_PACKAGES}" dotnet restore OmniRelay.slnx
+    runuser -u "${CI_USER}" -- env \
+        HOME="/home/${CI_USER}" \
+        NUGET_PACKAGES="${NUGET_PACKAGES}" \
+        DOTNET_CLI_TELEMETRY_OPTOUT="${DOTNET_CLI_TELEMETRY_OPTOUT}" \
+        DOTNET_SKIP_FIRST_TIME_EXPERIENCE="${DOTNET_SKIP_FIRST_TIME_EXPERIENCE}" \
+        DOTNET_SKIP_WORKLOAD_VERIFICATION="${DOTNET_SKIP_WORKLOAD_VERIFICATION}" \
+        NUGET_XMLDOC_MODE="${NUGET_XMLDOC_MODE}" \
+        OMNIRELAY_ENABLE_HTTP3_TESTS="${OMNIRELAY_ENABLE_HTTP3_TESTS}" \
+        dotnet restore OmniRelay.slnx
 
 FROM restore AS build
 
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     set -eux; \
     chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
-    runuser -u "${CI_USER}" -- env NUGET_PACKAGES="${NUGET_PACKAGES}" dotnet build OmniRelay.slnx -c Release --no-restore
+    runuser -u "${CI_USER}" -- env \
+        HOME="/home/${CI_USER}" \
+        NUGET_PACKAGES="${NUGET_PACKAGES}" \
+        DOTNET_CLI_TELEMETRY_OPTOUT="${DOTNET_CLI_TELEMETRY_OPTOUT}" \
+        DOTNET_SKIP_FIRST_TIME_EXPERIENCE="${DOTNET_SKIP_FIRST_TIME_EXPERIENCE}" \
+        DOTNET_SKIP_WORKLOAD_VERIFICATION="${DOTNET_SKIP_WORKLOAD_VERIFICATION}" \
+        NUGET_XMLDOC_MODE="${NUGET_XMLDOC_MODE}" \
+        OMNIRELAY_ENABLE_HTTP3_TESTS="${OMNIRELAY_ENABLE_HTTP3_TESTS}" \
+        dotnet build OmniRelay.slnx -c Release --no-restore
 
 FROM build AS ci
 ARG TEST_PROJECTS
@@ -77,7 +93,15 @@ RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_
     chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
     for proj in ${TEST_PROJECTS}; do \
         name=$(basename "${proj%.csproj}"); \
-        runuser -u "${CI_USER}" -- env NUGET_PACKAGES="${NUGET_PACKAGES}" dotnet test "${proj}" -c Release --no-build --logger "trx;LogFileName=${name}.trx"; \
+        runuser -u "${CI_USER}" -- env \
+            HOME="/home/${CI_USER}" \
+            NUGET_PACKAGES="${NUGET_PACKAGES}" \
+            DOTNET_CLI_TELEMETRY_OPTOUT="${DOTNET_CLI_TELEMETRY_OPTOUT}" \
+            DOTNET_SKIP_FIRST_TIME_EXPERIENCE="${DOTNET_SKIP_FIRST_TIME_EXPERIENCE}" \
+            DOTNET_SKIP_WORKLOAD_VERIFICATION="${DOTNET_SKIP_WORKLOAD_VERIFICATION}" \
+            NUGET_XMLDOC_MODE="${NUGET_XMLDOC_MODE}" \
+            OMNIRELAY_ENABLE_HTTP3_TESTS="${OMNIRELAY_ENABLE_HTTP3_TESTS}" \
+            dotnet test "${proj}" -c Release --no-build --logger "trx;LogFileName=${name}.trx"; \
     done
 
 USER "${CI_USER}"
