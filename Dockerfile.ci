@@ -43,15 +43,12 @@ RUN set -eux; \
     install -d -m 0755 -o "${CI_USER}" -g "${CI_USER}" /home/${CI_USER}/.nuget/packages; \
     chown -R "${CI_USER}:${CI_USER}" /home/${CI_USER}
 
-WORKDIR /work
-RUN chown "${CI_USER}:${CI_USER}" /work
-USER "${CI_USER}"
+WORKDIR /repo
+RUN chown "${CI_USER}:${CI_USER}" /repo
 
 ENV NUGET_PACKAGES=/home/${CI_USER}/.nuget/packages
 
-FROM base AS ci
-ARG TEST_PROJECTS
-WORKDIR /repo
+FROM base AS restore
 
 COPY --chown=${CI_USER}:${CI_USER} global.json Directory.Build.props Directory.Packages.props OmniRelay.slnx ./
 COPY --chown=${CI_USER}:${CI_USER} src ./src
@@ -60,24 +57,27 @@ COPY --chown=${CI_USER}:${CI_USER} samples ./samples
 
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     set -eux; \
-    if [ "$(id -u)" -eq 0 ]; then \
-        chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
-    fi; \
-    dotnet restore OmniRelay.slnx
+    chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
+    runuser -u "${CI_USER}" -- env NUGET_PACKAGES="${NUGET_PACKAGES}" dotnet restore OmniRelay.slnx
+
+FROM restore AS build
+
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     set -eux; \
-    if [ "$(id -u)" -eq 0 ]; then \
-        chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
-    fi; \
-    dotnet build OmniRelay.slnx -c Release --no-restore
+    chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
+    runuser -u "${CI_USER}" -- env NUGET_PACKAGES="${NUGET_PACKAGES}" dotnet build OmniRelay.slnx -c Release --no-restore
+
+FROM build AS ci
+ARG TEST_PROJECTS
+
 RUN --mount=type=cache,id=nuget,target=${NUGET_PACKAGES},uid=${CI_UID},gid=${CI_GID} \
     set -eux; \
-    if [ "$(id -u)" -eq 0 ]; then \
-        chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
-    fi; \
+    chown -R "${CI_USER}:${CI_USER}" "${NUGET_PACKAGES}"; \
     for proj in ${TEST_PROJECTS}; do \
         name=$(basename "${proj%.csproj}"); \
-        dotnet test "${proj}" -c Release --no-build --logger "trx;LogFileName=${name}.trx"; \
+        runuser -u "${CI_USER}" -- env NUGET_PACKAGES="${NUGET_PACKAGES}" dotnet test "${proj}" -c Release --no-build --logger "trx;LogFileName=${name}.trx"; \
     done
+
+USER "${CI_USER}"
 
 CMD ["bash"]
