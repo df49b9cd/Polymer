@@ -93,7 +93,7 @@ public class ClientStreamClientTests
 
         var responseResult = await session.Response;
         var response = responseResult.ValueOrThrow();
-        Assert.Equal(Convert.ToBase64String(responseBytes), response.Body.S);
+        response.Body.S.ShouldBe(Convert.ToBase64String(responseBytes));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -107,7 +107,7 @@ public class ClientStreamClientTests
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
         var result = await client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken);
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -128,8 +128,8 @@ public class ClientStreamClientTests
         await using var session = sessionResult.ValueOrThrow();
 
         var writeResult = await session.WriteAsync(new Req { V = 1 }, TestContext.Current.CancellationToken);
-        Assert.True(writeResult.IsFailure);
-        Assert.Empty(transportCall.Writes);
+        writeResult.IsFailure.ShouldBeTrue();
+        transportCall.Writes.ShouldBeEmpty();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -153,7 +153,7 @@ public class ClientStreamClientTests
         transportCall.CompleteWith(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "fail", transport: "client")));
 
         var responseResult = await session.Response;
-        Assert.True(responseResult.IsFailure);
+        responseResult.IsFailure.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -178,7 +178,7 @@ public class ClientStreamClientTests
         transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(new byte[] { 2 }, new ResponseMeta())));
 
         var responseResult = await session.Response;
-        Assert.True(responseResult.IsFailure);
+        responseResult.IsFailure.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -212,7 +212,7 @@ public class ClientStreamClientTests
         var responseResult = await session.Response;
         responseResult.ValueOrThrow();
 
-        Assert.NotNull(capturedMeta);
-        Assert.Equal("proto", capturedMeta!.Encoding);
+        capturedMeta.ShouldNotBeNull();
+        capturedMeta!.Encoding.ShouldBe("proto");
     }
 }
