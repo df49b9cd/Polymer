@@ -18,8 +18,8 @@ public class GrpcTransportMetricsTests
 
         var tags = GrpcTransportMetrics.CreateBaseTags(meta);
 
-        Assert.Contains(tags, tag => tag.Key == "rpc.protocol" && string.Equals(tag.Value as string, "HTTP/3", StringComparison.Ordinal));
-        Assert.Contains(tags, tag => tag.Key == "network.protocol.name" && string.Equals(tag.Value as string, "http", StringComparison.Ordinal));
-        Assert.Contains(tags, tag => tag.Key == "network.protocol.version" && string.Equals(tag.Value as string, "3", StringComparison.Ordinal));
+        tags.ShouldContain(tag => tag.Key == "rpc.protocol" && string.Equals(tag.Value as string, "HTTP/3", StringComparison.Ordinal));
+        tags.ShouldContain(tag => tag.Key == "network.protocol.name" && string.Equals(tag.Value as string, "http", StringComparison.Ordinal));
+        tags.ShouldContain(tag => tag.Key == "network.protocol.version" && string.Equals(tag.Value as string, "3", StringComparison.Ordinal));
     }
 }

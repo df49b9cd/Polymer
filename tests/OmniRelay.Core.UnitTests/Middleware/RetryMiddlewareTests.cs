@@ -33,8 +33,8 @@ public class RetryMiddlewareTests
         };
 
         var res = await mw.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsFailure);
-        Assert.Equal(1, attempts);
+        res.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -54,8 +54,8 @@ public class RetryMiddlewareTests
         };
 
         var res = await mw.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsFailure);
-        Assert.Equal(1, attempts);
+        res.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -82,8 +82,8 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, attempts);
+        result.IsSuccess.ShouldBeTrue();
+        attempts.ShouldBe(2);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -105,8 +105,8 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(1, attempts);
+        result.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -130,8 +130,8 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(2, attempts);
+        result.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(2);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -160,7 +160,7 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(3, attempts);
+        result.IsSuccess.ShouldBeTrue();
+        attempts.ShouldBe(3);
     }
 }

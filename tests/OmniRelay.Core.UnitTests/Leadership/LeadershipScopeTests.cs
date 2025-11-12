@@ -10,9 +10,9 @@ public sealed class LeadershipScopeTests
     {
         var scope = LeadershipScope.GlobalControl;
 
-        Assert.Equal("global-control", scope.ScopeId);
-        Assert.Equal(LeadershipScopeKinds.Global, scope.ScopeKind);
-        Assert.Empty(scope.Labels);
+        scope.ScopeId.ShouldBe("global-control");
+        scope.ScopeKind.ShouldBe(LeadershipScopeKinds.Global);
+        scope.Labels.ShouldBeEmpty();
     }
 
     [Fact]
@@ -20,10 +20,10 @@ public sealed class LeadershipScopeTests
     {
         var scope = LeadershipScope.ForShard("test-ns", "5");
 
-        Assert.Equal("shard/test-ns/5", scope.ScopeId);
-        Assert.Equal(LeadershipScopeKinds.Shard, scope.ScopeKind);
-        Assert.Equal("test-ns", scope.Labels["namespace"]);
-        Assert.Equal("5", scope.Labels["shardId"]);
+        scope.ScopeId.ShouldBe("shard/test-ns/5");
+        scope.ScopeKind.ShouldBe(LeadershipScopeKinds.Shard);
+        scope.Labels["namespace"].ShouldBe("test-ns");
+        scope.Labels["shardId"].ShouldBe("5");
     }
 
     [Fact]
@@ -31,8 +31,8 @@ public sealed class LeadershipScopeTests
     {
         var scope = LeadershipScope.Create("custom-scope-id", LeadershipScopeKinds.Custom);
 
-        Assert.Equal("custom-scope-id", scope.ScopeId);
-        Assert.Equal(LeadershipScopeKinds.Custom, scope.ScopeKind);
+        scope.ScopeId.ShouldBe("custom-scope-id");
+        scope.ScopeKind.ShouldBe(LeadershipScopeKinds.Custom);
     }
 
     [Fact]
@@ -46,9 +46,9 @@ public sealed class LeadershipScopeTests
 
         var scope = LeadershipScope.Create("test", LeadershipScopeKinds.Custom, labels);
 
-        Assert.Equal(2, scope.Labels.Count);
-        Assert.Equal("value1", scope.Labels["key1"]);
-        Assert.Equal("value2", scope.Labels["key2"]);
+        scope.Labels.Count.ShouldBe(2);
+        scope.Labels["key1"].ShouldBe("value1");
+        scope.Labels["key2"].ShouldBe("value2");
     }
 
     [Theory]
@@ -59,8 +59,8 @@ public sealed class LeadershipScopeTests
     {
         var result = LeadershipScope.TryParse(input, out var scope);
 
-        Assert.True(result);
-        Assert.Equal(expectedScopeId, scope.ScopeId);
+        result.ShouldBeTrue();
+        scope.ScopeId.ShouldBe(expectedScopeId);
     }
 
     [Fact]
@@ -68,6 +68,6 @@ public sealed class LeadershipScopeTests
     {
         var result = LeadershipScope.TryParse("", out var scope);
 
-        Assert.False(result);
+        result.ShouldBeFalse();
     }
 }

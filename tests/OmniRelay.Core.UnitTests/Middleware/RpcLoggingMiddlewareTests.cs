@@ -42,8 +42,8 @@ public class RpcLoggingMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta(encoding: "json"))));
 
         var res = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsSuccess);
-        Assert.Contains(logger.Entries, e => e.level >= LogLevel.Information && e.message.Contains("outbound unary"));
+        res.IsSuccess.ShouldBeTrue();
+        logger.Entries.ShouldContain(e => e.level >= LogLevel.Information && e.message.Contains("outbound unary"));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -55,8 +55,8 @@ public class RpcLoggingMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
 
         var res = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsFailure);
-        Assert.Contains(logger.Entries, e => e.level >= LogLevel.Warning && e.message.Contains("failed"));
+        res.IsFailure.ShouldBeTrue();
+        logger.Entries.ShouldContain(e => e.level >= LogLevel.Warning && e.message.Contains("failed"));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -73,8 +73,8 @@ public class RpcLoggingMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(logger.Entries);
+        result.IsSuccess.ShouldBeTrue();
+        logger.Entries.ShouldBeEmpty();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -86,11 +86,11 @@ public class RpcLoggingMiddlewareTests
 
         UnaryOutboundHandler next = (req, ct) => throw new ApplicationException("boom");
 
-        var exception = await Assert.ThrowsAsync<ApplicationException>(async () =>
+        var exception = await Should.ThrowAsync<ApplicationException>(async () =>
             await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next));
 
-        Assert.Equal("boom", exception.Message);
-        Assert.Contains(logger.Entries, entry => entry.level >= LogLevel.Warning && entry.message.Contains("threw"));
+        exception.Message.ShouldBe("boom");
+        logger.Entries.ShouldContain(entry => entry.level >= LogLevel.Warning && entry.message.Contains("threw"));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -110,8 +110,8 @@ public class RpcLoggingMiddlewareTests
 
         var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.Contains(logger.Entries, entry => entry.level >= LogLevel.Warning && entry.message.Contains("fail"));
+        result.IsFailure.ShouldBeTrue();
+        logger.Entries.ShouldContain(entry => entry.level >= LogLevel.Warning && entry.message.Contains("fail"));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -127,9 +127,9 @@ public class RpcLoggingMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        await Should.ThrowAsync<InvalidOperationException>(async () =>
             await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next));
 
-        Assert.Empty(logger.Entries);
+        logger.Entries.ShouldBeEmpty();
     }
 }

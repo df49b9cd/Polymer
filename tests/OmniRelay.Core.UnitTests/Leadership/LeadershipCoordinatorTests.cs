@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Linq;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using Xunit;
@@ -32,9 +33,9 @@ public sealed class LeadershipCoordinatorTests
         await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
 
         var snapshotA = coordinatorA.Snapshot();
-        Assert.NotEmpty(snapshotA.Tokens);
+        snapshotA.Tokens.ShouldNotBeEmpty();
         var initialToken = snapshotA.Tokens[0];
-        Assert.True(initialToken.LeaderId is "node-a" or "node-b");
+        (initialToken.LeaderId is "node-a" or "node-b").ShouldBeTrue();
 
         var leaderCoordinator = initialToken.LeaderId == "node-a" ? coordinatorA : coordinatorB;
         var followerCoordinator = initialToken.LeaderId == "node-a" ? coordinatorB : coordinatorA;
@@ -44,11 +45,11 @@ public sealed class LeadershipCoordinatorTests
         await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         var followerSnapshot = followerCoordinator.Snapshot();
-        Assert.NotEmpty(followerSnapshot.Tokens);
+        followerSnapshot.Tokens.ShouldNotBeEmpty();
         var failoverToken = followerSnapshot.Tokens[0];
 
-        Assert.NotEqual(initialToken.LeaderId, failoverToken.LeaderId);
-        Assert.True(failoverToken.FenceToken > initialToken.FenceToken);
+        failoverToken.LeaderId.ShouldNotBe(initialToken.LeaderId);
+        (failoverToken.FenceToken > initialToken.FenceToken).ShouldBeTrue();
 
         await followerCoordinator.StopAsync(TestContext.Current.CancellationToken);
     }
@@ -89,8 +90,8 @@ public sealed class LeadershipCoordinatorTests
         var coordinator = new LeadershipCoordinator(options, store, NullMeshGossipAgent.Instance, hub, NullLogger<LeadershipCoordinator>.Instance);
         var snapshot = coordinator.Snapshot();
 
-        Assert.NotNull(snapshot);
-        Assert.Empty(snapshot.Tokens);
+        snapshot.ShouldNotBeNull();
+        snapshot.Tokens.ShouldBeEmpty();
     }
 
     [Fact]
@@ -157,7 +158,7 @@ public sealed class LeadershipCoordinatorTests
         if (snapshotB.Tokens.Any(t => t.LeaderId == "node-b")) leadersCount++;
         if (snapshotC.Tokens.Any(t => t.LeaderId == "node-c")) leadersCount++;
 
-        Assert.Equal(1, leadersCount);
+        leadersCount.ShouldBe(1);
 
         await coordinatorA.StopAsync(TestContext.Current.CancellationToken);
         await coordinatorB.StopAsync(TestContext.Current.CancellationToken);

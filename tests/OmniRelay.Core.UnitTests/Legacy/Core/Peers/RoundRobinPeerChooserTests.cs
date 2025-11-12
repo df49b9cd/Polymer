@@ -16,13 +16,13 @@ public sealed class RoundRobinPeerChooserTests
         var meta = new RequestMeta(service: "svc");
 
         var lease1 = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(lease1.IsSuccess);
-        Assert.Equal("peer-1", lease1.Value.Peer.Identifier);
+        lease1.IsSuccess.ShouldBeTrue();
+        lease1.Value.Peer.Identifier.ShouldBe("peer-1");
         await lease1.Value.DisposeAsync();
 
         var lease2 = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(lease2.IsSuccess);
-        Assert.Equal("peer-2", lease2.Value.Peer.Identifier);
+        lease2.IsSuccess.ShouldBeTrue();
+        lease2.Value.Peer.Identifier.ShouldBe("peer-2");
         await lease2.Value.DisposeAsync();
     }
 
@@ -34,11 +34,11 @@ public sealed class RoundRobinPeerChooserTests
         var meta = new RequestMeta(service: "svc");
 
         var first = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(first.IsSuccess);
+        first.IsSuccess.ShouldBeTrue();
 
         var second = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(second.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(second.Error!));
+        second.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(second.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
 
         await first.Value.DisposeAsync();
     }

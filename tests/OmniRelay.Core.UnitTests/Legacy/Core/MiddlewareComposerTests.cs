@@ -31,17 +31,15 @@ public class MiddlewareComposerTests
         var request = new Request<ReadOnlyMemory<byte>>(new RequestMeta(service: "svc", procedure: "echo"), ReadOnlyMemory<byte>.Empty);
         var result = await pipeline(request, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(
-            new[]
-            {
-                "before:a",
-                "before:b",
-                "terminal",
-                "after:b",
-                "after:a"
-            },
-            transcript);
+        result.IsSuccess.ShouldBeTrue();
+        transcript.ShouldBe(new[]
+        {
+            "before:a",
+            "before:b",
+            "terminal",
+            "after:b",
+            "after:a"
+        });
     }
 
     [Fact]
@@ -51,7 +49,7 @@ public class MiddlewareComposerTests
 
         var composed = MiddlewareComposer.ComposeOnewayOutbound(null, terminal);
 
-        Assert.Same(terminal, composed);
+        composed.ShouldBeSameAs(terminal);
     }
 
     [Fact]
@@ -75,17 +73,15 @@ public class MiddlewareComposerTests
         var meta = new RequestMeta(service: "svc", procedure: "aggregate");
         var result = await pipeline(meta, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(
-            new[]
-            {
-                "before:a",
-                "before:b",
-                "terminal",
-                "after:b",
-                "after:a"
-            },
-            transcript);
+        result.IsSuccess.ShouldBeTrue();
+        transcript.ShouldBe(new[]
+        {
+            "before:a",
+            "before:b",
+            "terminal",
+            "after:b",
+            "after:a"
+        });
     }
 
     private sealed class TrackingUnaryOutboundMiddleware(string name, List<string> transcript) : IUnaryOutboundMiddleware

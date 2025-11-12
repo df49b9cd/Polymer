@@ -49,19 +49,19 @@ public class JsonCodecTests
         var payload = new TestPayload("alpha", 7);
 
         var encoded = codec.EncodeRequest(payload, requestMeta);
-        Assert.True(encoded.IsSuccess);
-        Assert.Equal("json", codec.Encoding);
+        encoded.IsSuccess.ShouldBeTrue();
+        codec.Encoding.ShouldBe("json");
 
         var decoded = codec.DecodeRequest(encoded.Value, requestMeta);
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal(payload, decoded.Value);
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.ShouldBe(payload);
 
         var responseEncoded = codec.EncodeResponse(payload, responseMeta);
-        Assert.True(responseEncoded.IsSuccess);
+        responseEncoded.IsSuccess.ShouldBeTrue();
 
         var responseDecoded = codec.DecodeResponse(responseEncoded.Value, responseMeta);
-        Assert.True(responseDecoded.IsSuccess);
-        Assert.Equal(payload, responseDecoded.Value);
+        responseDecoded.IsSuccess.ShouldBeTrue();
+        responseDecoded.Value.ShouldBe(payload);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -81,16 +81,16 @@ public class JsonCodecTests
 
         var result = codec.EncodeRequest(new OptionalPayload(null), meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("encode-request", error.Metadata["stage"]);
-        Assert.Equal("schema://json/request", error.Metadata["schemaId"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("encode-request");
+        error.Metadata["schemaId"].ShouldBe("schema://json/request");
 
-        var errors = Assert.IsAssignableFrom<IReadOnlyList<string>>(error.Metadata["errors"]);
-        Assert.NotEmpty(errors);
-        Assert.Contains(errors, e => e.Contains("required", StringComparison.OrdinalIgnoreCase));
+        var errors = error.Metadata["errors"].ShouldBeAssignableTo<IReadOnlyList<string>>();
+        errors.ShouldNotBeEmpty();
+        errors.ShouldContain(e => e.Contains("required", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -102,13 +102,13 @@ public class JsonCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-request", error.Metadata["stage"]);
-        var exceptionType = Assert.IsType<string>(error.Metadata["exceptionType"]);
-        Assert.Contains("Json", exceptionType);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-request");
+        var exceptionType = error.Metadata["exceptionType"].ShouldBeOfType<string>();
+        exceptionType.ShouldContain("Json");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -128,13 +128,13 @@ public class JsonCodecTests
 
         var result = codec.DecodeResponse(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-response", error.Metadata["stage"]);
-        var exceptionType = Assert.IsType<string>(error.Metadata["exceptionType"]);
-        Assert.Contains("Json", exceptionType);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-response");
+        var exceptionType = error.Metadata["exceptionType"].ShouldBeOfType<string>();
+        exceptionType.ShouldContain("Json");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -149,12 +149,12 @@ public class JsonCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-request", error.Metadata["stage"]);
-        Assert.Equal(typeof(InvalidOperationException).FullName, error.Metadata["exceptionType"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.Internal);
+        error.Metadata["stage"].ShouldBe("decode-request");
+        error.Metadata["exceptionType"].ShouldBe(typeof(InvalidOperationException).FullName);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -168,11 +168,11 @@ public class JsonCodecTests
 
         var result = codec.EncodeRequest(new TestPayload("id", 1), meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("encode-request", error.Metadata["stage"]);
-        Assert.Equal(typeof(InvalidOperationException).FullName, error.Metadata["exceptionType"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.Internal);
+        error.Metadata["stage"].ShouldBe("encode-request");
+        error.Metadata["exceptionType"].ShouldBe(typeof(InvalidOperationException).FullName);
     }
 }

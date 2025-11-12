@@ -25,8 +25,8 @@ public class DeadlineMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
 
         var res = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -37,8 +37,8 @@ public class DeadlineMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
 
         var res = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -55,9 +55,9 @@ public class DeadlineMiddlewareTests
         };
 
         var res = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
-        Assert.True(called);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        called.ShouldBeTrue();
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -69,8 +69,8 @@ public class DeadlineMiddlewareTests
         OnewayInboundHandler next = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
         var result = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -93,16 +93,16 @@ public class DeadlineMiddlewareTests
         DuplexOutboundHandler duplexOutbound = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
         DuplexInboundHandler duplexInbound = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
 
-        Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, unaryOutbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, unaryInbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, onewayOutbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, onewayInbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(request, streamOptions, TestContext.Current.CancellationToken, streamOutbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(request, streamOptions, TestContext.Current.CancellationToken, streamInbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(clientStreamContext, TestContext.Current.CancellationToken, clientStreamInbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(meta, TestContext.Current.CancellationToken, clientStreamOutbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, duplexOutbound)).IsSuccess);
-        Assert.True((await mw.InvokeAsync(request, TestContext.Current.CancellationToken, duplexInbound)).IsSuccess);
+        (await mw.InvokeAsync(request, TestContext.Current.CancellationToken, unaryOutbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(request, TestContext.Current.CancellationToken, unaryInbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(request, TestContext.Current.CancellationToken, onewayOutbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(request, TestContext.Current.CancellationToken, onewayInbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(request, streamOptions, TestContext.Current.CancellationToken, streamOutbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(request, streamOptions, TestContext.Current.CancellationToken, streamInbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(clientStreamContext, TestContext.Current.CancellationToken, clientStreamInbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(meta, TestContext.Current.CancellationToken, clientStreamOutbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(request, TestContext.Current.CancellationToken, duplexOutbound)).IsSuccess.ShouldBeTrue();
+        (await mw.InvokeAsync(request, TestContext.Current.CancellationToken, duplexInbound)).IsSuccess.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -119,10 +119,10 @@ public class DeadlineMiddlewareTests
 
         var result = await mw.InvokeAsync(MakeReq(meta), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.True(result.Error!.Metadata.ContainsKey("exception_type"));
-        var exceptionType = Assert.IsType<string>(result.Error!.Metadata["exception_type"]);
-        Assert.Contains("CanceledException", exceptionType);
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Metadata.ContainsKey("exception_type").ShouldBeTrue();
+        var exceptionType = result.Error!.Metadata["exception_type"].ShouldBeOfType<string>();
+        exceptionType.ShouldContain("CanceledException");
     }
 
     private static IClientStreamTransportCall CreateClientStreamCall(RequestMeta meta)

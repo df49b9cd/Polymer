@@ -13,7 +13,7 @@ public class DiagnosticsRuntimeSamplerTests
     {
         var sampler = new DiagnosticsRuntimeSampler(null, new AlwaysOffSampler());
         var result = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
-        Assert.Equal(SamplingDecision.Drop, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
     [Fact]
@@ -22,7 +22,7 @@ public class DiagnosticsRuntimeSamplerTests
         var runtime = new FakeDiagnosticsRuntime();
         var sampler = new DiagnosticsRuntimeSampler(runtime, new AlwaysOffSampler());
         var result = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
-        Assert.Equal(SamplingDecision.Drop, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public class DiagnosticsRuntimeSamplerTests
         var runtime = new FakeDiagnosticsRuntime { Probability = 0d };
         var sampler = new DiagnosticsRuntimeSampler(runtime);
         var result = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
-        Assert.Equal(SamplingDecision.Drop, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class DiagnosticsRuntimeSamplerTests
             ActivityTraceFlags.Recorded);
 
         var result = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00), parentContext));
-        Assert.Equal(SamplingDecision.RecordAndSample, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.RecordAndSample);
     }
 
     [Fact]
@@ -60,8 +60,8 @@ public class DiagnosticsRuntimeSamplerTests
         var dropTraceId = FindDropTraceId(probability);
         var dropResult = sampler.ShouldSample(CreateParameters(dropTraceId));
 
-        Assert.Equal(SamplingDecision.RecordAndSample, sampleResult.Decision);
-        Assert.Equal(SamplingDecision.Drop, dropResult.Decision);
+        sampleResult.Decision.ShouldBe(SamplingDecision.RecordAndSample);
+        dropResult.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class DiagnosticsRuntimeSamplerTests
         var sampler = new DiagnosticsRuntimeSampler(runtime, new AlwaysOffSampler());
 
         var result = sampler.ShouldSample(CreateParameters(CreateTraceId(0x00)));
-        Assert.Equal(SamplingDecision.Drop, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
     private static SamplingParameters CreateParameters(ActivityTraceId traceId, ActivityContext parentContext = default) => new(

@@ -18,12 +18,12 @@ public sealed class PeerCircuitBreakerTests
         };
         var breaker = new PeerCircuitBreaker(options);
 
-        Assert.True(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeTrue();
         breaker.OnFailure();
-        Assert.False(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeFalse();
 
         provider.Advance(TimeSpan.FromMilliseconds(150));
-        Assert.True(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeTrue();
     }
 
     [Fact]
@@ -38,10 +38,10 @@ public sealed class PeerCircuitBreakerTests
         });
 
         breaker.OnFailure();
-        Assert.False(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeFalse();
 
         breaker.OnSuccess();
-        Assert.True(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeTrue();
     }
 
     [Fact]
@@ -58,14 +58,14 @@ public sealed class PeerCircuitBreakerTests
         });
 
         breaker.OnFailure();
-        Assert.False(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeFalse();
 
         provider.Advance(TimeSpan.FromMilliseconds(150));
-        Assert.True(breaker.TryEnter()); // first probe allowed
-        Assert.False(breaker.TryEnter()); // additional probes rejected until outcome reported
+        breaker.TryEnter().ShouldBeTrue(); // first probe allowed
+        breaker.TryEnter().ShouldBeFalse(); // additional probes rejected until outcome reported
 
         breaker.OnSuccess();
-        Assert.True(breaker.TryEnter()); // breaker resets after success
+        breaker.TryEnter().ShouldBeTrue(); // breaker resets after success
     }
 
     [Fact]
@@ -84,13 +84,13 @@ public sealed class PeerCircuitBreakerTests
         breaker.OnFailure();
         provider.Advance(TimeSpan.FromMilliseconds(150));
 
-        Assert.True(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeTrue();
         breaker.OnSuccess(); // first probe succeeds but breaker stays half-open
 
-        Assert.True(breaker.TryEnter()); // second probe permitted
+        breaker.TryEnter().ShouldBeTrue(); // second probe permitted
         breaker.OnSuccess(); // second success closes the breaker
 
-        Assert.True(breaker.TryEnter()); // closed path allows entry freely
+        breaker.TryEnter().ShouldBeTrue(); // closed path allows entry freely
     }
 
     [Fact]
@@ -109,12 +109,12 @@ public sealed class PeerCircuitBreakerTests
         breaker.OnFailure();
         provider.Advance(TimeSpan.FromMilliseconds(150));
 
-        Assert.True(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeTrue();
         breaker.OnFailure(); // failure during half-open should resuspend
 
-        Assert.False(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeFalse();
         provider.Advance(TimeSpan.FromMilliseconds(200));
-        Assert.True(breaker.TryEnter());
+        breaker.TryEnter().ShouldBeTrue();
     }
 
     private sealed class TestTimeProvider(DateTimeOffset start) : TimeProvider

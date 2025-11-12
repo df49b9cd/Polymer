@@ -17,8 +17,8 @@ public class RequestLoggingScopeTests
 
         var scopeItems = RequestLoggingScope.Create(meta);
 
-        Assert.Contains(scopeItems, pair => pair.Key == "rpc.protocol" && string.Equals(pair.Value as string, "HTTP/3", StringComparison.Ordinal));
-        Assert.Contains(scopeItems, pair => pair.Key == "network.protocol.name" && string.Equals(pair.Value as string, "http", StringComparison.Ordinal));
-        Assert.Contains(scopeItems, pair => pair.Key == "network.protocol.version" && string.Equals(pair.Value as string, "3", StringComparison.Ordinal));
+        scopeItems.ShouldContain(pair => pair.Key == "rpc.protocol" && string.Equals(pair.Value as string, "HTTP/3", StringComparison.Ordinal));
+        scopeItems.ShouldContain(pair => pair.Key == "network.protocol.name" && string.Equals(pair.Value as string, "http", StringComparison.Ordinal));
+        scopeItems.ShouldContain(pair => pair.Key == "network.protocol.version" && string.Equals(pair.Value as string, "3", StringComparison.Ordinal));
     }
 }

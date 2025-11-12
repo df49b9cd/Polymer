@@ -63,10 +63,11 @@ public class HttpOutboundVersionPolicyTests
             var meta = new RequestMeta("http3-outbound", "http3-outbound::ping", encoding: RawCodec.DefaultEncoding);
             var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
             var result = await ((IUnaryOutbound)outbound).CallAsync(request, ct);
-            Assert.True(result.IsSuccess);
+            result.IsSuccess.ShouldBeTrue();
 
             var protocol = result.Value.Meta.Headers.FirstOrDefault(h => string.Equals(h.Key, HttpTransportHeaders.Protocol, StringComparison.OrdinalIgnoreCase)).Value;
-            Assert.StartsWith("HTTP/3", protocol, StringComparison.Ordinal);
+            protocol.ShouldNotBeNull();
+            protocol.ShouldStartWith("HTTP/3");
         }
         finally
         {
@@ -114,10 +115,11 @@ public class HttpOutboundVersionPolicyTests
             var meta = new RequestMeta("http2-outbound", "http2-outbound::ping", encoding: RawCodec.DefaultEncoding);
             var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
             var result = await ((IUnaryOutbound)outbound).CallAsync(request, ct);
-            Assert.True(result.IsSuccess);
+            result.IsSuccess.ShouldBeTrue();
 
             var protocol = result.Value.Meta.Headers.FirstOrDefault(h => string.Equals(h.Key, HttpTransportHeaders.Protocol, StringComparison.OrdinalIgnoreCase)).Value;
-            Assert.StartsWith("HTTP/2", protocol, StringComparison.Ordinal);
+            protocol.ShouldNotBeNull();
+            protocol.ShouldStartWith("HTTP/2");
         }
         finally
         {
@@ -166,7 +168,7 @@ public class HttpOutboundVersionPolicyTests
             var meta = new RequestMeta("http3-exact-outbound", "http3-exact-outbound::ping", encoding: RawCodec.DefaultEncoding);
             var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
             var result = await ((IUnaryOutbound)outbound).CallAsync(request, ct);
-            Assert.True(result.IsFailure, "Call should fail when HTTP/3 exact is required but server is HTTP/2 only.");
+            result.IsFailure.ShouldBeTrue("Call should fail when HTTP/3 exact is required but server is HTTP/2 only.");
         }
         finally
         {

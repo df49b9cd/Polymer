@@ -17,9 +17,9 @@ public class ProtobufCodecTests
 
         var result = codec.EncodeRequest(message, meta);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         var decoded = StringValue.Parser.ParseFrom(result.Value);
-        Assert.Equal("hello", decoded.Value);
+        decoded.Value.ShouldBe("hello");
     }
 
     [Fact]
@@ -31,8 +31,8 @@ public class ProtobufCodecTests
 
         var result = codec.DecodeResponse(payload, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("pong", result.Value.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Value.ShouldBe("pong");
     }
 
     [Fact]
@@ -44,9 +44,9 @@ public class ProtobufCodecTests
 
         var result = codec.EncodeRequest(message, meta);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         var json = Encoding.UTF8.GetString(result.Value);
-        Assert.Equal("\"json\"", json);
+        json.ShouldBe("\"json\"");
     }
 
     [Fact]
@@ -58,8 +58,8 @@ public class ProtobufCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("decoded", result.Value.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Value.ShouldBe("decoded");
     }
 
     [Fact]
@@ -71,6 +71,6 @@ public class ProtobufCodecTests
 
         var result = codec.EncodeRequest(message, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
     }
 }

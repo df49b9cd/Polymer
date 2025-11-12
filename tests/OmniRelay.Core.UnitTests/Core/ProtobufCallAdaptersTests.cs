@@ -37,12 +37,12 @@ public class ProtobufCallAdaptersTests
 
         var result = await handler(request, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         var response = result.Value;
-        Assert.Equal(codec.Encoding, response.Meta.Encoding);
+        response.Meta.Encoding.ShouldBe(codec.Encoding);
         var decoded = codec.DecodeResponse(response.Body, response.Meta);
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal("PING", decoded.Value.Value);
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.Value.ShouldBe("PING");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -63,9 +63,9 @@ public class ProtobufCallAdaptersTests
 
         var result = await handler(request, TestContext.Current.CancellationToken);
 
-        Assert.False(invoked);
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        invoked.ShouldBeFalse();
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -82,8 +82,8 @@ public class ProtobufCallAdaptersTests
 
         var result = await handler(request, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -99,23 +99,23 @@ public class ProtobufCallAdaptersTests
             codec,
             async (typedRequest, writer, ct) =>
             {
-                Assert.Equal("hello", typedRequest.Body.Value);
+                typedRequest.Body.Value.ShouldBe("hello");
                 writer.ResponseMeta = new ResponseMeta(transport: "custom");
                 var writeResult = await writer.WriteAsync(new StringValue { Value = "world" }, ct);
                 writeResult.ThrowIfFailure();
             });
 
         var result = await handler(request, options, TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
-        var call = Assert.IsAssignableFrom<IStreamCall>(result.Value);
+        var call = result.Value.ShouldBeAssignableTo<IStreamCall>();
         var received = await call.Responses.ReadAsync(TestContext.Current.CancellationToken);
         var decoded = codec.DecodeResponse(received, call.ResponseMeta);
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal("world", decoded.Value.Value);
-        Assert.Equal(codec.Encoding, call.ResponseMeta.Encoding);
-        Assert.Equal("custom", call.ResponseMeta.Transport);
-        Assert.False(await call.Responses.WaitToReadAsync(TestContext.Current.CancellationToken));
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.Value.ShouldBe("world");
+        call.ResponseMeta.Encoding.ShouldBe(codec.Encoding);
+        call.ResponseMeta.Transport.ShouldBe("custom");
+        (await call.Responses.WaitToReadAsync(TestContext.Current.CancellationToken)).ShouldBeFalse();
         await call.DisposeAsync();
     }
 
@@ -133,12 +133,12 @@ public class ProtobufCallAdaptersTests
             (_, _, _) => throw new InvalidOperationException("fail"));
 
         var result = await handler(request, options, TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);
-        var call = Assert.IsAssignableFrom<IStreamCall>(result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        var call = result.Value.ShouldBeAssignableTo<IStreamCall>();
 
-        var closed = await Assert.ThrowsAsync<ChannelClosedException>(() => call.Responses.ReadAsync(TestContext.Current.CancellationToken).AsTask());
-        var ex = Assert.IsType<OmniRelayException>(closed.InnerException);
-        Assert.Equal(OmniRelayStatusCode.Internal, ex.StatusCode);
+        var closed = await Should.ThrowAsync<ChannelClosedException>(() => call.Responses.ReadAsync(TestContext.Current.CancellationToken).AsTask());
+        var ex = closed.InnerException.ShouldBeOfType<OmniRelayException>();
+        ex.StatusCode.ShouldBe(OmniRelayStatusCode.Internal);
         await call.DisposeAsync();
     }
 
@@ -157,17 +157,17 @@ public class ProtobufCallAdaptersTests
             {
                 writer.ResponseMeta = new ResponseMeta(encoding: "unsupported");
                 var writeResult = await writer.WriteAsync(new StringValue { Value = "b" }, ct);
-                Assert.True(writeResult.IsFailure);
-                Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(writeResult.Error!));
+                writeResult.IsFailure.ShouldBeTrue();
+                OmniRelayErrorAdapter.ToStatus(writeResult.Error!).ShouldBe(OmniRelayStatusCode.InvalidArgument);
             });
 
         var result = await handler(request, options, TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);
-        var call = Assert.IsAssignableFrom<IStreamCall>(result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        var call = result.Value.ShouldBeAssignableTo<IStreamCall>();
 
-        var closed = await Assert.ThrowsAsync<ChannelClosedException>(() => call.Responses.ReadAsync(TestContext.Current.CancellationToken).AsTask());
-        var ex = Assert.IsType<OmniRelayException>(closed.InnerException);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, ex.StatusCode);
+        var closed = await Should.ThrowAsync<ChannelClosedException>(() => call.Responses.ReadAsync(TestContext.Current.CancellationToken).AsTask());
+        var ex = closed.InnerException.ShouldBeOfType<OmniRelayException>();
+        ex.StatusCode.ShouldBe(OmniRelayStatusCode.InvalidArgument);
         await call.DisposeAsync();
     }
 
@@ -191,7 +191,7 @@ public class ProtobufCallAdaptersTests
             messages.Add(messageResult.ValueOrThrow().Value);
         }
 
-        Assert.Equal(new[] { "one", "two" }, messages);
+        messages.ShouldBe(new[] { "one", "two" });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -210,12 +210,12 @@ public class ProtobufCallAdaptersTests
         await foreach (var result in typedContext.ReadAllAsync(TestContext.Current.CancellationToken))
         {
             enumerated = true;
-            Assert.True(result.IsFailure);
-            Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
+            result.IsFailure.ShouldBeTrue();
+            OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.InvalidArgument);
             break;
         }
 
-        Assert.True(enumerated);
+        enumerated.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -247,12 +247,12 @@ public class ProtobufCallAdaptersTests
         channel.Writer.TryComplete();
 
         var result = await handler(context, ct);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         var response = result.Value;
-        Assert.Equal(codec.Encoding, response.Meta.Encoding);
+        response.Meta.Encoding.ShouldBe(codec.Encoding);
         var decoded = codec.DecodeResponse(response.Body, response.Meta);
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal("a,b", decoded.Value.Value);
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.Value.ShouldBe("a,b");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -270,8 +270,8 @@ public class ProtobufCallAdaptersTests
         channel.Writer.TryComplete();
 
         var result = await handler(context, TestContext.Current.CancellationToken);
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -295,8 +295,8 @@ public class ProtobufCallAdaptersTests
             });
 
         var result = await handler(request, TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);
-        var call = Assert.IsAssignableFrom<IDuplexStreamCall>(result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        var call = result.Value.ShouldBeAssignableTo<IDuplexStreamCall>();
 
         var ct = TestContext.Current.CancellationToken;
         var payload = codec.EncodeRequest(new StringValue { Value = "foo" }, meta).Value;
@@ -305,11 +305,11 @@ public class ProtobufCallAdaptersTests
 
         var responsePayload = await call.ResponseReader.ReadAsync(ct);
         var decoded = codec.DecodeResponse(responsePayload, call.ResponseMeta);
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal("FOO", decoded.Value.Value);
-        Assert.Equal("duplex", call.ResponseMeta.Transport);
-        Assert.Equal(codec.Encoding, call.ResponseMeta.Encoding);
-        Assert.False(await call.ResponseReader.WaitToReadAsync(ct));
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.Value.ShouldBe("FOO");
+        call.ResponseMeta.Transport.ShouldBe("duplex");
+        call.ResponseMeta.Encoding.ShouldBe(codec.Encoding);
+        (await call.ResponseReader.WaitToReadAsync(ct)).ShouldBeFalse();
         await call.DisposeAsync();
     }
 
@@ -325,12 +325,12 @@ public class ProtobufCallAdaptersTests
             (_, _) => throw new InvalidOperationException("boom"));
 
         var result = await handler(request, TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);
-        var call = Assert.IsAssignableFrom<IDuplexStreamCall>(result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        var call = result.Value.ShouldBeAssignableTo<IDuplexStreamCall>();
 
-        var closed = await Assert.ThrowsAsync<ChannelClosedException>(() => call.ResponseReader.ReadAsync(TestContext.Current.CancellationToken).AsTask());
-        var ex = Assert.IsType<OmniRelayException>(closed.InnerException);
-        Assert.Equal(OmniRelayStatusCode.Internal, ex.StatusCode);
+        var closed = await Should.ThrowAsync<ChannelClosedException>(() => call.ResponseReader.ReadAsync(TestContext.Current.CancellationToken).AsTask());
+        var ex = closed.InnerException.ShouldBeOfType<OmniRelayException>();
+        ex.StatusCode.ShouldBe(OmniRelayStatusCode.Internal);
         await call.DisposeAsync();
     }
 
@@ -347,17 +347,17 @@ public class ProtobufCallAdaptersTests
             {
                 ctx.ResponseMeta = new ResponseMeta(encoding: "invalid");
                 var writeResult = await ctx.WriteAsync(new StringValue { Value = "x" }, ct);
-                Assert.True(writeResult.IsFailure);
-                Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(writeResult.Error!));
+                writeResult.IsFailure.ShouldBeTrue();
+                OmniRelayErrorAdapter.ToStatus(writeResult.Error!).ShouldBe(OmniRelayStatusCode.InvalidArgument);
             });
 
         var result = await handler(request, TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess);
-        var call = Assert.IsAssignableFrom<IDuplexStreamCall>(result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        var call = result.Value.ShouldBeAssignableTo<IDuplexStreamCall>();
 
-        var closed = await Assert.ThrowsAsync<ChannelClosedException>(() => call.ResponseReader.ReadAsync(TestContext.Current.CancellationToken).AsTask());
-        var ex = Assert.IsType<OmniRelayException>(closed.InnerException);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, ex.StatusCode);
+        var closed = await Should.ThrowAsync<ChannelClosedException>(() => call.ResponseReader.ReadAsync(TestContext.Current.CancellationToken).AsTask());
+        var ex = closed.InnerException.ShouldBeOfType<OmniRelayException>();
+        ex.StatusCode.ShouldBe(OmniRelayStatusCode.InvalidArgument);
         await call.DisposeAsync();
     }
 }

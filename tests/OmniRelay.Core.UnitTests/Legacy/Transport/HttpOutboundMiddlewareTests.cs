@@ -54,7 +54,7 @@ public class HttpOutboundMiddlewareTests
         builder.ForService("backend").ForProcedure("echo").Use(new RecordingMiddleware("procedure", callOrder, ctx => ctx.Request.Headers.Add("X-Procedure", "1")));
 
         var registry = builder.Build();
-        Assert.NotNull(registry);
+        registry.ShouldNotBeNull();
 
         ((IHttpOutboundMiddlewareSink)outbound).Attach("backend", registry!);
         var ct = TestContext.Current.CancellationToken;
@@ -72,11 +72,11 @@ public class HttpOutboundMiddlewareTests
         var unary = (IUnaryOutbound)outbound;
         var result = await unary.CallAsync(request, ct);
 
-        Assert.True(result.IsSuccess, result.Error?.Message);
-        Assert.Equal(new[] { "global", "service", "procedure" }, callOrder);
-        Assert.Equal("1", capturedHeaders["X-Global"]);
-        Assert.Equal("1", capturedHeaders["X-Service"]);
-        Assert.Equal("1", capturedHeaders["X-Procedure"]);
+        result.IsSuccess.ShouldBeTrue(result.Error?.Message);
+        callOrder.ShouldBe(new[] { "global", "service", "procedure" });
+        capturedHeaders["X-Global"].ShouldBe("1");
+        capturedHeaders["X-Service"].ShouldBe("1");
+        capturedHeaders["X-Procedure"].ShouldBe("1");
 
         await outbound.StopAsync(ct);
     }
@@ -105,7 +105,7 @@ public class HttpOutboundMiddlewareTests
         builder.ForService("jobs").ForProcedure("enqueue").Use(new RecordingMiddleware("procedure", callOrder));
 
         var registry = builder.Build();
-        Assert.NotNull(registry);
+        registry.ShouldNotBeNull();
 
         ((IHttpOutboundMiddlewareSink)outbound).Attach("jobs", registry!);
         var ct = TestContext.Current.CancellationToken;
@@ -121,8 +121,8 @@ public class HttpOutboundMiddlewareTests
 
         var result = await ((IOnewayOutbound)outbound).CallAsync(request, ct);
 
-        Assert.True(result.IsSuccess, result.Error?.Message);
-        Assert.Equal(new[] { "global", "procedure" }, callOrder);
+        result.IsSuccess.ShouldBeTrue(result.Error?.Message);
+        callOrder.ShouldBe(new[] { "global", "procedure" });
 
         await outbound.StopAsync(ct);
     }

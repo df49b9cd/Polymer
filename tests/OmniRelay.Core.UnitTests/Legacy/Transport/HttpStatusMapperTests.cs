@@ -14,7 +14,7 @@ public sealed class HttpStatusMapperTests
     [InlineData(OmniRelayStatusCode.Unavailable, StatusCodes.Status503ServiceUnavailable)]
     [InlineData(OmniRelayStatusCode.Internal, StatusCodes.Status500InternalServerError)]
     [InlineData(OmniRelayStatusCode.ResourceExhausted, StatusCodes.Status429TooManyRequests)]
-    public void ToStatusCode_MapsExpectedValues(OmniRelayStatusCode statusCode, int expectedHttp) => Assert.Equal(expectedHttp, HttpStatusMapper.ToStatusCode(statusCode));
+    public void ToStatusCode_MapsExpectedValues(OmniRelayStatusCode statusCode, int expectedHttp) => HttpStatusMapper.ToStatusCode(statusCode).ShouldBe(expectedHttp);
 
     [Theory]
     [InlineData(StatusCodes.Status400BadRequest, OmniRelayStatusCode.InvalidArgument)]
@@ -22,5 +22,5 @@ public sealed class HttpStatusMapperTests
     [InlineData(StatusCodes.Status409Conflict, OmniRelayStatusCode.Aborted)]
     [InlineData(StatusCodes.Status503ServiceUnavailable, OmniRelayStatusCode.Unavailable)]
     [InlineData(StatusCodes.Status501NotImplemented, OmniRelayStatusCode.Unimplemented)]
-    public void FromStatusCode_MapsExpectedValues(int httpStatus, OmniRelayStatusCode expected) => Assert.Equal(expected, HttpStatusMapper.FromStatusCode(httpStatus));
+    public void FromStatusCode_MapsExpectedValues(int httpStatus, OmniRelayStatusCode expected) => HttpStatusMapper.FromStatusCode(httpStatus).ShouldBe(expected);
 }

@@ -29,10 +29,10 @@ public class RequestLoggingScopePeerTests
         activity?.SetTag("net.peer.port", 1234);
 
         var items = RequestLoggingScope.Create(meta, null, activity);
-        Assert.Contains(items, kv => kv.Key == "rpc.peer" && (string)kv.Value! == "header-peer:8080");
-        Assert.Contains(items, kv => kv.Key == "rpc.peer_port" && (int)kv.Value! == 1234);
-        Assert.Contains(items, kv => kv.Key == "network.protocol.name" && (string)kv.Value! == "http");
-        Assert.Contains(items, kv => kv.Key == "network.protocol.version" && (string)kv.Value! == "3");
-        Assert.Contains(items, kv => kv.Key == "network.transport" && (string)kv.Value! == "quic");
+        items.ShouldContain(kv => kv.Key == "rpc.peer" && (string)kv.Value! == "header-peer:8080");
+        items.ShouldContain(kv => kv.Key == "rpc.peer_port" && (int)kv.Value! == 1234);
+        items.ShouldContain(kv => kv.Key == "network.protocol.name" && (string)kv.Value! == "http");
+        items.ShouldContain(kv => kv.Key == "network.protocol.version" && (string)kv.Value! == "3");
+        items.ShouldContain(kv => kv.Key == "network.transport" && (string)kv.Value! == "quic");
     }
 }

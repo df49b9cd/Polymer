@@ -18,12 +18,12 @@ public class ProtobufCodecTests
         var payload = new StringValue { Value = "hello" };
 
         var encoded = codec.EncodeRequest(payload, meta);
-        Assert.True(encoded.IsSuccess);
-        Assert.NotEmpty(encoded.Value);
+        encoded.IsSuccess.ShouldBeTrue();
+        encoded.Value.ShouldNotBeEmpty();
 
         var decoded = codec.DecodeRequest(encoded.Value, meta);
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal(payload.Value, decoded.Value.Value);
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.Value.ShouldBe(payload.Value);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -34,10 +34,10 @@ public class ProtobufCodecTests
 
         var result = codec.EncodeRequest(null!, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("encode-request", error.Metadata["stage"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("encode-request");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -48,11 +48,11 @@ public class ProtobufCodecTests
 
         var result = codec.DecodeRequest(ReadOnlyMemory<byte>.Empty, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-request", error.Metadata["stage"]);
-        Assert.Equal("xml", error.Metadata["encoding"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-request");
+        error.Metadata["encoding"].ShouldBe("xml");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -64,10 +64,10 @@ public class ProtobufCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-request", error.Metadata["stage"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-request");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -78,12 +78,12 @@ public class ProtobufCodecTests
         var payload = new StringValue { Value = "world" };
 
         var encoded = codec.EncodeResponse(payload, meta);
-        Assert.True(encoded.IsSuccess);
-        Assert.StartsWith("\"", Encoding.UTF8.GetString(encoded.Value), StringComparison.Ordinal);
+        encoded.IsSuccess.ShouldBeTrue();
+        Encoding.UTF8.GetString(encoded.Value).ShouldStartWith("\"");
 
         var decoded = codec.DecodeResponse(encoded.Value, meta);
-        Assert.True(decoded.IsSuccess);
-        Assert.Equal(payload.Value, decoded.Value.Value);
+        decoded.IsSuccess.ShouldBeTrue();
+        decoded.Value.Value.ShouldBe(payload.Value);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -94,18 +94,18 @@ public class ProtobufCodecTests
 
         var result = codec.DecodeResponse("\"noop\""u8.ToArray(), meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-response", error.Metadata["stage"]);
-        Assert.Equal(ProtobufEncoding.ApplicationJson, error.Metadata["encoding"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-response");
+        error.Metadata["encoding"].ShouldBe(ProtobufEncoding.ApplicationJson);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_AllowsCustomDefaultEncoding()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>(defaultEncoding: ProtobufEncoding.ApplicationJson);
-        Assert.Equal(ProtobufEncoding.ApplicationJson, codec.Encoding);
+        codec.Encoding.ShouldBe(ProtobufEncoding.ApplicationJson);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -116,11 +116,11 @@ public class ProtobufCodecTests
 
         var result = codec.EncodeRequest(new ThrowingMessage(), meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("encode-request", error.Metadata["stage"]);
-        Assert.Equal(ProtobufEncoding.Protobuf, error.Metadata["encoding"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.Internal);
+        error.Metadata["stage"].ShouldBe("encode-request");
+        error.Metadata["encoding"].ShouldBe(ProtobufEncoding.Protobuf);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -131,12 +131,12 @@ public class ProtobufCodecTests
 
         var result = codec.DecodeRequest(new byte[] { 0x01 }, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-request", error.Metadata["stage"]);
-        Assert.Equal(ProtobufEncoding.Protobuf, error.Metadata["encoding"]);
-        Assert.Equal(typeof(InvalidProtocolBufferException).FullName, error.Metadata["exceptionType"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-request");
+        error.Metadata["encoding"].ShouldBe(ProtobufEncoding.Protobuf);
+        error.Metadata["exceptionType"].ShouldBe(typeof(InvalidProtocolBufferException).FullName);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -147,11 +147,11 @@ public class ProtobufCodecTests
 
         var result = codec.EncodeResponse(new StringValue { Value = "test" }, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("encode-response", error.Metadata["stage"]);
-        Assert.Equal(ProtobufEncoding.ApplicationJson, error.Metadata["encoding"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("encode-response");
+        error.Metadata["encoding"].ShouldBe(ProtobufEncoding.ApplicationJson);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -162,11 +162,11 @@ public class ProtobufCodecTests
 
         var result = codec.DecodeResponse("{invalid json"u8.ToArray(), meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-response", error.Metadata["stage"]);
-        Assert.Equal(ProtobufEncoding.ApplicationJson, error.Metadata["encoding"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-response");
+        error.Metadata["encoding"].ShouldBe(ProtobufEncoding.ApplicationJson);
     }
 
     private sealed class ThrowingMessage : IMessage<ThrowingMessage>

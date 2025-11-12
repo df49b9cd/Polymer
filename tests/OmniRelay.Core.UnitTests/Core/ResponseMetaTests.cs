@@ -12,12 +12,12 @@ public class ResponseMetaTests
     {
         var meta = new ResponseMeta(encoding: "json");
         var updated = meta.WithHeader("X-Test", "1");
-        Assert.True(updated.TryGetHeader("x-test", out var value));
-        Assert.Equal("1", value);
+        updated.TryGetHeader("x-test", out var value).ShouldBeTrue();
+        value.ShouldBe("1");
 
         var updated2 = updated.WithHeader("x-TEST", "2");
-        Assert.True(updated2.TryGetHeader("X-Test", out var v2));
-        Assert.Equal("2", v2);
+        updated2.TryGetHeader("X-Test", out var v2).ShouldBeTrue();
+        v2.ShouldBe("2");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -25,9 +25,9 @@ public class ResponseMetaTests
     {
         var meta = new ResponseMeta(encoding: "json").WithHeader("a", "1");
         var merged = meta.WithHeaders([new KeyValuePair<string, string>("b", "2"), new KeyValuePair<string, string>("A", "3")]);
-        Assert.True(merged.TryGetHeader("a", out var v1));
-        Assert.Equal("3", v1);
-        Assert.True(merged.TryGetHeader("b", out var v2));
-        Assert.Equal("2", v2);
+        merged.TryGetHeader("a", out var v1).ShouldBeTrue();
+        v1.ShouldBe("3");
+        merged.TryGetHeader("b", out var v2).ShouldBeTrue();
+        v2.ShouldBe("2");
     }
 }

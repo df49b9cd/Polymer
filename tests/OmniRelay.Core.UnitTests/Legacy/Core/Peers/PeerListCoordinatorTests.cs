@@ -23,8 +23,8 @@ public sealed class PeerListCoordinatorTests
 
         var result = await coordinator.AcquireAsync(meta, CancellationToken.None, SelectFirst);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
     }
 
     [Fact]
@@ -38,8 +38,8 @@ public sealed class PeerListCoordinatorTests
 
         var result = await coordinator.AcquireAsync(meta, CancellationToken.None, SelectFirst);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     private static IPeer? SelectFirst(IReadOnlyList<IPeer> peers) =>

@@ -24,14 +24,14 @@ public sealed class PanicRecoveryMiddlewareTests
             CancellationToken.None,
             (UnaryInboundHandler)((_, _) => throw new InvalidOperationException("boom")));
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(OmniRelayStatusCode.Internal, status);
-        Assert.Equal("System.InvalidOperationException", result.Error!.Metadata["exception_type"]);
+        status.ShouldBe(OmniRelayStatusCode.Internal);
+        result.Error!.Metadata["exception_type"].ShouldBe("System.InvalidOperationException");
 
-        var entry = Assert.Single(logger.Entries);
-        Assert.Equal(LogLevel.Error, entry.LogLevel);
-        Assert.Contains("Unhandled exception", entry.Message, StringComparison.OrdinalIgnoreCase);
+        var entry = logger.Entries.ShouldHaveSingleItem();
+        entry.LogLevel.ShouldBe(LogLevel.Error);
+        entry.Message.ShouldContain("Unhandled exception", Case.Insensitive);
     }
 
     [Fact]
@@ -46,8 +46,8 @@ public sealed class PanicRecoveryMiddlewareTests
             CancellationToken.None,
             (UnaryOutboundHandler)((_, _) => throw new ApplicationException("fail")));
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
-        Assert.Equal("System.ApplicationException", result.Error!.Metadata["exception_type"]);
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
+        result.Error!.Metadata["exception_type"].ShouldBe("System.ApplicationException");
     }
 }

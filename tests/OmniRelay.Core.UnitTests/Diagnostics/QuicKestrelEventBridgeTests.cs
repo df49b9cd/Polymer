@@ -94,7 +94,7 @@ public class QuicKestrelEventBridgeTests
 
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
-        Assert.True(predicate());
+        predicate().ShouldBeTrue();
     }
 
     [Http3Fact(Timeout = TestTimeouts.Default)]
@@ -106,10 +106,10 @@ public class QuicKestrelEventBridgeTests
         src.HandshakeError("handshake failure: cert error");
 
         await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
-        Assert.True(logger.Entries.TryDequeue(out var entry));
-        Assert.Equal(LogLevel.Warning, entry.level);
-        Assert.Contains("handshake_failure", entry.message);
-        Assert.NotNull(entry.scope);
+        logger.Entries.TryDequeue(out var entry).ShouldBeTrue();
+        entry.level.ShouldBe(LogLevel.Warning);
+        entry.message.ShouldContain("handshake_failure");
+        entry.scope.ShouldNotBeNull();
     }
 
     [Http3Fact(Timeout = TestTimeouts.Default)]
@@ -121,9 +121,9 @@ public class QuicKestrelEventBridgeTests
         src.PathValidated("path_validated: new path");
 
         await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
-        Assert.True(logger.Entries.TryDequeue(out var entry));
-        Assert.Equal(LogLevel.Information, entry.level);
-        Assert.Contains("migration", entry.message);
+        logger.Entries.TryDequeue(out var entry).ShouldBeTrue();
+        entry.level.ShouldBe(LogLevel.Information);
+        entry.message.ShouldContain("migration");
     }
 
     [Http3Fact(Timeout = TestTimeouts.Default)]
@@ -135,8 +135,8 @@ public class QuicKestrelEventBridgeTests
         src.Http3Connection("started");
 
         await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
-        Assert.True(logger.Entries.TryDequeue(out var entry));
-        Assert.Equal(LogLevel.Debug, entry.level);
-        Assert.Contains("http3", entry.message);
+        logger.Entries.TryDequeue(out var entry).ShouldBeTrue();
+        entry.level.ShouldBe(LogLevel.Debug);
+        entry.message.ShouldContain("http3");
     }
 }

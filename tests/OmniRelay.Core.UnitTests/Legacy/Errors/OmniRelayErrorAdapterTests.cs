@@ -14,11 +14,11 @@ public class OmniRelayErrorAdapterTests
             "denied",
             transport: "grpc");
 
-        Assert.Equal("permission-denied", error.Code);
-        Assert.True(error.TryGetMetadata("omnirelay.status", out string? status));
-        Assert.Equal(nameof(OmniRelayStatusCode.PermissionDenied), status);
-        Assert.True(error.TryGetMetadata("omnirelay.transport", out string? transport));
-        Assert.Equal("grpc", transport);
+        error.Code.ShouldBe("permission-denied");
+        error.TryGetMetadata("omnirelay.status", out string? status).ShouldBeTrue();
+        status.ShouldBe(nameof(OmniRelayStatusCode.PermissionDenied));
+        error.TryGetMetadata("omnirelay.transport", out string? transport).ShouldBeTrue();
+        transport.ShouldBe("grpc");
     }
 
     [Fact]
@@ -33,10 +33,10 @@ public class OmniRelayErrorAdapterTests
                 { "node", "alpha" }
             });
 
-        Assert.True(error.TryGetMetadata("retryable", out bool retryable));
-        Assert.True(retryable);
-        Assert.True(error.TryGetMetadata("node", out string? node));
-        Assert.Equal("alpha", node);
+        error.TryGetMetadata("retryable", out bool retryable).ShouldBeTrue();
+        retryable.ShouldBeTrue();
+        error.TryGetMetadata("node", out string? node).ShouldBeTrue();
+        node.ShouldBe("alpha");
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class OmniRelayErrorAdapterTests
 
         var status = OmniRelayErrorAdapter.ToStatus(error);
 
-        Assert.Equal(OmniRelayStatusCode.Unavailable, status);
+        status.ShouldBe(OmniRelayStatusCode.Unavailable);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class OmniRelayErrorAdapterTests
 
         var status = OmniRelayErrorAdapter.ToStatus(error);
 
-        Assert.Equal(OmniRelayStatusCode.Internal, status);
+        status.ShouldBe(OmniRelayStatusCode.Internal);
     }
 
     [Fact]
@@ -67,6 +67,6 @@ public class OmniRelayErrorAdapterTests
 
         var status = OmniRelayErrorAdapter.ToStatus(error);
 
-        Assert.Equal(OmniRelayStatusCode.Cancelled, status);
+        status.ShouldBe(OmniRelayStatusCode.Cancelled);
     }
 }

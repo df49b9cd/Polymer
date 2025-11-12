@@ -35,11 +35,11 @@ public class OutboundErrorMappingTests
 
         var meta = new RequestMeta(service: "svc", procedure: "proc::unary", transport: "http");
         var call = await ((IUnaryOutbound)outbound).CallAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), ct);
-        Assert.True(call.IsFailure);
+        call.IsFailure.ShouldBeTrue();
         var err = call.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(err));
-        Assert.Equal("bad request", err.Message);
-        Assert.Equal("E_BAD", err.Code);
+        OmniRelayErrorAdapter.ToStatus(err).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        err.Message.ShouldBe("bad request");
+        err.Code.ShouldBe("E_BAD");
     }
 
     [Fact(Timeout = 30000)]
@@ -56,7 +56,7 @@ public class OutboundErrorMappingTests
 
         var meta = new RequestMeta(service: "svc", procedure: "proc::unary", transport: "http");
         var call = await ((IUnaryOutbound)outbound).CallAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), ct);
-        Assert.True(call.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Unavailable, OmniRelayErrorAdapter.ToStatus(call.Error!));
+        call.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(call.Error!).ShouldBe(OmniRelayStatusCode.Unavailable);
     }
 }

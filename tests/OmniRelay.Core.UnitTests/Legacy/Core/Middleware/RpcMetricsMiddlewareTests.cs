@@ -28,15 +28,15 @@ public sealed class RpcMetricsMiddlewareTests
             CancellationToken.None,
             (UnaryInboundHandler)((req, token) => ValueTask.FromResult(Ok(response))));
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         AssertMeasurement(longMeasurements, "test.rpc.requests", 1, "rpc.direction", "inbound");
         AssertMeasurement(longMeasurements, "test.rpc.success", 1, "rpc.direction", "inbound");
         AssertDoesNotContain(longMeasurements, "test.rpc.failure");
 
         var duration = doubleMeasurements.Single(m => m.InstrumentName == "test.rpc.duration");
-        Assert.Equal("inbound", duration.Tags.Single(tag => tag.Key == "rpc.direction").Value);
-        Assert.True(duration.Value > 0);
+        duration.Tags.Single(tag => tag.Key == "rpc.direction").Value.ShouldBe("inbound");
+        (duration.Value > 0).ShouldBeTrue();
     }
 
     [Fact]
@@ -57,15 +57,15 @@ public sealed class RpcMetricsMiddlewareTests
             CancellationToken.None,
             (UnaryOutboundHandler)((req, token) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error))));
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         AssertMeasurement(longMeasurements, "test.rpc.requests", 1, "rpc.direction", "outbound");
         AssertMeasurement(longMeasurements, "test.rpc.failure", 1, "rpc.direction", "outbound", "rpc.status", nameof(OmniRelayStatusCode.Internal));
         AssertDoesNotContain(longMeasurements, "test.rpc.success");
 
         var duration = doubleMeasurements.Single(m => m.InstrumentName == "test.rpc.duration");
-        Assert.Equal("outbound", duration.Tags.Single(tag => tag.Key == "rpc.direction").Value);
-        Assert.Equal(nameof(OmniRelayStatusCode.Internal), duration.Tags.Single(tag => tag.Key == "rpc.status").Value);
+        duration.Tags.Single(tag => tag.Key == "rpc.direction").Value.ShouldBe("outbound");
+        duration.Tags.Single(tag => tag.Key == "rpc.status").Value.ShouldBe(nameof(OmniRelayStatusCode.Internal));
     }
 
     private static MeterListener CreateListener(
@@ -110,12 +110,12 @@ public sealed class RpcMetricsMiddlewareTests
         params string[] expectedTagPairs)
     {
         var measurement = measurements.Single(m => m.InstrumentName == instrumentName);
-        Assert.Equal(expectedValue, measurement.Value);
+        measurement.Value.ShouldBe(expectedValue);
         AssertExpectedTags(measurement.Tags, expectedTagPairs);
     }
 
     private static void AssertDoesNotContain(IEnumerable<LongMeasurement> measurements, string instrumentName) =>
-        Assert.DoesNotContain(measurements, measurement => measurement.InstrumentName == instrumentName);
+        measurements.ShouldNotContain(measurement => measurement.InstrumentName == instrumentName);
 
     private static void AssertExpectedTags(IReadOnlyList<KeyValuePair<string, object?>> tags, string[] expectedTagPairs)
     {
@@ -123,7 +123,7 @@ public sealed class RpcMetricsMiddlewareTests
         {
             var key = expectedTagPairs[index];
             var value = expectedTagPairs[index + 1];
-            Assert.Contains(tags, tag => tag.Key == key && Equals(tag.Value, value));
+            tags.ShouldContain(tag => tag.Key == key && Equals(tag.Value, value));
         }
     }
 

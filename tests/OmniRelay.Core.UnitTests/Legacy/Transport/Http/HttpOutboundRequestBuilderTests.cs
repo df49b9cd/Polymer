@@ -19,7 +19,7 @@ public sealed class HttpOutboundRequestBuilderTests
     public void Constructor_WithHttp3EnabledOnHttpScheme_Throws()
     {
         using var client = new HttpClient(new HttpClientHandler());
-        Assert.Throws<InvalidOperationException>(() =>
+        Should.Throw<InvalidOperationException>(() =>
             new HttpOutbound(
                 client,
                 new Uri("http://example.test/rpc"),
@@ -85,33 +85,33 @@ public sealed class HttpOutboundRequestBuilderTests
         try
         {
             var result = await ((IUnaryOutbound)outbound).CallAsync(request, ct);
-            Assert.True(result.IsSuccess, result.Error?.Message);
+            result.IsSuccess.ShouldBeTrue(result.Error?.Message);
         }
         finally
         {
             await outbound.StopAsync(ct);
         }
 
-        Assert.Equal(HttpMethod.Post, captured.Method);
-        Assert.Equal(requestUri, captured.RequestUri);
-        Assert.Equal(HttpVersion.Version30, captured.Version);
-        Assert.Equal(HttpVersionPolicy.RequestVersionOrLower, captured.VersionPolicy);
+        captured.Method.ShouldBe(HttpMethod.Post);
+        captured.RequestUri.ShouldBe(requestUri);
+        captured.Version.ShouldBe(HttpVersion.Version30);
+        captured.VersionPolicy.ShouldBe(HttpVersionPolicy.RequestVersionOrLower);
 
-        Assert.Equal("http", captured.Headers[HttpTransportHeaders.Transport]);
-        Assert.Equal(meta.Procedure, captured.Headers[HttpTransportHeaders.Procedure]);
-        Assert.Equal(meta.Caller, captured.Headers[HttpTransportHeaders.Caller]);
-        Assert.Equal(meta.Encoding, captured.Headers[HttpTransportHeaders.Encoding]);
-        Assert.Equal(meta.ShardKey, captured.Headers[HttpTransportHeaders.ShardKey]);
-        Assert.Equal(meta.RoutingKey, captured.Headers[HttpTransportHeaders.RoutingKey]);
-        Assert.Equal(meta.RoutingDelegate, captured.Headers[HttpTransportHeaders.RoutingDelegate]);
-        Assert.Equal(ttl.TotalMilliseconds.ToString(CultureInfo.InvariantCulture), captured.Headers[HttpTransportHeaders.TtlMs]);
+        captured.Headers[HttpTransportHeaders.Transport].ShouldBe("http");
+        captured.Headers[HttpTransportHeaders.Procedure].ShouldBe(meta.Procedure);
+        captured.Headers[HttpTransportHeaders.Caller].ShouldBe(meta.Caller);
+        captured.Headers[HttpTransportHeaders.Encoding].ShouldBe(meta.Encoding);
+        captured.Headers[HttpTransportHeaders.ShardKey].ShouldBe(meta.ShardKey);
+        captured.Headers[HttpTransportHeaders.RoutingKey].ShouldBe(meta.RoutingKey);
+        captured.Headers[HttpTransportHeaders.RoutingDelegate].ShouldBe(meta.RoutingDelegate);
+        captured.Headers[HttpTransportHeaders.TtlMs].ShouldBe(ttl.TotalMilliseconds.ToString(CultureInfo.InvariantCulture));
 
         var expectedDeadline = deadline.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
-        Assert.Equal(expectedDeadline, captured.Headers[HttpTransportHeaders.Deadline]);
-        Assert.Equal("cor-123", captured.Headers["X-Correlation-Id"]);
+        captured.Headers[HttpTransportHeaders.Deadline].ShouldBe(expectedDeadline);
+        captured.Headers["X-Correlation-Id"].ShouldBe("cor-123");
 
-        Assert.Equal(MediaTypeNames.Application.Octet, captured.ContentHeaders["Content-Type"]);
-        Assert.Equal(payload, captured.Payload);
+        captured.ContentHeaders["Content-Type"].ShouldBe(MediaTypeNames.Application.Octet);
+        captured.Payload.ShouldBe(payload);
     }
 
     private sealed class CapturedRequest

@@ -15,8 +15,8 @@ public class RawCodecTests
 
         var result = codec.EncodeRequest(payload, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(payload, result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeSameAs(payload);
     }
 
     [Fact]
@@ -28,9 +28,9 @@ public class RawCodecTests
 
         var result = codec.EncodeRequest(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
+        status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact]
@@ -42,8 +42,8 @@ public class RawCodecTests
 
         var result = codec.DecodeRequest(new ReadOnlyMemory<byte>(payload), meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(payload, result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeSameAs(payload);
     }
 
     [Fact]
@@ -55,8 +55,8 @@ public class RawCodecTests
 
         var result = codec.EncodeResponse(payload, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(payload, result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeSameAs(payload);
     }
 
     [Fact]
@@ -68,9 +68,9 @@ public class RawCodecTests
 
         var result = codec.EncodeResponse(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
+        status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact]
@@ -83,9 +83,9 @@ public class RawCodecTests
 
         var result = codec.DecodeResponse(slice, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotSame(buffer, result.Value);
-        Assert.Equal(new byte[] { 9, 10 }, result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldNotBeSameAs(buffer);
+        result.Value.ShouldBe(new byte[] { 9, 10 });
     }
 
     [Fact]
@@ -97,8 +97,8 @@ public class RawCodecTests
 
         var result = codec.DecodeResponse(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var status = OmniRelayErrorAdapter.ToStatus(result.Error!);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, status);
+        status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 }

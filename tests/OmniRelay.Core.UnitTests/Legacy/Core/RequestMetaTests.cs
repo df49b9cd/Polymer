@@ -11,8 +11,8 @@ public class RequestMetaTests
         var meta = new RequestMeta(service: "keyvalue")
             .WithHeader("Trace-Id", "abc123");
 
-        Assert.True(meta.TryGetHeader("trace-id", out var value));
-        Assert.Equal("abc123", value);
+        meta.TryGetHeader("trace-id", out var value).ShouldBeTrue();
+        value.ShouldBe("abc123");
     }
 
     [Fact]
@@ -25,10 +25,10 @@ public class RequestMetaTests
                 new KeyValuePair<string, string>("b", "2")
             ]);
 
-        Assert.True(meta.TryGetHeader("A", out var a));
-        Assert.Equal("1", a);
-        Assert.True(meta.TryGetHeader("b", out var b));
-        Assert.Equal("2", b);
+        meta.TryGetHeader("A", out var a).ShouldBeTrue();
+        a.ShouldBe("1");
+        meta.TryGetHeader("b", out var b).ShouldBeTrue();
+        b.ShouldBe("2");
     }
 
     [Fact]
@@ -47,15 +47,15 @@ public class RequestMetaTests
             timeToLive: TimeSpan.FromSeconds(5),
             deadline: deadline);
 
-        Assert.Equal("billing", meta.Service);
-        Assert.Equal("list", meta.Procedure);
-        Assert.Equal("frontend", meta.Caller);
-        Assert.Equal("json", meta.Encoding);
-        Assert.Equal("http", meta.Transport);
-        Assert.Equal("tenant-a", meta.ShardKey);
-        Assert.Equal("tenant-a", meta.RoutingKey);
-        Assert.Equal("delegate", meta.RoutingDelegate);
-        Assert.Equal(TimeSpan.FromSeconds(5), meta.TimeToLive);
-        Assert.Equal(deadline, meta.Deadline);
+        meta.Service.ShouldBe("billing");
+        meta.Procedure.ShouldBe("list");
+        meta.Caller.ShouldBe("frontend");
+        meta.Encoding.ShouldBe("json");
+        meta.Transport.ShouldBe("http");
+        meta.ShardKey.ShouldBe("tenant-a");
+        meta.RoutingKey.ShouldBe("tenant-a");
+        meta.RoutingDelegate.ShouldBe("delegate");
+        meta.TimeToLive.ShouldBe(TimeSpan.FromSeconds(5));
+        meta.Deadline.ShouldBe(deadline);
     }
 }

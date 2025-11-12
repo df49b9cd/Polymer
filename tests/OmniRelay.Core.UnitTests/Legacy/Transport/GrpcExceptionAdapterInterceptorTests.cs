@@ -13,15 +13,15 @@ public sealed class GrpcExceptionAdapterInterceptorTests
         var interceptor = new GrpcExceptionAdapterInterceptor();
         var context = new TestServerCallContext("svc/method");
 
-        var rpcException = await Assert.ThrowsAsync<RpcException>(() =>
+        var rpcException = await Should.ThrowAsync<RpcException>(() =>
             interceptor.UnaryServerHandler<object, object>(
                 new object(),
                 context,
                 (request, callContext) => throw new TimeoutException("deadline")));
 
-        Assert.Equal(StatusCode.DeadlineExceeded, rpcException.StatusCode);
-        Assert.Equal(nameof(OmniRelayStatusCode.DeadlineExceeded), rpcException.Trailers.GetValue(GrpcTransportConstants.StatusTrailer));
-        Assert.Equal("grpc", rpcException.Trailers.GetValue(GrpcTransportConstants.TransportTrailer));
+        rpcException.StatusCode.ShouldBe(StatusCode.DeadlineExceeded);
+        rpcException.Trailers.GetValue(GrpcTransportConstants.StatusTrailer).ShouldBe(nameof(OmniRelayStatusCode.DeadlineExceeded));
+        rpcException.Trailers.GetValue(GrpcTransportConstants.TransportTrailer).ShouldBe("grpc");
     }
 
     [Fact]
@@ -31,14 +31,14 @@ public sealed class GrpcExceptionAdapterInterceptorTests
         var context = new TestServerCallContext("svc/method");
         var expected = new RpcException(new Status(StatusCode.Internal, "boom"));
 
-        var actual = await Assert.ThrowsAsync<RpcException>(() =>
+        var actual = await Should.ThrowAsync<RpcException>(() =>
             interceptor.ServerStreamingServerHandler(
                 new object(),
                 new NoopServerStreamWriter<object>(),
                 context,
                 (request, stream, callContext) => throw expected));
 
-        Assert.Same(expected, actual);
+        actual.ShouldBeSameAs(expected);
     }
 
     private sealed class TestServerCallContext(

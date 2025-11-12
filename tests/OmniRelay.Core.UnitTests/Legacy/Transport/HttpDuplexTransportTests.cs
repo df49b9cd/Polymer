@@ -31,11 +31,11 @@ public class HttpDuplexTransportTests
 
         var result = await ((IUnaryOutbound)outbound).CallAsync(request, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess, result.Error?.Message);
-        Assert.NotNull(RecordingHandler.LastRequest);
-        Assert.Equal(MediaTypeNames.Application.Octet, RecordingHandler.LastRequest!.Content?.Headers.ContentType?.MediaType);
-        Assert.True(RecordingHandler.LastRequest.Headers.TryGetValues(HttpTransportHeaders.Encoding, out var values));
-        Assert.Contains(RawCodec.DefaultEncoding, values);
+        result.IsSuccess.ShouldBeTrue(result.Error?.Message);
+        RecordingHandler.LastRequest.ShouldNotBeNull();
+        RecordingHandler.LastRequest!.Content?.Headers.ContentType?.MediaType.ShouldBe(MediaTypeNames.Application.Octet);
+        RecordingHandler.LastRequest.Headers.TryGetValues(HttpTransportHeaders.Encoding, out var values).ShouldBeTrue();
+        values.ShouldContain(RawCodec.DefaultEncoding);
 
         await outbound.StopAsync(TestContext.Current.CancellationToken);
     }
@@ -76,12 +76,12 @@ public class HttpDuplexTransportTests
 
             using var response = await httpClient.PostAsync("/", content, ct);
 
-            Assert.True(response.IsSuccessStatusCode);
-            Assert.Equal(MediaTypeNames.Application.Octet, response.Content.Headers.ContentType?.MediaType);
-            Assert.True(response.Headers.TryGetValues(HttpTransportHeaders.Encoding, out var responseEncoding));
-            Assert.Contains(RawCodec.DefaultEncoding, responseEncoding);
+            response.IsSuccessStatusCode.ShouldBeTrue();
+            response.Content.Headers.ContentType?.MediaType.ShouldBe(MediaTypeNames.Application.Octet);
+            response.Headers.TryGetValues(HttpTransportHeaders.Encoding, out var responseEncoding).ShouldBeTrue();
+            responseEncoding.ShouldContain(RawCodec.DefaultEncoding);
             var responsePayload = await response.Content.ReadAsByteArrayAsync(ct);
-            Assert.Equal(payload, responsePayload);
+            responsePayload.ShouldBe(payload);
         }
         finally
         {

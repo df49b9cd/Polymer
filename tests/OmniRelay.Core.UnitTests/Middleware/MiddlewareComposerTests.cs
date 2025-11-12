@@ -32,8 +32,14 @@ public class MiddlewareComposerTests
         var composed = MiddlewareComposer.ComposeUnaryOutbound([m1, m2, m3], terminal);
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:unary-out", "m2:unary-out", "m3:unary-out", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:unary-out",
+            "m2:unary-out",
+            "m3:unary-out",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -42,44 +48,44 @@ public class MiddlewareComposerTests
         var meta = new RequestMeta(service: "svc");
 
         UnaryOutboundHandler unaryOut = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
-        Assert.Same(unaryOut, MiddlewareComposer.ComposeUnaryOutbound(null, unaryOut));
-        Assert.Same(unaryOut, MiddlewareComposer.ComposeUnaryOutbound([], unaryOut));
+        MiddlewareComposer.ComposeUnaryOutbound(null, unaryOut).ShouldBeSameAs(unaryOut);
+        MiddlewareComposer.ComposeUnaryOutbound([], unaryOut).ShouldBeSameAs(unaryOut);
 
         UnaryInboundHandler unaryIn = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
-        Assert.Same(unaryIn, MiddlewareComposer.ComposeUnaryInbound(null, unaryIn));
-        Assert.Same(unaryIn, MiddlewareComposer.ComposeUnaryInbound([], unaryIn));
+        MiddlewareComposer.ComposeUnaryInbound(null, unaryIn).ShouldBeSameAs(unaryIn);
+        MiddlewareComposer.ComposeUnaryInbound([], unaryIn).ShouldBeSameAs(unaryIn);
 
         OnewayOutboundHandler onewayOut = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
-        Assert.Same(onewayOut, MiddlewareComposer.ComposeOnewayOutbound(null, onewayOut));
-        Assert.Same(onewayOut, MiddlewareComposer.ComposeOnewayOutbound([], onewayOut));
+        MiddlewareComposer.ComposeOnewayOutbound(null, onewayOut).ShouldBeSameAs(onewayOut);
+        MiddlewareComposer.ComposeOnewayOutbound([], onewayOut).ShouldBeSameAs(onewayOut);
 
         OnewayInboundHandler onewayIn = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
-        Assert.Same(onewayIn, MiddlewareComposer.ComposeOnewayInbound(null, onewayIn));
-        Assert.Same(onewayIn, MiddlewareComposer.ComposeOnewayInbound([], onewayIn));
+        MiddlewareComposer.ComposeOnewayInbound(null, onewayIn).ShouldBeSameAs(onewayIn);
+        MiddlewareComposer.ComposeOnewayInbound([], onewayIn).ShouldBeSameAs(onewayIn);
 
         StreamOutboundHandler streamOut = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
-        Assert.Same(streamOut, MiddlewareComposer.ComposeStreamOutbound(null, streamOut));
-        Assert.Same(streamOut, MiddlewareComposer.ComposeStreamOutbound([], streamOut));
+        MiddlewareComposer.ComposeStreamOutbound(null, streamOut).ShouldBeSameAs(streamOut);
+        MiddlewareComposer.ComposeStreamOutbound([], streamOut).ShouldBeSameAs(streamOut);
 
         StreamInboundHandler streamIn = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
-        Assert.Same(streamIn, MiddlewareComposer.ComposeStreamInbound(null, streamIn));
-        Assert.Same(streamIn, MiddlewareComposer.ComposeStreamInbound([], streamIn));
+        MiddlewareComposer.ComposeStreamInbound(null, streamIn).ShouldBeSameAs(streamIn);
+        MiddlewareComposer.ComposeStreamInbound([], streamIn).ShouldBeSameAs(streamIn);
 
         ClientStreamInboundHandler clientStreamIn = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
-        Assert.Same(clientStreamIn, MiddlewareComposer.ComposeClientStreamInbound(null, clientStreamIn));
-        Assert.Same(clientStreamIn, MiddlewareComposer.ComposeClientStreamInbound([], clientStreamIn));
+        MiddlewareComposer.ComposeClientStreamInbound(null, clientStreamIn).ShouldBeSameAs(clientStreamIn);
+        MiddlewareComposer.ComposeClientStreamInbound([], clientStreamIn).ShouldBeSameAs(clientStreamIn);
 
         ClientStreamOutboundHandler clientStreamOut = (requestMeta, ct) => ValueTask.FromResult(Ok<IClientStreamTransportCall>(CreateClientStreamCall(requestMeta)));
-        Assert.Same(clientStreamOut, MiddlewareComposer.ComposeClientStreamOutbound(null, clientStreamOut));
-        Assert.Same(clientStreamOut, MiddlewareComposer.ComposeClientStreamOutbound([], clientStreamOut));
+        MiddlewareComposer.ComposeClientStreamOutbound(null, clientStreamOut).ShouldBeSameAs(clientStreamOut);
+        MiddlewareComposer.ComposeClientStreamOutbound([], clientStreamOut).ShouldBeSameAs(clientStreamOut);
 
         DuplexInboundHandler duplexIn = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
-        Assert.Same(duplexIn, MiddlewareComposer.ComposeDuplexInbound(null, duplexIn));
-        Assert.Same(duplexIn, MiddlewareComposer.ComposeDuplexInbound([], duplexIn));
+        MiddlewareComposer.ComposeDuplexInbound(null, duplexIn).ShouldBeSameAs(duplexIn);
+        MiddlewareComposer.ComposeDuplexInbound([], duplexIn).ShouldBeSameAs(duplexIn);
 
         DuplexOutboundHandler duplexOut = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
-        Assert.Same(duplexOut, MiddlewareComposer.ComposeDuplexOutbound(null, duplexOut));
-        Assert.Same(duplexOut, MiddlewareComposer.ComposeDuplexOutbound([], duplexOut));
+        MiddlewareComposer.ComposeDuplexOutbound(null, duplexOut).ShouldBeSameAs(duplexOut);
+        MiddlewareComposer.ComposeDuplexOutbound([], duplexOut).ShouldBeSameAs(duplexOut);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -97,8 +103,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:unary-in", "m2:unary-in", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:unary-in",
+            "m2:unary-in",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -116,8 +127,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:oneway-out", "m2:oneway-out", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:oneway-out",
+            "m2:oneway-out",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -135,8 +151,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:oneway-in", "m2:oneway-in", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:oneway-in",
+            "m2:oneway-in",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -155,8 +176,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), options, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:stream-out", "m2:stream-out", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:stream-out",
+            "m2:stream-out",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -175,8 +201,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), options, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:stream-in", "m2:stream-in", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:stream-in",
+            "m2:stream-in",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -195,8 +226,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(ctx, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:client-stream-in", "m2:client-stream-in", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:client-stream-in",
+            "m2:client-stream-in",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -214,8 +250,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(meta, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:client-stream-out", "m2:client-stream-out", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:client-stream-out",
+            "m2:client-stream-out",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -233,8 +274,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:duplex-in", "m2:duplex-in", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:duplex-in",
+            "m2:duplex-in",
+            "terminal"
+        });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -252,8 +298,13 @@ public class MiddlewareComposerTests
 
         var result = await composed(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "m1:duplex-out", "m2:duplex-out", "terminal" }, order);
+        result.IsSuccess.ShouldBeTrue();
+        order.ShouldBe(new[]
+        {
+            "m1:duplex-out",
+            "m2:duplex-out",
+            "terminal"
+        });
     }
 
     private static IClientStreamTransportCall CreateClientStreamCall(RequestMeta meta)

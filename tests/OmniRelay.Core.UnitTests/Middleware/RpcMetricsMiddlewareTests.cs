@@ -71,13 +71,13 @@ public class RpcMetricsMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await middleware.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, collector.Requests);
-        Assert.Equal(1, collector.Success);
-        Assert.Equal(0, collector.Failure);
-        Assert.NotEmpty(collector.Durations);
+        collector.Requests.ShouldBe(1);
+        collector.Success.ShouldBe(1);
+        collector.Failure.ShouldBe(0);
+        collector.Durations.ShouldNotBeEmpty();
         collector.Listener.Dispose();
     }
 
@@ -93,12 +93,12 @@ public class RpcMetricsMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
         var result = await middleware.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, collector.Requests);
-        Assert.Equal(0, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(1);
+        collector.Success.ShouldBe(0);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 
@@ -113,14 +113,14 @@ public class RpcMetricsMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
         UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Should.ThrowAsync<InvalidOperationException>(() =>
             middleware.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next).AsTask());
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, collector.Requests);
-        Assert.Equal(0, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(1);
+        collector.Success.ShouldBe(0);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 
@@ -139,21 +139,21 @@ public class RpcMetricsMiddlewareTests
         StreamOutboundHandler next = (req, opts, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
 
         var success = await middleware.InvokeAsync(request, callOptions, TestContext.Current.CancellationToken, next);
-        Assert.True(success.IsSuccess);
+        success.IsSuccess.ShouldBeTrue();
 
         await success.Value.CompleteAsync(cancellationToken: TestContext.Current.CancellationToken);
         await success.Value.DisposeAsync();
 
         var failure = await middleware.InvokeAsync(request, callOptions, TestContext.Current.CancellationToken, next);
-        Assert.True(failure.IsSuccess);
+        failure.IsSuccess.ShouldBeTrue();
 
         await failure.Value.CompleteAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await failure.Value.DisposeAsync();
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
-        Assert.Equal(2, collector.Requests);
-        Assert.Equal(1, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(2);
+        collector.Success.ShouldBe(1);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 
@@ -174,16 +174,16 @@ public class RpcMetricsMiddlewareTests
         };
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         _ = await result.Value.Response;
         await result.Value.DisposeAsync();
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, collector.Requests);
-        Assert.Equal(0, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(1);
+        collector.Success.ShouldBe(0);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 
@@ -201,15 +201,15 @@ public class RpcMetricsMiddlewareTests
             ValueTask.FromResult(Ok<IClientStreamTransportCall>(new ThrowingClientStreamCall(requestMeta)));
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await result.Value.Response);
+        await Should.ThrowAsync<InvalidOperationException>(async () => await result.Value.Response);
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, collector.Requests);
-        Assert.Equal(0, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(1);
+        collector.Success.ShouldBe(0);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 
@@ -227,7 +227,7 @@ public class RpcMetricsMiddlewareTests
         DuplexOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
 
         var result = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         await result.Value.CompleteRequestsAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await result.Value.CompleteResponsesAsync(Error.Timeout(), TestContext.Current.CancellationToken);
@@ -235,9 +235,9 @@ public class RpcMetricsMiddlewareTests
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, collector.Requests);
-        Assert.Equal(0, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(1);
+        collector.Success.ShouldBe(0);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 
@@ -254,17 +254,17 @@ public class RpcMetricsMiddlewareTests
 
         OnewayOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
         var success = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
-        Assert.True(success.IsSuccess);
+        success.IsSuccess.ShouldBeTrue();
 
         OnewayOutboundHandler failingNext = (req, ct) => ValueTask.FromResult(Err<OnewayAck>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
         var failure = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, failingNext);
-        Assert.True(failure.IsFailure);
+        failure.IsFailure.ShouldBeTrue();
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, collector.Requests);
-        Assert.Equal(1, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(2);
+        collector.Success.ShouldBe(1);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 
@@ -281,17 +281,17 @@ public class RpcMetricsMiddlewareTests
 
         ClientStreamInboundHandler successDelegate = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var success = await middleware.InvokeAsync(context, TestContext.Current.CancellationToken, successDelegate);
-        Assert.True(success.IsSuccess);
+        success.IsSuccess.ShouldBeTrue();
 
         ClientStreamInboundHandler failureDelegate = (ctx, ct) => ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
         var failure = await middleware.InvokeAsync(context, TestContext.Current.CancellationToken, failureDelegate);
-        Assert.True(failure.IsFailure);
+        failure.IsFailure.ShouldBeTrue();
 
         await Task.Delay(10, TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, collector.Requests);
-        Assert.Equal(1, collector.Success);
-        Assert.Equal(1, collector.Failure);
+        collector.Requests.ShouldBe(2);
+        collector.Success.ShouldBe(1);
+        collector.Failure.ShouldBe(1);
         collector.Listener.Dispose();
     }
 

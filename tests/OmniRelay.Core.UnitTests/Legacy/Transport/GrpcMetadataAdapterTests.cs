@@ -18,7 +18,7 @@ public class GrpcMetadataAdapterTests
                 new KeyValuePair<string, string>("custom", "bad\r\nvalue")
             ]);
 
-        Assert.Throws<ArgumentException>(() => GrpcMetadataAdapter.CreateRequestMetadata(meta));
+        Should.Throw<ArgumentException>(() => GrpcMetadataAdapter.CreateRequestMetadata(meta));
     }
 
     [Fact]
@@ -35,8 +35,8 @@ public class GrpcMetadataAdapterTests
 
         var resolved = InvokeResolveDeadline(meta);
 
-        Assert.True(resolved.HasValue);
-        Assert.InRange(resolved.Value, deadline.AddSeconds(-1), deadline.AddSeconds(1));
+        resolved.HasValue.ShouldBeTrue();
+        resolved.Value.ShouldBeInRange(deadline.AddSeconds(-1), deadline.AddSeconds(1));
     }
 
     [Fact]
@@ -50,8 +50,8 @@ public class GrpcMetadataAdapterTests
 
         var before = DateTime.UtcNow;
         var resolved = InvokeResolveDeadline(meta);
-        Assert.True(resolved.HasValue);
-        Assert.InRange(resolved.Value, before.AddMilliseconds(50), before.AddMilliseconds(600));
+        resolved.HasValue.ShouldBeTrue();
+        resolved.Value.ShouldBeInRange(before.AddMilliseconds(50), before.AddMilliseconds(600));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class GrpcMetadataAdapterTests
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo");
         var resolved = InvokeResolveDeadline(meta);
-        Assert.Null(resolved);
+        resolved.ShouldBeNull();
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class GrpcMetadataAdapterTests
         var meta = new ResponseMeta(encoding: RawCodec.DefaultEncoding);
         var headers = GrpcMetadataAdapter.CreateResponseHeaders(meta);
 
-        Assert.Contains(headers, entry =>
+        headers.ShouldContain(entry =>
             !entry.IsBinary &&
             string.Equals(entry.Key, GrpcTransportConstants.EncodingTrailer, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(entry.Value, RawCodec.DefaultEncoding, StringComparison.OrdinalIgnoreCase));
@@ -79,7 +79,7 @@ public class GrpcMetadataAdapterTests
         var method = typeof(GrpcOutbound).GetMethod(
             "ResolveDeadline",
             BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(method);
+        method.ShouldNotBeNull();
         var result = method.Invoke(null, [meta]);
         return (DateTime?)result;
     }

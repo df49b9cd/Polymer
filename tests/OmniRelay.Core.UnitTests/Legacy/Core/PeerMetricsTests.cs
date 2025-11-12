@@ -45,7 +45,7 @@ public sealed class PeerMetricsTests : IDisposable
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
 
         var leaseResult = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(leaseResult.IsSuccess);
+        leaseResult.IsSuccess.ShouldBeTrue();
 
         await using var lease = leaseResult.Value;
         lease.MarkSuccess();
@@ -53,12 +53,12 @@ public sealed class PeerMetricsTests : IDisposable
         await lease.DisposeAsync();
 
         var inflight = GetMeasurements("omnirelay.peer.inflight");
-        Assert.Contains(inflight, m => m.Value == 1 && HasTag(m, "rpc.peer", peerId));
-        Assert.Contains(inflight, m => m.Value == -1 && HasTag(m, "rpc.peer", peerId));
+        inflight.ShouldContain(m => m.Value == 1 && HasTag(m, "rpc.peer", peerId));
+        inflight.ShouldContain(m => m.Value == -1 && HasTag(m, "rpc.peer", peerId));
 
         var successes = GetMeasurements("omnirelay.peer.successes");
-        Assert.Contains(successes, m => m.Value == 1 && HasTag(m, "rpc.peer", peerId));
-        Assert.DoesNotContain(GetMeasurements("omnirelay.peer.failures"), m => HasTag(m, "rpc.peer", peerId));
+        successes.ShouldContain(m => m.Value == 1 && HasTag(m, "rpc.peer", peerId));
+        GetMeasurements("omnirelay.peer.failures").ShouldNotContain(m => HasTag(m, "rpc.peer", peerId));
     }
 
     [Fact]
@@ -70,14 +70,14 @@ public sealed class PeerMetricsTests : IDisposable
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
 
         var leaseResult = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(leaseResult.IsSuccess);
+        leaseResult.IsSuccess.ShouldBeTrue();
 
         await using var lease = leaseResult.Value;
         // Do not mark success so the lease reports failure on dispose.
         await lease.DisposeAsync();
 
         var failures = GetMeasurements("omnirelay.peer.failures");
-        Assert.Contains(failures, m => m.Value == 1 && HasTag(m, "rpc.peer", peerId));
+        failures.ShouldContain(m => m.Value == 1 && HasTag(m, "rpc.peer", peerId));
     }
 
     [Fact]
@@ -89,10 +89,10 @@ public sealed class PeerMetricsTests : IDisposable
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");
 
         var leaseResult = await chooser.AcquireAsync(meta, TestContext.Current.CancellationToken);
-        Assert.True(leaseResult.IsFailure);
+        leaseResult.IsFailure.ShouldBeTrue();
 
-        Assert.Contains(GetMeasurements("omnirelay.peer.lease_rejected"), m => HasTag(m, "rpc.peer", peerId));
-        Assert.Contains(GetMeasurements("omnirelay.peer.pool_exhausted"), m => HasTag(m, "rpc.transport", "grpc"));
+        GetMeasurements("omnirelay.peer.lease_rejected").ShouldContain(m => HasTag(m, "rpc.peer", peerId));
+        GetMeasurements("omnirelay.peer.pool_exhausted").ShouldContain(m => HasTag(m, "rpc.transport", "grpc"));
     }
 
     [Fact]
@@ -125,10 +125,10 @@ public sealed class PeerMetricsTests : IDisposable
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             }));
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
-        Assert.Contains(GetMeasurements("omnirelay.retry.scheduled"), m => HasTag(m, "error.status", nameof(OmniRelayStatusCode.Unavailable)));
-        Assert.Contains(GetMeasurements("omnirelay.retry.succeeded"), m => HasTag(m, "retry.attempts", 2));
+        GetMeasurements("omnirelay.retry.scheduled").ShouldContain(m => HasTag(m, "error.status", nameof(OmniRelayStatusCode.Unavailable)));
+        GetMeasurements("omnirelay.retry.succeeded").ShouldContain(m => HasTag(m, "retry.attempts", 2));
     }
 
     private IReadOnlyList<MetricMeasurement> GetMeasurements(string instrument) =>

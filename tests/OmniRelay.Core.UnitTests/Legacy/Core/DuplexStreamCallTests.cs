@@ -17,14 +17,14 @@ public class DuplexStreamCallTests
         await call.RequestWriter.WriteAsync(new byte[] { 0x01 }, TestContext.Current.CancellationToken);
         await call.ResponseWriter.WriteAsync(new byte[] { 0x02 }, TestContext.Current.CancellationToken);
 
-        Assert.True(call.RequestReader.TryRead(out var requestPayload));
-        Assert.Equal(new byte[] { 0x01 }, requestPayload.ToArray());
+        call.RequestReader.TryRead(out var requestPayload).ShouldBeTrue();
+        requestPayload.ToArray().ShouldBe(new byte[] { 0x01 });
 
-        Assert.True(call.ResponseReader.TryRead(out var responsePayload));
-        Assert.Equal(new byte[] { 0x02 }, responsePayload.ToArray());
+        call.ResponseReader.TryRead(out var responsePayload).ShouldBeTrue();
+        responsePayload.ToArray().ShouldBe(new byte[] { 0x02 });
 
-        Assert.Equal(1, call.Context.RequestMessageCount);
-        Assert.Equal(1, call.Context.ResponseMessageCount);
+        call.Context.RequestMessageCount.ShouldBe(1);
+        call.Context.ResponseMessageCount.ShouldBe(1);
 
         await call.DisposeAsync();
     }
@@ -39,18 +39,18 @@ public class DuplexStreamCallTests
         await call.RequestWriter.WriteAsync(new byte[] { 0x02 }, TestContext.Current.CancellationToken);
         await call.ResponseWriter.WriteAsync(new byte[] { 0x11 }, TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, call.Context.RequestMessageCount);
-        Assert.Equal(1, call.Context.ResponseMessageCount);
+        call.Context.RequestMessageCount.ShouldBe(2);
+        call.Context.ResponseMessageCount.ShouldBe(1);
 
         await call.CompleteRequestsAsync(cancellationToken: TestContext.Current.CancellationToken);
         await call.CompleteResponsesAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(StreamCompletionStatus.Succeeded, call.Context.RequestCompletionStatus);
-        Assert.Equal(StreamCompletionStatus.Succeeded, call.Context.ResponseCompletionStatus);
-        Assert.Null(call.Context.RequestCompletionError);
-        Assert.Null(call.Context.ResponseCompletionError);
-        Assert.True(call.Context.RequestCompletedAtUtc.HasValue);
-        Assert.True(call.Context.ResponseCompletedAtUtc.HasValue);
+        call.Context.RequestCompletionStatus.ShouldBe(StreamCompletionStatus.Succeeded);
+        call.Context.ResponseCompletionStatus.ShouldBe(StreamCompletionStatus.Succeeded);
+        call.Context.RequestCompletionError.ShouldBeNull();
+        call.Context.ResponseCompletionError.ShouldBeNull();
+        call.Context.RequestCompletedAtUtc.HasValue.ShouldBeTrue();
+        call.Context.ResponseCompletedAtUtc.HasValue.ShouldBeTrue();
 
         await call.DisposeAsync();
     }
@@ -65,12 +65,12 @@ public class DuplexStreamCallTests
         await call.CompleteResponsesAsync(error, TestContext.Current.CancellationToken);
 
         var readTask = call.ResponseReader.ReadAsync(TestContext.Current.CancellationToken).AsTask();
-        var channelException = await Assert.ThrowsAsync<ChannelClosedException>(() => readTask);
-        var polymerException = Assert.IsType<OmniRelayException>(channelException.InnerException);
-        Assert.Equal(OmniRelayStatusCode.Internal, polymerException.StatusCode);
+        var channelException = await Should.ThrowAsync<ChannelClosedException>(() => readTask);
+        var polymerException = channelException.InnerException.ShouldBeOfType<OmniRelayException>();
+        polymerException.StatusCode.ShouldBe(OmniRelayStatusCode.Internal);
 
-        Assert.Equal(StreamCompletionStatus.Faulted, call.Context.ResponseCompletionStatus);
-        Assert.Same(error, call.Context.ResponseCompletionError);
+        call.Context.ResponseCompletionStatus.ShouldBe(StreamCompletionStatus.Faulted);
+        call.Context.ResponseCompletionError.ShouldBeSameAs(error);
 
         await call.DisposeAsync();
     }
@@ -84,8 +84,8 @@ public class DuplexStreamCallTests
 
         await call.CompleteRequestsAsync(error, TestContext.Current.CancellationToken);
 
-        Assert.Equal(StreamCompletionStatus.Cancelled, call.Context.RequestCompletionStatus);
-        Assert.Same(error, call.Context.RequestCompletionError);
+        call.Context.RequestCompletionStatus.ShouldBe(StreamCompletionStatus.Cancelled);
+        call.Context.RequestCompletionError.ShouldBeSameAs(error);
 
         await call.DisposeAsync();
     }

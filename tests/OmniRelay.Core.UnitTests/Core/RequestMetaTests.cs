@@ -24,18 +24,18 @@ public class RequestMetaTests
             deadline: now,
             headers: [new KeyValuePair<string, string>("h", "v")]);
 
-        Assert.Equal("svc", meta.Service);
-        Assert.Equal("proc", meta.Procedure);
-        Assert.Equal("me", meta.Caller);
-        Assert.Equal("json", meta.Encoding);
-        Assert.Equal("http", meta.Transport);
-        Assert.Equal("s", meta.ShardKey);
-        Assert.Equal("rk", meta.RoutingKey);
-        Assert.Equal("rd", meta.RoutingDelegate);
-        Assert.Equal(TimeSpan.FromSeconds(1), meta.TimeToLive);
-        Assert.Equal(now, meta.Deadline);
-        Assert.True(meta.TryGetHeader("H", out var hv));
-        Assert.Equal("v", hv);
+        meta.Service.ShouldBe("svc");
+        meta.Procedure.ShouldBe("proc");
+        meta.Caller.ShouldBe("me");
+        meta.Encoding.ShouldBe("json");
+        meta.Transport.ShouldBe("http");
+        meta.ShardKey.ShouldBe("s");
+        meta.RoutingKey.ShouldBe("rk");
+        meta.RoutingDelegate.ShouldBe("rd");
+        meta.TimeToLive.ShouldBe(TimeSpan.FromSeconds(1));
+        meta.Deadline.ShouldBe(now);
+        meta.TryGetHeader("H", out var hv).ShouldBeTrue();
+        hv.ShouldBe("v");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -43,13 +43,13 @@ public class RequestMetaTests
     {
         var meta = new RequestMeta(service: "svc");
         var updated = meta.WithHeader("X-One", "1");
-        Assert.True(updated.TryGetHeader("x-one", out var v));
-        Assert.Equal("1", v);
+        updated.TryGetHeader("x-one", out var v).ShouldBeTrue();
+        v.ShouldBe("1");
 
         var merged = updated.WithHeaders([new KeyValuePair<string, string>("x-ONE", "2"), new KeyValuePair<string, string>("Two", "2")]);
-        Assert.True(merged.TryGetHeader("X-One", out var v1));
-        Assert.Equal("2", v1);
-        Assert.True(merged.TryGetHeader("two", out var v2));
-        Assert.Equal("2", v2);
+        merged.TryGetHeader("X-One", out var v1).ShouldBeTrue();
+        v1.ShouldBe("2");
+        merged.TryGetHeader("two", out var v2).ShouldBeTrue();
+        v2.ShouldBe("2");
     }
 }

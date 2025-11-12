@@ -14,14 +14,14 @@ public sealed class HttpTransportMetricsTests
         var tags = HttpTransportMetrics.CreateBaseTags("svc", "svc::call", "POST", "HTTP/3");
         var lookup = tags.ToDictionary(static pair => pair.Key, static pair => pair.Value);
 
-        Assert.Equal("http", lookup["rpc.system"]);
-        Assert.Equal("svc", lookup["rpc.service"]);
-        Assert.Equal("svc::call", lookup["rpc.procedure"]);
-        Assert.Equal("POST", lookup["http.request.method"]);
-        Assert.Equal("HTTP/3", lookup["rpc.protocol"]);
-        Assert.Equal("http", lookup["network.protocol.name"]);
-        Assert.Equal("3", lookup["network.protocol.version"]);
-        Assert.Equal("quic", lookup["network.transport"]);
+        lookup["rpc.system"].ShouldBe("http");
+        lookup["rpc.service"].ShouldBe("svc");
+        lookup["rpc.procedure"].ShouldBe("svc::call");
+        lookup["http.request.method"].ShouldBe("POST");
+        lookup["rpc.protocol"].ShouldBe("HTTP/3");
+        lookup["network.protocol.name"].ShouldBe("http");
+        lookup["network.protocol.version"].ShouldBe("3");
+        lookup["network.transport"].ShouldBe("quic");
     }
 
     [Fact]
@@ -31,9 +31,9 @@ public sealed class HttpTransportMetricsTests
         var tagged = HttpTransportMetrics.AppendOutcome(baseTags, StatusCodes.Status503ServiceUnavailable, "error");
         var lookup = tagged.ToDictionary(static pair => pair.Key, static pair => pair.Value);
 
-        Assert.Equal("http", lookup["rpc.system"]);
-        Assert.Equal(StatusCodes.Status503ServiceUnavailable, lookup["http.response.status_code"]);
-        Assert.Equal("error", lookup["outcome"]);
+        lookup["rpc.system"].ShouldBe("http");
+        lookup["http.response.status_code"].ShouldBe(StatusCodes.Status503ServiceUnavailable);
+        lookup["outcome"].ShouldBe("error");
     }
 
     [Fact]
@@ -42,12 +42,12 @@ public sealed class HttpTransportMetricsTests
         var baseTags = new[] { KeyValuePair.Create<string, object?>("rpc.system", "http") };
 
         var unchanged = HttpTransportMetrics.AppendObservedProtocol(baseTags, "  ");
-        Assert.Same(baseTags, unchanged);
+        unchanged.ShouldBeSameAs(baseTags);
 
         var enriched = HttpTransportMetrics.AppendObservedProtocol(baseTags, "HTTP/2");
-        Assert.NotSame(baseTags, enriched);
+        enriched.ShouldNotBeSameAs(baseTags);
         var lookup = enriched.ToDictionary(static pair => pair.Key, static pair => pair.Value);
-        Assert.Equal("http", lookup["rpc.system"]);
-        Assert.Equal("HTTP/2", lookup["http.observed_protocol"]);
+        lookup["rpc.system"].ShouldBe("http");
+        lookup["http.observed_protocol"].ShouldBe("HTTP/2");
     }
 }

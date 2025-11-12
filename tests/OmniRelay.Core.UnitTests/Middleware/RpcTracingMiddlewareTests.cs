@@ -43,12 +43,13 @@ public class RpcTracingMiddlewareTests
 
         UnaryOutboundHandler next = (req, ct) =>
         {
-            Assert.True(req.Meta.TryGetHeader("traceparent", out var tp) && !string.IsNullOrEmpty(tp));
+            var hasTraceParent = req.Meta.TryGetHeader("traceparent", out var tp) && !string.IsNullOrEmpty(tp);
+            hasTraceParent.ShouldBeTrue();
             return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         };
 
         var res = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsSuccess);
+        res.IsSuccess.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -75,9 +76,9 @@ public class RpcTracingMiddlewareTests
         };
 
         var res = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsSuccess);
-        Assert.NotNull(captured);
-        Assert.Equal(parent.TraceId, captured!.TraceId);
+        res.IsSuccess.ShouldBeTrue();
+        captured.ShouldNotBeNull();
+        captured!.TraceId.ShouldBe(parent.TraceId);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -103,8 +104,8 @@ public class RpcTracingMiddlewareTests
         };
 
         var res = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(new RequestMeta(service: "svc"), ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsSuccess);
-        Assert.Null(captured);
+        res.IsSuccess.ShouldBeTrue();
+        captured.ShouldBeNull();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -125,11 +126,11 @@ public class RpcTracingMiddlewareTests
         var meta = new RequestMeta(service: "svc", procedure: "proc");
         UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Should.ThrowAsync<InvalidOperationException>(() =>
             mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next).AsTask());
 
-        Assert.Single(stoppedActivities);
-        Assert.Contains(stoppedActivities[0].Events, evt => evt.Name == "exception");
+        var exceptionActivity = stoppedActivities.ShouldHaveSingleItem();
+        exceptionActivity.Events.ShouldContain(evt => evt.Name == "exception");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -154,13 +155,13 @@ public class RpcTracingMiddlewareTests
         StreamOutboundHandler next = (req, opt, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(req.Meta)));
 
         var result = await middleware.InvokeAsync(request, options, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         await result.Value.CompleteAsync(cancellationToken: TestContext.Current.CancellationToken);
         await result.Value.DisposeAsync();
 
-        Assert.Single(stoppedActivities);
-        Assert.Equal(ActivityStatusCode.Ok, stoppedActivities[0].Status);
+        var streamActivity = stoppedActivities.ShouldHaveSingleItem();
+        streamActivity.Status.ShouldBe(ActivityStatusCode.Ok);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -194,14 +195,14 @@ public class RpcTracingMiddlewareTests
         };
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         _ = await result.Value.Response;
         await result.Value.DisposeAsync();
 
-        Assert.Single(stoppedActivities);
-        Assert.Equal(ActivityStatusCode.Error, stoppedActivities[0].Status);
-        Assert.Equal("fail", stoppedActivities[0].GetTagItem("rpc.error_message"));
+        var clientStreamActivity = stoppedActivities.ShouldHaveSingleItem();
+        clientStreamActivity.Status.ShouldBe(ActivityStatusCode.Error);
+        clientStreamActivity.GetTagItem("rpc.error_message").ShouldBe("fail");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -225,11 +226,11 @@ public class RpcTracingMiddlewareTests
         OnewayOutboundHandler next = (req, ct) => ValueTask.FromResult(Err<OnewayAck>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "http")));
 
         var result = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
-        Assert.Single(stoppedActivities);
-        Assert.Equal(ActivityStatusCode.Error, stoppedActivities[0].Status);
-        Assert.Equal("fail", stoppedActivities[0].GetTagItem("rpc.error_message"));
+        var onewayActivity = stoppedActivities.ShouldHaveSingleItem();
+        onewayActivity.Status.ShouldBe(ActivityStatusCode.Error);
+        onewayActivity.GetTagItem("rpc.error_message").ShouldBe("fail");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -253,14 +254,14 @@ public class RpcTracingMiddlewareTests
         DuplexOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(req.Meta)));
 
         var result = await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         await result.Value.CompleteRequestsAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await result.Value.CompleteResponsesAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await result.Value.DisposeAsync();
 
-        Assert.Single(stoppedActivities);
-        Assert.Equal(ActivityStatusCode.Error, stoppedActivities[0].Status);
+        var duplexActivity = stoppedActivities.ShouldHaveSingleItem();
+        duplexActivity.Status.ShouldBe(ActivityStatusCode.Error);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -284,8 +285,8 @@ public class RpcTracingMiddlewareTests
         ClientStreamInboundHandler next = (ctx, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await middleware.InvokeAsync(context, TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
-        Assert.Single(stoppedActivities);
-        Assert.Equal(ActivityStatusCode.Ok, stoppedActivities[0].Status);
+        result.IsSuccess.ShouldBeTrue();
+        var inboundActivity = stoppedActivities.ShouldHaveSingleItem();
+        inboundActivity.Status.ShouldBe(ActivityStatusCode.Ok);
     }
 }

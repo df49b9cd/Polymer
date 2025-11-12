@@ -15,8 +15,8 @@ public class RawCodecTests
 
         var result = codec.EncodeRequest(payload, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(payload, result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeSameAs(payload);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -28,14 +28,14 @@ public class RawCodecTests
 
         var result = codec.EncodeRequest(payload, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("encode-request", error.Metadata["stage"]);
-        Assert.Equal("request", error.Metadata["context"]);
-        Assert.Equal("rpc", error.Metadata["procedure"]);
-        Assert.Equal(RawCodec.DefaultEncoding, error.Metadata["expectedEncoding"]);
-        Assert.Equal("json", error.Metadata["actualEncoding"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("encode-request");
+        error.Metadata["context"].ShouldBe("request");
+        error.Metadata["procedure"].ShouldBe("rpc");
+        error.Metadata["expectedEncoding"].ShouldBe(RawCodec.DefaultEncoding);
+        error.Metadata["actualEncoding"].ShouldBe("json");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -48,8 +48,8 @@ public class RawCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(buffer, result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeSameAs(buffer);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -62,9 +62,9 @@ public class RawCodecTests
 
         var result = codec.DecodeRequest(payload, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotSame(buffer, result.Value);
-        Assert.Equal(new byte[] { 2, 3 }, result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldNotBeSameAs(buffer);
+        result.Value.ShouldBe(new byte[] { 2, 3 });
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -75,8 +75,8 @@ public class RawCodecTests
 
         var result = codec.EncodeResponse(null!, meta);
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeEmpty();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -87,18 +87,18 @@ public class RawCodecTests
 
         var result = codec.DecodeResponse(new byte[] { 1, 1 }, meta);
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("decode-response", error.Metadata["stage"]);
-        Assert.Equal("response", error.Metadata["context"]);
-        Assert.Equal("custom", error.Metadata["expectedEncoding"]);
-        Assert.Equal("unexpected", error.Metadata["actualEncoding"]);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+        error.Metadata["stage"].ShouldBe("decode-response");
+        error.Metadata["context"].ShouldBe("response");
+        error.Metadata["expectedEncoding"].ShouldBe("custom");
+        error.Metadata["actualEncoding"].ShouldBe("unexpected");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_ThrowsForInvalidEncoding()
     {
-        Assert.Throws<ArgumentException>(() => new RawCodec(" "));
+        Should.Throw<ArgumentException>(() => new RawCodec(" "));
     }
 }

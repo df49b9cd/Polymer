@@ -36,7 +36,7 @@ public class DiagnosticsRuntimeSamplerTests
         var fallback = new AlwaysOffSampler();
         var sampler = new DiagnosticsRuntimeSampler(null, fallback);
         var result = sampler.ShouldSample(MakeParams());
-        Assert.Equal(SamplingDecision.Drop, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -47,7 +47,7 @@ public class DiagnosticsRuntimeSamplerTests
         var fallback = new AlwaysOnSampler();
         var sampler = new DiagnosticsRuntimeSampler(runtime, fallback);
         var result = sampler.ShouldSample(MakeParams());
-        Assert.Equal(SamplingDecision.RecordAndSample, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.RecordAndSample);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -59,17 +59,17 @@ public class DiagnosticsRuntimeSamplerTests
 
         // no recorded parent or link -> drop
         var result1 = sampler.ShouldSample(MakeParams());
-        Assert.Equal(SamplingDecision.Drop, result1.Decision);
+        result1.Decision.ShouldBe(SamplingDecision.Drop);
 
         // recorded parent -> sample
         var result2 = sampler.ShouldSample(MakeParams(ActivityTraceFlags.Recorded));
-        Assert.Equal(SamplingDecision.RecordAndSample, result2.Decision);
+        result2.Decision.ShouldBe(SamplingDecision.RecordAndSample);
 
         // recorded link -> sample
         var linkCtx = new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded, null, true);
         var links = new[] { new ActivityLink(linkCtx) };
         var result3 = sampler.ShouldSample(MakeParams(default, links));
-        Assert.Equal(SamplingDecision.RecordAndSample, result3.Decision);
+        result3.Decision.ShouldBe(SamplingDecision.RecordAndSample);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -80,7 +80,7 @@ public class DiagnosticsRuntimeSamplerTests
         var fallback = new AlwaysOffSampler();
         var sampler = new DiagnosticsRuntimeSampler(runtime, fallback);
         var result = sampler.ShouldSample(MakeParams());
-        Assert.Equal(SamplingDecision.Drop, result.Decision);
+        result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -92,18 +92,18 @@ public class DiagnosticsRuntimeSamplerTests
         runtime.SetTraceSamplingProbability(0.25);
         _ = sampler.ShouldSample(MakeParams());
         var cache1 = GetCachedSampler(sampler);
-        Assert.NotNull(cache1);
-        Assert.Equal(0.25, GetProbability(cache1!));
+        cache1.ShouldNotBeNull();
+        GetProbability(cache1!).ShouldBe(0.25);
         var samplerObj1 = GetInnerSampler(cache1!);
 
         runtime.SetTraceSamplingProbability(0.50);
         _ = sampler.ShouldSample(MakeParams());
         var cache2 = GetCachedSampler(sampler);
-        Assert.NotNull(cache2);
-        Assert.Equal(0.50, GetProbability(cache2!));
+        cache2.ShouldNotBeNull();
+        GetProbability(cache2!).ShouldBe(0.50);
         var samplerObj2 = GetInnerSampler(cache2!);
 
-        Assert.NotSame(samplerObj1, samplerObj2);
+        samplerObj2.ShouldNotBeSameAs(samplerObj1);
     }
 
     private static DiagnosticsRuntimeSampler.CachedSampler? GetCachedSampler(DiagnosticsRuntimeSampler sampler) =>

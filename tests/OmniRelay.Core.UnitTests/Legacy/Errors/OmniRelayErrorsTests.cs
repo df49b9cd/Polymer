@@ -15,12 +15,12 @@ public class OmniRelayErrorsTests
         var exception = new OperationCanceledException("cancelled", cts.Token);
         var polymerException = OmniRelayErrors.FromException(exception);
 
-        Assert.Equal(OmniRelayStatusCode.Cancelled, polymerException.StatusCode);
-        Assert.True(OmniRelayErrors.IsStatus(exception, OmniRelayStatusCode.Cancelled));
+        polymerException.StatusCode.ShouldBe(OmniRelayStatusCode.Cancelled);
+        OmniRelayErrors.IsStatus(exception, OmniRelayStatusCode.Cancelled).ShouldBeTrue();
 
         var result = OmniRelayErrors.ToResult<int>(exception);
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Cancelled);
     }
 
     [Fact]
@@ -36,9 +36,9 @@ public class OmniRelayErrorsTests
 
         var polymerException = OmniRelayErrors.FromError(error);
 
-        Assert.Equal(OmniRelayStatusCode.PermissionDenied, polymerException.StatusCode);
-        Assert.True(polymerException.Error.TryGetMetadata("scope", out string? scope));
-        Assert.Equal("read", scope);
+        polymerException.StatusCode.ShouldBe(OmniRelayStatusCode.PermissionDenied);
+        polymerException.Error.TryGetMetadata("scope", out string? scope).ShouldBeTrue();
+        scope.ShouldBe("read");
     }
 
     [Theory]
@@ -47,31 +47,31 @@ public class OmniRelayErrorsTests
     [InlineData(OmniRelayStatusCode.Unimplemented, OmniRelayFaultType.Server)]
     [InlineData(OmniRelayStatusCode.Aborted, OmniRelayFaultType.Client)]
     [InlineData(OmniRelayStatusCode.Unknown, OmniRelayFaultType.Unknown)]
-    public void GetFaultType_ReturnsExpectedClassification(OmniRelayStatusCode status, OmniRelayFaultType expected) => Assert.Equal(expected, OmniRelayErrors.GetFaultType(status));
+    public void GetFaultType_ReturnsExpectedClassification(OmniRelayStatusCode status, OmniRelayFaultType expected) => OmniRelayErrors.GetFaultType(status).ShouldBe(expected);
 
     [Fact]
     public void ToResult_StatusProducesFailure()
     {
         var result = OmniRelayErrors.ToResult<string>(OmniRelayStatusCode.Unavailable, "service unavailable");
 
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
         var error = result.Error!;
-        Assert.Equal(OmniRelayStatusCode.Unavailable, OmniRelayErrorAdapter.ToStatus(error));
-        Assert.Equal("service unavailable", error.Message);
+        OmniRelayErrorAdapter.ToStatus(error).ShouldBe(OmniRelayStatusCode.Unavailable);
+        error.Message.ShouldBe("service unavailable");
     }
 
     [Fact]
     public void EnsureTransport_RewritesMetadata()
     {
         var exception = OmniRelayErrors.FromException(new TimeoutException("deadline"), transport: "http");
-        Assert.Equal("http", exception.Transport);
-        Assert.True(exception.Error.TryGetMetadata("omnirelay.transport", out string? transport));
-        Assert.Equal("http", transport);
+        exception.Transport.ShouldBe("http");
+        exception.Error.TryGetMetadata("omnirelay.transport", out string? transport).ShouldBeTrue();
+        transport.ShouldBe("http");
 
         var rewritten = OmniRelayErrors.FromException(exception, transport: "grpc");
-        Assert.Equal("grpc", rewritten.Transport);
-        Assert.True(rewritten.Error.TryGetMetadata("omnirelay.transport", out string? newTransport));
-        Assert.Equal("grpc", newTransport);
+        rewritten.Transport.ShouldBe("grpc");
+        rewritten.Error.TryGetMetadata("omnirelay.transport", out string? newTransport).ShouldBeTrue();
+        newTransport.ShouldBe("grpc");
     }
 
     [Fact]
@@ -79,10 +79,10 @@ public class OmniRelayErrorsTests
     {
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "unavailable");
 
-        Assert.True(error.TryGetMetadata(OmniRelayErrorAdapter.FaultMetadataKey, out string? fault));
-        Assert.Equal(nameof(OmniRelayFaultType.Server), fault);
-        Assert.True(error.TryGetMetadata(OmniRelayErrorAdapter.RetryableMetadataKey, out bool retryable));
-        Assert.True(retryable);
+        error.TryGetMetadata(OmniRelayErrorAdapter.FaultMetadataKey, out string? fault).ShouldBeTrue();
+        fault.ShouldBe(nameof(OmniRelayFaultType.Server));
+        error.TryGetMetadata(OmniRelayErrorAdapter.RetryableMetadataKey, out bool retryable).ShouldBeTrue();
+        retryable.ShouldBeTrue();
     }
 
     [Fact]
@@ -92,6 +92,6 @@ public class OmniRelayErrorsTests
             .WithMetadata(OmniRelayErrorAdapter.RetryableMetadataKey, false);
         error = OmniRelayErrorAdapter.WithStatusMetadata(error, OmniRelayStatusCode.Unavailable);
 
-        Assert.False(OmniRelayErrors.IsRetryable(error));
+        OmniRelayErrors.IsRetryable(error).ShouldBeFalse();
     }
 }

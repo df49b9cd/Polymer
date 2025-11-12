@@ -25,8 +25,8 @@ public class PanicRecoveryMiddlewareTests
         UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
         var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -63,8 +63,8 @@ public class PanicRecoveryMiddlewareTests
 
     private static void AssertFailure<T>(Result<T> result)
     {
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
-        Assert.Contains("exception_type", result.Error!.Metadata.Keys);
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
+        result.Error!.Metadata.Keys.ShouldContain("exception_type");
     }
 }
