@@ -7,13 +7,20 @@ using System.Text;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class InMemoryThresholdTests
+public sealed class InMemoryThresholdTests : TransportIntegrationTest
 {
+    public InMemoryThresholdTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30000)]
     public async Task ContentLengthAboveThreshold_Returns429()
     {
@@ -32,7 +39,8 @@ public class InMemoryThresholdTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(ContentLengthAboveThreshold_Returns429), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "big::payload");
@@ -42,8 +50,6 @@ public class InMemoryThresholdTests
         using var resp = await httpClient.PostAsync("/", content, ct);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, resp.StatusCode);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -64,7 +70,8 @@ public class InMemoryThresholdTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(ChunkedAboveThreshold_Returns429), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "big::payload");
@@ -78,8 +85,6 @@ public class InMemoryThresholdTests
         using var resp = await httpClient.PostAsync("/", content, ct);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, resp.StatusCode);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -100,7 +105,8 @@ public class InMemoryThresholdTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(ChunkedBelowThreshold_Succeeds), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "big::payload");
@@ -114,8 +120,6 @@ public class InMemoryThresholdTests
         using var resp = await httpClient.PostAsync("/", content, ct);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     private sealed class NonSeekableReadStream(byte[] buffer) : Stream

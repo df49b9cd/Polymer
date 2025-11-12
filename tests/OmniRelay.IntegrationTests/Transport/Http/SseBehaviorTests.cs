@@ -5,13 +5,20 @@ using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class SseBehaviorTests
+public sealed class SseBehaviorTests : TransportIntegrationTest
 {
+    public SseBehaviorTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30000)]
     public async Task MissingAcceptHeader_ForSse_Returns406()
     {
@@ -33,14 +40,13 @@ public class SseBehaviorTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(MissingAcceptHeader_ForSse_Returns406), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "stream::events");
         using var response = await httpClient.GetAsync("/", ct);
 
         Assert.Equal(HttpStatusCode.NotAcceptable, response.StatusCode);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 }

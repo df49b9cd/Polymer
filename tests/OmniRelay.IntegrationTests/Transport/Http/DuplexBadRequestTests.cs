@@ -6,13 +6,20 @@ using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class DuplexBadRequestTests
+public sealed class DuplexBadRequestTests : TransportIntegrationTest
 {
+    public DuplexBadRequestTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30000)]
     public async Task NonWebSocketGet_ForDuplex_Returns406()
     {
@@ -30,13 +37,12 @@ public class DuplexBadRequestTests
             (request, ct) => ValueTask.FromResult(Hugo.Go.Err<IDuplexStreamCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unimplemented, "not implemented", transport: "http")))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(NonWebSocketGet_ForDuplex_Returns406), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "chat::echo");
         using var response = await httpClient.GetAsync("/", ct);
         Assert.Equal(HttpStatusCode.NotAcceptable, response.StatusCode);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 }

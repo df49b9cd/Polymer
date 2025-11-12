@@ -8,16 +8,23 @@ using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 using static Hugo.Go;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
 
-public class GrpcDiscoveryPreferenceTests
+public sealed class GrpcDiscoveryPreferenceTests : TransportIntegrationTest
 {
+    public GrpcDiscoveryPreferenceTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Http3Fact(Timeout = 60_000)]
     public async Task Prefer_Http3_Endpoints_When_Available()
     {
@@ -81,7 +88,7 @@ public class GrpcDiscoveryPreferenceTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var serverHost = await StartDispatcherAsync(nameof(Prefer_Http3_Endpoints_When_Available), dispatcher, ct, ownsLifetime: false);
         await WaitForGrpcReadyAsync(h2Address, ct);
         await WaitForGrpcReadyAsync(h3Address, ct);
 
@@ -120,36 +127,6 @@ public class GrpcDiscoveryPreferenceTests
 
         Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the server interceptor.");
         Assert.StartsWith("HTTP/3", protocol, StringComparison.Ordinal);
-    }
-
-    private static async Task WaitForGrpcReadyAsync(Uri address, CancellationToken cancellationToken)
-    {
-        const int maxAttempts = 100;
-        const int connectTimeoutMilliseconds = 200;
-        const int settleDelayMilliseconds = 50;
-        const int retryDelayMilliseconds = 20;
-
-        for (var attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                using var client = new System.Net.Sockets.TcpClient();
-                await client.ConnectAsync(address.Host, address.Port)
-                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken);
-
-                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken);
-                return;
-            }
-            catch
-            {
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken);
-        }
-
-        throw new TimeoutException("The gRPC inbound failed to bind within the allotted time.");
     }
 
     private sealed class ProtocolCaptureInterceptor(System.Collections.Concurrent.ConcurrentQueue<string> observed) : Interceptor

@@ -13,15 +13,22 @@ using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class Http3LimitParityTests
+public sealed class Http3LimitParityTests : TransportIntegrationTest
 {
+    public Http3LimitParityTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Http3Fact(Timeout = 60_000)]
     public async Task HttpInbound_WithHttp3_ChunkedPayloadOverLimit_Returns429WithProtocolHeader()
     {
@@ -53,36 +60,30 @@ public class Http3LimitParityTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3_ChunkedPayloadOverLimit_Returns429WithProtocolHeader), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp3Handler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            client.DefaultRequestVersion = HttpVersion.Version30;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "limited::echo");
+        using var handler = CreateHttp3Handler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version30;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "limited::echo");
 
-            using var content = new SlowChunkedContent(chunkSize: 32, chunkCount: 4, delay: TimeSpan.FromMilliseconds(75));
-            content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        using var content = new SlowChunkedContent(chunkSize: 32, chunkCount: 4, delay: TimeSpan.FromMilliseconds(75));
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-            using var response = await client.PostAsync("/", content, ct);
+        using var response = await client.PostAsync("/", content, ct);
 
-            Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
-            Assert.True(response.Headers.TryGetValues(HttpTransportHeaders.Status, out var statusValues));
-            Assert.Contains(nameof(OmniRelayStatusCode.ResourceExhausted), statusValues);
-            Assert.True(response.Headers.TryGetValues(HttpTransportHeaders.Protocol, out var protocolHeaders));
-            Assert.Contains("HTTP/3", protocolHeaders);
+        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues(HttpTransportHeaders.Status, out var statusValues));
+        Assert.Contains(nameof(OmniRelayStatusCode.ResourceExhausted), statusValues);
+        Assert.True(response.Headers.TryGetValues(HttpTransportHeaders.Protocol, out var protocolHeaders));
+        Assert.Contains("HTTP/3", protocolHeaders);
 
-            var payload = await response.Content.ReadAsStringAsync(ct);
-            using var document = JsonDocument.Parse(payload);
-            Assert.Equal("RESOURCE_EXHAUSTED", document.RootElement.GetProperty("status").GetString());
-            Assert.Equal("request body exceeds in-memory decode limit", document.RootElement.GetProperty("message").GetString());
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        var payload = await response.Content.ReadAsStringAsync(ct);
+        using var document = JsonDocument.Parse(payload);
+        Assert.Equal("RESOURCE_EXHAUSTED", document.RootElement.GetProperty("status").GetString());
+        Assert.Equal("request body exceeds in-memory decode limit", document.RootElement.GetProperty("message").GetString());
     }
 
     private static SocketsHttpHandler CreateHttp3Handler() => new()

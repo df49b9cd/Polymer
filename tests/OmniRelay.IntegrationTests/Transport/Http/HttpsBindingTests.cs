@@ -6,14 +6,21 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class HttpsBindingTests
+public sealed class HttpsBindingTests : TransportIntegrationTest
 {
+    public HttpsBindingTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30000)]
     public async Task Https_WithCertificate_BindsAndServes()
     {
@@ -34,8 +41,8 @@ public class HttpsBindingTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        var startResult = await dispatcher.StartAsync(ct);
-        Assert.True(startResult.IsSuccess);
+        await using var host = await StartDispatcherAsync(nameof(Https_WithCertificate_BindsAndServes), dispatcher, ct, ownsLifetime: false);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         var handler = new HttpClientHandler
         {

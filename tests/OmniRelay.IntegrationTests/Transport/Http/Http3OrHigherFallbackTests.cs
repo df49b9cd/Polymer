@@ -10,15 +10,22 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class Http3OrHigherFallbackTests
+public sealed class Http3OrHigherFallbackTests : TransportIntegrationTest
 {
+    public Http3OrHigherFallbackTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Http3Fact(Timeout = 45_000)]
     public async Task HttpInbound_WithHttp3Enabled_RequestVersionOrHigher_UpgradesToHttp3()
     {
@@ -46,26 +53,19 @@ public class Http3OrHigherFallbackTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3Enabled_RequestVersionOrHigher_UpgradesToHttp3), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateH3CapableHandler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            // Explicitly request HTTP/3 for the first call
-            client.DefaultRequestVersion = HttpVersion.Version30;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
+        using var handler = CreateH3CapableHandler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version30;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
 
-            using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
+        using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(3, response.Version.Major);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3, response.Version.Major);
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -95,26 +95,19 @@ public class Http3OrHigherFallbackTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3Disabled_RequestVersionOrHigher_FallsBackToHttp2), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateH3CapableHandler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            // Prefer HTTP/3 but allow downgrade when the server disables it
-            client.DefaultRequestVersion = HttpVersion.Version30;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
+        using var handler = CreateH3CapableHandler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version30;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
 
-            using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
+        using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(2, response.Version.Major);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, response.Version.Major);
     }
 
     private static SslClientAuthenticationOptions CreateSslOptions()

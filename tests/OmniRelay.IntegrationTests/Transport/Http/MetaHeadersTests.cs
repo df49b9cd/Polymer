@@ -5,14 +5,21 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class MetaHeadersTests
+public sealed class MetaHeadersTests : TransportIntegrationTest
 {
+    public MetaHeadersTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30000)]
     public async Task TtlAndDeadlineHeaders_RoundTripIntoRequestMeta()
     {
@@ -37,7 +44,8 @@ public class MetaHeadersTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(TtlAndDeadlineHeaders_RoundTripIntoRequestMeta), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "meta::echo");
@@ -51,8 +59,6 @@ public class MetaHeadersTests
 
         Assert.Equal(1500d, payload?.TtlMs ?? double.NaN, precision: 0);
         Assert.Equal(deadline, payload?.Deadline);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 }
 

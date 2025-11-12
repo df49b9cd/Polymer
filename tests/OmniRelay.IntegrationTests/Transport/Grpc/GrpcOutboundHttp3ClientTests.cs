@@ -12,16 +12,23 @@ using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 using static Hugo.Go;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
 
-public class GrpcOutboundHttp3ClientTests
+public sealed class GrpcOutboundHttp3ClientTests : TransportIntegrationTest
 {
+    public GrpcOutboundHttp3ClientTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Http3Fact(Timeout = 45_000)]
     public async Task GrpcOutbound_WithHttp3Enabled_UsesHttp3()
     {
@@ -69,7 +76,7 @@ public class GrpcOutboundHttp3ClientTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var serverHost = await StartDispatcherAsync(nameof(GrpcOutbound_WithHttp3Enabled_UsesHttp3), dispatcher, ct, ownsLifetime: false);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(
@@ -137,7 +144,7 @@ public class GrpcOutboundHttp3ClientTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var serverHost = await StartDispatcherAsync(nameof(GrpcOutbound_WithOrHigher_ToHttp2Server_DowngradesToHttp2), dispatcher, ct, ownsLifetime: false);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(
@@ -190,7 +197,7 @@ public class GrpcOutboundHttp3ClientTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var serverHost = await StartDispatcherAsync(nameof(GrpcOutbound_WithExactHttp3_ToHttp2Server_Fails), dispatcher, ct, ownsLifetime: false);
         await WaitForGrpcReadyAsync(address, ct);
 
         var outbound = new GrpcOutbound(
@@ -218,36 +225,6 @@ public class GrpcOutboundHttp3ClientTests
             await outbound.StopAsync(ct);
             await dispatcher.StopOrThrowAsync(ct);
         }
-    }
-
-    private static async Task WaitForGrpcReadyAsync(Uri address, CancellationToken cancellationToken)
-    {
-        const int maxAttempts = 100;
-        const int connectTimeoutMilliseconds = 200;
-        const int settleDelayMilliseconds = 50;
-        const int retryDelayMilliseconds = 20;
-
-        for (var attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                using var client = new System.Net.Sockets.TcpClient();
-                await client.ConnectAsync(address.Host, address.Port)
-                            .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken);
-
-                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken);
-                return;
-            }
-            catch
-            {
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken);
-        }
-
-        throw new TimeoutException("The gRPC inbound failed to bind within the allotted time.");
     }
 
     private sealed class ProtocolCaptureInterceptor(System.Collections.Concurrent.ConcurrentQueue<string> observed) : Interceptor

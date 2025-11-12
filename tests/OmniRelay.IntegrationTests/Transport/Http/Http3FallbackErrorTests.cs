@@ -10,15 +10,22 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class Http3FallbackErrorTests
+public sealed class Http3FallbackErrorTests : TransportIntegrationTest
 {
+    public Http3FallbackErrorTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Http3Fact(Timeout = 45_000)]
     public async Task MissingProcedure_Http3AndHttp2ResponsesMatch()
     {
@@ -46,26 +53,20 @@ public class Http3FallbackErrorTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(MissingProcedure_Http3AndHttp2ResponsesMatch), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            var http3Snapshot = await CaptureErrorSnapshotAsync(CreateHttp3Client(baseAddress, HttpVersionPolicy.RequestVersionExact), ct);
-            var http2Snapshot = await CaptureErrorSnapshotAsync(CreateHttp2Client(baseAddress), ct);
+        var http3Snapshot = await CaptureErrorSnapshotAsync(CreateHttp3Client(baseAddress, HttpVersionPolicy.RequestVersionExact), ct);
+        var http2Snapshot = await CaptureErrorSnapshotAsync(CreateHttp2Client(baseAddress), ct);
 
-            Assert.Equal(
-                http2Snapshot with
-                {
-                    ProtocolHeader = http3Snapshot.ProtocolHeader,
-                    HttpVersion = http3Snapshot.HttpVersion
-                },
-                http3Snapshot);
-            Assert.StartsWith("HTTP/", http3Snapshot.ProtocolHeader, StringComparison.Ordinal);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.Equal(
+            http2Snapshot with
+            {
+                ProtocolHeader = http3Snapshot.ProtocolHeader,
+                HttpVersion = http3Snapshot.HttpVersion
+            },
+            http3Snapshot);
+        Assert.StartsWith("HTTP/", http3Snapshot.ProtocolHeader, StringComparison.Ordinal);
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -95,21 +96,15 @@ public class Http3FallbackErrorTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(MissingProcedure_Http3FallbackToHttp2MatchesPayload), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            var fallbackSnapshot = await CaptureErrorSnapshotAsync(CreateHttp3Client(baseAddress, HttpVersionPolicy.RequestVersionOrLower), ct);
-            var http2Snapshot = await CaptureErrorSnapshotAsync(CreateHttp2Client(baseAddress), ct);
+        var fallbackSnapshot = await CaptureErrorSnapshotAsync(CreateHttp3Client(baseAddress, HttpVersionPolicy.RequestVersionOrLower), ct);
+        var http2Snapshot = await CaptureErrorSnapshotAsync(CreateHttp2Client(baseAddress), ct);
 
-            Assert.Equal(HttpStatusCode.BadRequest, fallbackSnapshot.StatusCode);
-            Assert.Equal(http2Snapshot, fallbackSnapshot);
-            Assert.Equal("HTTP/2", fallbackSnapshot.ProtocolHeader);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.Equal(HttpStatusCode.BadRequest, fallbackSnapshot.StatusCode);
+        Assert.Equal(http2Snapshot, fallbackSnapshot);
+        Assert.Equal("HTTP/2", fallbackSnapshot.ProtocolHeader);
     }
 
     private static async Task<ErrorSnapshot> CaptureErrorSnapshotAsync(HttpClient client, CancellationToken cancellationToken)

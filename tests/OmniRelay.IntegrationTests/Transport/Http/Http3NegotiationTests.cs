@@ -11,15 +11,22 @@ using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class Http3NegotiationTests
+public sealed class Http3NegotiationTests : TransportIntegrationTest
 {
+    public Http3NegotiationTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Http3Fact(Timeout = 45000)]
     public async Task HttpInbound_WithHttp3Enabled_AllowsHttp3Requests()
     {
@@ -47,25 +54,19 @@ public class Http3NegotiationTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3Enabled_AllowsHttp3Requests), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp3Handler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            client.DefaultRequestVersion = HttpVersion.Version30;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
+        using var handler = CreateHttp3Handler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version30;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
 
-            using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
+        using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(3, response.Version.Major);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3, response.Version.Major);
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -105,59 +106,53 @@ public class Http3NegotiationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3_ServerStreamHandlesLargePayload), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
+        using var handler = CreateHttp3Handler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version30;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "http3-stream::tail");
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/event-stream");
+
+        using var response = await client.GetAsync("/", HttpCompletionOption.ResponseHeadersRead, ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3, response.Version.Major);
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream);
+        string? dataLine = null;
+        string? encodingLine = null;
+
+        while (true)
         {
-            using var handler = CreateHttp3Handler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            client.DefaultRequestVersion = HttpVersion.Version30;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "http3-stream::tail");
-            client.DefaultRequestHeaders.Accept.ParseAdd("text/event-stream");
-
-            using var response = await client.GetAsync("/", HttpCompletionOption.ResponseHeadersRead, ct);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(3, response.Version.Major);
-
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var reader = new StreamReader(stream);
-            string? dataLine = null;
-            string? encodingLine = null;
-
-            while (true)
+            var line = await reader.ReadLineAsync(ct);
+            if (line is null)
             {
-                var line = await reader.ReadLineAsync(ct);
-                if (line is null)
-                {
-                    break;
-                }
-
-                if (line.StartsWith("data: ", StringComparison.Ordinal))
-                {
-                    dataLine = line[6..];
-                }
-                else if (line.StartsWith("encoding: ", StringComparison.Ordinal))
-                {
-                    encodingLine = line[10..];
-                }
-                else if (line.Length == 0 && dataLine is not null)
-                {
-                    break;
-                }
+                break;
             }
 
-            Assert.NotNull(dataLine);
-            Assert.Equal("base64", encodingLine);
+            if (line.StartsWith("data: ", StringComparison.Ordinal))
+            {
+                dataLine = line[6..];
+            }
+            else if (line.StartsWith("encoding: ", StringComparison.Ordinal))
+            {
+                encodingLine = line[10..];
+            }
+            else if (line.Length == 0 && dataLine is not null)
+            {
+                break;
+            }
+        }
 
-            var decoded = Convert.FromBase64String(dataLine!);
-            Assert.Equal(payload.Length, decoded.Length);
-            Assert.True(decoded.AsSpan().SequenceEqual(payload));
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.NotNull(dataLine);
+        Assert.Equal("base64", encodingLine);
+
+        var decoded = Convert.FromBase64String(dataLine!);
+        Assert.Equal(payload.Length, decoded.Length);
+        Assert.True(decoded.AsSpan().SequenceEqual(payload));
     }
 
     [Http3Fact(Timeout = 45000)]
@@ -187,25 +182,19 @@ public class Http3NegotiationTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3Enabled_AllowsHttp1Requests), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp11Handler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            client.DefaultRequestVersion = HttpVersion.Version11;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
+        using var handler = CreateHttp11Handler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version11;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
 
-            using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
+        using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(1, response.Version.Major);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, response.Version.Major);
     }
 
     [Http3Fact(Timeout = 45000)]
@@ -235,25 +224,19 @@ public class Http3NegotiationTests
             (req, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3Disabled_FallsBackToHttp2), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp3Handler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            client.DefaultRequestVersion = HttpVersion.Version30;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
+        using var handler = CreateHttp3Handler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version30;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "ping");
 
-            using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
+        using var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(2, response.Version.Major);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, response.Version.Major);
     }
 
     private static SocketsHttpHandler CreateHttp3Handler() => new()

@@ -10,14 +10,21 @@ using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport;
 
-public class HttpTransportTests
+public sealed class HttpTransportTests : TransportIntegrationTest
 {
+    public HttpTransportTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30000)]
     public async Task UnaryRoundtrip_EncodesAndDecodesPayload()
     {
@@ -59,9 +66,10 @@ public class HttpTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(UnaryRoundtrip_EncodesAndDecodesPayload), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        var client = dispatcher.CreateUnaryClient<EchoRequest, EchoResponse>("echo", codec);
+        var client = host.Dispatcher.CreateUnaryClient<EchoRequest, EchoResponse>("echo", codec);
 
         var requestMeta = new RequestMeta(
             service: "echo",
@@ -75,8 +83,6 @@ public class HttpTransportTests
 
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.Equal("HELLO", result.Value.Body.Message);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     private sealed record EchoRequest(string Message)
@@ -128,9 +134,10 @@ public class HttpTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(OnewayRoundtrip_SucceedsWithAck), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        var client = dispatcher.CreateOnewayClient<EchoRequest>("echo", codec);
+        var client = host.Dispatcher.CreateOnewayClient<EchoRequest>("echo", codec);
         var requestMeta = new RequestMeta(
             service: "echo",
             procedure: "notify",
@@ -142,8 +149,6 @@ public class HttpTransportTests
 
         Assert.True(ackResult.IsSuccess, ackResult.Error?.Message);
         Assert.Equal("ping", await received.Task.WaitAsync(TimeSpan.FromSeconds(2), ct));
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -188,9 +193,10 @@ public class HttpTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(ServerStreaming_EmitsEventStream), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        var httpClient = new HttpClient { BaseAddress = baseAddress };
+        using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "stream::events");
         httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/event-stream");
 
@@ -220,8 +226,6 @@ public class HttpTransportTests
         }
 
         Assert.Equal(new[] { "event-0", "event-1", "event-2" }, events);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -263,9 +267,10 @@ public class HttpTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(ServerStreaming_BinaryPayloadsAreBase64Encoded), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        var httpClient = new HttpClient { BaseAddress = baseAddress };
+        using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "stream::binary");
         httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/event-stream");
 
@@ -282,8 +287,6 @@ public class HttpTransportTests
         Assert.Equal("data: AAEC", dataLine);
         Assert.Equal("encoding: base64", encodingLine);
         Assert.Equal(string.Empty, blankLine);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -328,9 +331,10 @@ public class HttpTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(ServerStreaming_PayloadAboveLimit_FaultsStream), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        var httpClient = new HttpClient { BaseAddress = baseAddress };
+        using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "stream::oversized");
         httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/event-stream");
 
@@ -357,8 +361,6 @@ public class HttpTransportTests
         var completionError = streamCall.Context.CompletionError;
         Assert.NotNull(completionError);
         Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(completionError!));
-
-        await dispatcher.StopOrThrowAsync(ct);
 
         async Task WaitForCompletionAsync(CancellationToken cancellationToken)
         {
@@ -455,9 +457,10 @@ public class HttpTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(DuplexStreaming_OverHttpWebSocket), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        var client = dispatcher.CreateDuplexStreamClient<ChatMessage, ChatMessage>("chat", codec);
+        var client = host.Dispatcher.CreateDuplexStreamClient<ChatMessage, ChatMessage>("chat", codec);
         var requestMeta = new RequestMeta(
             service: "chat",
             procedure: "chat::echo",
@@ -478,8 +481,6 @@ public class HttpTransportTests
         }
 
         Assert.Equal(new[] { "hello", "world" }, messages);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     [Fact(Timeout = 30000)]
@@ -519,9 +520,10 @@ public class HttpTransportTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(DuplexStreaming_ServerCancels_PropagatesToClient), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        var client = dispatcher.CreateDuplexStreamClient<ChatMessage, ChatMessage>("chat", codec);
+        var client = host.Dispatcher.CreateDuplexStreamClient<ChatMessage, ChatMessage>("chat", codec);
         var requestMeta = new RequestMeta(
             service: "chat",
             procedure: "chat::echo",
@@ -534,7 +536,5 @@ public class HttpTransportTests
         Assert.True(await enumerator.MoveNextAsync());
         Assert.True(enumerator.Current.IsFailure);
         Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!));
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 }

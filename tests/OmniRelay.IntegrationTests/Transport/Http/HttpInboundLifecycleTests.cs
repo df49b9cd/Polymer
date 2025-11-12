@@ -10,16 +10,23 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport;
 
-public class HttpInboundLifecycleTests
+public sealed class HttpInboundLifecycleTests : TransportIntegrationTest
 {
+    public HttpInboundLifecycleTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30_000)]
     public async Task StopAsync_WaitsForActiveRequestsAndRejectsNewOnes()
     {
@@ -46,7 +53,8 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(StopAsync_WaitsForActiveRequestsAndRejectsNewOnes), dispatcher, ct, ownsLifetime: false);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "test::slow");
@@ -107,7 +115,7 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(StopAsync_ResetsDrainSignalAndAllowsRestart), dispatcher, ct, ownsLifetime: false);
         await WaitForHttpReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
@@ -178,7 +186,8 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(StopAsync_WithHttp3Request_PropagatesRetryAfter), dispatcher, ct, ownsLifetime: false);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var handler = CreateHttp3Handler();
         using var httpClient = new HttpClient(handler) { BaseAddress = baseAddress };
@@ -247,7 +256,8 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(StopAsync_WithHttp3Fallback_PropagatesRetryAfter), dispatcher, ct, ownsLifetime: false);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var handler = CreateHttp3Handler();
         using var httpClient = new HttpClient(handler) { BaseAddress = baseAddress };
@@ -311,46 +321,40 @@ public class HttpInboundLifecycleTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HttpInbound_WithHttp3_ExposesObservabilityEndpoints), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
-        try
+        using var http3Handler = CreateHttp3Handler();
+        using var http3Client = new HttpClient(http3Handler) { BaseAddress = baseAddress };
+        http3Client.DefaultRequestVersion = HttpVersion.Version30;
+        http3Client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+        using var introspectResponse = await http3Client.GetAsync("/omnirelay/introspect", ct);
+        Assert.Equal(HttpStatusCode.OK, introspectResponse.StatusCode);
+        Assert.Equal(3, introspectResponse.Version.Major);
+        var payload = await introspectResponse.Content.ReadAsStringAsync(ct);
+        using (var document = JsonDocument.Parse(payload))
         {
-            using var http3Handler = CreateHttp3Handler();
-            using var http3Client = new HttpClient(http3Handler) { BaseAddress = baseAddress };
-            http3Client.DefaultRequestVersion = HttpVersion.Version30;
-            http3Client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-
-            using var introspectResponse = await http3Client.GetAsync("/omnirelay/introspect", ct);
-            Assert.Equal(HttpStatusCode.OK, introspectResponse.StatusCode);
-            Assert.Equal(3, introspectResponse.Version.Major);
-            var payload = await introspectResponse.Content.ReadAsStringAsync(ct);
-            using (var document = JsonDocument.Parse(payload))
-            {
-                Assert.Equal("http3-observability", document.RootElement.GetProperty("service").GetString());
-                Assert.Equal("Running", document.RootElement.GetProperty("status").GetString());
-            }
-
-            using var healthResponse = await http3Client.GetAsync("/healthz", ct);
-            Assert.Equal(HttpStatusCode.OK, healthResponse.StatusCode);
-            Assert.Equal(3, healthResponse.Version.Major);
-
-            using var readyResponse = await http3Client.GetAsync("/readyz", ct);
-            Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
-            Assert.Equal(3, readyResponse.Version.Major);
-
-            using var http11Handler = CreateHttp11Handler();
-            using var http11Client = new HttpClient(http11Handler) { BaseAddress = baseAddress };
-
-            http11Client.DefaultRequestVersion = HttpVersion.Version11;
-            http11Client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            using var http11Response = await http11Client.GetAsync("/healthz", ct);
-            Assert.Equal(HttpStatusCode.OK, http11Response.StatusCode);
-            Assert.Equal(1, http11Response.Version.Major);
+            Assert.Equal("http3-observability", document.RootElement.GetProperty("service").GetString());
+            Assert.Equal("Running", document.RootElement.GetProperty("status").GetString());
         }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(ct);
-        }
+
+        using var healthResponse = await http3Client.GetAsync("/healthz", ct);
+        Assert.Equal(HttpStatusCode.OK, healthResponse.StatusCode);
+        Assert.Equal(3, healthResponse.Version.Major);
+
+        using var readyResponse = await http3Client.GetAsync("/readyz", ct);
+        Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
+        Assert.Equal(3, readyResponse.Version.Major);
+
+        using var http11Handler = CreateHttp11Handler();
+        using var http11Client = new HttpClient(http11Handler) { BaseAddress = baseAddress };
+
+        http11Client.DefaultRequestVersion = HttpVersion.Version11;
+        http11Client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        using var http11Response = await http11Client.GetAsync("/healthz", ct);
+        Assert.Equal(HttpStatusCode.OK, http11Response.StatusCode);
+        Assert.Equal(1, http11Response.Version.Major);
     }
 
     [Fact(Timeout = 30_000)]
@@ -379,7 +383,8 @@ public class HttpInboundLifecycleTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(StopAsync_WithCancellation_CompletesWithoutWaiting), dispatcher, ct, ownsLifetime: false);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         httpClient.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "test::slow");
@@ -423,7 +428,8 @@ public class HttpInboundLifecycleTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(HealthEndpoints_ReflectDispatcherState), dispatcher, ct, ownsLifetime: false);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
 
@@ -481,7 +487,8 @@ public class HttpInboundLifecycleTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(IntrospectEndpoint_ReturnsDispatcherSnapshot), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         using var response = await httpClient.GetAsync("/omnirelay/introspect", ct);
@@ -495,8 +502,6 @@ public class HttpInboundLifecycleTests
 
         var unaryProcedures = root.GetProperty("procedures").GetProperty("unary");
         Assert.Contains(unaryProcedures.EnumerateArray(), element => string.Equals(element.GetProperty("name").GetString(), "service::ping", StringComparison.Ordinal));
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 
     private static SocketsHttpHandler CreateHttp3Handler()
@@ -527,38 +532,6 @@ public class HttpInboundLifecycleTests
         ServerCertificateCustomValidationCallback = static (_, _, _, _) => true
     };
 
-    private static async Task WaitForHttpReadyAsync(Uri address, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(address);
-
-        const int maxAttempts = 100;
-        const int connectTimeoutMilliseconds = 200;
-        const int settleDelayMilliseconds = 20;
-        const int retryDelayMilliseconds = 25;
-
-        for (var attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                using var client = new TcpClient();
-                await client.ConnectAsync(address.Host, address.Port)
-                    .WaitAsync(TimeSpan.FromMilliseconds(connectTimeoutMilliseconds), cancellationToken);
-
-                await Task.Delay(TimeSpan.FromMilliseconds(settleDelayMilliseconds), cancellationToken);
-                return;
-            }
-            catch (SocketException)
-            {
-            }
-            catch (TimeoutException)
-            {
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(retryDelayMilliseconds), cancellationToken);
-        }
-
-        throw new TimeoutException("The HTTP inbound failed to bind within the allotted time.");
-    }
+    private static Task WaitForHttpReadyAsync(Uri address, CancellationToken cancellationToken) =>
+        TransportTestHelper.WaitForHttpEndpointReadyAsync(address, cancellationToken);
 }

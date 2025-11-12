@@ -4,13 +4,20 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public class HeaderValidationTests
+public sealed class HeaderValidationTests : TransportIntegrationTest
 {
+    public HeaderValidationTests(ITestOutputHelper output)
+        : base(output)
+    {
+    }
+
     [Fact(Timeout = 30000)]
     public async Task MissingRpcProcedureHeader_Returns400()
     {
@@ -28,14 +35,13 @@ public class HeaderValidationTests
             (request, _) => ValueTask.FromResult(Hugo.Go.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty, new ResponseMeta())))));
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await StartDispatcherAsync(nameof(MissingRpcProcedureHeader_Returns400), dispatcher, ct);
+        await WaitForHttpEndpointReadyAsync(baseAddress, ct);
 
         using var httpClient = new HttpClient { BaseAddress = baseAddress };
         using var content = new ByteArrayContent([]);
         using var response = await httpClient.PostAsync("/", content, ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-
-        await dispatcher.StopOrThrowAsync(ct);
     }
 }
