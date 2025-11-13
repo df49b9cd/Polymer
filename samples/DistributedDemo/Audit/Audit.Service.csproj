@@ -15,6 +15,5 @@
     <PackageReference Include="Hugo" />
     <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
-    <PackageReference Remove="Microsoft.SourceLink.GitHub" />
   </ItemGroup>
 </Project>

@@ -15,7 +15,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Hugo" />
-    <PackageReference Remove="Microsoft.SourceLink.GitHub" />
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="Protos/echo.proto" GrpcServices="None" />
