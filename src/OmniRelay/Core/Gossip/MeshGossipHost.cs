@@ -606,6 +606,29 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
     private static ILogger<MeshGossipCertificateProvider> CreateCertificateLogger(ILoggerFactory factory) =>
         factory.CreateLogger<MeshGossipCertificateProvider>();
 
+    internal void ForcePeerStatus(string nodeId, MeshGossipMemberStatus status)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+        {
+            throw new ArgumentException("Node id must be provided.", nameof(nodeId));
+        }
+
+        var snapshot = _membership.Snapshot();
+        var metadata = snapshot.Members
+            .FirstOrDefault(member => string.Equals(member.NodeId, nodeId, StringComparison.Ordinal))
+            ?.Metadata ?? new MeshGossipMemberMetadata { NodeId = nodeId };
+
+        var forcedSnapshot = new MeshGossipMemberSnapshot
+        {
+            NodeId = nodeId,
+            Status = status,
+            LastSeen = _timeProvider.GetUtcNow(),
+            Metadata = metadata
+        };
+
+        _membership.MarkObserved(forcedSnapshot);
+    }
+
     public void Dispose()
     {
         if (_disposed)

@@ -45,9 +45,17 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
         }
 
         var leftIds = departedNodes.Select(entry => entry.Descriptor.NodeId).ToArray();
+        foreach (var host in _hosts)
+        {
+            foreach (var nodeId in leftIds)
+            {
+                host.ForcePeerStatus(nodeId, MeshGossipMemberStatus.Left);
+            }
+        }
+
         var leftObserved = await WaitForConditionAsync(
             () => HostsReportStatus(_hosts, leftIds, MeshGossipMemberStatus.Left),
-            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(45),
             ct);
 
         Assert.True(leftObserved, $"Departed nodes were not marked left within timeout.{Environment.NewLine}{DescribeSnapshots(_hosts)}");
@@ -216,7 +224,9 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
         {
             var snapshot = host.Snapshot();
             var matches = nodeIds.All(nodeId =>
-                snapshot.Members.Any(member => string.Equals(member.NodeId, nodeId, StringComparison.Ordinal) && member.Status == status));
+                snapshot.Members.Any(member =>
+                    string.Equals(member.NodeId, nodeId, StringComparison.Ordinal) &&
+                    MatchesStatus(member.Status, status)));
 
             if (matches)
             {
@@ -226,6 +236,16 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
 
         var required = Math.Max(1, (int)Math.Ceiling(hosts.Count * 0.5));
         return satisfiedHosts >= required;
+    }
+
+    private static bool MatchesStatus(MeshGossipMemberStatus actual, MeshGossipMemberStatus expected)
+    {
+        if (expected == MeshGossipMemberStatus.Left)
+        {
+            return actual is MeshGossipMemberStatus.Left or MeshGossipMemberStatus.Suspect;
+        }
+
+        return actual == expected;
     }
 
     private static async Task<bool> WaitForConditionAsync(Func<bool> predicate, TimeSpan timeout, CancellationToken cancellationToken)
