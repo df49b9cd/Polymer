@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OmniRelay.Core.Gossip;
 using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Cli;
@@ -11,4 +12,7 @@ namespace OmniRelay.Cli;
 [JsonSerializable(typeof(DispatcherIntrospection))]
 [JsonSerializable(typeof(AutomationScript))]
 [JsonSerializable(typeof(AutomationStep))]
+[JsonSerializable(typeof(MeshPeersResponse))]
+[JsonSerializable(typeof(MeshGossipMemberSnapshot))]
+[JsonSerializable(typeof(MeshGossipMemberMetadata))]
 internal sealed partial class OmniRelayCliJsonContext : JsonSerializerContext;

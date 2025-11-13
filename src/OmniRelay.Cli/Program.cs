@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Configuration;
+using OmniRelay.Core.Gossip;
 using OmniRelay.Core;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Transport;
@@ -432,7 +433,8 @@ public static class Program
     {
         var command = new Command("mesh", "Mesh control-plane tooling.")
         {
-            CreateMeshLeadersCommand()
+            CreateMeshLeadersCommand(),
+            CreateMeshPeersCommand()
         };
         return command;
     }
@@ -443,6 +445,51 @@ public static class Program
         {
             CreateMeshLeadersStatusCommand()
         };
+        return command;
+    }
+
+    internal static Command CreateMeshPeersCommand()
+    {
+        var command = new Command("peers", "Mesh membership diagnostics.")
+        {
+            CreateMeshPeersListCommand()
+        };
+
+        return command;
+    }
+
+    internal static Command CreateMeshPeersListCommand()
+    {
+        var command = new Command("list", "List gossip peers from the control plane.");
+
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080)."
+        };
+        urlOption.Aliases.Add("-u");
+
+        var formatOption = new Option<MeshPeersOutputFormat>("--format")
+        {
+            Description = "Output format (table or json)."
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Request timeout (e.g. 10s, 1m)."
+        };
+
+        command.Add(urlOption);
+        command.Add(formatOption);
+        command.Add(timeoutOption);
+
+        command.SetAction(parseResult =>
+        {
+            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
+            var format = parseResult.GetValue(formatOption);
+            var timeout = parseResult.GetValue(timeoutOption);
+            return RunMeshPeersListAsync(url, format, timeout).GetAwaiter().GetResult();
+        });
+
         return command;
     }
 
@@ -2208,6 +2255,67 @@ public static class Program
         return await RunMeshLeadersSnapshotAsync(baseUrl, scope, timeout).ConfigureAwait(false);
     }
 
+    internal static async Task<int> RunMeshPeersListAsync(string baseUrl, MeshPeersOutputFormat format, string? timeoutOption)
+    {
+        var timeout = TimeSpan.FromSeconds(10);
+        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
+        {
+            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
+            return 1;
+        }
+
+        Uri target;
+        try
+        {
+            target = BuildControlPlaneUri(baseUrl, "/control/peers", scope: null);
+        }
+        catch (ArgumentException ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+            return 1;
+        }
+
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var cts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Console.Error.WriteLineAsync($"Peer diagnostics request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
+                return 1;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+            var result = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.MeshPeersResponse, cts.Token).ConfigureAwait(false);
+            if (result is null)
+            {
+                await Console.Error.WriteLineAsync("Peer diagnostics response was empty.").ConfigureAwait(false);
+                return 1;
+            }
+
+            switch (format)
+            {
+                case MeshPeersOutputFormat.Json:
+                    var json = JsonSerializer.Serialize(result, OmniRelayCliJsonContext.Default.MeshPeersResponse);
+                    CliRuntime.Console.WriteLine(json);
+                    break;
+                default:
+                    PrintMeshPeersTable(result);
+                    break;
+            }
+
+            return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Peer diagnostics request timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
     [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
     internal static async Task<int> RunMeshLeadersSnapshotAsync(string baseUrl, string? scope, TimeSpan timeout)
     {
@@ -2380,6 +2488,26 @@ public static class Program
         {
             var expires = token.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss\\Z", CultureInfo.InvariantCulture);
             Console.WriteLine($"{token.Scope,-32} {token.LeaderId,-20} {token.Term,6} {token.FenceToken,6} {expires,-24} {token.ScopeKind,-12}");
+        }
+    }
+
+    private static void PrintMeshPeersTable(MeshPeersResponse response)
+    {
+        Console.WriteLine($"Generated at: {response.GeneratedAt:O}");
+        Console.WriteLine($"Local node: {response.LocalNodeId}");
+        Console.WriteLine();
+        Console.WriteLine($"{"Node",-24} {"Status",-8} {"Role",-12} {"Cluster",-18} {"Region",-18} {"Version",-12} {"HTTP/3",-7} {"rtt (ms)",8}");
+
+        var ordered = response.Peers
+            .OrderByDescending(peer => string.Equals(peer.NodeId, response.LocalNodeId, StringComparison.Ordinal))
+            .ThenBy(peer => peer.NodeId, StringComparer.Ordinal);
+
+        foreach (var peer in ordered)
+        {
+            var metadata = peer.Metadata;
+            var rtt = peer.RoundTripTimeMs.HasValue ? peer.RoundTripTimeMs.Value.ToString("0.##", CultureInfo.InvariantCulture) : "-";
+            Console.WriteLine(
+                $"{peer.NodeId,-24} {peer.Status,-8} {metadata.Role,-12} {metadata.ClusterId,-18} {metadata.Region,-18} {metadata.MeshVersion,-12} {(metadata.Http3Support ? "yes" : "no"),-7} {rtt,8}");
         }
     }
 
@@ -3554,6 +3682,13 @@ public static class Program
     private sealed record DescriptorCacheEntry(
         Dictionary<string, FileDescriptor> Files,
         Dictionary<string, MessageDescriptor> Messages);
+
+    internal enum MeshPeersOutputFormat
+    {
+        Table,
+        Json
+    }
+
 
     private static bool TryDecodeUtf8(ReadOnlySpan<byte> data, out string text)
     {

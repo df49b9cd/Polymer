@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OmniRelay\OmniRelay.csproj" />
     <ProjectReference Include="..\..\src\OmniRelay.Configuration\OmniRelay.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\OmniRelay.Cli\OmniRelay.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,5 +30,6 @@
 
   <ItemGroup>
     <Compile Include="..\TestSupport\TestCertificateFactory.cs" Link="Support/TestCertificateFactory.cs" />
+    <Compile Include="..\TestSupport\TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
   </ItemGroup>
 </Project>
