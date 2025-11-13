@@ -39,7 +39,7 @@ dotnet test tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.Unit
 
 ## Canonical Scenarios
 - `AddOmniRelayDispatcher_BuildsDispatcherFromConfiguration` ensures the dispatcher, HTTP inbounds/outbounds, logging overrides, and hosted service registration materialize from configuration dictionaries (`Configuration/OmniRelayConfigurationTests.cs:29`).
-- `AddOmniRelayDispatcher_MissingServiceThrows` asserts `OmniRelayConfigurationException` when `polymer:service` is absent, preventing ambiguous deployments (`Configuration/OmniRelayConfigurationTests.cs:72`).
+- `AddOmniRelayDispatcher_MissingServiceThrows` asserts `OmniRelayConfigurationException` when `omnirelay:service` is absent, preventing ambiguous deployments (`Configuration/OmniRelayConfigurationTests.cs:72`).
 - `AddOmniRelayDispatcher_InvalidPeerChooserThrows` blocks unsupported peer selection strategies before traffic routing occurs (`Configuration/OmniRelayConfigurationTests.cs:85`).
 - `AddOmniRelayDispatcher_HttpsInboundWithoutTls_Throws` enforces TLS assets for HTTPS listeners so we never bind insecurely by accident (`Configuration/OmniRelayConfigurationTests.cs:105`).
 - `AddOmniRelayDispatcher_InvalidGrpcTlsCertificatePath_Throws` validates TLS certificate paths during DI graph creation (`Configuration/OmniRelayConfigurationTests.cs:125`).
@@ -51,8 +51,8 @@ dotnet test tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.Unit
 - `SetTraceSamplingProbability_ValidatesRange` ensures probability input stays within `[0,1]` and clears correctly when null (`Configuration/DiagnosticsRuntimeStateTests.cs:26`).
 
 ## Writing New Tests
-1. **Model the configuration input.** Use `ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ... }).Build()` so keys match production `polymer:` paths.
-2. **Build services the way production does.** Call `services.AddLogging(); services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));`.
+1. **Model the configuration input.** Use `ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ... }).Build()` so keys match production `omnirelay:` paths.
+2. **Build services the way production does.** Call `services.AddLogging(); services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));`.
 3. **Assert outcomes.** Resolve `OmniRelayDispatcher`, `IOptions<T>`, or hosted services and assert on the specific behavior. Prefer `Assert.Throws<OmniRelayConfigurationException>` for guardrails.
 4. **Isolate custom collaborators.** If you need a bespoke transport/peer, define lightweight inner classes (see existing tests) instead of introducing new files.
 5. **Name clearly.** Follow `MethodUnderTest_Expectation` naming so failures read like documentation.
@@ -65,15 +65,15 @@ public void AddOmniRelayDispatcher_RejectsUnknownCodec()
     var configuration = new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["polymer:service"] = "gateway",
-            ["polymer:codecs:custom:type"] = "UnknownCodec"
+            ["omnirelay:service"] = "gateway",
+            ["omnirelay:codecs:custom:type"] = "UnknownCodec"
         }!)
         .Build();
 
     var services = new ServiceCollection();
     services.AddLogging();
 
-    services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+    services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
     using var provider = services.BuildServiceProvider();
 
     Assert.Throws<OmniRelayConfigurationException>(

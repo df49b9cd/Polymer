@@ -21,15 +21,15 @@ public sealed class ProgramHelperTests : CliTestBase
     public void TryBuildConfiguration_LoadsOverrides()
     {
         var configPath = Path.Combine(Path.GetTempPath(), $"omnirelay-config-{Guid.NewGuid():N}.json");
-        File.WriteAllText(configPath, """{"polymer":{"service":{"name":"original"}}}""");
+        File.WriteAllText(configPath, """{"omnirelay":{"service":{"name":"original"}}}""");
         try
         {
-            var overrides = new[] { "polymer:service:name=overridden" };
+            var overrides = new[] { "omnirelay:service:name=overridden" };
             var success = Program.TryBuildConfiguration(new[] { configPath }, overrides, out var configuration, out var error);
 
             success.ShouldBeTrue();
             error.ShouldBeNull();
-            (configuration?["polymer:service:name"]).ShouldBe("overridden");
+            (configuration?["omnirelay:service:name"]).ShouldBe("overridden");
         }
         finally
         {

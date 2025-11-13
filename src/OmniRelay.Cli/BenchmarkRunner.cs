@@ -374,8 +374,8 @@ internal static class BenchmarkRunner
 
     private static string FormatError(Error error, string transport)
     {
-        var polymerException = OmniRelayErrors.FromError(error, transport);
-        return $"{polymerException.StatusCode}: {polymerException.Message}";
+        var omnirelayException = OmniRelayErrors.FromError(error, transport);
+        return $"{omnirelayException.StatusCode}: {omnirelayException.Message}";
     }
 
     private interface IRequestInvoker : IAsyncDisposable

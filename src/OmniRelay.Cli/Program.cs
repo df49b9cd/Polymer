@@ -30,7 +30,7 @@ namespace OmniRelay.Cli;
 [RequiresDynamicCode("OmniRelay CLI uses reflection-heavy utilities and is not AOT safe.")]
 public static class Program
 {
-    private const string DefaultConfigSection = "polymer";
+    private const string DefaultConfigSection = "omnirelay";
     private const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
     private const string DefaultControlPlaneUrl = "http://127.0.0.1:8080";
     private static readonly JsonSerializerOptions PrettyJsonOptions = new(JsonSerializerDefaults.Web)
@@ -2128,10 +2128,10 @@ public static class Program
 
     private static void PrintError(Error error, string transport)
     {
-        var polymerException = OmniRelayErrors.FromError(error, transport);
-        Console.Error.WriteLine($"Request failed with status {polymerException.StatusCode}: {polymerException.Message}");
+        var omnirelayException = OmniRelayErrors.FromError(error, transport);
+        Console.Error.WriteLine($"Request failed with status {omnirelayException.StatusCode}: {omnirelayException.Message}");
 
-        if (polymerException.Error.Metadata is { Count: > 0 } metadata)
+        if (omnirelayException.Error.Metadata is { Count: > 0 } metadata)
         {
             Console.Error.WriteLine("Metadata:");
             foreach (var kvp in metadata.OrderBy(static m => m.Key, StringComparer.OrdinalIgnoreCase))
@@ -2140,7 +2140,7 @@ public static class Program
             }
         }
 
-        if (polymerException.InnerException is { } inner)
+        if (omnirelayException.InnerException is { } inner)
         {
             Console.Error.WriteLine($"Inner exception: {inner.GetType().Name}: {inner.Message}");
         }

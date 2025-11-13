@@ -35,20 +35,20 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "gateway",
-                ["polymer:inbounds:http:0:urls:0"] = "http://127.0.0.1:8080",
-                ["polymer:outbounds:keyvalue:unary:http:0:key"] = "primary",
-                ["polymer:outbounds:keyvalue:unary:http:0:url"] = "http://127.0.0.1:8081",
-                ["polymer:outbounds:keyvalue:oneway:http:0:key"] = "primary",
-                ["polymer:outbounds:keyvalue:oneway:http:0:url"] = "http://127.0.0.1:8081",
-                ["polymer:logging:level"] = "Warning",
-                ["polymer:logging:overrides:OmniRelay.Transport.Http"] = "Trace"
+                ["omnirelay:service"] = "gateway",
+                ["omnirelay:inbounds:http:0:urls:0"] = "http://127.0.0.1:8080",
+                ["omnirelay:outbounds:keyvalue:unary:http:0:key"] = "primary",
+                ["omnirelay:outbounds:keyvalue:unary:http:0:url"] = "http://127.0.0.1:8081",
+                ["omnirelay:outbounds:keyvalue:oneway:http:0:key"] = "primary",
+                ["omnirelay:outbounds:keyvalue:oneway:http:0:url"] = "http://127.0.0.1:8081",
+                ["omnirelay:logging:level"] = "Warning",
+                ["omnirelay:logging:overrides:OmniRelay.Transport.Http"] = "Trace"
             }!)
             .Build();
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
 
@@ -81,7 +81,7 @@ public class OmniRelayConfigurationTests
         var services = new ServiceCollection();
 
         Should.Throw<OmniRelayConfigurationException>(
-            () => services.AddOmniRelayDispatcher(configuration.GetSection("polymer")));
+            () => services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay")));
     }
 
     [Fact]
@@ -90,15 +90,15 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "edge",
-                ["polymer:outbounds:inventory:stream:grpc:0:addresses:0"] = "http://127.0.0.1:9090",
-                ["polymer:outbounds:inventory:stream:grpc:0:peerChooser"] = "random-weighted"
+                ["omnirelay:service"] = "edge",
+                ["omnirelay:outbounds:inventory:stream:grpc:0:addresses:0"] = "http://127.0.0.1:9090",
+                ["omnirelay:outbounds:inventory:stream:grpc:0:peerChooser"] = "random-weighted"
             }!)
             .Build();
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
         Should.Throw<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
@@ -110,14 +110,14 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "gateway",
-                ["polymer:inbounds:http:0:urls:0"] = "https://127.0.0.1:8443"
+                ["omnirelay:service"] = "gateway",
+                ["omnirelay:inbounds:http:0:urls:0"] = "https://127.0.0.1:8443"
             }!)
             .Build();
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
         var ex = Should.Throw<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
@@ -130,15 +130,15 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "gateway",
-                ["polymer:inbounds:grpc:0:urls:0"] = "https://127.0.0.1:9090",
-                ["polymer:inbounds:grpc:0:tls:certificatePath"] = "/tmp/omnirelay-grpc-missing.pfx"
+                ["omnirelay:service"] = "gateway",
+                ["omnirelay:inbounds:grpc:0:urls:0"] = "https://127.0.0.1:9090",
+                ["omnirelay:inbounds:grpc:0:tls:certificatePath"] = "/tmp/omnirelay-grpc-missing.pfx"
             }!)
             .Build();
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
         var ex = Should.Throw<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
@@ -151,15 +151,15 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "gateway",
-                ["polymer:inbounds:grpc:0:urls:0"] = "https://127.0.0.1:9090",
-                ["polymer:inbounds:grpc:0:tls:certificateData"] = "not-base64!!"
+                ["omnirelay:service"] = "gateway",
+                ["omnirelay:inbounds:grpc:0:urls:0"] = "https://127.0.0.1:9090",
+                ["omnirelay:inbounds:grpc:0:tls:certificateData"] = "not-base64!!"
             }!)
             .Build();
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
         var ex = Should.Throw<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
@@ -172,13 +172,13 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "custom",
-                ["polymer:inbounds:custom:0:spec"] = CustomInboundSpecName,
-                ["polymer:inbounds:custom:0:name"] = "ws-inbound",
-                ["polymer:inbounds:custom:0:endpoint"] = "/ws",
-                ["polymer:outbounds:search:unary:custom:0:spec"] = CustomOutboundSpecName,
-                ["polymer:outbounds:search:unary:custom:0:key"] = "primary",
-                ["polymer:outbounds:search:unary:custom:0:url"] = "http://search.internal:8080"
+                ["omnirelay:service"] = "custom",
+                ["omnirelay:inbounds:custom:0:spec"] = CustomInboundSpecName,
+                ["omnirelay:inbounds:custom:0:name"] = "ws-inbound",
+                ["omnirelay:inbounds:custom:0:endpoint"] = "/ws",
+                ["omnirelay:outbounds:search:unary:custom:0:spec"] = CustomOutboundSpecName,
+                ["omnirelay:outbounds:search:unary:custom:0:key"] = "primary",
+                ["omnirelay:outbounds:search:unary:custom:0:url"] = "http://search.internal:8080"
             }!)
             .Build();
 
@@ -208,7 +208,7 @@ public class OmniRelayConfigurationTests
         services.AddLogging();
         services.AddSingleton<ICustomInboundSpec>(inboundSpec);
         services.AddSingleton<ICustomOutboundSpec>(outboundSpec);
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
         var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
@@ -229,11 +229,11 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "metrics",
-                ["polymer:inbounds:http:0:urls:0"] = "http://127.0.0.1:8080",
-                ["polymer:outbounds:metrics:unary:http:0:key"] = "primary",
-                ["polymer:outbounds:metrics:unary:http:0:url"] = "http://127.0.0.1:9095",
-                ["polymer:outbounds:metrics:unary:http:0:clientName"] = "metrics"
+                ["omnirelay:service"] = "metrics",
+                ["omnirelay:inbounds:http:0:urls:0"] = "http://127.0.0.1:8080",
+                ["omnirelay:outbounds:metrics:unary:http:0:key"] = "primary",
+                ["omnirelay:outbounds:metrics:unary:http:0:url"] = "http://127.0.0.1:9095",
+                ["omnirelay:outbounds:metrics:unary:http:0:clientName"] = "metrics"
             }!)
             .Build();
 
@@ -249,7 +249,7 @@ public class OmniRelayConfigurationTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(httpClientFactory);
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
         var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
@@ -267,12 +267,12 @@ public class OmniRelayConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["polymer:service"] = "analytics",
-                ["polymer:outbounds:reports:unary:grpc:0:addresses:0"] = "http://127.0.0.1:9090",
-                ["polymer:outbounds:reports:unary:grpc:0:remoteService"] = "reports",
-                ["polymer:outbounds:reports:unary:grpc:0:peer:spec"] = CustomPeerSpecName,
-                ["polymer:outbounds:reports:unary:grpc:0:peer:mode"] = "sticky",
-                ["polymer:outbounds:reports:unary:grpc:0:peer:settings:mode"] = "sticky"
+                ["omnirelay:service"] = "analytics",
+                ["omnirelay:outbounds:reports:unary:grpc:0:addresses:0"] = "http://127.0.0.1:9090",
+                ["omnirelay:outbounds:reports:unary:grpc:0:remoteService"] = "reports",
+                ["omnirelay:outbounds:reports:unary:grpc:0:peer:spec"] = CustomPeerSpecName,
+                ["omnirelay:outbounds:reports:unary:grpc:0:peer:mode"] = "sticky",
+                ["omnirelay:outbounds:reports:unary:grpc:0:peer:settings:mode"] = "sticky"
             }!)
             .Build();
 
@@ -291,7 +291,7 @@ public class OmniRelayConfigurationTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<ICustomPeerChooserSpec>(peerSpec);
-        services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
         using var provider = services.BuildServiceProvider();
         var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();
@@ -305,7 +305,7 @@ public class OmniRelayConfigurationTests
     [Fact]
     public void AddOmniRelayDispatcher_ConfiguresJsonCodecs()
     {
-        var schemaPath = Path.Combine(Path.GetTempPath(), $"polymer-schema-{Guid.NewGuid():N}.json");
+        var schemaPath = Path.Combine(Path.GetTempPath(), $"omnirelay-schema-{Guid.NewGuid():N}.json");
         File.WriteAllText(schemaPath, "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"count\":{\"type\":\"integer\"}},\"required\":[\"name\",\"count\"]}");
 
         try
@@ -313,28 +313,28 @@ public class OmniRelayConfigurationTests
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["polymer:service"] = "echo",
-                    ["polymer:encodings:json:inbound:0:procedure"] = "echo::call",
-                    ["polymer:encodings:json:inbound:0:kind"] = "Unary",
-                    ["polymer:encodings:json:inbound:0:requestType"] = typeof(EchoRequest).AssemblyQualifiedName,
-                    ["polymer:encodings:json:inbound:0:responseType"] = typeof(EchoResponse).AssemblyQualifiedName,
-                    ["polymer:encodings:json:inbound:0:encoding"] = "application/json",
-                    ["polymer:encodings:json:inbound:0:options:propertyNameCaseInsensitive"] = "false",
-                    ["polymer:encodings:json:inbound:0:schemas:request"] = schemaPath,
-                    ["polymer:encodings:json:outbound:0:service"] = "remote",
-                    ["polymer:encodings:json:outbound:0:procedure"] = "echo::call",
-                    ["polymer:encodings:json:outbound:0:kind"] = "Unary",
-                    ["polymer:encodings:json:outbound:0:requestType"] = typeof(EchoRequest).AssemblyQualifiedName,
-                    ["polymer:encodings:json:outbound:0:responseType"] = typeof(EchoResponse).AssemblyQualifiedName,
-                    ["polymer:encodings:json:outbound:0:profile"] = "strict",
-                    ["polymer:encodings:json:outbound:0:context"] = typeof(EchoJsonContext).AssemblyQualifiedName,
-                    ["polymer:encodings:json:profiles:strict:options:propertyNameCaseInsensitive"] = "false"
+                    ["omnirelay:service"] = "echo",
+                    ["omnirelay:encodings:json:inbound:0:procedure"] = "echo::call",
+                    ["omnirelay:encodings:json:inbound:0:kind"] = "Unary",
+                    ["omnirelay:encodings:json:inbound:0:requestType"] = typeof(EchoRequest).AssemblyQualifiedName,
+                    ["omnirelay:encodings:json:inbound:0:responseType"] = typeof(EchoResponse).AssemblyQualifiedName,
+                    ["omnirelay:encodings:json:inbound:0:encoding"] = "application/json",
+                    ["omnirelay:encodings:json:inbound:0:options:propertyNameCaseInsensitive"] = "false",
+                    ["omnirelay:encodings:json:inbound:0:schemas:request"] = schemaPath,
+                    ["omnirelay:encodings:json:outbound:0:service"] = "remote",
+                    ["omnirelay:encodings:json:outbound:0:procedure"] = "echo::call",
+                    ["omnirelay:encodings:json:outbound:0:kind"] = "Unary",
+                    ["omnirelay:encodings:json:outbound:0:requestType"] = typeof(EchoRequest).AssemblyQualifiedName,
+                    ["omnirelay:encodings:json:outbound:0:responseType"] = typeof(EchoResponse).AssemblyQualifiedName,
+                    ["omnirelay:encodings:json:outbound:0:profile"] = "strict",
+                    ["omnirelay:encodings:json:outbound:0:context"] = typeof(EchoJsonContext).AssemblyQualifiedName,
+                    ["omnirelay:encodings:json:profiles:strict:options:propertyNameCaseInsensitive"] = "false"
                 }!)
                 .Build();
 
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddOmniRelayDispatcher(configuration.GetSection("polymer"));
+            services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 
             using var provider = services.BuildServiceProvider();
             var dispatcher = provider.GetRequiredService<OmniRelayDispatcher>();

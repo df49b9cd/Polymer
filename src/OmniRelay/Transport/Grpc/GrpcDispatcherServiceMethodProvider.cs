@@ -285,11 +285,11 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                     }
                     catch (Exception ex)
                     {
-                        var polymerException = OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName);
-                        await streamCall.CompleteAsync(polymerException.Error, cancellationToken).ConfigureAwait(false);
+                        var omnirelayException = OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName);
+                        await streamCall.CompleteAsync(omnirelayException.Error, cancellationToken).ConfigureAwait(false);
 
-                        var status = GrpcStatusMapper.ToStatus(polymerException.StatusCode, polymerException.Message);
-                        var trailers = GrpcMetadataAdapter.CreateErrorTrailers(polymerException.Error);
+                        var status = GrpcStatusMapper.ToStatus(omnirelayException.StatusCode, omnirelayException.Message);
+                        var trailers = GrpcMetadataAdapter.CreateErrorTrailers(omnirelayException.Error);
                         var rpcException = new RpcException(status, trailers);
                         GrpcTransportDiagnostics.RecordException(activity, rpcException, status.StatusCode, status.Detail);
                         throw rpcException;
@@ -742,11 +742,11 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         }
                         catch (Exception ex)
                         {
-                            var polymerException = OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName);
-                            await duplexCall.CompleteResponsesAsync(polymerException.Error, CancellationToken.None).ConfigureAwait(false);
+                            var omnirelayException = OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName);
+                            await duplexCall.CompleteResponsesAsync(omnirelayException.Error, CancellationToken.None).ConfigureAwait(false);
 
-                            var status = GrpcStatusMapper.ToStatus(polymerException.StatusCode, polymerException.Message);
-                            var trailers = GrpcMetadataAdapter.CreateErrorTrailers(polymerException.Error);
+                            var status = GrpcStatusMapper.ToStatus(omnirelayException.StatusCode, omnirelayException.Message);
+                            var trailers = GrpcMetadataAdapter.CreateErrorTrailers(omnirelayException.Error);
                             var rpcException = new RpcException(status, trailers);
                             activityHasError = true;
                             GrpcTransportDiagnostics.RecordException(activity, rpcException, status.StatusCode, status.Detail);

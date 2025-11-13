@@ -66,8 +66,8 @@ public class DuplexStreamCallTests
 
         var readTask = call.ResponseReader.ReadAsync(TestContext.Current.CancellationToken).AsTask();
         var channelException = await Should.ThrowAsync<ChannelClosedException>(() => readTask);
-        var polymerException = channelException.InnerException.ShouldBeOfType<OmniRelayException>();
-        polymerException.StatusCode.ShouldBe(OmniRelayStatusCode.Internal);
+        var omnirelayException = channelException.InnerException.ShouldBeOfType<OmniRelayException>();
+        omnirelayException.StatusCode.ShouldBe(OmniRelayStatusCode.Internal);
 
         call.Context.ResponseCompletionStatus.ShouldBe(StreamCompletionStatus.Faulted);
         call.Context.ResponseCompletionError.ShouldBeSameAs(error);

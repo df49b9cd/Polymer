@@ -13,9 +13,9 @@ public class OmniRelayErrorsTests
         cts.Cancel();
 
         var exception = new OperationCanceledException("cancelled", cts.Token);
-        var polymerException = OmniRelayErrors.FromException(exception);
+        var omnirelayException = OmniRelayErrors.FromException(exception);
 
-        polymerException.StatusCode.ShouldBe(OmniRelayStatusCode.Cancelled);
+        omnirelayException.StatusCode.ShouldBe(OmniRelayStatusCode.Cancelled);
         OmniRelayErrors.IsStatus(exception, OmniRelayStatusCode.Cancelled).ShouldBeTrue();
 
         var result = OmniRelayErrors.ToResult<int>(exception);
@@ -34,10 +34,10 @@ public class OmniRelayErrorsTests
                 { "scope", "read" }
             });
 
-        var polymerException = OmniRelayErrors.FromError(error);
+        var omnirelayException = OmniRelayErrors.FromError(error);
 
-        polymerException.StatusCode.ShouldBe(OmniRelayStatusCode.PermissionDenied);
-        polymerException.Error.TryGetMetadata("scope", out string? scope).ShouldBeTrue();
+        omnirelayException.StatusCode.ShouldBe(OmniRelayStatusCode.PermissionDenied);
+        omnirelayException.Error.TryGetMetadata("scope", out string? scope).ShouldBeTrue();
         scope.ShouldBe("read");
     }
 

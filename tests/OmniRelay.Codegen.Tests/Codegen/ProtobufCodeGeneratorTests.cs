@@ -171,7 +171,7 @@ public class ProtobufCodeGeneratorTests
                 RedirectStandardOutput = true
             };
 
-            using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start protoc-gen-polymer-csharp.");
+            using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start protoc-gen-omnirelay-csharp.");
 
             using (var codedOutput = new CodedOutputStream(process.StandardInput.BaseStream, leaveOpen: true))
             {

@@ -74,6 +74,87 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact]
+    public async Task ConfigScaffoldCommand_Defaults_EmitsGoldenBaseline()
+    {
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var outputPath = Path.Combine(Path.GetTempPath(), $"omnirelay-scaffold-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var result = await harness.InvokeAsync("config", "scaffold", "--output", outputPath);
+
+            result.ExitCode.ShouldBe(0);
+            result.StdOut.ShouldContain($"Wrote configuration scaffold to '{outputPath}'.");
+            AssertGoldenConfig(outputPath, "baseline.json");
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ConfigScaffoldCommand_Http3AndOutboundSwitches_EmitsGoldenDocument()
+    {
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var outputPath = Path.Combine(Path.GetTempPath(), $"omnirelay-scaffold-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var result = await harness.InvokeAsync(
+                "config",
+                "scaffold",
+                "--output",
+                outputPath,
+                "--section",
+                "fabric",
+                "--service",
+                "aggregator",
+                "--http3-http",
+                "--http3-grpc",
+                "--include-outbound",
+                "--outbound-service",
+                "audit");
+
+            result.ExitCode.ShouldBe(0);
+            AssertGoldenConfig(outputPath, "http3-outbound.json");
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ConfigScaffoldCommand_WhenWriteFails_ReturnsError()
+    {
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"omnirelay-scaffold-dir-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            var result = await harness.InvokeAsync("config", "scaffold", "--output", outputDirectory);
+
+            result.ExitCode.ShouldBe(1);
+            result.StdErr.ShouldContain("Failed to write scaffold");
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task IntrospectCommand_PrintsJsonSnapshot()
     {
         var snapshot = new DispatcherIntrospection(
@@ -174,7 +255,21 @@ public sealed class ProgramCommandTests : CliTestBase
     private static string CreateConfigFile()
     {
         var path = Path.Combine(Path.GetTempPath(), $"omnirelay-cli-config-{Guid.NewGuid():N}.json");
-        File.WriteAllText(path, """{"polymer":{}}""");
+        File.WriteAllText(path, """{"omnirelay":{}}""");
         return path;
+    }
+
+    private static void AssertGoldenConfig(string actualPath, string goldenFileName)
+    {
+        using var actualDocument = JsonDocument.Parse(File.ReadAllText(actualPath));
+        using var expectedDocument = JsonDocument.Parse(ReadGoldenFile(goldenFileName));
+        actualDocument.RootElement.ToString().ShouldBe(expectedDocument.RootElement.ToString(), $"Golden file '{goldenFileName}' mismatch.");
+    }
+
+    private static string ReadGoldenFile(string fileName)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "ConfigScaffold", fileName);
+        File.Exists(path).ShouldBeTrue($"Expected golden file '{path}' to exist.");
+        return File.ReadAllText(path);
     }
 }

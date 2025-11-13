@@ -16,7 +16,7 @@ public class ConfigScaffoldTests
             [
             "config", "scaffold",
             "--output", output,
-            "--section", "polymer",
+            "--section", "omnirelay",
             "--service", "payments",
             "--http3-http",
             "--http3-grpc",
@@ -30,8 +30,8 @@ public class ConfigScaffoldTests
         var json = await File.ReadAllTextAsync(output, TestContext.Current.CancellationToken);
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        Assert.True(root.TryGetProperty("polymer", out var polymer));
-        Assert.True(polymer.TryGetProperty("inbounds", out var inbounds));
+        Assert.True(root.TryGetProperty("omnirelay", out var omnirelay));
+        Assert.True(omnirelay.TryGetProperty("inbounds", out var inbounds));
 
         // HTTP inbound contains an HTTPS entry with enableHttp3
         var http = inbounds.GetProperty("http");
@@ -46,7 +46,7 @@ public class ConfigScaffoldTests
         Assert.True(grpcHttps.ValueKind != JsonValueKind.Undefined, "HTTPS gRPC inbound with enableHttp3 missing.");
 
         // Outbound section includes endpoints with supportsHttp3 markers
-        Assert.True(polymer.TryGetProperty("outbounds", out var outbounds));
+        Assert.True(omnirelay.TryGetProperty("outbounds", out var outbounds));
         var ledger = outbounds.GetProperty("ledger");
         var unary = ledger.GetProperty("unary");
         var grpcOut = unary.GetProperty("grpc");

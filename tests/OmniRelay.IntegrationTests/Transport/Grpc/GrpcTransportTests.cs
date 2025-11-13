@@ -2268,9 +2268,9 @@ public partial class GrpcTransportTests : TransportIntegrationTest
 
     [Theory]
     [MemberData(nameof(ToStatusMappings))]
-    public void GrpcStatusMapper_ToStatus_MapsExpected(StatusCode expectedStatusCode, OmniRelayStatusCode polymerStatus)
+    public void GrpcStatusMapper_ToStatus_MapsExpected(StatusCode expectedStatusCode, OmniRelayStatusCode omnirelayStatus)
     {
-        var status = GrpcStatusMapper.ToStatus(polymerStatus, "detail");
+        var status = GrpcStatusMapper.ToStatus(omnirelayStatus, "detail");
         Assert.Equal(expectedStatusCode, status.StatusCode);
     }
 
