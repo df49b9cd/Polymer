@@ -35,6 +35,13 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
                 ConvergenceTimeout,
                 ct);
 
+            await WaitForConditionAsync(
+                "gossip round-trip measurement",
+                () => HasPositiveRoundTripTime(hostA, nodeB.NodeId) && HasPositiveRoundTripTime(hostB, nodeA.NodeId),
+                () => DescribeSnapshots(hostA, hostB),
+                ConvergenceTimeout,
+                ct);
+
             var memberSeenByA = GetMember(hostA, nodeB.NodeId)!;
             var memberSeenByB = GetMember(hostB, nodeA.NodeId)!;
 
@@ -167,6 +174,9 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     private static bool HasStatus(MeshGossipHost host, string nodeId, MeshGossipMemberStatus status) =>
         host.Snapshot().Members.Any(member =>
             string.Equals(member.NodeId, nodeId, StringComparison.Ordinal) && member.Status == status);
+
+    private static bool HasPositiveRoundTripTime(MeshGossipHost host, string nodeId) =>
+        GetMember(host, nodeId)?.RoundTripTimeMs is > 0;
 
     private static async Task WaitForConditionAsync(
         string description,
