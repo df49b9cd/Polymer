@@ -1,4 +1,3 @@
-using System;
 using Hugo;
 using OmniRelay.Core.Transport;
 using Xunit;
@@ -13,20 +12,20 @@ public class DuplexStreamCallContextTests
         var ctx = new DuplexStreamCallContext();
         ctx.IncrementRequestMessageCount();
         ctx.IncrementResponseMessageCount();
-        Assert.Equal(1, ctx.RequestMessageCount);
-        Assert.Equal(1, ctx.ResponseMessageCount);
+        ctx.RequestMessageCount.ShouldBe(1);
+        ctx.ResponseMessageCount.ShouldBe(1);
 
         var err = Error.From("bad", "unavailable");
-        Assert.True(ctx.TrySetRequestCompletion(StreamCompletionStatus.Faulted, err));
-        Assert.False(ctx.TrySetRequestCompletion(StreamCompletionStatus.Succeeded));
-        Assert.Equal(StreamCompletionStatus.Faulted, ctx.RequestCompletionStatus);
-        Assert.NotNull(ctx.RequestCompletedAtUtc);
-        Assert.NotNull(ctx.RequestCompletionError);
+        ctx.TrySetRequestCompletion(StreamCompletionStatus.Faulted, err).ShouldBeTrue();
+        ctx.TrySetRequestCompletion(StreamCompletionStatus.Succeeded).ShouldBeFalse();
+        ctx.RequestCompletionStatus.ShouldBe(StreamCompletionStatus.Faulted);
+        ctx.RequestCompletedAtUtc.ShouldNotBeNull();
+        ctx.RequestCompletionError.ShouldNotBeNull();
 
-        Assert.True(ctx.TrySetResponseCompletion(StreamCompletionStatus.Succeeded));
-        Assert.False(ctx.TrySetResponseCompletion(StreamCompletionStatus.Faulted));
-        Assert.Equal(StreamCompletionStatus.Succeeded, ctx.ResponseCompletionStatus);
-        Assert.NotNull(ctx.ResponseCompletedAtUtc);
-        Assert.Null(ctx.ResponseCompletionError);
+        ctx.TrySetResponseCompletion(StreamCompletionStatus.Succeeded).ShouldBeTrue();
+        ctx.TrySetResponseCompletion(StreamCompletionStatus.Faulted).ShouldBeFalse();
+        ctx.ResponseCompletionStatus.ShouldBe(StreamCompletionStatus.Succeeded);
+        ctx.ResponseCompletedAtUtc.ShouldNotBeNull();
+        ctx.ResponseCompletionError.ShouldBeNull();
     }
 }

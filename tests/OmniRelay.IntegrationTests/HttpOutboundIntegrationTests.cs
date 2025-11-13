@@ -1,12 +1,8 @@
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Net.Mime;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
-using System.Text;
 using System.Text.Json;
 using Hugo;
 using OmniRelay.Core;
@@ -14,15 +10,16 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.Tests;
+using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
+using Shouldly;
 using Xunit;
 using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
 
-public class HttpOutboundIntegrationTests
+public sealed class HttpOutboundIntegrationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
     [Http3Fact(Timeout = 45_000)]
     public async Task HttpOutbound_WithHttp3Preferred_FallsBackToHttp2()
@@ -56,7 +53,7 @@ public class HttpOutboundIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await remoteDispatcher.StartOrThrowAsync(ct);
+        await using var remoteHost = await DispatcherHost.StartAsync("runtime-remote", remoteDispatcher, LoggerFactory, ct);
         await WaitForEndpointReadyAsync(remoteAddress, ct);
 
         using var handler = CreateHttp3SocketsHandler();
@@ -70,33 +67,25 @@ public class HttpOutboundIntegrationTests
         var clientOptions = new DispatcherOptions("runtime-client");
         clientOptions.AddUnaryOutbound("runtime-remote", null, httpOutbound);
 
-        var dispatcher = new OmniRelay.Dispatcher.Dispatcher(clientOptions);
+        var clientDispatcher = new OmniRelay.Dispatcher.Dispatcher(clientOptions);
         var codec = new JsonCodec<PingRequest, PingResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        var client = dispatcher.CreateUnaryClient<PingRequest, PingResponse>("runtime-remote", codec);
+        var client = clientDispatcher.CreateUnaryClient<PingRequest, PingResponse>("runtime-remote", codec);
 
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var clientHost = await DispatcherHost.StartAsync("runtime-client", clientDispatcher, LoggerFactory, ct);
 
-        try
-        {
-            var meta = new RequestMeta(
-                service: "runtime-remote",
-                procedure: "runtime::ping",
-                encoding: MediaTypeNames.Application.Json,
-                transport: "http");
-            var request = new Request<PingRequest>(meta, new PingRequest("ping"));
+        var meta = new RequestMeta(
+            service: "runtime-remote",
+            procedure: "runtime::ping",
+            encoding: MediaTypeNames.Application.Json,
+            transport: "http");
+        var request = new Request<PingRequest>(meta, new PingRequest("ping"));
 
-            var result = await client.CallAsync(request, ct);
-            Assert.True(result.IsSuccess, result.Error?.Message);
-            Assert.Equal("pong", result.Value.Body.Message);
+        var result = await client.CallAsync(request, ct);
+        result.IsSuccess.ShouldBeTrue(result.Error?.Message);
+        result.Value.Body.Message.ShouldBe("pong");
 
-            var protocolHeader = result.Value.Meta.Headers.FirstOrDefault(h => string.Equals(h.Key, HttpTransportHeaders.Protocol, StringComparison.OrdinalIgnoreCase)).Value;
-            Assert.Equal("HTTP/2", protocolHeader);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(CancellationToken.None);
-            await remoteDispatcher.StopOrThrowAsync(CancellationToken.None);
-        }
+        var protocolHeader = result.Value.Meta.Headers.FirstOrDefault(h => string.Equals(h.Key, HttpTransportHeaders.Protocol, StringComparison.OrdinalIgnoreCase)).Value;
+        protocolHeader.ShouldBe("HTTP/2");
     }
 
     [Fact(Timeout = 45_000)]
@@ -140,8 +129,8 @@ public class HttpOutboundIntegrationTests
             }));
 
         var ct = TestContext.Current.CancellationToken;
-        await peer1Dispatcher.StartOrThrowAsync(ct);
-        await peer2Dispatcher.StartOrThrowAsync(ct);
+        await using var peer1Host = await DispatcherHost.StartAsync("failover-peer1", peer1Dispatcher, LoggerFactory, ct);
+        await using var peer2Host = await DispatcherHost.StartAsync("failover-peer2", peer2Dispatcher, LoggerFactory, ct);
 
         using var peer1Client = new HttpClient { BaseAddress = peer1Address };
         using var peer2Client = new HttpClient { BaseAddress = peer2Address };
@@ -157,29 +146,20 @@ public class HttpOutboundIntegrationTests
         var codec = new JsonCodec<PingRequest, PingResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         var client = dispatcher.CreateUnaryClient<PingRequest, PingResponse>("failover-remote", codec);
 
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var clientHost = await DispatcherHost.StartAsync("failover-client", dispatcher, LoggerFactory, ct);
 
-        try
-        {
-            var meta = new RequestMeta(
-                service: "failover-remote",
-                procedure: failoverProcedure,
-                encoding: MediaTypeNames.Application.Json,
-                transport: "http");
-            var request = new Request<PingRequest>(meta, new PingRequest("ping"));
+        var meta = new RequestMeta(
+            service: "failover-remote",
+            procedure: failoverProcedure,
+            encoding: MediaTypeNames.Application.Json,
+            transport: "http");
+        var request = new Request<PingRequest>(meta, new PingRequest("ping"));
 
-            var result = await client.CallAsync(request, ct);
-            Assert.True(result.IsSuccess, result.Error?.Message);
-            Assert.Equal("peer-b", result.Value.Body.Message);
-            Assert.True(peer1Calls >= 1, "Primary peer should receive at least one attempt.");
-            Assert.Equal(1, peer2Calls);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(CancellationToken.None);
-            await peer1Dispatcher.StopOrThrowAsync(CancellationToken.None);
-            await peer2Dispatcher.StopOrThrowAsync(CancellationToken.None);
-        }
+        var result = await client.CallAsync(request, ct);
+        result.IsSuccess.ShouldBeTrue(result.Error?.Message);
+        result.Value.Body.Message.ShouldBe("peer-b");
+        peer1Calls.ShouldBeGreaterThanOrEqualTo(1);
+        peer2Calls.ShouldBe(1);
     }
 
     private static async Task WaitForEndpointReadyAsync(Uri address, CancellationToken cancellationToken)

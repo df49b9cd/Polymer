@@ -199,7 +199,7 @@ internal sealed class ConsoleLoggingMiddleware :
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         var stopwatch = Stopwatch.GetTimestamp();
         Console.WriteLine($"[inbound] --> unary {request.Meta.Procedure}");
@@ -214,7 +214,7 @@ internal sealed class ConsoleLoggingMiddleware :
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         Console.WriteLine($"[inbound] --> oneway {request.Meta.Procedure}");
         var ack = await next(request, cancellationToken).ConfigureAwait(false);
@@ -227,7 +227,7 @@ internal sealed class ConsoleLoggingMiddleware :
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler next)
     {
         var stopwatch = Stopwatch.GetTimestamp();
         Console.WriteLine($"[outbound] --> unary {request.Meta.Service}/{request.Meta.Procedure}");
@@ -242,7 +242,7 @@ internal sealed class ConsoleLoggingMiddleware :
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next)
+        OnewayOutboundHandler next)
     {
         Console.WriteLine($"[outbound] --> oneway {request.Meta.Service}/{request.Meta.Procedure}");
         var ack = await next(request, cancellationToken).ConfigureAwait(false);

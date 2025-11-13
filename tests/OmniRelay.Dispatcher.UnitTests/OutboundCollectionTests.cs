@@ -1,13 +1,11 @@
-using System;
 using System.Collections.Immutable;
 using NSubstitute;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 
-public class OutboundCollectionTests
+public class OutboundRegistryTests
 {
     [Fact]
     public void Resolve_WithNullKey_ReturnsDefaultBinding()
@@ -24,16 +22,16 @@ public class OutboundCollectionTests
     {
         var unary = Substitute.For<IUnaryOutbound>();
         var map = ImmutableDictionary.Create<string, IUnaryOutbound>(StringComparer.OrdinalIgnoreCase)
-            .Add(OutboundCollection.DefaultKey, Substitute.For<IUnaryOutbound>())
+            .Add(OutboundRegistry.DefaultKey, Substitute.For<IUnaryOutbound>())
             .Add("primary", unary);
 
-        var collection = new OutboundCollection(
+        var collection = new OutboundRegistry(
             "downstream",
             map,
-            ImmutableDictionary<string, IOnewayOutbound>.Empty,
-            ImmutableDictionary<string, IStreamOutbound>.Empty,
-            ImmutableDictionary<string, IClientStreamOutbound>.Empty,
-            ImmutableDictionary<string, IDuplexOutbound>.Empty);
+            [],
+            [],
+            [],
+            []);
 
         Assert.Same(unary, collection.ResolveUnary("PRIMARY"));
     }
@@ -50,17 +48,17 @@ public class OutboundCollectionTests
         Assert.False(collection.TryGetDuplex("missing", out _));
     }
 
-    private static OutboundCollection CreateCollection(
+    private static OutboundRegistry CreateCollection(
         IUnaryOutbound? unaryOutbound = null)
     {
         unaryOutbound ??= Substitute.For<IUnaryOutbound>();
 
-        return new OutboundCollection(
+        return new OutboundRegistry(
             "downstream",
-            ImmutableDictionary<string, IUnaryOutbound>.Empty.Add(OutboundCollection.DefaultKey, unaryOutbound),
-            ImmutableDictionary<string, IOnewayOutbound>.Empty.Add(OutboundCollection.DefaultKey, Substitute.For<IOnewayOutbound>()),
-            ImmutableDictionary<string, IStreamOutbound>.Empty.Add(OutboundCollection.DefaultKey, Substitute.For<IStreamOutbound>()),
-            ImmutableDictionary<string, IClientStreamOutbound>.Empty.Add(OutboundCollection.DefaultKey, Substitute.For<IClientStreamOutbound>()),
-            ImmutableDictionary<string, IDuplexOutbound>.Empty.Add(OutboundCollection.DefaultKey, Substitute.For<IDuplexOutbound>()));
+            ImmutableDictionary<string, IUnaryOutbound>.Empty.Add(OutboundRegistry.DefaultKey, unaryOutbound),
+            ImmutableDictionary<string, IOnewayOutbound>.Empty.Add(OutboundRegistry.DefaultKey, Substitute.For<IOnewayOutbound>()),
+            ImmutableDictionary<string, IStreamOutbound>.Empty.Add(OutboundRegistry.DefaultKey, Substitute.For<IStreamOutbound>()),
+            ImmutableDictionary<string, IClientStreamOutbound>.Empty.Add(OutboundRegistry.DefaultKey, Substitute.For<IClientStreamOutbound>()),
+            ImmutableDictionary<string, IDuplexOutbound>.Empty.Add(OutboundRegistry.DefaultKey, Substitute.For<IDuplexOutbound>()));
     }
 }

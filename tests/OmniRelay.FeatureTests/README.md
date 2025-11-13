@@ -13,6 +13,23 @@ Feature-level coverage for OmniRelay that exercises dispatcher bootstrapping, co
 - Catch regressions introduced by refactors to configuration, hosting, or dependency wiring before code reaches integration or staging environments.
 - Offer a predictable, hermetic harness that can run locally and in CI in under ~5 minutes, even when optional containers are enabled.
 
+## Scenario Backlog
+| Scenario | What we exercise | Notes / Dependencies |
+| --- | --- | --- |
+| DispatcherBootstrap_DefaultProfile | `FeatureTestApplication` boots `Host.CreateApplicationBuilder` with `AddOmniRelayDispatcher` and asserts the dispatcher status, service metadata, and logging filters from `appsettings.featuretests.json`. | No containers; uses the shared collection fixture only. |
+| ConfigurationOverlay_CLIProfile | `omnirelay config validate/apply` overlays layered appsettings + `OMNIRELAY_FEATURETESTS_*` overrides and should update `IOptionsMonitor<OmniRelayConfigurationOptions>` without rebuilding the host. | Drive through the CLI profile helpers and assert options/logging snapshots before & after the overlay. |
+| CodecNegotiation_MixedEncodings | JSON and Protobuf clients hit the same handler to prove codec registration, request translation, and response serialization remain symmetric. | Reuse CLI `request` profiles (json + protobuf) and assert `Content-Type` plus payload contents. |
+| MinimalApiBridge_SharedHandlers | ASP.NET Core Minimal APIs and the dispatcher share DI/middleware so HTTP controllers can call OmniRelay handlers and vice-versa. | Hosted via `Microsoft.AspNetCore.Mvc.Testing`; no containers required. |
+| RoutingChooser_FewestPending | A multi-peer service configured with the `fewest-pending` chooser routes to the least loaded peer and gracefully degrades when a peer goes unhealthy. | Simulate peer health via test doubles and assert chooser metrics + resolver output. |
+| ShadowTraffic_TeePreview | Tee/shadow wiring mirrors sampled traffic to a preview dispatcher while leaving primary responses untouched. | Toggle tee configuration in `appsettings.featuretests.json`, capture tee logs, and assert sampled invokes land on the preview client. |
+| Observability_MetricsAndIntrospection | Enabling OpenTelemetry + `/omnirelay/metrics` + `omnirelay introspect` surfaces dispatcher wiring, codec registrations, and health signals. | Override diagnostics settings (env vars or CLI `--set` flags) and assert the collector receives spans/counters plus introspection JSON matches expectations. |
+| Persistence_PostgresEventStore | Handlers that persist envelopes to Postgres/EventStore resume work after a restart, proving storage + checkpoint integration. | Requires `FeatureTestContainers.EnsurePostgresAsync/EnsureEventStoreAsync` and gating on `ContainersEnabled`. |
+| ObjectStorageAndBus_AttachmentsAndFanout | File attachments land in MinIO while async notifications fan out via NATS to prove object storage + bus wiring stay consistent. | Containers required; assert MinIO object metadata + NATS subscribers receive mirrored payloads. |
+
+## TLS & Certificates
+- `FeatureTestApplication` asks `TestCertificateFactory` for an in-memory PKCS#12 blob and injects the resulting `certificateData` + password into configuration so HTTPS and mTLS are always enabled without touching disk (`tests/OmniRelay.FeatureTests/Fixtures/FeatureTestApplication.cs`).
+- Certificates are regenerated in-memory on process start, so there is nothing to pre-provision locally and CI automatically gets a fresh instance every run.
+
 ## Reasoning
 - Feature-level validation mirrors how stakeholders talk about value, so failures map directly to user impact instead of implementation detail.
 - Building on the same DI extensions (`AddOmniRelayDispatcher`) reduces skew between tests and production bootstrapping, keeping assertions honest.

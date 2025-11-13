@@ -89,19 +89,19 @@ public sealed class GrpcExceptionAdapterInterceptor : Interceptor
 
     private static RpcException AdaptException(Exception exception)
     {
-        var polymerException = exception switch
+        var omnirelayException = exception switch
         {
             OmniRelayException pe => pe,
             _ => OmniRelayErrors.FromException(exception, GrpcTransportConstants.TransportName)
         };
 
-        var status = GrpcStatusMapper.ToStatus(polymerException.StatusCode, polymerException.Message);
-        var trailers = GrpcMetadataAdapter.CreateErrorTrailers(polymerException.Error);
-        var transport = polymerException.Transport ?? GrpcTransportConstants.TransportName;
+        var status = GrpcStatusMapper.ToStatus(omnirelayException.StatusCode, omnirelayException.Message);
+        var trailers = GrpcMetadataAdapter.CreateErrorTrailers(omnirelayException.Error);
+        var transport = omnirelayException.Transport ?? GrpcTransportConstants.TransportName;
         if (trailers.GetValue(GrpcTransportConstants.TransportTrailer) is null)
         {
             trailers.Add(GrpcTransportConstants.TransportTrailer, transport);
         }
-        return new RpcException(status, trailers, polymerException.Message);
+        return new RpcException(status, trailers, omnirelayException.Message);
     }
 }

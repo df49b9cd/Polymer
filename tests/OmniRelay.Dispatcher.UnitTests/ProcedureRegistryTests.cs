@@ -1,6 +1,5 @@
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using Xunit;
 using static Hugo.Go;
 
@@ -8,7 +7,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class ProcedureRegistryTests
 {
-    private static readonly UnaryInboundDelegate UnaryHandler =
+    private static readonly UnaryInboundHandler UnaryHandler =
         (_, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
 
     [Fact]

@@ -1,15 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Clients;
-using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
@@ -62,9 +54,9 @@ public class StreamClientTests
         await serverCall.CompleteAsync(null, TestContext.Current.CancellationToken);
 
         var results = await collectedTask;
-        Assert.Equal(2, results.Count);
-        Assert.Equal(Convert.ToBase64String(new byte[] { 1, 2, 3 }), results[0].Body.S);
-        Assert.Equal(Convert.ToBase64String(new byte[] { 4, 5 }), results[1].Body.S);
+        results.Count.ShouldBe(2);
+        results[0].Body.S.ShouldBe(Convert.ToBase64String(new byte[] { 1, 2, 3 }));
+        results[1].Body.S.ShouldBe(Convert.ToBase64String(new byte[] { 4, 5 }));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -81,12 +73,12 @@ public class StreamClientTests
         await foreach (var result in client.CallAsync(Request<Req>.Create(new Req()), options, TestContext.Current.CancellationToken))
         {
             enumerated = true;
-            Assert.True(result.IsFailure);
-            Assert.Equal("invalid-argument", result.Error!.Code);
+            result.IsFailure.ShouldBeTrue();
+            result.Error!.Code.ShouldBe("invalid-argument");
             break;
         }
 
-        Assert.True(enumerated);
+        enumerated.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -107,12 +99,12 @@ public class StreamClientTests
         await foreach (var result in client.CallAsync(Request<Req>.Create(new Req()), options, TestContext.Current.CancellationToken))
         {
             enumerated = true;
-            Assert.True(result.IsFailure);
-            Assert.Equal(OmniRelayStatusCode.Unavailable, OmniRelayErrorAdapter.ToStatus(result.Error!));
+            result.IsFailure.ShouldBeTrue();
+            OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Unavailable);
             break;
         }
 
-        Assert.True(enumerated);
+        enumerated.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -137,7 +129,7 @@ public class StreamClientTests
         {
             await foreach (var result in client.CallAsync(new Request<Req>(meta, new Req()), options, TestContext.Current.CancellationToken))
             {
-                Assert.True(result.IsFailure);
+                result.IsFailure.ShouldBeTrue();
                 break;
             }
         }, TestContext.Current.CancellationToken);
@@ -145,8 +137,8 @@ public class StreamClientTests
         await call.WriteAsync(new byte[] { 9 }, TestContext.Current.CancellationToken);
 
         await enumeration;
-        Assert.Equal(StreamCompletionStatus.Faulted, call.Context.CompletionStatus);
-        Assert.NotNull(call.Context.CompletionError);
+        call.Context.CompletionStatus.ShouldBe(StreamCompletionStatus.Faulted);
+        call.Context.CompletionError.ShouldNotBeNull();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -178,14 +170,14 @@ public class StreamClientTests
         {
             await foreach (var result in client.CallAsync(new Request<Req>(meta, new Req()), options, TestContext.Current.CancellationToken))
             {
-                Assert.True(result.IsSuccess);
+                result.IsSuccess.ShouldBeTrue();
             }
         }, TestContext.Current.CancellationToken);
 
         await call.CompleteAsync(null, TestContext.Current.CancellationToken);
         await iterate;
 
-        Assert.NotNull(capturedMeta);
-        Assert.Equal("proto", capturedMeta!.Encoding);
+        capturedMeta.ShouldNotBeNull();
+        capturedMeta!.Encoding.ShouldBe("proto");
     }
 }

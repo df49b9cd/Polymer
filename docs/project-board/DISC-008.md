@@ -31,5 +31,27 @@ Enable operators and automation to modify peer and cluster state via authenticat
 - CLI workflows demonstrate cordon/drain/promote flows end-to-end in integration tests.
 - Error handling covers invalid states with descriptive messages and HTTP status codes.
 
+## Testing Strategy
+
+### Unit tests
+- Cover validator logic for cordon/drain/promote requests, ensuring preconditions (e.g., cannot demote the last active cluster) throw consistent problem-detail payloads.
+- Test optimistic concurrency helpers to prove ETag mismatches reject stale updates while idempotent retries succeed.
+- Verify audit log builders capture actor, reason, ticket ID, and outcome for every code path, including failures.
+
+### Integration tests
+- Run REST + gRPC mutation flows against a seeded registry, asserting RBAC scopes (`mesh.operate`, `mesh.admin`), transactionality, and audit trail persistence.
+- Exercise CLI commands in record mode (with confirmation prompts) to validate serialization, error surfaces, and logging hooks.
+- Simulate concurrent mutations (e.g., two drains) to ensure locking guarantees and descriptive conflict responses.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Execute a scripted operations scenario that cordons a node, drains workloads, promotes a backup cluster, and edits peer metadata, confirming `/control/*` endpoints and dashboards reflect each mutation.
+- Perform a rollback drill where a drain is cancelled mid-flight, verifying the controller unwinds state, updates audit logs, and notifies subscribers through CLI and SSE feeds.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Drive parallel mutations across dozens of peers/clusters to validate optimistic concurrency, audit throughput, and CLI ergonomics when many operators act at once.
+- Stress destructive workflows (mass drains, config edits) with staged approvals to ensure guardrails, confirmation prompts, and telemetry remain responsive under scale.
+
 ## References
 - `docs/architecture/service-discovery.md` – “Discoverable peer registry API”, “Required refactorings”, “Risks & mitigations”.

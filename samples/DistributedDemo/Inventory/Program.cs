@@ -117,7 +117,7 @@ internal sealed class ConsoleUnaryLogger(string instance) : IUnaryInboundMiddlew
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         Console.WriteLine($"[{instance}] --> {request.Meta.Procedure}");
         var result = await next(request, cancellationToken).ConfigureAwait(false);

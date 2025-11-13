@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Transport.Quic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc.Interceptors;
@@ -22,7 +23,7 @@ namespace OmniRelay.Transport.Grpc;
 /// Hosts the OmniRelay gRPC inbound service that dispatches arbitrary procedures via a single gRPC service.
 /// Supports HTTP/2 and can enable HTTP/3 (QUIC) when configured with TLS 1.3.
 /// </summary>
-public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInterceptorSink
+public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInterceptorSink
 {
     private readonly string[] _urls;
     private readonly Action<IServiceCollection>? _configureServices;
@@ -364,16 +365,16 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         {
             if (http3Endpoints is { Count: > 0 })
             {
-                app.Logger.LogInformation("gRPC HTTP/3 enabled on {EndpointCount} endpoint(s): {Endpoints}", http3Endpoints.Count, string.Join(", ", http3Endpoints));
+                GrpcInboundLog.Http3Enabled(app.Logger, http3Endpoints.Count, string.Join(", ", http3Endpoints));
             }
             else
             {
-                app.Logger.LogWarning("gRPC HTTP/3 was requested but no HTTPS endpoints were configured; falling back to HTTP/2.");
+                GrpcInboundLog.Http3MissingHttps(app.Logger);
             }
 
             if (streamLimitUnsupported)
             {
-                app.Logger.LogWarning("gRPC HTTP/3 stream limit tuning is not supported by the current MsQuic transport; configured values will be ignored.");
+                GrpcInboundLog.Http3StreamLimitUnsupported(app.Logger);
             }
 
             if (idleTimeoutUnsupported || keepAliveUnsupported)
@@ -390,7 +391,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                     unsupportedOptions.Add("keep-alive interval");
                 }
 
-                app.Logger.LogWarning("HTTP/3 {Options} tuning is not supported by the current MsQuic transport; configured values will be ignored.", string.Join(" and ", unsupportedOptions));
+                GrpcInboundLog.Http3OptionsUnsupported(app.Logger, string.Join(" and ", unsupportedOptions));
             }
         }
 
@@ -398,6 +399,10 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
 
         app.MapGrpcService<GrpcDispatcherService>();
         app.MapGrpcService<GrpcTransportHealthService>();
+        if (app.Services.GetService<LeadershipControlGrpcService>() is not null)
+        {
+            app.MapGrpcService<LeadershipControlGrpcService>();
+        }
 
         await app.StartAsync(cancellationToken).ConfigureAwait(false);
         _app = app;
@@ -463,7 +468,7 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
                 return;
             }
 
-            contexts = _activeCallContexts.ToList();
+            contexts = [.. _activeCallContexts];
         }
 
         foreach (var call in contexts)
@@ -568,6 +573,21 @@ public sealed class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInter
         await _app.DisposeAsync().ConfigureAwait(false);
         _app = null;
         _isDraining = false;
+    }
+
+    private static partial class GrpcInboundLog
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "gRPC HTTP/3 enabled on {EndpointCount} endpoint(s): {Endpoints}")]
+        public static partial void Http3Enabled(ILogger logger, int endpointCount, string endpoints);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "gRPC HTTP/3 was requested but no HTTPS endpoints were configured; falling back to HTTP/2.")]
+        public static partial void Http3MissingHttps(ILogger logger);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "gRPC HTTP/3 stream limit tuning is not supported by the current MsQuic transport; configured values will be ignored.")]
+        public static partial void Http3StreamLimitUnsupported(ILogger logger);
+
+        [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "HTTP/3 {Options} tuning is not supported by the current MsQuic transport; configured values will be ignored.")]
+        public static partial void Http3OptionsUnsupported(ILogger logger, string options);
     }
 
 }

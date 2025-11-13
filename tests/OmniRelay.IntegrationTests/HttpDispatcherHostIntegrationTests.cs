@@ -1,15 +1,11 @@
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
 using System.Net.Mime;
-using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OmniRelay.Configuration;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
-using OmniRelay.Tests;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;

@@ -28,3 +28,25 @@ Automate nightly chaos runs and integrate results into CI/CD gating, including s
 
 ## References
 - `docs/architecture/service-discovery.md` – “Testing & chaos validation”, “Implementation backlog item 9”.
+
+## Testing Strategy
+
+### Unit tests
+- Cover the scenario DSL parser so prerequisites, fault steps, expected SLOs, and rollback instructions are validated with helpful error messages before pipelines run.
+- Test report generators to ensure JSON/JUnit outputs include scenario metadata, pass/fail indicators, convergence metrics, and artifact links.
+- Validate gating logic that interprets chaos results, guaranteeing severity thresholds align with release-blocking rules and notifications.
+
+### Integration tests
+- Execute the orchestration scripts inside CI (GitHub Actions/Azure Pipelines) to deploy the DISC-018 environment, run sample scenarios, and collect/upload artifacts automatically.
+- Run failure-injection cases to confirm pipelines mark builds unstable, block downstream release stages, and emit notifications via Slack/Teams/email plus ticket creation.
+- Verify historical dashboards ingest stored reports, enabling trend charts over time with correct linking into Grafana/Prometheus data.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Schedule nightly chaos runs that execute the full scenario catalog, publish summaries, open tickets for regressions, and require explicit override before releases proceed.
+- Perform onboarding tests where an engineer adds a new scenario to `chaos-scenarios.yaml`, triggers validation, and observes it running in CI with results captured end to end.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Run parallel CI pipelines that fan out across multiple clusters/environments to ensure artifact uploads, gating logic, and notifications scale with dozens of simultaneous scenarios.
+- Stress historical reporting by ingesting large archives of chaos outcomes, generating trend dashboards, and verifying release gating logic references long-term data accurately.

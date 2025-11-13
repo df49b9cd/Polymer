@@ -5,17 +5,11 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-internal sealed class ResourceLeaseHttpClient
+internal sealed class ResourceLeaseHttpClient(HttpClient httpClient, IOptions<MeshDemoOptions> options)
 {
-    private readonly HttpClient _httpClient;
-    private readonly MeshDemoOptions _options;
+    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+    private readonly MeshDemoOptions _options = options.Value;
     private static ResourceLeaseJsonContext JsonContext => ResourceLeaseJson.Context;
-
-    public ResourceLeaseHttpClient(HttpClient httpClient, IOptions<MeshDemoOptions> options)
-    {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options.Value;
-    }
 
     public async Task<ResourceLeaseEnqueueResponse> EnqueueAsync(ResourceLeaseItemPayload payload, CancellationToken cancellationToken)
     {

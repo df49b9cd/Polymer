@@ -1,9 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Hugo;
-using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
 using Xunit;
@@ -30,13 +24,13 @@ public class ClientStreamCallTests
         {
             read.Add(payload.ToArray());
         }
-        Assert.Equal(2, read.Count);
+        read.Count.ShouldBe(2);
 
         var resMeta = new ResponseMeta(encoding: "json");
         call.TryComplete(Ok(Response<ReadOnlyMemory<byte>>.Create(new byte[] { 9 }, resMeta)));
         var result = await call.Response;
-        Assert.True(result.IsSuccess);
-        Assert.Equal(resMeta, call.ResponseMeta);
+        result.IsSuccess.ShouldBeTrue();
+        call.ResponseMeta.ShouldBe(resMeta);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -47,7 +41,7 @@ public class ClientStreamCallTests
         var err = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "boom");
         call.TryCompleteWithError(err);
         var result = await call.Response;
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
     }
 }

@@ -1,17 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Net;
-using System.Net.Http;
 using System.Net.Mime;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 using Google.Protobuf;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
@@ -23,14 +16,12 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.Tests;
+using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using OmniRelay.YabInterop.Protos;
 using Xunit;
-using Xunit.Sdk;
-using Yarp.ReverseProxy;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Forwarder;
 using static Hugo.Go;
@@ -544,7 +535,7 @@ public sealed class CompatibilityInteropIntegrationTests
         string serviceName,
         Uri baseAddress,
         string procedure,
-        UnaryInboundDelegate handler,
+        UnaryInboundHandler handler,
         HttpServerRuntimeOptions? runtimeOptions = null,
         HttpServerTlsOptions? tlsOptions = null)
     {
@@ -743,17 +734,12 @@ public sealed class CompatibilityInteropIntegrationTests
     }
 }
 
-internal sealed class CapturingUnaryOutbound : IUnaryOutbound
+internal sealed class CapturingUnaryOutbound(string clusterLabel, TaskCompletionSource<RequestMeta> capture)
+    : IUnaryOutbound
 {
-    private readonly string _clusterLabel;
+    private readonly string _clusterLabel = clusterLabel;
 
-    public CapturingUnaryOutbound(string clusterLabel, TaskCompletionSource<RequestMeta> capture)
-    {
-        _clusterLabel = clusterLabel;
-        Capture = capture;
-    }
-
-    public TaskCompletionSource<RequestMeta> Capture { get; }
+    public TaskCompletionSource<RequestMeta> Capture { get; } = capture;
 
     public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 

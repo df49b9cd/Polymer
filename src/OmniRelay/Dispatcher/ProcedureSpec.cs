@@ -60,7 +60,7 @@ public sealed record UnaryProcedureSpec : ProcedureSpec
     public UnaryProcedureSpec(
         string service,
         string name,
-        UnaryInboundDelegate handler,
+        UnaryInboundHandler handler,
         string? encoding = null,
         IReadOnlyList<IUnaryInboundMiddleware>? middleware = null,
         IReadOnlyList<string>? aliases = null)
@@ -70,7 +70,7 @@ public sealed record UnaryProcedureSpec : ProcedureSpec
         Middleware = middleware ?? [];
     }
 
-    public UnaryInboundDelegate Handler { get; }
+    public UnaryInboundHandler Handler { get; }
 
     public IReadOnlyList<IUnaryInboundMiddleware> Middleware { get; }
 }
@@ -81,7 +81,7 @@ public sealed record OnewayProcedureSpec : ProcedureSpec
     public OnewayProcedureSpec(
         string service,
         string name,
-        OnewayInboundDelegate handler,
+        OnewayInboundHandler handler,
         string? encoding = null,
         IReadOnlyList<IOnewayInboundMiddleware>? middleware = null,
         IReadOnlyList<string>? aliases = null)
@@ -91,7 +91,7 @@ public sealed record OnewayProcedureSpec : ProcedureSpec
         Middleware = middleware ?? [];
     }
 
-    public OnewayInboundDelegate Handler { get; }
+    public OnewayInboundHandler Handler { get; }
 
     public IReadOnlyList<IOnewayInboundMiddleware> Middleware { get; }
 }
@@ -102,7 +102,7 @@ public sealed record StreamProcedureSpec : ProcedureSpec
     public StreamProcedureSpec(
         string service,
         string name,
-        StreamInboundDelegate handler,
+        StreamInboundHandler handler,
         string? encoding = null,
         IReadOnlyList<IStreamInboundMiddleware>? middleware = null,
         StreamIntrospectionMetadata? metadata = null,
@@ -114,7 +114,7 @@ public sealed record StreamProcedureSpec : ProcedureSpec
         Metadata = metadata ?? StreamIntrospectionMetadata.Default;
     }
 
-    public StreamInboundDelegate Handler { get; }
+    public StreamInboundHandler Handler { get; }
 
     public IReadOnlyList<IStreamInboundMiddleware> Middleware { get; }
 
@@ -127,7 +127,7 @@ public sealed record ClientStreamProcedureSpec : ProcedureSpec
     public ClientStreamProcedureSpec(
         string service,
         string name,
-        ClientStreamInboundDelegate handler,
+        ClientStreamInboundHandler handler,
         string? encoding = null,
         IReadOnlyList<IClientStreamInboundMiddleware>? middleware = null,
         ClientStreamIntrospectionMetadata? metadata = null,
@@ -139,7 +139,7 @@ public sealed record ClientStreamProcedureSpec : ProcedureSpec
         Metadata = metadata ?? ClientStreamIntrospectionMetadata.Default;
     }
 
-    public ClientStreamInboundDelegate Handler { get; }
+    public ClientStreamInboundHandler Handler { get; }
 
     public IReadOnlyList<IClientStreamInboundMiddleware> Middleware { get; }
 
@@ -152,7 +152,7 @@ public sealed record DuplexProcedureSpec : ProcedureSpec
     public DuplexProcedureSpec(
         string service,
         string name,
-        DuplexInboundDelegate handler,
+        DuplexInboundHandler handler,
         string? encoding = null,
         IReadOnlyList<IDuplexInboundMiddleware>? middleware = null,
         DuplexIntrospectionMetadata? metadata = null,
@@ -164,7 +164,7 @@ public sealed record DuplexProcedureSpec : ProcedureSpec
         Metadata = metadata ?? DuplexIntrospectionMetadata.Default;
     }
 
-    public DuplexInboundDelegate Handler { get; }
+    public DuplexInboundHandler Handler { get; }
 
     public IReadOnlyList<IDuplexInboundMiddleware> Middleware { get; }
 

@@ -3,15 +3,10 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-internal sealed class MeshReplicationLog
+internal sealed class MeshReplicationLog(int capacity = 32)
 {
     private readonly ConcurrentQueue<ResourceLeaseReplicationEvent> _events = new();
-    private readonly int _capacity;
-
-    public MeshReplicationLog(int capacity = 32)
-    {
-        _capacity = Math.Max(8, capacity);
-    }
+    private readonly int _capacity = Math.Max(8, capacity);
 
     public void Add(ResourceLeaseReplicationEvent evt)
     {
@@ -24,11 +19,9 @@ internal sealed class MeshReplicationLog
     public IReadOnlyList<ResourceLeaseReplicationEvent> GetRecent() => _events.ToArray();
 }
 
-internal sealed class MeshReplicationLogSink : IResourceLeaseReplicationSink
+internal sealed class MeshReplicationLogSink(MeshReplicationLog log) : IResourceLeaseReplicationSink
 {
-    private readonly MeshReplicationLog _log;
-
-    public MeshReplicationLogSink(MeshReplicationLog log) => _log = log;
+    private readonly MeshReplicationLog _log = log;
 
     public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {

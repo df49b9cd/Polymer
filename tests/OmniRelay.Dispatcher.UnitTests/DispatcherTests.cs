@@ -1,13 +1,8 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 using Hugo;
 using NSubstitute;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
@@ -227,23 +222,17 @@ public class DispatcherTests
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryInboundDelegate next)
+            UnaryInboundHandler next)
         {
             sink.Add(name);
             return next(request, cancellationToken);
         }
     }
 
-    private sealed class ThrowingLifecycle : ILifecycle
+    private sealed class ThrowingLifecycle(bool startThrows = false, bool stopThrows = false) : ILifecycle
     {
-        private readonly bool _startThrows;
-        private readonly bool _stopThrows;
-
-        public ThrowingLifecycle(bool startThrows = false, bool stopThrows = false)
-        {
-            _startThrows = startThrows;
-            _stopThrows = stopThrows;
-        }
+        private readonly bool _startThrows = startThrows;
+        private readonly bool _stopThrows = stopThrows;
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {

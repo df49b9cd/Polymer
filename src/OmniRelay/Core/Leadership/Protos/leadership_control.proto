@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package omnirelay.mesh.control.v1;
+
+option csharp_namespace = "OmniRelay.Mesh.Control.V1";
+
+import "google/protobuf/timestamp.proto";
+
+message LeadershipToken {
+  string scope = 1;
+  string scope_kind = 2;
+  string leader_id = 3;
+  int64 term = 4;
+  int64 fence_token = 5;
+  google.protobuf.Timestamp issued_at = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  map<string, string> labels = 8;
+}
+
+enum LeadershipEventKind {
+  LEADERSHIP_EVENT_KIND_UNSPECIFIED = 0;
+  LEADERSHIP_EVENT_KIND_SNAPSHOT = 1;
+  LEADERSHIP_EVENT_KIND_OBSERVED = 2;
+  LEADERSHIP_EVENT_KIND_ELECTED = 3;
+  LEADERSHIP_EVENT_KIND_RENEWED = 4;
+  LEADERSHIP_EVENT_KIND_LOST = 5;
+  LEADERSHIP_EVENT_KIND_EXPIRED = 6;
+  LEADERSHIP_EVENT_KIND_STEPPED_DOWN = 7;
+}
+
+message LeadershipEvent {
+  LeadershipEventKind kind = 1;
+  string scope = 2;
+  string leader_id = 3;
+  LeadershipToken token = 4;
+  string reason = 5;
+  string correlation_id = 6;
+  google.protobuf.Timestamp occurred_at = 7;
+}
+
+message LeadershipSubscribeRequest {
+  string scope = 1;
+}
+
+service LeadershipControlService {
+  rpc Subscribe(LeadershipSubscribeRequest) returns (stream LeadershipEvent);
+}

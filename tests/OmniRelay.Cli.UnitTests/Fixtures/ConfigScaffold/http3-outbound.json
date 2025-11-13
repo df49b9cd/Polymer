@@ -1,0 +1,78 @@
+{
+  "fabric": {
+    "service": "aggregator",
+    "inbounds": {
+      "http": [
+        {
+          "urls": [
+            "http://0.0.0.0:8080"
+          ],
+          "runtime": {
+            "maxRequestBodySize": 8388608
+          }
+        },
+        {
+          "urls": [
+            "https://0.0.0.0:8443"
+          ],
+          "runtime": {
+            "enableHttp3": true,
+            "http3": {
+              "enableAltSvc": true,
+              "maxBidirectionalStreams": 128,
+              "maxUnidirectionalStreams": 32
+            }
+          },
+          "tls": {
+            "certificatePath": "certs/server.pfx",
+            "certificatePassword": "change-me"
+          }
+        }
+      ],
+      "grpc": [
+        {
+          "urls": [
+            "http://0.0.0.0:8090"
+          ],
+          "runtime": {
+            "maxReceiveMessageSize": 8388608,
+            "maxSendMessageSize": 8388608
+          }
+        },
+        {
+          "urls": [
+            "https://0.0.0.0:9091"
+          ],
+          "runtime": {
+            "enableHttp3": true
+          },
+          "tls": {
+            "certificatePath": "certs/server.pfx",
+            "certificatePassword": "change-me"
+          }
+        }
+      ]
+    },
+    "outbounds": {
+      "audit": {
+        "unary": {
+          "grpc": [
+            {
+              "endpoints": [
+                {
+                  "address": "https://peer-h3:9091",
+                  "supportsHttp3": true
+                },
+                {
+                  "address": "https://peer-h2:9090",
+                  "supportsHttp3": false
+                }
+              ],
+              "remoteService": "audit"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

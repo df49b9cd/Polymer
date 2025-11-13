@@ -48,14 +48,21 @@ Hyperscale validation suite focused on OmniRelay behaving as a distributed RPC f
 - **Capture artifacts** – Dump shard maps, elected leaders, and routing tables as JSON per scenario to aid diffing and regression tracking.
 - **Isolate resource usage** – Tag containers with the topology/test name and clean them in `DisposeAsync` to avoid orphaned resources.
 
-## Scenario Ideas
-| Category | Example Scenarios |
-| --- | --- |
-| Leadership | Promote/demote global leader, detect split brain, ensure watchers converge |
-| Sharding | Hot shard rebalancing, consistent hashing drift detection, shard stickiness under failover |
-| Regional Routing | Geo-affinity routing with fallback, latency-aware routing when a region degrades |
-| Chaos | Network partition between global and region leaders, mass shard node restart, delayed bootstrap |
-| Telemetry | Ensure leadership changes emit events, shard counters remain monotonic across instances |
+## Scenario Backlog
+| Scenario | What we exercise | Signals / Dependencies |
+| --- | --- | --- |
+| GlobalClusterBootstrap_DefaultTopology | `HyperscaleClusterFixture` brings up a global leader, two regional leaders, and shard replicas, and `/omnirelay/introspect` returns the same role map that the topology builder declared. | Depends on a `Topologies/GlobalLeaderWithTwoRegions` builder; no chaos injection. |
+| GlobalLeaderFailover_PromoteRegion | Pausing or killing the global leader should trigger promotion of a regional leader and route CLI traffic through the promoted node without split brain. | Use container pause APIs + promotion RPCs, assert routing tables and leadership metrics converge. |
+| RegionalDegrade_GeoFallback | A degraded west region (high latency or throttled network) should push geo-affinity clients to the east region while keeping shard stickiness where possible. | Inject latency/packet loss on the region container and assert latency-aware routing metrics plus client observations. |
+| HotShardRebalance | When shard `42` exceeds a configured QPS budget, the cluster should rebalance ownership to a cooler replica, update consistent hashing data, and keep in-flight requests on the original owner until completion. | Drive synthetic load + invoke shard rebalance RPC, assert shard maps, replication lag, and `fewest-pending` chooser output. |
+| PartitionHealing_GossipConvergence | A network partition between the global leader and one region creates divergent gossip views that must converge once connectivity resumes. | Use Testcontainers network controls, capture gossip tables pre/post heal, and assert there are no orphaned shards. |
+| BackpressurePropagation_CrossRegion | Saturating a shard in one region should emit backpressure signals that flow to the global leader and downstream clients, preventing thundering herds. | Drive sustained load, monitor backpressure counters, and confirm clients see throttling headers/events. |
+| Telemetry_LeadershipAndShardSignals | Leadership changes, shard assignments, and failover events emit OpenTelemetry traces/metrics that can be scraped for alerting. | Enable OTEL exporters, capture span/metric names, and ensure counters remain monotonic across restarts. |
+
+## TLS & Certificates
+- `HyperscaleTestEnvironment` exposes `AddDefaultOmniRelayConfiguration` so cluster fixtures can pull HTTPS + mTLS defaults directly into their configuration builders without duplicating TLS plumbing (`tests/OmniRelay.HyperscaleFeatureTests/Infrastructure/HyperscaleTestEnvironment.cs`).
+- The helper shares the same in-memory PKCS#12 blob from `TestCertificateFactory`, so every node in a simulated cluster trusts the same short-lived root without ever persisting keys to disk.
+- Future multi-node fixtures should call the helper before wiring containers so every node trusts the same short-lived root, keeping control-plane negotiations realistic.
 
 ## Example Flow
 1. `Given` a `GlobalLeaderWithTwoRegions` topology.

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Peers;
 using OmniRelay.Dispatcher;
 
@@ -26,4 +27,5 @@ internal static class MeshJson
 [JsonSerializable(typeof(LakehouseCatalogOperation))]
 [JsonSerializable(typeof(LakehouseCatalogSnapshot))]
 [JsonSerializable(typeof(LakehouseCatalogTableState))]
+[JsonSerializable(typeof(MeshGossipClusterView))]
 internal sealed partial class MeshJsonContext : JsonSerializerContext;

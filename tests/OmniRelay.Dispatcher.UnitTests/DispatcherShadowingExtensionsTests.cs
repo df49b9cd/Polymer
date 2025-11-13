@@ -1,6 +1,5 @@
 using NSubstitute;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;

@@ -9,7 +9,7 @@ public class OnewayAckTests
     public void Ack_Defaults_Meta_WhenNull()
     {
         var ack = OnewayAck.Ack();
-        Assert.NotNull(ack.Meta);
+        ack.Meta.ShouldNotBeNull();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -17,6 +17,6 @@ public class OnewayAckTests
     {
         var meta = new ResponseMeta(encoding: "json");
         var ack = OnewayAck.Ack(meta);
-        Assert.Same(meta, ack.Meta);
+        ack.Meta.ShouldBeSameAs(meta);
     }
 }

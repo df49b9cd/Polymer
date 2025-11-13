@@ -13,7 +13,7 @@ namespace OmniRelay.Core.Clients;
 /// </summary>
 public sealed class DuplexStreamClient<TRequest, TResponse>
 {
-    private readonly DuplexOutboundDelegate _pipeline;
+    private readonly DuplexOutboundHandler _pipeline;
     private readonly ICodec<TRequest, TResponse> _codec;
 
     /// <summary>
@@ -92,12 +92,12 @@ public sealed class DuplexStreamClient<TRequest, TResponse>
         }
 
         /// <summary>Signals completion of request writes, optionally with an error.</summary>
-        public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _call.CompleteRequestsAsync(error, cancellationToken);
+        public ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _call.CompleteRequestsAsync(fault, cancellationToken);
 
         /// <summary>Signals completion of response reads, optionally with an error.</summary>
-        public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _call.CompleteResponsesAsync(error, cancellationToken);
+        public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _call.CompleteResponsesAsync(fault, cancellationToken);
 
         /// <summary>
         /// Reads and decodes response messages from the duplex session as an async stream of result-wrapped responses.

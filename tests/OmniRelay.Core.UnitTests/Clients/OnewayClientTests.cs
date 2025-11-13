@@ -1,11 +1,6 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Clients;
-using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using Xunit;
 using static Hugo.Go;
@@ -34,7 +29,7 @@ public class OnewayClientTests
         var client = new OnewayClient<Req>(outbound, codec, []);
         var result = await client.CallAsync(Request<Req>.Create(new Req { V = "x" }), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
         await outbound.Received(1).CallAsync(
             Arg.Is<IRequest<ReadOnlyMemory<byte>>>(r => r.Meta.Encoding == "json" && r.Body.ToArray().SequenceEqual(encoded)),
             Arg.Any<CancellationToken>());
@@ -52,8 +47,8 @@ public class OnewayClientTests
         var client = new OnewayClient<Req>(outbound, codec, []);
         var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsFailure);
-        Assert.Same(err, result.Error);
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBeSameAs(err);
         await outbound.DidNotReceive().CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>());
     }
 }

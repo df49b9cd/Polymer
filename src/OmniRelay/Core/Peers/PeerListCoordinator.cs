@@ -5,6 +5,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Peers;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay peer coordination contract.
+
 /// <summary>
 /// Central coordinator that tracks peer availability, subscriptions, and selection.
 /// </summary>
@@ -47,7 +49,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     }
 
     public ImmutableArray<PeerLeaseHealthSnapshot> LeaseHealth =>
-        _leaseHealthProvider?.Snapshot() ?? ImmutableArray<PeerLeaseHealthSnapshot>.Empty;
+        _leaseHealthProvider?.Snapshot() ?? [];
 
     public void UpdatePeers(IEnumerable<IPeer> peers)
     {
@@ -173,7 +175,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
             }
 
             var delay = PeerChooserHelpers.GetWaitDelay(waitDeadline);
-            var waitResult = await Go.WithTimeoutAsync(
+            var waitResult = await WithTimeoutAsync(
                 async token =>
                 {
                     await _availabilitySignal.WaitAsync(delay, token).ConfigureAwait(false);
@@ -312,7 +314,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         return attempted ? AcquisitionAttemptResult.Busy : AcquisitionAttemptResult.NoAvailablePeers;
     }
 
-    private static bool RemoveCandidate(IList<IPeer> peers, IPeer candidate)
+    private static bool RemoveCandidate(List<IPeer> peers, IPeer candidate)
     {
         for (var i = 0; i < peers.Count; i++)
         {
@@ -358,14 +360,9 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         }
     }
 
-    private sealed class PeerRegistration
+    private sealed class PeerRegistration(IPeer peer)
     {
-        public PeerRegistration(IPeer peer)
-        {
-            Peer = peer ?? throw new ArgumentNullException(nameof(peer));
-        }
-
-        public IPeer Peer { get; }
+        public IPeer Peer { get; } = peer ?? throw new ArgumentNullException(nameof(peer));
         public IDisposable? Subscription { get; set; }
         public bool IsAvailable { get; set; }
     }
@@ -377,3 +374,5 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         Success
     }
 }
+
+#pragma warning restore CA1068

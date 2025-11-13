@@ -13,28 +13,15 @@ public readonly struct ClientStreamRequestContext(RequestMeta meta, ChannelReade
     /// <summary>Gets the raw request message reader.</summary>
     public ChannelReader<ReadOnlyMemory<byte>> Requests { get; } = requests;
 
-    public override bool Equals(object obj)
-    {
-        throw new NotImplementedException();
-    }
+    public override bool Equals(object? obj) => obj is ClientStreamRequestContext other && Equals(other);
 
-    public override int GetHashCode()
-    {
-        throw new NotImplementedException();
-    }
+    public override int GetHashCode() => HashCode.Combine(Meta, Requests);
 
-    public static bool operator ==(ClientStreamRequestContext left, ClientStreamRequestContext right)
-    {
-        return left.Equals(right);
-    }
+    public static bool operator ==(ClientStreamRequestContext left, ClientStreamRequestContext right) => left.Equals(right);
 
-    public static bool operator !=(ClientStreamRequestContext left, ClientStreamRequestContext right)
-    {
-        return !(left == right);
-    }
+    public static bool operator !=(ClientStreamRequestContext left, ClientStreamRequestContext right) => !(left == right);
 
-    public bool Equals(ClientStreamRequestContext other)
-    {
-        throw new NotImplementedException();
-    }
+    public bool Equals(ClientStreamRequestContext other) =>
+        EqualityComparer<RequestMeta>.Default.Equals(Meta, other.Meta) &&
+        ReferenceEquals(Requests, other.Requests);
 }

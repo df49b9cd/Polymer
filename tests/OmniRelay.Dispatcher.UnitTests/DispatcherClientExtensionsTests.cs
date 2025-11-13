@@ -1,9 +1,7 @@
-using System.Linq;
 using Hugo;
 using NSubstitute;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;

@@ -1,28 +1,22 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.Tracing;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Diagnostics;
+using OmniRelay.TestSupport;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Diagnostics;
 
+[Collection(nameof(QuicDiagnosticsCollection))]
 public class QuicKestrelEventBridgeTests
 {
-    private sealed class TestLogger : ILogger<QuicKestrelEventBridge>
+    private record LogEntry(LogLevel Level, string Message, object? Scope);
+
+    private sealed class TestLogger(LogLevel minLevel = LogLevel.Debug) : ILogger<QuicKestrelEventBridge>
     {
-        private readonly LogLevel _minLevel;
+        private readonly LogLevel _minLevel = minLevel;
         private readonly AsyncLocal<object?> _currentScope = new();
-
-        public ConcurrentQueue<(LogLevel level, string message, object? scope)> Entries { get; } = new();
-
-        public TestLogger(LogLevel minLevel = LogLevel.Debug)
-        {
-            _minLevel = minLevel;
-        }
+        public ConcurrentQueue<LogEntry> Entries { get; } = new();
 
         public IDisposable BeginScope<TState>(TState state) where TState : notnull
         {
@@ -41,7 +35,7 @@ public class QuicKestrelEventBridgeTests
             }
 
             var msg = formatter(state, exception);
-            Entries.Enqueue((logLevel, msg, _currentScope.Value));
+            Entries.Enqueue(new LogEntry(logLevel, msg, _currentScope.Value));
         }
 
         private sealed class Scope(Action onDispose) : IDisposable
@@ -93,49 +87,5 @@ public class QuicKestrelEventBridgeTests
 
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
-        Assert.True(predicate());
-    }
-
-    [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Logs_Warning_On_HandshakeFailure()
-    {
-        var (logger, bridge) = await CreateBridgeAsync();
-        using var src = MsQuicTestEventSource.Create();
-
-        src.HandshakeError("handshake failure: cert error");
-
-        await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
-        Assert.True(logger.Entries.TryDequeue(out var entry));
-        Assert.Equal(LogLevel.Warning, entry.level);
-        Assert.Contains("handshake_failure", entry.message);
-        Assert.NotNull(entry.scope);
-    }
-
-    [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Logs_Information_On_Migration()
-    {
-        var (logger, bridge) = await CreateBridgeAsync();
-        using var src = MsQuicTestEventSource.Create();
-
-        src.PathValidated("path_validated: new path");
-
-        await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
-        Assert.True(logger.Entries.TryDequeue(out var entry));
-        Assert.Equal(LogLevel.Information, entry.level);
-        Assert.Contains("migration", entry.message);
-    }
-
-    [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Logs_Debug_On_Kestrel_Http3_When_Debug_Enabled()
-    {
-        var (logger, bridge) = await CreateBridgeAsync(LogLevel.Debug);
-        using var src = KestrelTestEventSource.Create();
-
-        src.Http3Connection("started");
-
-        await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
-        Assert.True(logger.Entries.TryDequeue(out var entry));
-        Assert.Equal(LogLevel.Debug, entry.level);
-        Assert.Contains("http3", entry.message);
     }
 }

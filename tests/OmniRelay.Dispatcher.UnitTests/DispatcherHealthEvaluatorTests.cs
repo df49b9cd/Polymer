@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using NSubstitute;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 
@@ -68,7 +67,7 @@ public class DispatcherHealthEvaluatorTests
         IReadOnlyList<Uri> peers,
         ImmutableArray<GrpcPeerSummary>? summaries = null)
     {
-        summaries ??= ImmutableArray<GrpcPeerSummary>.Empty;
+        summaries ??= [];
         return new GrpcOutboundSnapshot(
             "remote",
             peers,

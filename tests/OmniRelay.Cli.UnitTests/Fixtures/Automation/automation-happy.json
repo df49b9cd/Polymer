@@ -1,0 +1,25 @@
+{
+  "steps": [
+    {
+      "type": "request",
+      "description": "Call demo service",
+      "transport": "http",
+      "service": "demo",
+      "procedure": "Echo/Call",
+      "url": "https://automation.local/rpc",
+      "body": "{\"message\":\"hello\"}"
+    },
+    {
+      "type": "introspect",
+      "description": "Fetch snapshot",
+      "url": "https://control.local/omnirelay/introspect",
+      "format": "json",
+      "timeout": "2s"
+    },
+    {
+      "type": "delay",
+      "description": "Short cooldown",
+      "duration": "00:00:00.02"
+    }
+  ]
+}

@@ -1,7 +1,4 @@
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
-using System.Net.Http;
 using System.Net.Mime;
 using System.Net.Quic;
 using System.Net.Security;
@@ -12,7 +9,7 @@ using System.Text.Json;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.Tests;
+using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
 using Xunit;

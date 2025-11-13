@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>OmniRelay.Samples.ConfigToProd</RootNamespace>
+    <NoWarn>$(NoWarn);CA2007;CS1591;CA1848;CA1852;IDE0060</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\OmniRelay.Configuration\OmniRelay.Configuration.csproj" />

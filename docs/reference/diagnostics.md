@@ -104,7 +104,7 @@ Each workflow measurement includes metric tags for `workflow.namespace`, `workfl
 - Invoke `GoDiagnostics.Reset()` (typically in unit tests) to dispose existing meters before registering new ones.
 - Pass `GrpcTelemetryOptions` to `GrpcInbound`/`GrpcOutbound` so the built-in logging/metrics interceptors attach automatically without bespoke interceptor wiring.
 - `AddOmniRelayDispatcher` reuses the host’s `ILoggerFactory` for every inbound transport. Runtime logging toggles (`/omnirelay/control/logging`) immediately adjust HTTP middleware output, gRPC interceptors (e.g., `GrpcServerLoggingInterceptor`), and any custom logging inside registered procedures.
-- Peer metrics emitted by `OmniRelay.Core.Peers` include `polymer.peer.inflight`, `polymer.peer.successes`, `polymer.peer.failures`, and `polymer.peer.lease.duration` (histogram). Pair these with the `/omnirelay/introspect` endpoint, which now surfaces per-peer success/failure counts and latency percentiles, to build health dashboards.
+- Peer metrics emitted by `OmniRelay.Core.Peers` include `omnirelay.peer.inflight`, `omnirelay.peer.successes`, `omnirelay.peer.failures`, and `omnirelay.peer.lease.duration` (histogram). Pair these with the `/omnirelay/introspect` endpoint, which now surfaces per-peer success/failure counts and latency percentiles, to build health dashboards.
 - Logging middleware and transport interceptors now attach request scopes (`rpc.request_id`, `rpc.peer`, activity id tags) so any structured log emitted during a call inherits trace-aware correlation metadata.
 
 ## OmniRelay Diagnostics Configuration

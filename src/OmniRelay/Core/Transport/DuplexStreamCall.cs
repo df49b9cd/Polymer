@@ -75,32 +75,36 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
     public void SetResponseMeta(ResponseMeta meta) => ResponseMeta = meta ?? new ResponseMeta();
 
     /// <inheritdoc />
-    public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default)
+    public ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default)
     {
         if (_requestsCompleted)
         {
             return ValueTask.CompletedTask;
         }
 
+        fault = NormalizeFault(fault, StreamKind.Request, cancellationToken);
+
         _requestsCompleted = true;
-        TryCompleteChannel(_requests.Writer, error, RequestMeta.Transport);
-        var status = ResolveCompletionStatus(error);
-        Context.TrySetRequestCompletion(status, error);
+        TryCompleteChannel(_requests.Writer, fault, RequestMeta.Transport);
+        var status = ResolveCompletionStatus(fault);
+        Context.TrySetRequestCompletion(status, fault);
         return ValueTask.CompletedTask;
     }
 
     /// <inheritdoc />
-    public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default)
+    public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default)
     {
         if (_responsesCompleted)
         {
             return ValueTask.CompletedTask;
         }
 
+        fault = NormalizeFault(fault, StreamKind.Response, cancellationToken);
+
         _responsesCompleted = true;
-        TryCompleteChannel(_responses.Writer, error, RequestMeta.Transport);
-        var status = ResolveCompletionStatus(error);
-        Context.TrySetResponseCompletion(status, error);
+        TryCompleteChannel(_responses.Writer, fault, RequestMeta.Transport);
+        var status = ResolveCompletionStatus(fault);
+        Context.TrySetResponseCompletion(status, fault);
         return ValueTask.CompletedTask;
     }
 
@@ -114,26 +118,53 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
         return ValueTask.CompletedTask;
     }
 
-    private static void TryCompleteChannel(ChannelWriter<ReadOnlyMemory<byte>> writer, Error? error, string? transport)
+    private Error? NormalizeFault(Error? fault, StreamKind stream, CancellationToken cancellationToken)
     {
-        if (error is null)
+        if (fault is not null || !cancellationToken.IsCancellationRequested)
+        {
+            return fault;
+        }
+
+        var transport = string.IsNullOrWhiteSpace(RequestMeta.Transport)
+            ? null
+            : RequestMeta.Transport;
+
+        var message = stream == StreamKind.Request
+            ? "The request stream was cancelled."
+            : "The response stream was cancelled.";
+
+        return OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.Cancelled,
+            message,
+            transport: transport);
+    }
+
+    private static void TryCompleteChannel(ChannelWriter<ReadOnlyMemory<byte>> writer, Error? fault, string? transport)
+    {
+        if (fault is null)
         {
             writer.TryComplete();
             return;
         }
 
-        var exception = OmniRelayErrors.FromError(error, transport);
+        var exception = OmniRelayErrors.FromError(fault, transport);
         writer.TryComplete(exception);
     }
 
-    private static StreamCompletionStatus ResolveCompletionStatus(Error? error)
+    private enum StreamKind
     {
-        if (error is null)
+        Request,
+        Response
+    }
+
+    private static StreamCompletionStatus ResolveCompletionStatus(Error? fault)
+    {
+        if (fault is null)
         {
             return StreamCompletionStatus.Succeeded;
         }
 
-        return OmniRelayErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(fault) switch
         {
             OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted

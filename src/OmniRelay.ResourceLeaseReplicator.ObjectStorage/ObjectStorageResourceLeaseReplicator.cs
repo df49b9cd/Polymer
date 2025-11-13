@@ -6,7 +6,7 @@ namespace OmniRelay.Dispatcher;
 /// <summary>
 /// Persists replication events as immutable blobs inside an object store (for example S3 or Azure Blob Storage).
 /// </summary>
-public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplicator
+public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplicator, IDisposable
 {
     private readonly IResourceLeaseObjectStore _objectStore;
     private readonly string _keyPrefix;
@@ -24,8 +24,8 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
         _objectStore = objectStore;
         _keyPrefix = keyPrefix ?? string.Empty;
         _sinks = sinks is null
-            ? ImmutableArray<IResourceLeaseReplicationSink>.Empty
-            : [..sinks.Where(s => s is not null)];
+            ? []
+            : [.. sinks.Where(s => s is not null)];
     }
 
     public async ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
@@ -103,5 +103,11 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
 
         var sequenceSpan = fileName[_keyPrefix.Length..];
         return long.TryParse(sequenceSpan, out sequence);
+    }
+
+    public void Dispose()
+    {
+        _initializationGate.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

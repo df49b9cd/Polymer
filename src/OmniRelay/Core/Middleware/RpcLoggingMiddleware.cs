@@ -28,15 +28,15 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "inbound unary",
             request.Meta,
-            token => next(request, token),
+            token => nextHandler(request, token),
             cancellationToken,
             static response => response.Meta);
     }
@@ -45,15 +45,15 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "outbound unary",
             request.Meta,
-            token => next(request, token),
+            token => nextHandler(request, token),
             cancellationToken,
             static response => response.Meta);
     }
@@ -62,15 +62,15 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "inbound oneway",
             request.Meta,
-            token => next(request, token),
+            token => nextHandler(request, token),
             cancellationToken,
             static ack => ack.Meta);
     }
@@ -79,15 +79,15 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next)
+        OnewayOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "outbound oneway",
             request.Meta,
-            token => next(request, token),
+            token => nextHandler(request, token),
             cancellationToken,
             static ack => ack.Meta);
     }
@@ -97,17 +97,17 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             $"inbound stream ({options.Direction})",
             request.Meta,
-            token => next(request, options, token),
+            token => nextHandler(request, options, token),
             cancellationToken);
     }
 
@@ -116,17 +116,17 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next)
+        StreamOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             $"outbound stream ({options.Direction})",
             request.Meta,
-            token => next(request, options, token),
+            token => nextHandler(request, options, token),
             cancellationToken);
     }
 
@@ -134,14 +134,14 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler nextHandler)
     {
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "inbound client-stream",
             context.Meta,
-            token => next(context, token),
+            token => nextHandler(context, token),
             cancellationToken,
             static response => response.Meta);
     }
@@ -150,15 +150,15 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next)
+        ClientStreamOutboundHandler nextHandler)
     {
         requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "outbound client-stream",
             requestMeta,
-            token => next(requestMeta, token),
+            token => nextHandler(requestMeta, token),
             cancellationToken);
     }
 
@@ -166,15 +166,15 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next)
+        DuplexInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "inbound duplex",
             request.Meta,
-            token => next(request, token),
+            token => nextHandler(request, token),
             cancellationToken);
     }
 
@@ -182,15 +182,15 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next)
+        DuplexOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return ExecuteWithLogging(
             "outbound duplex",
             request.Meta,
-            token => next(request, token),
+            token => nextHandler(request, token),
             cancellationToken);
     }
 
@@ -247,6 +247,7 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
     private bool ShouldLogFailure(Error error, bool loggedRequest) =>
         _options.ShouldLogError?.Invoke(error) ?? loggedRequest;
 
+#pragma warning disable CA1848
     private void LogSuccess(string pipeline, RequestMeta meta, TimeSpan duration, ResponseMeta? responseMeta, Activity? activity)
     {
         if (!_logger.IsEnabled(_options.SuccessLogLevel))
@@ -315,11 +316,12 @@ public sealed class RpcLoggingMiddleware(ILogger<RpcLoggingMiddleware> logger, R
             meta.Procedure ?? string.Empty,
             meta.Transport ?? "unknown");
     }
+#pragma warning restore CA1848
 
     private static T EnsureNotNull<T>(T? value, string paramName) where T : class
     {
         ArgumentNullException.ThrowIfNull(value, paramName);
         return value;
     }
-}
 
+}

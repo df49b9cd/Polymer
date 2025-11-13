@@ -28,63 +28,63 @@ public sealed class PrincipalBindingMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         var enriched = EnrichRequest(request);
-        return next(enriched, cancellationToken);
+        return nextHandler(enriched, cancellationToken);
     }
 
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         var enriched = EnrichRequest(request);
-        return next(enriched, cancellationToken);
+        return nextHandler(enriched, cancellationToken);
     }
 
     public ValueTask<Result<IStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         var enriched = EnrichRequest(request);
-        return next(enriched, options, cancellationToken);
+        return nextHandler(enriched, options, cancellationToken);
     }
 
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler nextHandler)
     {
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         var enriched = EnrichContext(context);
-        return next(enriched, cancellationToken);
+        return nextHandler(enriched, cancellationToken);
     }
 
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next)
+        DuplexInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         var enriched = EnrichRequest(request);
-        return next(enriched, cancellationToken);
+        return nextHandler(enriched, cancellationToken);
     }
 
     private IRequest<ReadOnlyMemory<byte>> EnrichRequest(IRequest<ReadOnlyMemory<byte>> request)

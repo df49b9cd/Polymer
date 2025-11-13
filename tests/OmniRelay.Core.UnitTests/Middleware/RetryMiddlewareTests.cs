@@ -1,9 +1,5 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
 using Hugo.Policies;
-using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
@@ -26,15 +22,15 @@ public class RetryMiddlewareTests
         var mw = new RetryMiddleware(options);
 
         var attempts = 0;
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(Error.Timeout()));
         };
 
         var res = await mw.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsFailure);
-        Assert.Equal(1, attempts);
+        res.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -47,15 +43,15 @@ public class RetryMiddlewareTests
         var mw = new RetryMiddleware(options);
 
         var attempts = 0;
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(Error.Timeout()));
         };
 
         var res = await mw.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
-        Assert.True(res.IsFailure);
-        Assert.Equal(1, attempts);
+        res.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -69,7 +65,7 @@ public class RetryMiddlewareTests
 
         var attempts = 0;
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "retry", transport: "test");
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             if (attempts < 2)
@@ -82,8 +78,8 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, attempts);
+        result.IsSuccess.ShouldBeTrue();
+        attempts.ShouldBe(2);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -97,7 +93,7 @@ public class RetryMiddlewareTests
 
         var attempts = 0;
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "nope", transport: "test");
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
@@ -105,8 +101,8 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(1, attempts);
+        result.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -122,7 +118,7 @@ public class RetryMiddlewareTests
 
         var attempts = 0;
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "retry", transport: "test");
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             return ValueTask.FromResult(Err<Response<ReadOnlyMemory<byte>>>(error));
@@ -130,8 +126,8 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(2, attempts);
+        result.IsFailure.ShouldBeTrue();
+        attempts.ShouldBe(2);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -147,7 +143,7 @@ public class RetryMiddlewareTests
         var attempts = 0;
         var nonRetryable = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "nope", transport: "test");
 
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             attempts++;
             if (attempts < 3)
@@ -160,7 +156,7 @@ public class RetryMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeReq(new RequestMeta(service: "svc")), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(3, attempts);
+        result.IsSuccess.ShouldBeTrue();
+        attempts.ShouldBe(3);
     }
 }

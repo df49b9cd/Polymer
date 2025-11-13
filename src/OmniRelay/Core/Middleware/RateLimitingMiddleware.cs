@@ -7,6 +7,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// Applies concurrency rate limiting for all RPC shapes using System.Threading.RateLimiting.
 /// </summary>
@@ -36,48 +38,48 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => nextHandler(request, cancellationToken));
     }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => nextHandler(request, cancellationToken));
     }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next)
+        OnewayOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => nextHandler(request, cancellationToken));
     }
 
     /// <inheritdoc />
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeCoreAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        return InvokeCoreAsync(request.Meta, cancellationToken, () => nextHandler(request, cancellationToken));
     }
 
     /// <inheritdoc />
@@ -85,14 +87,14 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeStreamAsync(request.Meta, cancellationToken, () => next(request, options, cancellationToken));
+        return InvokeStreamAsync(request.Meta, cancellationToken, () => nextHandler(request, options, cancellationToken));
     }
 
     /// <inheritdoc />
@@ -100,61 +102,61 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next)
+        StreamOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeStreamAsync(request.Meta, cancellationToken, () => next(request, options, cancellationToken));
+        return InvokeStreamAsync(request.Meta, cancellationToken, () => nextHandler(request, options, cancellationToken));
     }
 
     /// <inheritdoc />
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler nextHandler)
     {
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeCoreAsync(context.Meta, cancellationToken, () => next(context, cancellationToken));
+        return InvokeCoreAsync(context.Meta, cancellationToken, () => nextHandler(context, cancellationToken));
     }
 
     /// <inheritdoc />
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next)
+        ClientStreamOutboundHandler nextHandler)
     {
         requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeClientStreamAsync(requestMeta, cancellationToken, () => next(requestMeta, cancellationToken));
+        return InvokeClientStreamAsync(requestMeta, cancellationToken, () => nextHandler(requestMeta, cancellationToken));
     }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next)
+        DuplexInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeDuplexAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        return InvokeDuplexAsync(request.Meta, cancellationToken, () => nextHandler(request, cancellationToken));
     }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next)
+        DuplexOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
-        return InvokeDuplexAsync(request.Meta, cancellationToken, () => next(request, cancellationToken));
+        return InvokeDuplexAsync(request.Meta, cancellationToken, () => nextHandler(request, cancellationToken));
     }
 
     private async ValueTask<Result<T>> InvokeCoreAsync<T>(
@@ -302,8 +304,8 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _inner.Requests;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _inner.Responses;
 
-        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteAsync(error, cancellationToken);
+        public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteAsync(fault, cancellationToken);
 
         public async ValueTask DisposeAsync()
         {
@@ -359,11 +361,11 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
         public ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter => _inner.ResponseWriter;
         public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
-        public ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteRequestsAsync(error, cancellationToken);
+        public ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteRequestsAsync(fault, cancellationToken);
 
-        public ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default) =>
-            _inner.CompleteResponsesAsync(error, cancellationToken);
+        public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
+            _inner.CompleteResponsesAsync(fault, cancellationToken);
 
         public async ValueTask DisposeAsync()
         {
@@ -379,3 +381,4 @@ public sealed class RateLimitingMiddleware(RateLimitingOptions? options = null) 
     }
 }
 
+#pragma warning restore CA1068

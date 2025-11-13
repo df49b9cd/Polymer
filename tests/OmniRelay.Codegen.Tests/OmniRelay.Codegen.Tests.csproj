@@ -48,7 +48,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../OmniRelay.Tests/TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
+    <Compile Include="../TestSupport/TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
     <Compile Include="../TestSupport/Http3FactAttribute.cs" Link="Support/Http3FactAttribute.cs" />
     <Compile Include="../TestSupport/Http3TestHelper.cs" Link="Support/Http3TestHelper.cs" />
     <Compile Remove="Generated/TestService.actual.g.cs" />

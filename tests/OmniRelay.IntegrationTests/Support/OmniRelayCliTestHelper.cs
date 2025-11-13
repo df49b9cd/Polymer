@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 
 namespace OmniRelay.IntegrationTests.Support;
 
@@ -157,18 +155,12 @@ internal sealed record CliResult(int ExitCode, string StandardOutput, string Sta
     public string StandardError { get; init; } = StandardError;
 }
 
-internal sealed class CliBackgroundProcess : IAsyncDisposable
+internal sealed class CliBackgroundProcess(Process process, Task<string> stdoutTask, Task<string> stderrTask)
+    : IAsyncDisposable
 {
-    private readonly Process _process;
-    private readonly Task<string> _stdoutTask;
-    private readonly Task<string> _stderrTask;
-
-    public CliBackgroundProcess(Process process, Task<string> stdoutTask, Task<string> stderrTask)
-    {
-        _process = process;
-        _stdoutTask = stdoutTask;
-        _stderrTask = stderrTask;
-    }
+    private readonly Process _process = process;
+    private readonly Task<string> _stdoutTask = stdoutTask;
+    private readonly Task<string> _stderrTask = stderrTask;
 
     public int ProcessId => _process.Id;
 

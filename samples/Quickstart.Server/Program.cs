@@ -230,7 +230,7 @@ namespace OmniRelay.Samples.Quickstart
         public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            UnaryInboundDelegate next)
+            UnaryInboundHandler next)
         {
             var stopwatch = Stopwatch.GetTimestamp();
             Console.WriteLine($"--> unary {request.Meta.Procedure} ({request.Meta.Transport ?? "transport?"})");
@@ -253,7 +253,7 @@ namespace OmniRelay.Samples.Quickstart
         public async ValueTask<Result<OnewayAck>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
             CancellationToken cancellationToken,
-            OnewayInboundDelegate next)
+            OnewayInboundHandler next)
         {
             Console.WriteLine($"--> oneway {request.Meta.Procedure} ({request.Meta.Transport ?? "transport?"})");
             var result = await next(request, cancellationToken).ConfigureAwait(false);
@@ -274,7 +274,7 @@ namespace OmniRelay.Samples.Quickstart
             IRequest<ReadOnlyMemory<byte>> request,
             StreamCallOptions options,
             CancellationToken cancellationToken,
-            StreamInboundDelegate next)
+            StreamInboundHandler next)
         {
             Console.WriteLine($"--> stream {request.Meta.Procedure} ({options.Direction})");
             var result = await next(request, options, cancellationToken).ConfigureAwait(false);

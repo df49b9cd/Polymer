@@ -14,9 +14,13 @@ namespace OmniRelay.Samples.ObservabilityCli;
 
 internal static class Program
 {
+    [UnconditionalSuppressMessage("AOT", "IL2026", Justification = "Playground configures OmniRelay components dynamically.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Playground configures OmniRelay components dynamically.")]
+    public static Task Main(string[] args) => RunAsync(args);
+
     [RequiresDynamicCode("Configures ASP.NET Core and OpenTelemetry features that rely on reflection.")]
     [RequiresUnreferencedCode("Configures ASP.NET Core and OpenTelemetry features that rely on reflection.")]
-    public static async Task Main(string[] args)
+    private static async Task RunAsync(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -107,8 +111,7 @@ internal static class Program
 internal sealed class SampleInvocationService(
     IHttpClientFactory httpClientFactory,
     ILogger<SampleInvocationService> logger,
-    IOptions<PlaygroundOptions> options,
-    PlaygroundState state) : BackgroundService
+    IOptions<PlaygroundOptions> options) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -147,7 +150,7 @@ internal sealed class DispatcherHealth(OmniRelay.Dispatcher.Dispatcher dispatche
     }
 }
 
-internal sealed class ProbeHealth(PlaygroundState state) : IHealthCheck
+internal sealed class ProbeHealth : IHealthCheck
 {
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {

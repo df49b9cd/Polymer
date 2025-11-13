@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Hugo;
 using Microsoft.Extensions.Configuration;
@@ -31,7 +32,7 @@ internal static class Program
                 services.AddSingleton<TelemetrySink>();
                 services.AddSingleton<RequestLoggingMiddleware>();
                 services.AddSingleton<ICustomOutboundSpec, AuditFanoutOutboundSpec>();
-                services.AddOmniRelayDispatcher(context.Configuration.GetSection("omnirelay"));
+                AddOmniRelayDispatcher(services, context.Configuration);
                 services.AddHostedService<OmniRelayRegistrationHostedService>();
                 services.AddHostedService<StartupBannerHostedService>();
             })
@@ -39,6 +40,11 @@ internal static class Program
 
         await host.RunAsync().ConfigureAwait(false);
     }
+
+    [UnconditionalSuppressMessage("AOT", "IL2026", Justification = "Sample demonstrates configuration-driven dispatchers which rely on reflection.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Sample demonstrates configuration-driven dispatchers which rely on reflection.")]
+    private static void AddOmniRelayDispatcher(IServiceCollection services, IConfiguration configuration) =>
+        services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay"));
 }
 
 internal sealed class OmniRelayRegistrationHostedService(
@@ -308,7 +314,7 @@ internal sealed class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware>
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         logger.LogInformation("--> unary {Procedure}", request.Meta.Procedure);
         var response = await next(request, cancellationToken).ConfigureAwait(false);
@@ -327,7 +333,7 @@ internal sealed class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware>
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         logger.LogInformation("--> oneway {Procedure}", request.Meta.Procedure);
         var response = await next(request, cancellationToken).ConfigureAwait(false);
@@ -347,7 +353,7 @@ internal sealed class RequestLoggingMiddleware(ILogger<RequestLoggingMiddleware>
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler next)
     {
         logger.LogInformation("--> stream {Procedure} ({Direction})", request.Meta.Procedure, options.Direction);
         var response = await next(request, options, cancellationToken).ConfigureAwait(false);

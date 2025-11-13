@@ -36,10 +36,10 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         _baseTags = GrpcTransportMetrics.CreateBaseTags(requestMeta);
         Context = new StreamCallContext(StreamDirection.Server);
 
-        _requests = Go.MakeChannel<ReadOnlyMemory<byte>>();
+        _requests = MakeChannel<ReadOnlyMemory<byte>>();
         _requests.Writer.TryComplete();
 
-        _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        _responses = MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
         {
             SingleWriter = true,
             SingleReader = false,
@@ -99,12 +99,12 @@ internal sealed class GrpcClientStreamCall : IStreamCall
     public ChannelReader<ReadOnlyMemory<byte>> Responses => _responses.Reader;
 
     /// <inheritdoc />
-    public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
+    public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default)
     {
         _cts.Cancel();
         _responses.Writer.TryComplete();
-        var completionStatus = ResolveCompletionStatus(error);
-        Context.TrySetCompletion(completionStatus, error);
+        var completionStatus = ResolveCompletionStatus(fault);
+        Context.TrySetCompletion(completionStatus, fault);
         return ValueTask.CompletedTask;
     }
 
@@ -161,14 +161,14 @@ internal sealed class GrpcClientStreamCall : IStreamCall
         }
     }
 
-    private static StreamCompletionStatus ResolveCompletionStatus(Error? error)
+    private static StreamCompletionStatus ResolveCompletionStatus(Error? fault)
     {
-        if (error is null)
+        if (fault is null)
         {
             return StreamCompletionStatus.Succeeded;
         }
 
-        return OmniRelayErrorAdapter.ToStatus(error) switch
+        return OmniRelayErrorAdapter.ToStatus(fault) switch
         {
             OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted

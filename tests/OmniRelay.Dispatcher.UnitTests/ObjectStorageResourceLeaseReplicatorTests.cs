@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.IO;
 using System.Text.Json;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
@@ -42,7 +37,7 @@ public sealed class ObjectStorageResourceLeaseReplicatorTests
             "peer",
             new ResourceLeaseItemPayload("type", "id", "partition", "json", [], null, "req"),
             null,
-            ImmutableDictionary<string, string>.Empty);
+            []);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {

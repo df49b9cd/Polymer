@@ -22,7 +22,7 @@ public sealed class Dispatcher
     private readonly ProcedureRegistry _procedures = new();
     private readonly ImmutableArray<DispatcherOptions.DispatcherLifecycleComponent> _lifecycleDescriptors;
     private readonly ImmutableArray<DispatcherOptions.DispatcherLifecycleComponent> _lifecycleStartOrder;
-    private readonly ImmutableDictionary<string, OutboundCollection> _outbounds;
+    private readonly ImmutableDictionary<string, OutboundRegistry> _outbounds;
     private readonly ImmutableArray<IUnaryInboundMiddleware> _inboundUnaryMiddleware;
     private readonly ImmutableArray<IOnewayInboundMiddleware> _inboundOnewayMiddleware;
     private readonly ImmutableArray<IStreamInboundMiddleware> _inboundStreamMiddleware;
@@ -51,7 +51,7 @@ public sealed class Dispatcher
         ServiceName = options.ServiceName;
         _lifecycleDescriptors = [.. options.ComponentDescriptors];
         _lifecycleStartOrder = [.. options.UniqueComponents];
-        _outbounds = BuildOutboundCollections(options.OutboundBuilders);
+        _outbounds = BuildOutboundRegistrys(options.OutboundBuilders);
 
         _inboundUnaryMiddleware = [.. options.UnaryInboundMiddleware];
         _inboundOnewayMiddleware = [.. options.OnewayInboundMiddleware];
@@ -131,7 +131,7 @@ public sealed class Dispatcher
     /// <summary>
     /// Registers a unary procedure with an optional per-procedure middleware/encoding configuration.
     /// </summary>
-    public Result<Unit> RegisterUnary(string name, UnaryInboundDelegate handler, Action<UnaryProcedureBuilder>? configure = null)
+    public Result<Unit> RegisterUnary(string name, UnaryInboundHandler handler, Action<UnaryProcedureBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
 
@@ -155,7 +155,7 @@ public sealed class Dispatcher
     /// <summary>
     /// Registers a oneway procedure with an optional per-procedure configuration.
     /// </summary>
-    public Result<Unit> RegisterOneway(string name, OnewayInboundDelegate handler, Action<OnewayProcedureBuilder>? configure = null)
+    public Result<Unit> RegisterOneway(string name, OnewayInboundHandler handler, Action<OnewayProcedureBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
 
@@ -179,7 +179,7 @@ public sealed class Dispatcher
     /// <summary>
     /// Registers a server-streaming procedure with an optional per-procedure configuration.
     /// </summary>
-    public Result<Unit> RegisterStream(string name, StreamInboundDelegate handler, Action<StreamProcedureBuilder>? configure = null)
+    public Result<Unit> RegisterStream(string name, StreamInboundHandler handler, Action<StreamProcedureBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
 
@@ -203,7 +203,7 @@ public sealed class Dispatcher
     /// <summary>
     /// Registers a client-streaming procedure with an optional per-procedure configuration.
     /// </summary>
-    public Result<Unit> RegisterClientStream(string name, ClientStreamInboundDelegate handler, Action<ClientStreamProcedureBuilder>? configure = null)
+    public Result<Unit> RegisterClientStream(string name, ClientStreamInboundHandler handler, Action<ClientStreamProcedureBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
 
@@ -227,7 +227,7 @@ public sealed class Dispatcher
     /// <summary>
     /// Registers a duplex-streaming procedure with an optional per-procedure configuration.
     /// </summary>
-    public Result<Unit> RegisterDuplex(string name, DuplexInboundDelegate handler, Action<DuplexProcedureBuilder>? configure = null)
+    public Result<Unit> RegisterDuplex(string name, DuplexInboundHandler handler, Action<DuplexProcedureBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
 
@@ -312,13 +312,13 @@ public sealed class Dispatcher
         {
             if (string.Equals(service, ServiceName, StringComparison.OrdinalIgnoreCase))
             {
-                collection = new OutboundCollection(
+                collection = new OutboundRegistry(
                     service,
-                    ImmutableDictionary<string, IUnaryOutbound>.Empty,
-                    ImmutableDictionary<string, IOnewayOutbound>.Empty,
-                    ImmutableDictionary<string, IStreamOutbound>.Empty,
-                    ImmutableDictionary<string, IClientStreamOutbound>.Empty,
-                    ImmutableDictionary<string, IDuplexOutbound>.Empty);
+                    [],
+                    [],
+                    [],
+                    [],
+                    []);
             }
             else
             {
@@ -452,47 +452,13 @@ public sealed class Dispatcher
             }
 
             var startedComponents = new int[_lifecycleStartOrder.Length];
-            var errors = new ConcurrentQueue<Error>();
 
-            using var group = new ErrGroup(cancellationToken);
-
-            foreach (var (component, index) in _lifecycleStartOrder.Select((component, index) => (component, index)))
-            {
-                var lifecycle = component.Lifecycle;
-
-                group.Go(async token =>
-                {
-                    var startResult = await ExecuteLifecycleWithPolicyAsync(
-                        component.Name,
-                        lifecycle.StartAsync,
-                        _startRetryPolicy,
-                        token).ConfigureAwait(false);
-
-                    if (startResult.IsSuccess)
-                    {
-                        Volatile.Write(ref startedComponents[index], 1);
-                        return startResult;
-                    }
-
-                    if (startResult.Error is not null)
-                    {
-                        errors.Enqueue(startResult.Error);
-                    }
-
-                    return startResult;
-                });
-            }
-
-            var waitResult = await group.WaitAsync(cancellationToken).ConfigureAwait(false);
-
-            if (!errors.IsEmpty || waitResult.IsFailure)
+            async ValueTask<Result<Unit>> FailStartAsync(Error? startError)
             {
                 lock (_stateLock)
                 {
                     _status = DispatcherStatus.Stopped;
                 }
-
-                var startError = CreateStartFailureError(errors, group.Error ?? waitResult.Error);
 
                 var rollbackResult = await RollbackStartedComponentsAsync(startedComponents).ConfigureAwait(false);
                 if (rollbackResult.IsFailure)
@@ -514,6 +480,26 @@ public sealed class Dispatcher
                 }
 
                 return Err<Unit>(CreateDispatcherError("One or more dispatcher components failed to start.", OmniRelayStatusCode.Internal));
+            }
+
+            for (var index = 0; index < _lifecycleStartOrder.Length; index++)
+            {
+                var component = _lifecycleStartOrder[index];
+                var lifecycle = component.Lifecycle;
+
+                var startResult = await ExecuteLifecycleWithPolicyAsync(
+                    component.Name,
+                    lifecycle.StartAsync,
+                    _startRetryPolicy,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (startResult.IsSuccess)
+                {
+                    Volatile.Write(ref startedComponents[index], 1);
+                    continue;
+                }
+
+                return await FailStartAsync(startResult.Error).ConfigureAwait(false);
             }
 
             CompleteStart();
@@ -748,7 +734,7 @@ public sealed class Dispatcher
     private static async Task ProcessClientStreamAsync(
         ClientStreamCall call,
         ClientStreamRequestContext context,
-        ClientStreamInboundDelegate pipeline,
+        ClientStreamInboundHandler pipeline,
         CancellationToken cancellationToken)
     {
         try
@@ -843,19 +829,6 @@ public sealed class Dispatcher
         return OmniRelayErrors.ToResult<Unit>(aggregate, "dispatcher").Error!;
     }
 
-    private static Error? CreateStartFailureError(ConcurrentQueue<Error> errors, Error? groupError)
-    {
-        if (!errors.IsEmpty)
-        {
-            var snapshots = errors.ToArray();
-            return snapshots.Length == 1
-                ? snapshots[0]
-                : AggregateErrors("One or more dispatcher components failed to start.", snapshots);
-        }
-
-        return groupError;
-    }
-
     private async Task<Result<Unit>> RollbackStartedComponentsAsync(int[] startedComponents)
     {
         if (_lifecycleStartOrder.Length == 0 || startedComponents.Length == 0)
@@ -900,15 +873,15 @@ public sealed class Dispatcher
         return Ok(Unit.Value);
     }
 
-    private static ImmutableDictionary<string, OutboundCollection> BuildOutboundCollections(
-        IReadOnlyDictionary<string, DispatcherOptions.OutboundCollectionBuilder> builders)
+    private static ImmutableDictionary<string, OutboundRegistry> BuildOutboundRegistrys(
+        IReadOnlyDictionary<string, DispatcherOptions.OutboundRegistryBuilder> builders)
     {
         if (builders.Count == 0)
         {
             return [];
         }
 
-        var map = ImmutableDictionary.CreateBuilder<string, OutboundCollection>(StringComparer.OrdinalIgnoreCase);
+        var map = ImmutableDictionary.CreateBuilder<string, OutboundRegistry>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (service, builder) in builders)
         {

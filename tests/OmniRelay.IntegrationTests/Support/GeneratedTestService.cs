@@ -1,10 +1,6 @@
-using System.Threading;
-using System.Threading.Tasks;
 using OmniRelay.Core;
-using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Tests.Protos;
-using OmniRelay.Transport.Grpc;
 
 namespace OmniRelay.IntegrationTests.Support;
 

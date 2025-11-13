@@ -7,6 +7,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// OpenTelemetry-based tracing middleware that creates activities for all RPC shapes,
 /// supports inbound context extraction and outbound context injection, and honors runtime sampling.
@@ -43,17 +45,17 @@ public sealed class RpcTracingMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeUnaryCoreAsync(
             "yarpcore.rpc.inbound.unary",
             ActivityKind.Server,
             request,
             cancellationToken,
-            (req, token) => next(req, token),
+            (req, token) => nextHandler(req, token),
             allowParentExtraction: true);
     }
 
@@ -61,17 +63,17 @@ public sealed class RpcTracingMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeUnaryCoreAsync(
             "yarpcore.rpc.outbound.unary",
             ActivityKind.Client,
             request,
             cancellationToken,
-            (req, token) => next(req, token),
+            (req, token) => nextHandler(req, token),
             allowParentExtraction: false);
     }
 
@@ -79,17 +81,17 @@ public sealed class RpcTracingMiddleware :
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeOnewayCoreAsync(
             "yarpcore.rpc.inbound.oneway",
             ActivityKind.Server,
             request,
             cancellationToken,
-            (req, token) => next(req, token),
+            (req, token) => nextHandler(req, token),
             allowParentExtraction: true);
     }
 
@@ -97,17 +99,17 @@ public sealed class RpcTracingMiddleware :
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next)
+        OnewayOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeOnewayCoreAsync(
             "yarpcore.rpc.outbound.oneway",
             ActivityKind.Client,
             request,
             cancellationToken,
-            (req, token) => next(req, token),
+            (req, token) => nextHandler(req, token),
             allowParentExtraction: false);
     }
 
@@ -116,12 +118,12 @@ public sealed class RpcTracingMiddleware :
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeStreamCoreAsync(
             $"yarpcore.rpc.inbound.stream.{options.Direction.ToString().ToLowerInvariant()}",
@@ -129,7 +131,7 @@ public sealed class RpcTracingMiddleware :
             request,
             options,
             cancellationToken,
-            (req, callOptions, token) => next(req, callOptions, token),
+            (req, callOptions, token) => nextHandler(req, callOptions, token),
             allowParentExtraction: true);
     }
 
@@ -138,12 +140,12 @@ public sealed class RpcTracingMiddleware :
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next)
+        StreamOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeStreamCoreAsync(
             $"yarpcore.rpc.outbound.stream.{options.Direction.ToString().ToLowerInvariant()}",
@@ -151,7 +153,7 @@ public sealed class RpcTracingMiddleware :
             request,
             options,
             cancellationToken,
-            (req, callOptions, token) => next(req, callOptions, token),
+            (req, callOptions, token) => nextHandler(req, callOptions, token),
             allowParentExtraction: false);
     }
 
@@ -159,48 +161,48 @@ public sealed class RpcTracingMiddleware :
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler nextHandler)
     {
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeClientStreamInboundAsync(
             "yarpcore.rpc.inbound.client_stream",
             context,
             cancellationToken,
-            next);
+            nextHandler);
     }
 
     /// <inheritdoc />
     public ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next)
+        ClientStreamOutboundHandler nextHandler)
     {
         requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeClientStreamOutboundAsync(
             "yarpcore.rpc.outbound.client_stream",
             requestMeta,
             cancellationToken,
-            next);
+            nextHandler);
     }
 
     /// <inheritdoc />
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next)
+        DuplexInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeDuplexCoreAsync(
             "yarpcore.rpc.inbound.duplex",
             ActivityKind.Server,
             request,
             cancellationToken,
-            (req, token) => next(req, token),
+            (req, token) => nextHandler(req, token),
             allowParentExtraction: true);
     }
 
@@ -208,17 +210,17 @@ public sealed class RpcTracingMiddleware :
     public ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next)
+        DuplexOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         return InvokeDuplexCoreAsync(
             "yarpcore.rpc.outbound.duplex",
             ActivityKind.Client,
             request,
             cancellationToken,
-            (req, token) => next(req, token),
+            (req, token) => nextHandler(req, token),
             allowParentExtraction: false);
     }
 
@@ -355,7 +357,7 @@ public sealed class RpcTracingMiddleware :
         string spanName,
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next)
+        ClientStreamInboundHandler next)
     {
         var (activity, _) = StartActivity(spanName, ActivityKind.Server, context.Meta, allowParentExtraction: true);
 
@@ -391,7 +393,7 @@ public sealed class RpcTracingMiddleware :
         string spanName,
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next)
+        ClientStreamOutboundHandler next)
     {
         var (activity, meta) = StartActivity(spanName, ActivityKind.Client, requestMeta, allowParentExtraction: false);
 
@@ -655,16 +657,16 @@ public sealed class RpcTracingMiddleware :
 
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _inner.Responses;
 
-        public async ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default)
+        public async ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default)
         {
-            if (error is not null)
+            if (fault is not null)
             {
-                _error = error;
+                _error = fault;
             }
 
             try
             {
-                await _inner.CompleteAsync(error, cancellationToken).ConfigureAwait(false);
+                await _inner.CompleteAsync(fault, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -810,12 +812,14 @@ public sealed class RpcTracingMiddleware :
             }
         }
 
-    private void CloseActivity()
-    {
-        var activity = Interlocked.Exchange(ref _activity, null);
-        activity?.Stop();
+        private void CloseActivity()
+        {
+            var activity = Interlocked.Exchange(ref _activity, null);
+            activity?.Stop();
+        }
     }
-}
+
+#pragma warning restore CA1068
 
     private static T EnsureNotNull<T>(T? value, string paramName) where T : class
     {
@@ -844,16 +848,16 @@ public sealed class RpcTracingMiddleware :
 
         public ChannelReader<ReadOnlyMemory<byte>> ResponseReader => _inner.ResponseReader;
 
-        public async ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default)
+        public async ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default)
         {
-            if (error is not null)
+            if (fault is not null)
             {
-                _requestError = error;
+                _requestError = fault;
             }
 
             try
             {
-                await _inner.CompleteRequestsAsync(error, cancellationToken).ConfigureAwait(false);
+                await _inner.CompleteRequestsAsync(fault, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -862,16 +866,16 @@ public sealed class RpcTracingMiddleware :
             }
         }
 
-        public async ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default)
+        public async ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default)
         {
-            if (error is not null)
+            if (fault is not null)
             {
-                _responseError = error;
+                _responseError = fault;
             }
 
             try
             {
-                await _inner.CompleteResponsesAsync(error, cancellationToken).ConfigureAwait(false);
+                await _inner.CompleteResponsesAsync(fault, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -914,4 +918,3 @@ public sealed class RpcTracingMiddleware :
         }
     }
 }
-

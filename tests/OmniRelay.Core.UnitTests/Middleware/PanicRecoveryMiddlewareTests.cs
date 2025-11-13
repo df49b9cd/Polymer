@@ -1,16 +1,11 @@
-using System;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 using Hugo;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
 using Xunit;
-using static Hugo.Go;
 
 namespace OmniRelay.Core.UnitTests.Middleware;
 
@@ -22,11 +17,11 @@ public class PanicRecoveryMiddlewareTests
         var logger = Substitute.For<ILogger<PanicRecoveryMiddleware>>();
         var mw = new PanicRecoveryMiddleware(logger);
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "http");
-        UnaryOutboundDelegate next = (req, ct) => throw new InvalidOperationException("boom");
+        UnaryOutboundHandler next = (req, ct) => throw new InvalidOperationException("boom");
 
         var result = await mw.InvokeAsync(new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -38,16 +33,16 @@ public class PanicRecoveryMiddlewareTests
         var options = new StreamCallOptions(StreamDirection.Server);
         var ctx = new ClientStreamRequestContext(meta, Channel.CreateUnbounded<ReadOnlyMemory<byte>>().Reader);
 
-        UnaryInboundDelegate unaryInbound = (req, ct) => throw new ApplicationException("fail-unary-in");
-        UnaryOutboundDelegate unaryOutbound = (req, ct) => throw new ApplicationException("fail-unary-out");
-        OnewayInboundDelegate onewayInbound = (req, ct) => throw new ApplicationException("fail-oneway-in");
-        OnewayOutboundDelegate onewayOutbound = (req, ct) => throw new ApplicationException("fail-oneway-out");
-        StreamInboundDelegate streamInbound = (req, opt, ct) => throw new ApplicationException("fail-stream-in");
-        StreamOutboundDelegate streamOutbound = (req, opt, ct) => throw new ApplicationException("fail-stream-out");
-        ClientStreamInboundDelegate clientStreamInbound = (context, ct) => throw new ApplicationException("fail-client-stream-in");
-        ClientStreamOutboundDelegate clientStreamOutbound = (requestMeta, ct) => throw new ApplicationException("fail-client-stream-out");
-        DuplexInboundDelegate duplexInbound = (req, ct) => throw new ApplicationException("fail-duplex-in");
-        DuplexOutboundDelegate duplexOutbound = (req, ct) => throw new ApplicationException("fail-duplex-out");
+        UnaryInboundHandler unaryInbound = (req, ct) => throw new ApplicationException("fail-unary-in");
+        UnaryOutboundHandler unaryOutbound = (req, ct) => throw new ApplicationException("fail-unary-out");
+        OnewayInboundHandler onewayInbound = (req, ct) => throw new ApplicationException("fail-oneway-in");
+        OnewayOutboundHandler onewayOutbound = (req, ct) => throw new ApplicationException("fail-oneway-out");
+        StreamInboundHandler streamInbound = (req, opt, ct) => throw new ApplicationException("fail-stream-in");
+        StreamOutboundHandler streamOutbound = (req, opt, ct) => throw new ApplicationException("fail-stream-out");
+        ClientStreamInboundHandler clientStreamInbound = (context, ct) => throw new ApplicationException("fail-client-stream-in");
+        ClientStreamOutboundHandler clientStreamOutbound = (requestMeta, ct) => throw new ApplicationException("fail-client-stream-out");
+        DuplexInboundHandler duplexInbound = (req, ct) => throw new ApplicationException("fail-duplex-in");
+        DuplexOutboundHandler duplexOutbound = (req, ct) => throw new ApplicationException("fail-duplex-out");
 
         AssertFailure(await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, unaryInbound));
         AssertFailure(await middleware.InvokeAsync(request, TestContext.Current.CancellationToken, unaryOutbound));
@@ -63,8 +58,8 @@ public class PanicRecoveryMiddlewareTests
 
     private static void AssertFailure<T>(Result<T> result)
     {
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
-        Assert.Contains("exception_type", result.Error!.Metadata.Keys);
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Internal);
+        result.Error!.Metadata.Keys.ShouldContain("exception_type");
     }
 }

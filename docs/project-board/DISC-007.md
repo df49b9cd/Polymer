@@ -30,5 +30,27 @@ Expose authoritative peer, cluster, version, and configuration data through vers
 - Unauthorized calls fail with 401/403 and audit entries appear.
 - CLI `omnirelay mesh peers/clusters` commands consume these APIs with pagination support.
 
+## Testing Strategy
+
+### Unit tests
+- Verify validators for filtering, pagination, sorting, and RBAC claims to ensure only supported query combinations reach the repository layer.
+- Test caching helpers that compute ETags and honor `If-None-Match`, asserting cache hits skip work and cache misses produce fresh payloads.
+- Exercise stream fan-out components so SSE/gRPC watchers handle heartbeats, client disconnects, and maximum subscriber limits.
+
+### Integration tests
+- Run REST + gRPC calls against a seeded registry with 1k peers to confirm <200 ms response targets, correct JSON/Protobuf encoding, and transport negotiation telemetry.
+- Stand up streaming clients that reconnect mid-flight, validating resume semantics, throttling, and audit logging for subscription lifecycles.
+- Execute CLI commands (`peers`, `clusters`, `versions`, `config`) against the hosted endpoints to guarantee pagination, filtering, and auth flows align with documentation.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Script an operator drill where dashboards and CLI watchers observe deliberate peer churn, confirming REST snapshots, SSE streams, and metrics stay aligned.
+- Revoke or downgrade scopes mid-session to ensure clients surface actionable RBAC errors, audit logs capture the denial, and cached ETags invalidate cleanly.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Run high-volume read workloads (thousands of peers, 100+ streaming clients) while rotating clusters to verify latency targets and streaming heartbeats hold under pressure.
+- Execute bulk RBAC changes across many users to confirm audit trails, caching layers, and client retry behavior remain consistent at scale.
+
 ## References
 - `docs/architecture/service-discovery.md` – “Discoverable peer registry API”, “Peer/cluster registry APIs”.

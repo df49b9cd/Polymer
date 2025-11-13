@@ -1,20 +1,15 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Net.Mime;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
-using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
-using OmniRelay.Tests;
 using OmniRelay.Tests.Protos;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
@@ -204,7 +199,7 @@ public class ObservabilityDiagnosticsIntegrationTests
 
             middlewareContext.Request.Content = new ByteArrayContent(outboundRequest.Body.ToArray());
 
-            HttpClientMiddlewareDelegate terminal = (_, _) =>
+            HttpClientMiddlewareHandler terminal = (_, _) =>
             {
                 var fakeResponse = new HttpResponseMessage(HttpStatusCode.OK)
                 {
@@ -213,7 +208,7 @@ public class ObservabilityDiagnosticsIntegrationTests
                 return ValueTask.FromResult(fakeResponse);
             };
 
-            using var fakeResponse = await httpClientLogging.InvokeAsync(middlewareContext, ct, terminal);
+            using var fakeResponse = await httpClientLogging.InvokeAsync(middlewareContext, terminal, ct);
             Assert.Equal(HttpStatusCode.OK, fakeResponse.StatusCode);
         }
         finally
@@ -519,18 +514,15 @@ public class ObservabilityDiagnosticsIntegrationTests
         public void SetScopeProvider(IExternalScopeProvider scopeProvider) =>
             _scopeProvider = scopeProvider ?? new LoggerExternalScopeProvider();
 
-        private sealed class CapturingLogger : ILogger
+        private sealed class CapturingLogger(
+            string category,
+            ConcurrentQueue<LogEntry> sink,
+            Func<IExternalScopeProvider> scopeAccessor)
+            : ILogger
         {
-            private readonly string _category;
-            private readonly ConcurrentQueue<LogEntry> _sink;
-            private readonly Func<IExternalScopeProvider> _scopeAccessor;
-
-            public CapturingLogger(string category, ConcurrentQueue<LogEntry> sink, Func<IExternalScopeProvider> scopeAccessor)
-            {
-                _category = category ?? throw new ArgumentNullException(nameof(category));
-                _sink = sink ?? throw new ArgumentNullException(nameof(sink));
-                _scopeAccessor = scopeAccessor ?? throw new ArgumentNullException(nameof(scopeAccessor));
-            }
+            private readonly string _category = category ?? throw new ArgumentNullException(nameof(category));
+            private readonly ConcurrentQueue<LogEntry> _sink = sink ?? throw new ArgumentNullException(nameof(sink));
+            private readonly Func<IExternalScopeProvider> _scopeAccessor = scopeAccessor ?? throw new ArgumentNullException(nameof(scopeAccessor));
 
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull =>
                 _scopeAccessor()?.Push(state) ?? NullScope.Instance;

@@ -1,4 +1,3 @@
-using System;
 using OmniRelay.Core.Peers;
 using Xunit;
 
@@ -10,10 +9,10 @@ public class PeerStatusTests
     public void Unknown_HasExpectedDefaults()
     {
         var s = PeerStatus.Unknown;
-        Assert.Equal(PeerState.Unknown, s.State);
-        Assert.Equal(0, s.Inflight);
-        Assert.Null(s.LastFailure);
-        Assert.Null(s.LastSuccess);
+        s.State.ShouldBe(PeerState.Unknown);
+        s.Inflight.ShouldBe(0);
+        s.LastFailure.ShouldBeNull();
+        s.LastSuccess.ShouldBeNull();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -21,9 +20,9 @@ public class PeerStatusTests
     {
         var now = DateTimeOffset.UtcNow;
         var s = new PeerStatus(PeerState.Available, 3, now, now.AddMinutes(-1));
-        Assert.Equal(PeerState.Available, s.State);
-        Assert.Equal(3, s.Inflight);
-        Assert.Equal(now, s.LastSuccess);
-        Assert.Equal(now.AddMinutes(-1), s.LastFailure);
+        s.State.ShouldBe(PeerState.Available);
+        s.Inflight.ShouldBe(3);
+        s.LastSuccess.ShouldBe(now);
+        s.LastFailure.ShouldBe(now.AddMinutes(-1));
     }
 }

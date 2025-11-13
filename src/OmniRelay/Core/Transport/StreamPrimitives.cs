@@ -23,7 +23,7 @@ public interface IStreamCall : IAsyncDisposable
     StreamCallContext Context { get; }
     ChannelWriter<ReadOnlyMemory<byte>> Requests { get; }
     ChannelReader<ReadOnlyMemory<byte>> Responses { get; }
-    ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default);
+    ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default);
 }
 
 public interface IDuplexStreamCall : IAsyncDisposable
@@ -35,6 +35,6 @@ public interface IDuplexStreamCall : IAsyncDisposable
     ChannelReader<ReadOnlyMemory<byte>> RequestReader { get; }
     ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter { get; }
     ChannelReader<ReadOnlyMemory<byte>> ResponseReader { get; }
-    ValueTask CompleteRequestsAsync(Error? error = null, CancellationToken cancellationToken = default);
-    ValueTask CompleteResponsesAsync(Error? error = null, CancellationToken cancellationToken = default);
+    ValueTask CompleteRequestsAsync(Error? fault = null, CancellationToken cancellationToken = default);
+    ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default);
 }

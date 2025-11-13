@@ -7,14 +7,11 @@ public interface IGrpcResourceLeaseReplicatorClient
     Task PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken);
 }
 
-internal sealed class GrpcResourceLeaseReplicatorClientAdapter : IGrpcResourceLeaseReplicatorClient
+internal sealed class GrpcResourceLeaseReplicatorClientAdapter(
+    ResourceLeaseReplicatorGrpc.ResourceLeaseReplicatorGrpcClient client)
+    : IGrpcResourceLeaseReplicatorClient
 {
-    private readonly ResourceLeaseReplicatorGrpc.ResourceLeaseReplicatorGrpcClient _client;
-
-    public GrpcResourceLeaseReplicatorClientAdapter(ResourceLeaseReplicatorGrpc.ResourceLeaseReplicatorGrpcClient client)
-    {
-        _client = client ?? throw new ArgumentNullException(nameof(client));
-    }
+    private readonly ResourceLeaseReplicatorGrpc.ResourceLeaseReplicatorGrpcClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
     public async Task PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
     {

@@ -6,6 +6,8 @@ using OmniRelay.Errors;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes delegate for OmniRelay middleware contract.
+
 /// <summary>
 /// Retries failed unary outbound requests based on a configurable policy and predicates.
 /// </summary>
@@ -18,13 +20,13 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next) =>
-        ExecuteWithRetryAsync(request, cancellationToken, next);
+        UnaryOutboundHandler nextHandler) =>
+        ExecuteWithRetryAsync(request, cancellationToken, nextHandler);
 
     private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ExecuteWithRetryAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next)
+        UnaryOutboundHandler next)
     {
         var meta = request.Meta;
 
@@ -66,7 +68,7 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
     private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ExecuteWithPolicyAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next,
+        UnaryOutboundHandler next,
         RequestMeta meta,
         ResultExecutionPolicy policy)
     {
@@ -141,7 +143,7 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
     private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ExecuteWithCustomPredicateAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next,
+        UnaryOutboundHandler next,
         RequestMeta meta,
         ResultExecutionPolicy policy)
     {
@@ -238,3 +240,5 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
         return false;
     }
 }
+
+#pragma warning restore CA1068

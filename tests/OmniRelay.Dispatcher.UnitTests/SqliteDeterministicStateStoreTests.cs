@@ -1,9 +1,5 @@
-using System;
-using System.IO;
-using System.Threading;
 using Hugo;
 using Microsoft.Data.Sqlite;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
@@ -26,12 +22,7 @@ public sealed class SqliteDeterministicStateStoreTests
 
     private sealed class TempFile : IDisposable
     {
-        public TempFile()
-        {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
-        }
-
-        public string Path { get; }
+        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
 
         public void Dispose()
         {

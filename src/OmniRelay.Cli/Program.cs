@@ -13,10 +13,11 @@ using Google.Protobuf.WellKnownTypes;
 using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Configuration;
+using OmniRelay.Core.Gossip;
 using OmniRelay.Core;
+using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
@@ -25,14 +26,18 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Cli;
 
+[RequiresUnreferencedCode("OmniRelay CLI uses reflection-heavy utilities and is not trimming safe.")]
+[RequiresDynamicCode("OmniRelay CLI uses reflection-heavy utilities and is not AOT safe.")]
 public static class Program
 {
-    private const string DefaultConfigSection = "polymer";
+    private const string DefaultConfigSection = "omnirelay";
     private const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
+    private const string DefaultControlPlaneUrl = "http://127.0.0.1:8080";
     private static readonly JsonSerializerOptions PrettyJsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
+    private static readonly JsonSerializerOptions LeadershipJsonOptions = CreateLeadershipJsonOptions();
     private static readonly IReadOnlyDictionary<string, FileDescriptor> WellKnownFileDescriptors = new Dictionary<string, FileDescriptor>(StringComparer.Ordinal)
     {
         ["google/protobuf/any.proto"] = AnyReflection.Descriptor,
@@ -49,6 +54,16 @@ public static class Program
     private static MethodInfo? _fileDescriptorBuildFrom;
     private static readonly ConcurrentDictionary<string, DescriptorCacheEntry> DescriptorCache = new(StringComparer.Ordinal);
 
+    private static JsonSerializerOptions CreateLeadershipJsonOptions()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        return options;
+    }
+
     public static async Task<int> Main(string[] args)
     {
         try
@@ -64,7 +79,7 @@ public static class Program
         }
     }
 
-    private static RootCommand BuildRootCommand()
+    internal static RootCommand BuildRootCommand()
     {
         var root = new RootCommand("OmniRelay CLI providing configuration validation, dispatcher introspection, and ad-hoc request tooling.")
         {
@@ -73,12 +88,13 @@ public static class Program
             CreateIntrospectCommand(),
             CreateRequestCommand(),
             CreateBenchmarkCommand(),
-            CreateScriptCommand()
+            CreateScriptCommand(),
+            CreateMeshCommand()
         };
         return root;
     }
 
-    private static Command CreateConfigCommand()
+    internal static Command CreateConfigCommand()
     {
         var command = new Command("config", "Configuration utilities.")
         {
@@ -88,7 +104,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateServeCommand()
+    internal static Command CreateServeCommand()
     {
         var command = new Command("serve", "Run an OmniRelay dispatcher using configuration files.");
 
@@ -142,7 +158,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateConfigScaffoldCommand()
+    internal static Command CreateConfigScaffoldCommand()
     {
         var command = new Command("scaffold", "Generate an example appsettings.json with optional HTTP/3 toggles.");
 
@@ -209,7 +225,7 @@ public static class Program
         return command;
     }
 
-    private static async Task<int> RunConfigScaffoldAsync(
+    internal static async Task<int> RunConfigScaffoldAsync(
         string outputPath,
         string section,
         string service,
@@ -374,7 +390,7 @@ public static class Program
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static Command CreateScriptCommand()
+    internal static Command CreateScriptCommand()
     {
         var command = new Command("script", "Run scripted OmniRelay CLI automation.");
 
@@ -413,7 +429,114 @@ public static class Program
         return command;
     }
 
-    private static Command CreateConfigValidateCommand()
+    internal static Command CreateMeshCommand()
+    {
+        var command = new Command("mesh", "Mesh control-plane tooling.")
+        {
+            CreateMeshLeadersCommand(),
+            CreateMeshPeersCommand()
+        };
+        return command;
+    }
+
+    internal static Command CreateMeshLeadersCommand()
+    {
+        var command = new Command("leaders", "Leadership status and diagnostics.")
+        {
+            CreateMeshLeadersStatusCommand()
+        };
+        return command;
+    }
+
+    internal static Command CreateMeshPeersCommand()
+    {
+        var command = new Command("peers", "Mesh membership diagnostics.")
+        {
+            CreateMeshPeersListCommand()
+        };
+
+        return command;
+    }
+
+    internal static Command CreateMeshPeersListCommand()
+    {
+        var command = new Command("list", "List gossip peers from the control plane.");
+
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080)."
+        };
+        urlOption.Aliases.Add("-u");
+
+        var formatOption = new Option<MeshPeersOutputFormat>("--format")
+        {
+            Description = "Output format (table or json)."
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Request timeout (e.g. 10s, 1m)."
+        };
+
+        command.Add(urlOption);
+        command.Add(formatOption);
+        command.Add(timeoutOption);
+
+        command.SetAction(parseResult =>
+        {
+            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
+            var format = parseResult.GetValue(formatOption);
+            var timeout = parseResult.GetValue(timeoutOption);
+            return RunMeshPeersListAsync(url, format, timeout).GetAwaiter().GetResult();
+        });
+
+        return command;
+    }
+
+    internal static Command CreateMeshLeadersStatusCommand()
+    {
+        var command = new Command("status", "Show current leadership tokens or stream leadership events.");
+
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080).",
+            DefaultValueFactory = _ => DefaultControlPlaneUrl
+        };
+        urlOption.Aliases.Add("-u");
+
+        var scopeOption = new Option<string?>("--scope")
+        {
+            Description = "Scope filter (global-control, shard/namespace/id, etc.)."
+        };
+
+        var watchOption = new Option<bool>("--watch")
+        {
+            Description = "Stream leadership changes via SSE."
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Request timeout (e.g. 10s, 1m)."
+        };
+
+        command.Add(urlOption);
+        command.Add(scopeOption);
+        command.Add(watchOption);
+        command.Add(timeoutOption);
+
+        command.SetAction(parseResult =>
+        {
+            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
+            var scope = parseResult.GetValue(scopeOption);
+            var watch = parseResult.GetValue(watchOption);
+            var timeout = parseResult.GetValue(timeoutOption);
+            return RunMeshLeadersStatusAsync(url, scope, watch, timeout).GetAwaiter().GetResult();
+        });
+
+        return command;
+    }
+
+    internal static Command CreateConfigValidateCommand()
     {
         var command = new Command("validate", "Validate OmniRelay dispatcher configuration.");
 
@@ -454,7 +577,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateIntrospectCommand()
+    internal static Command CreateIntrospectCommand()
     {
         var command = new Command("introspect", "Fetch dispatcher introspection over HTTP.");
 
@@ -490,7 +613,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateRequestCommand()
+    internal static Command CreateRequestCommand()
     {
         var command = new Command("request", "Issue a unary RPC over HTTP or gRPC.");
 
@@ -693,7 +816,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateBenchmarkCommand()
+    internal static Command CreateBenchmarkCommand()
     {
         var command = new Command("benchmark", "Run concurrent unary RPC load tests over HTTP or gRPC.");
 
@@ -941,7 +1064,7 @@ public static class Program
         return command;
     }
 
-    private static async Task<int> RunConfigValidateAsync(string[] configPaths, string section, string[] setOverrides)
+    internal static async Task<int> RunConfigValidateAsync(string[] configPaths, string section, string[] setOverrides)
     {
         if (!TryBuildConfiguration(configPaths, setOverrides, out var configuration, out var errorMessage))
         {
@@ -1012,7 +1135,7 @@ public static class Program
         }
     }
 
-    private static async Task<int> RunServeAsync(string[] configPaths, string section, string[] setOverrides, string? readyFile, string? shutdownAfterOption)
+    internal static async Task<int> RunServeAsync(string[] configPaths, string section, string[] setOverrides, string? readyFile, string? shutdownAfterOption)
     {
         if (!TryBuildConfiguration(configPaths, setOverrides, out var configuration, out var errorMessage))
         {
@@ -1038,18 +1161,11 @@ public static class Program
             shutdownAfter = parsed;
         }
 
-        var builder = Host.CreateApplicationBuilder();
-        builder.Configuration.Sources.Clear();
-        builder.Configuration.AddConfiguration(configuration);
-        builder.Services.AddLogging(static logging => logging.AddSimpleConsole(options =>
-        {
-            options.SingleLine = true;
-            options.TimestampFormat = "HH:mm:ss ";
-        }));
-
+        var resolvedSection = string.IsNullOrWhiteSpace(section) ? DefaultConfigSection : section;
+        IServeHost? serveHost;
         try
         {
-            builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection(section ?? DefaultConfigSection));
+            serveHost = CliRuntime.ServeHostFactory.CreateHost(configuration, resolvedSection);
         }
         catch (Exception ex)
         {
@@ -1057,7 +1173,7 @@ public static class Program
             return 1;
         }
 
-        using var host = builder.Build();
+        await using var host = serveHost;
         var shutdownSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         ConsoleCancelEventHandler? cancelHandler = null;
 
@@ -1093,8 +1209,9 @@ public static class Program
         try
         {
             await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();
-            Console.WriteLine($"OmniRelay dispatcher '{dispatcher.ServiceName}' started.");
+            var dispatcher = host.Dispatcher;
+            var serviceName = dispatcher?.ServiceName ?? resolvedSection;
+            Console.WriteLine($"OmniRelay dispatcher '{serviceName}' started.");
 
             if (!string.IsNullOrWhiteSpace(readyFile))
             {
@@ -1122,7 +1239,7 @@ public static class Program
 
     [RequiresDynamicCode("Calls System.Text.Json.Serialization.JsonStringEnumConverter.JsonStringEnumConverter(JsonNamingPolicy, Boolean)")]
     [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
-    private static async Task<int> RunIntrospectAsync(string url, string format, string? timeoutOption)
+    internal static async Task<int> RunIntrospectAsync(string url, string format, string? timeoutOption)
     {
         var normalizedFormat = string.IsNullOrWhiteSpace(format) ? "text" : format.ToLowerInvariant();
         var timeout = TimeSpan.FromSeconds(10);
@@ -1133,7 +1250,7 @@ public static class Program
             return 1;
         }
 
-        using var httpClient = new HttpClient();
+        using var httpClient = CliRuntime.HttpClientFactory.CreateClient();
         httpClient.Timeout = Timeout.InfiniteTimeSpan;
 
         using var cts = new CancellationTokenSource(timeout);
@@ -1197,7 +1314,7 @@ public static class Program
         }
     }
 
-    private static bool TryBuildConfiguration(string[] configPaths, string[] setOverrides, out IConfigurationRoot configuration, out string? errorMessage)
+    internal static bool TryBuildConfiguration(string[] configPaths, string[] setOverrides, out IConfigurationRoot configuration, out string? errorMessage)
     {
         configuration = null!;
         errorMessage = null;
@@ -1259,25 +1376,21 @@ public static class Program
         }
     }
 
-    private static void TryWriteReadyFile(string path)
+    internal static void TryWriteReadyFile(string path)
     {
         try
         {
             var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            File.WriteAllText(path, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+            CliRuntime.FileSystem.EnsureDirectory(directory);
+            CliRuntime.FileSystem.WriteAllText(path, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Failed to write ready file '{path}': {ex.Message}");
+            CliRuntime.Console.WriteError($"Failed to write ready file '{path}': {ex.Message}");
         }
     }
 
-    private static async Task<int> RunRequestAsync(
+    internal static async Task<int> RunRequestAsync(
         string transport,
         string service,
         string procedure,
@@ -1343,7 +1456,7 @@ public static class Program
         };
     }
 
-    private static bool TryBuildRequestInvocation(
+    internal static bool TryBuildRequestInvocation(
         string transport,
         string service,
         string procedure,
@@ -1529,7 +1642,7 @@ public static class Program
         return true;
     }
 
-    private static async Task<int> RunBenchmarkAsync(
+    internal static async Task<int> RunBenchmarkAsync(
         string transport,
         string service,
         string procedure,
@@ -1669,7 +1782,7 @@ public static class Program
         return summary.Successes > 0 ? 0 : 1;
     }
 
-    private static async Task<int> ExecuteHttpRequestAsync(string? url, Request<ReadOnlyMemory<byte>> request, HttpClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
+    internal static async Task<int> ExecuteHttpRequestAsync(string? url, Request<ReadOnlyMemory<byte>> request, HttpClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -1683,7 +1796,7 @@ public static class Program
             return 1;
         }
 
-        using var httpClient = new HttpClient();
+        using var httpClient = CliRuntime.HttpClientFactory.CreateClient();
         var outbound = new HttpOutbound(httpClient, requestUri, runtimeOptions: runtimeOptions);
 
         try
@@ -1712,7 +1825,7 @@ public static class Program
         }
     }
 
-    private static async Task<int> ExecuteGrpcRequestAsync(string[] addresses, string remoteService, Request<ReadOnlyMemory<byte>> request, GrpcClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
+    internal static async Task<int> ExecuteGrpcRequestAsync(string[] addresses, string remoteService, Request<ReadOnlyMemory<byte>> request, GrpcClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
     {
         if (addresses.Length == 0)
         {
@@ -1732,12 +1845,12 @@ public static class Program
             uris.Add(uri);
         }
 
-        var outbound = new GrpcOutbound(uris, remoteService, clientRuntimeOptions: runtimeOptions);
+        await using var invoker = CliRuntime.GrpcInvokerFactory.Create(uris, remoteService, runtimeOptions);
 
         try
         {
-            await outbound.StartAsync(cancellationToken).ConfigureAwait(false);
-            var result = await outbound.CallAsync(request, cancellationToken).ConfigureAwait(false);
+            await invoker.StartAsync(cancellationToken).ConfigureAwait(false);
+            var result = await invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
 
             if (result.IsSuccess)
             {
@@ -1755,12 +1868,12 @@ public static class Program
         }
         finally
         {
-            await outbound.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
         }
     }
 
     [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
-    private static async Task<int> RunAutomationAsync(string scriptPath, bool dryRun, bool continueOnError)
+    internal static async Task<int> RunAutomationAsync(string scriptPath, bool dryRun, bool continueOnError)
     {
         if (string.IsNullOrWhiteSpace(scriptPath))
         {
@@ -1806,14 +1919,14 @@ public static class Program
         {
             var step = script.Steps[index];
             var typeLabel = string.IsNullOrWhiteSpace(step.Type) ? "(unspecified)" : step.Type;
-            var description = string.IsNullOrWhiteSpace(AutomationStep.Description) ? string.Empty : $" - {AutomationStep.Description}";
+            var description = string.IsNullOrWhiteSpace(step.Description) ? string.Empty : $" - {step.Description}";
             Console.WriteLine($"[{index + 1}/{script.Steps.Length}] {typeLabel}{description}");
 
             var normalizedType = step.Type?.Trim().ToLowerInvariant() ?? string.Empty;
             switch (normalizedType)
             {
                 case "request":
-                    if (string.IsNullOrWhiteSpace(AutomationStep.Service) || string.IsNullOrWhiteSpace(AutomationStep.Procedure))
+                    if (string.IsNullOrWhiteSpace(step.Service) || string.IsNullOrWhiteSpace(step.Procedure))
                     {
                         await Console.Error.WriteLineAsync("  Request step is missing 'service' or 'procedure'.").ConfigureAwait(false);
                         exitCode = exitCode == 0 ? 1 : exitCode;
@@ -1824,18 +1937,18 @@ public static class Program
                         continue;
                     }
 
-                    var headerPairs = AutomationStep.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
-                    var profiles = AutomationStep.Profiles ?? [];
-                    var addresses = AutomationStep.Addresses ?? [];
-                    if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(AutomationStep.Address))
+                    var headerPairs = step.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
+                    var profiles = step.Profiles ?? [];
+                    var addresses = step.Addresses?.Where(static address => !string.IsNullOrWhiteSpace(address)).ToArray() ?? [];
+                    if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(step.Address))
                     {
-                        addresses = [AutomationStep.Address!];
+                        addresses = [step.Address];
                     }
 
-                    var targetSummary = !string.IsNullOrWhiteSpace(AutomationStep.Url)
-                        ? AutomationStep.Url
+                    var targetSummary = !string.IsNullOrWhiteSpace(step.Url)
+                        ? step.Url
                         : (addresses.Length > 0 ? string.Join(", ", addresses) : "(default transport settings)");
-                    Console.WriteLine($"  -> {AutomationStep.Transport ?? "http"} {AutomationStep.Service}/{AutomationStep.Procedure} @ {targetSummary}");
+                    Console.WriteLine($"  -> {step.Transport ?? "http"} {step.Service}/{step.Procedure} @ {targetSummary}");
 
                     if (dryRun)
                     {
@@ -1844,25 +1957,25 @@ public static class Program
                     }
 
                     var requestResult = await RunRequestAsync(
-                        AutomationStep.Transport ?? "http",
-                        AutomationStep.Service,
-                        AutomationStep.Procedure,
-                        AutomationStep.Caller,
-                        AutomationStep.Encoding,
+                        step.Transport ?? "http",
+                        step.Service,
+                        step.Procedure,
+                        step.Caller,
+                        step.Encoding,
                         headerPairs,
                         profiles,
-                        AutomationStep.ShardKey,
-                        AutomationStep.RoutingKey,
-                        AutomationStep.RoutingDelegate,
-                        AutomationStep.ProtoFiles ?? [],
-                        AutomationStep.ProtoMessage,
-                        AutomationStep.Ttl,
-                        AutomationStep.Deadline,
-                        AutomationStep.Timeout,
-                        AutomationStep.Body,
-                        AutomationStep.BodyFile,
-                        AutomationStep.BodyBase64,
-                        AutomationStep.Url,
+                        step.ShardKey,
+                        step.RoutingKey,
+                        step.RoutingDelegate,
+                        step.ProtoFiles ?? [],
+                        step.ProtoMessage,
+                        step.Ttl,
+                        step.Deadline,
+                        step.Timeout,
+                        step.Body,
+                        step.BodyFile,
+                        step.BodyBase64,
+                        step.Url,
                         addresses,
                         enableHttp3: false,
                         enableGrpcHttp3: false).ConfigureAwait(false);
@@ -1878,8 +1991,8 @@ public static class Program
                     break;
 
                 case "introspect":
-                    var targetUrl = string.IsNullOrWhiteSpace(AutomationStep.Url) ? DefaultIntrospectionUrl : AutomationStep.Url!;
-                    Console.WriteLine($"  -> GET {targetUrl} (format={AutomationStep.Format ?? "text"})");
+                    var targetUrl = string.IsNullOrWhiteSpace(step.Url) ? DefaultIntrospectionUrl : step.Url!;
+                    Console.WriteLine($"  -> GET {targetUrl} (format={step.Format ?? "text"})");
 
                     if (dryRun)
                     {
@@ -1887,7 +2000,7 @@ public static class Program
                         continue;
                     }
 
-                    var introspectResult = await RunIntrospectAsync(targetUrl, AutomationStep.Format ?? "text", AutomationStep.Timeout).ConfigureAwait(false);
+                    var introspectResult = await RunIntrospectAsync(targetUrl, step.Format ?? "text", step.Timeout).ConfigureAwait(false);
                     if (introspectResult != 0)
                     {
                         exitCode = exitCode == 0 ? introspectResult : exitCode;
@@ -1901,7 +2014,7 @@ public static class Program
                 case "delay":
                 case "sleep":
                 case "wait":
-                    var delayValue = AutomationStep.Duration ?? AutomationStep.Delay;
+                    var delayValue = step.Duration ?? step.Delay;
                     if (string.IsNullOrWhiteSpace(delayValue))
                     {
                         await Console.Error.WriteLineAsync("  Delay step requires a 'duration' or 'delay' value.").ConfigureAwait(false);
@@ -1913,8 +2026,7 @@ public static class Program
                         continue;
                     }
 
-                    var delayText = delayValue!;
-                    if (!TryParseDuration(delayText, out var delay))
+                    if (!TryParseDuration(delayValue!, out var delay))
                     {
                         await Console.Error.WriteLineAsync($"  Could not parse delay '{delayValue}'.").ConfigureAwait(false);
                         exitCode = exitCode == 0 ? 1 : exitCode;
@@ -2061,10 +2173,10 @@ public static class Program
 
     private static void PrintError(Error error, string transport)
     {
-        var polymerException = OmniRelayErrors.FromError(error, transport);
-        Console.Error.WriteLine($"Request failed with status {polymerException.StatusCode}: {polymerException.Message}");
+        var omnirelayException = OmniRelayErrors.FromError(error, transport);
+        Console.Error.WriteLine($"Request failed with status {omnirelayException.StatusCode}: {omnirelayException.Message}");
 
-        if (polymerException.Error.Metadata is { Count: > 0 } metadata)
+        if (omnirelayException.Error.Metadata is { Count: > 0 } metadata)
         {
             Console.Error.WriteLine("Metadata:");
             foreach (var kvp in metadata.OrderBy(static m => m.Key, StringComparer.OrdinalIgnoreCase))
@@ -2073,7 +2185,7 @@ public static class Program
             }
         }
 
-        if (polymerException.InnerException is { } inner)
+        if (omnirelayException.InnerException is { } inner)
         {
             Console.Error.WriteLine($"Inner exception: {inner.GetType().Name}: {inner.Message}");
         }
@@ -2124,6 +2236,292 @@ public static class Program
         PrintMiddlewareLine("Stream", snapshot.Middleware.InboundStream, snapshot.Middleware.OutboundStream);
         PrintMiddlewareLine("ClientStream", snapshot.Middleware.InboundClientStream, snapshot.Middleware.OutboundClientStream);
         PrintMiddlewareLine("Duplex", snapshot.Middleware.InboundDuplex, snapshot.Middleware.OutboundDuplex);
+    }
+
+    internal static async Task<int> RunMeshLeadersStatusAsync(string baseUrl, string? scope, bool watch, string? timeoutOption)
+    {
+        var timeout = TimeSpan.FromSeconds(10);
+        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
+        {
+            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
+            return 1;
+        }
+
+        if (watch)
+        {
+            return await RunMeshLeadersWatchAsync(baseUrl, scope, timeout).ConfigureAwait(false);
+        }
+
+        return await RunMeshLeadersSnapshotAsync(baseUrl, scope, timeout).ConfigureAwait(false);
+    }
+
+    internal static async Task<int> RunMeshPeersListAsync(string baseUrl, MeshPeersOutputFormat format, string? timeoutOption)
+    {
+        var timeout = TimeSpan.FromSeconds(10);
+        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
+        {
+            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
+            return 1;
+        }
+
+        Uri target;
+        try
+        {
+            target = BuildControlPlaneUri(baseUrl, "/control/peers", scope: null);
+        }
+        catch (ArgumentException ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+            return 1;
+        }
+
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var cts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Console.Error.WriteLineAsync($"Peer diagnostics request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
+                return 1;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+            var result = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.MeshPeersResponse, cts.Token).ConfigureAwait(false);
+            if (result is null)
+            {
+                await Console.Error.WriteLineAsync("Peer diagnostics response was empty.").ConfigureAwait(false);
+                return 1;
+            }
+
+            switch (format)
+            {
+                case MeshPeersOutputFormat.Json:
+                    var json = JsonSerializer.Serialize(result, OmniRelayCliJsonContext.Default.MeshPeersResponse);
+                    CliRuntime.Console.WriteLine(json);
+                    break;
+                default:
+                    PrintMeshPeersTable(result);
+                    break;
+            }
+
+            return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Peer diagnostics request timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
+    [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
+    internal static async Task<int> RunMeshLeadersSnapshotAsync(string baseUrl, string? scope, TimeSpan timeout)
+    {
+        Uri target;
+        try
+        {
+            target = BuildControlPlaneUri(baseUrl, "/control/leaders", scope);
+        }
+        catch (ArgumentException ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+            return 1;
+        }
+
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var cts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Console.Error.WriteLineAsync($"Leadership request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
+                return 1;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+            var snapshot = await JsonSerializer.DeserializeAsync<LeadershipSnapshotResponse>(stream, LeadershipJsonOptions, cts.Token).ConfigureAwait(false);
+            PrintLeadershipSnapshot(snapshot, scope);
+            return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Leadership request timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
+    [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
+    internal static async Task<int> RunMeshLeadersWatchAsync(string baseUrl, string? scope, TimeSpan timeout)
+    {
+        Uri target;
+        try
+        {
+            target = BuildControlPlaneUri(baseUrl, "/control/events/leadership", scope);
+        }
+        catch (ArgumentException ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+            return 1;
+        }
+
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var request = new HttpRequestMessage(HttpMethod.Get, target);
+        request.Headers.Accept.ParseAdd("text/event-stream");
+
+        using var connectCts = new CancellationTokenSource(timeout);
+        try
+        {
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, connectCts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Console.Error.WriteLineAsync($"Leadership stream failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
+                return 1;
+            }
+
+            Console.WriteLine($"Streaming leadership events from {target} (scope={scope ?? "*"}). Press Ctrl+C to exit.");
+
+            await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var reader = new StreamReader(stream);
+            var buffer = new StringBuilder();
+
+            while (true)
+            {
+                var line = await reader.ReadLineAsync().ConfigureAwait(false);
+                if (line is null)
+                {
+                    break;
+                }
+
+                if (line.Length == 0)
+                {
+                    if (buffer.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var payload = buffer.ToString();
+                    buffer.Clear();
+                    try
+                    {
+                        var leadershipEvent = JsonSerializer.Deserialize<LeadershipEventDto>(payload, LeadershipJsonOptions);
+                        if (leadershipEvent is not null)
+                        {
+                            PrintLeadershipEvent(leadershipEvent);
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        await Console.Error.WriteLineAsync($"Failed to parse leadership event: {ex.Message}").ConfigureAwait(false);
+                    }
+
+                    continue;
+                }
+
+                if (line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                {
+                    var segment = line.Length > 5 ? line[5..].TrimStart() : string.Empty;
+                    buffer.Append(segment);
+                }
+            }
+
+            return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Leadership stream connection timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
+    private static Uri BuildControlPlaneUri(string baseUrl, string relativePath, string? scope)
+    {
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri))
+        {
+            throw new ArgumentException($"Invalid control-plane URL '{baseUrl}'.", nameof(baseUrl));
+        }
+
+        var target = new Uri(baseUri, relativePath);
+        if (string.IsNullOrWhiteSpace(scope))
+        {
+            return target;
+        }
+
+        var builder = new UriBuilder(target)
+        {
+            Query = $"scope={Uri.EscapeDataString(scope)}"
+        };
+        return builder.Uri;
+    }
+
+    private static void PrintLeadershipSnapshot(LeadershipSnapshotResponse? snapshot, string? scopeFilter)
+    {
+        if (snapshot is null)
+        {
+            Console.WriteLine("No leadership data available.");
+            return;
+        }
+
+        var tokens = snapshot.Tokens ?? [];
+        if (!string.IsNullOrWhiteSpace(scopeFilter))
+        {
+            tokens = [.. tokens.Where(token => string.Equals(token.Scope, scopeFilter, StringComparison.OrdinalIgnoreCase))];
+        }
+
+        Console.WriteLine($"Generated at: {snapshot.GeneratedAt:O}");
+
+        if (tokens.Length == 0)
+        {
+            Console.WriteLine("No active leaders.");
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"{"Scope",-32} {"Leader",-20} {"Term",6} {"Fence",6} {"Expires (UTC)",-24} {"Kind",-12}");
+
+        foreach (var token in tokens.OrderBy(static t => t.Scope, StringComparer.OrdinalIgnoreCase))
+        {
+            var expires = token.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss\\Z", CultureInfo.InvariantCulture);
+            Console.WriteLine($"{token.Scope,-32} {token.LeaderId,-20} {token.Term,6} {token.FenceToken,6} {expires,-24} {token.ScopeKind,-12}");
+        }
+    }
+
+    private static void PrintMeshPeersTable(MeshPeersResponse response)
+    {
+        Console.WriteLine($"Generated at: {response.GeneratedAt:O}");
+        Console.WriteLine($"Local node: {response.LocalNodeId}");
+        Console.WriteLine();
+        Console.WriteLine($"{"Node",-24} {"Status",-8} {"Role",-12} {"Cluster",-18} {"Region",-18} {"Version",-12} {"HTTP/3",-7} {"rtt (ms)",8}");
+
+        var ordered = response.Peers
+            .OrderByDescending(peer => string.Equals(peer.NodeId, response.LocalNodeId, StringComparison.Ordinal))
+            .ThenBy(peer => peer.NodeId, StringComparer.Ordinal);
+
+        foreach (var peer in ordered)
+        {
+            var metadata = peer.Metadata;
+            var rtt = peer.RoundTripTimeMs.HasValue ? peer.RoundTripTimeMs.Value.ToString("0.##", CultureInfo.InvariantCulture) : "-";
+            Console.WriteLine(
+                $"{peer.NodeId,-24} {peer.Status,-8} {metadata.Role,-12} {metadata.ClusterId,-18} {metadata.Region,-18} {metadata.MeshVersion,-12} {(metadata.Http3Support ? "yes" : "no"),-7} {rtt,8}");
+        }
+    }
+
+    private static void PrintLeadershipEvent(LeadershipEventDto leadershipEvent)
+    {
+        var leader = leadershipEvent.Token?.LeaderId ?? leadershipEvent.LeaderId ?? "n/a";
+        var term = leadershipEvent.Token?.Term ?? 0;
+        var fence = leadershipEvent.Token?.FenceToken ?? 0;
+        var expires = leadershipEvent.Token is null
+            ? "n/a"
+            : leadershipEvent.Token.ExpiresAt.ToUniversalTime().ToString("HH:mm:ss\\Z", CultureInfo.InvariantCulture);
+        var reason = string.IsNullOrWhiteSpace(leadershipEvent.Reason) ? "(none)" : leadershipEvent.Reason!;
+        var scope = leadershipEvent.Scope ?? leadershipEvent.Token?.Scope ?? "*";
+        Console.WriteLine($"[{leadershipEvent.OccurredAt:HH:mm:ss}] {leadershipEvent.EventKind.ToString().ToUpperInvariant(),-10} scope={scope} leader={leader} term={term} fence={fence} expires={expires} reason={reason}");
     }
 
     private static void PrintProcedureGroup(string label, IEnumerable<string> names)
@@ -2213,7 +2611,7 @@ public static class Program
 
                 case "protobuf":
                 case "proto":
-                    if (ProfileProcessingState.Proto is not null)
+                    if (state.Proto is not null)
                     {
                         error = "Multiple protobuf profiles specified. Provide a single protobuf profile per request.";
                         return false;
@@ -2232,7 +2630,7 @@ public static class Program
                         return false;
                     }
 
-                    ProfileProcessingState.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
+                    state.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
                     encoding ??= transport == "grpc" ? "application/grpc" : "application/x-protobuf";
 
                     if (transport == "http")
@@ -2266,15 +2664,12 @@ public static class Program
     {
         error = null;
 
-        if (ProfileProcessingState.Proto is not null)
+        if (state.Proto is not null && !TryEncodeProtobufPayload(state.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
         {
-            if (!TryEncodeProtobufPayload(ProfileProcessingState.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
-            {
-                return false;
-            }
+            return false;
         }
 
-        if (ProfileProcessingState.PrettyPrintJson)
+        if (state.PrettyPrintJson)
         {
             FormatJsonPayload(inlineBody, bodyFile, payloadSource, ref payload);
         }
@@ -2295,7 +2690,7 @@ public static class Program
             case "default":
                 break;
             case "pretty":
-                ProfileProcessingState.PrettyPrintJson = true;
+                state.PrettyPrintJson = true;
                 break;
             default:
                 Console.Error.WriteLine($"Warning: unknown json profile '{qualifier}'. Falling back to default settings.");
@@ -3039,7 +3434,7 @@ public static class Program
         return files;
     }
 
-    private static string BuildDescriptorCacheKey(IReadOnlyList<string> descriptorFiles)
+    private static string BuildDescriptorCacheKey(List<string> descriptorFiles)
     {
         if (descriptorFiles.Count == 0)
         {
@@ -3226,9 +3621,9 @@ public static class Program
 
     private sealed class ProfileProcessingState
     {
-        public static bool PrettyPrintJson { get; set; }
+        public bool PrettyPrintJson { get; set; }
 
-        public static ProtoProcessingState? Proto { get; set; }
+        public ProtoProcessingState? Proto { get; set; }
     }
 
     private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName);
@@ -3241,9 +3636,59 @@ public static class Program
         Base64
     }
 
+    private sealed class LeadershipSnapshotResponse
+    {
+        public DateTimeOffset GeneratedAt { get; set; }
+
+        public LeadershipTokenResponse[] Tokens { get; set; } = [];
+    }
+
+    private sealed class LeadershipTokenResponse
+    {
+        public string Scope { get; set; } = string.Empty;
+
+        public string ScopeKind { get; set; } = string.Empty;
+
+        public string LeaderId { get; set; } = string.Empty;
+
+        public long Term { get; set; }
+
+        public long FenceToken { get; set; }
+
+        public DateTimeOffset IssuedAt { get; set; }
+
+        public DateTimeOffset ExpiresAt { get; set; }
+
+        public Dictionary<string, string> Labels { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed class LeadershipEventDto
+    {
+        public LeadershipEventKind EventKind { get; set; } = LeadershipEventKind.Snapshot;
+
+        public string? Scope { get; set; }
+
+        public string? LeaderId { get; set; }
+
+        public LeadershipTokenResponse? Token { get; set; }
+
+        public string? Reason { get; set; }
+
+        public Guid CorrelationId { get; set; }
+
+        public DateTimeOffset OccurredAt { get; set; }
+    }
+
     private sealed record DescriptorCacheEntry(
         Dictionary<string, FileDescriptor> Files,
         Dictionary<string, MessageDescriptor> Messages);
+
+    internal enum MeshPeersOutputFormat
+    {
+        Table,
+        Json
+    }
+
 
     private static bool TryDecodeUtf8(ReadOnlySpan<byte> data, out string text)
     {
@@ -3259,7 +3704,7 @@ public static class Program
         }
     }
 
-    private static bool TryParseDuration(string value, out TimeSpan duration)
+    internal static bool TryParseDuration(string value, out TimeSpan duration)
     {
         if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out duration))
         {

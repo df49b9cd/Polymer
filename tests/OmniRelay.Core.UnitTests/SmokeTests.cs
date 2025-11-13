@@ -7,6 +7,7 @@ public class SmokeTests
     [Fact(Timeout = TestTimeouts.Default)]
     public void It_Works()
     {
-        Assert.True(true);
+        var sanity = true;
+        sanity.ShouldBeTrue();
     }
 }

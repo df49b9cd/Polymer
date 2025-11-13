@@ -1,12 +1,6 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using Xunit;
 using static Hugo.Go;
@@ -43,13 +37,13 @@ public class TeeOutboundsTests
 
         var req = MakeRequest();
         var res = await tee.CallAsync(req, TestContext.Current.CancellationToken);
-        Assert.True(res.IsSuccess);
+        res.IsSuccess.ShouldBeTrue();
 
         // allow background task to run
         await Task.Delay(50, TestContext.Current.CancellationToken);
-        Assert.NotNull(captured);
+        captured.ShouldNotBeNull();
         captured!.Meta.TryGetHeader("rpc-shadow", out var val);
-        Assert.Equal("true", val);
+        val.ShouldBe("true");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -78,10 +72,10 @@ public class TeeOutboundsTests
 
         var req = MakeRequest();
         var res = await tee.CallAsync(req, TestContext.Current.CancellationToken);
-        Assert.True(res.IsFailure);
+        res.IsFailure.ShouldBeTrue();
 
         var captured = await shadowInvoked.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
-        Assert.Equal(req.Meta.Service, captured.Meta.Service);
+        captured.Meta.Service.ShouldBe(req.Meta.Service);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -124,7 +118,7 @@ public class TeeOutboundsTests
 
         var req = MakeRequest();
         var res = await tee.CallAsync(req, TestContext.Current.CancellationToken);
-        Assert.True(res.IsSuccess);
+        res.IsSuccess.ShouldBeTrue();
 
         await Task.Delay(20, TestContext.Current.CancellationToken);
         await shadow.DidNotReceive().CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>());
@@ -139,10 +133,10 @@ public class TeeOutboundsTests
         ((IOutboundDiagnostic)shadow).GetOutboundDiagnostics().Returns(new { name = "s" });
         var tee = new TeeUnaryOutbound((IUnaryOutbound)primary, (IUnaryOutbound)shadow, new TeeOptions { LoggerFactory = NullLoggerFactory.Instance });
         var diag = tee.GetOutboundDiagnostics() as TeeOutboundDiagnostics;
-        Assert.NotNull(diag);
-        Assert.NotNull(diag!.Primary);
-        Assert.NotNull(diag.Shadow);
-        Assert.Equal("rpc-shadow", diag.ShadowHeaderName);
+        diag.ShouldNotBeNull();
+        diag!.Primary.ShouldNotBeNull();
+        diag.Shadow.ShouldNotBeNull();
+        diag.ShadowHeaderName.ShouldBe("rpc-shadow");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -152,8 +146,8 @@ public class TeeOutboundsTests
         var shadow = Substitute.For<IUnaryOutbound>();
         var options = new TeeOptions { SampleRate = 1.5, LoggerFactory = NullLoggerFactory.Instance };
 
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new TeeUnaryOutbound(primary, shadow, options));
-        Assert.Contains("Sample rate must be between 0.0 and 1.0 inclusive.", ex.Message);
+        var ex = Should.Throw<ArgumentOutOfRangeException>(() => new TeeUnaryOutbound(primary, shadow, options));
+        ex.Message.ShouldContain("Sample rate must be between 0.0 and 1.0 inclusive.");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -167,7 +161,7 @@ public class TeeOutboundsTests
 
         var tee = new TeeUnaryOutbound(primary, shadow, new TeeOptions { LoggerFactory = NullLoggerFactory.Instance });
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => tee.StartAsync(TestContext.Current.CancellationToken).AsTask());
+        await Should.ThrowAsync<InvalidOperationException>(() => tee.StartAsync(TestContext.Current.CancellationToken).AsTask());
         await primary.Received(1).StopAsync(Arg.Any<CancellationToken>());
     }
 
@@ -199,7 +193,7 @@ public class TeeOutboundsTests
         await tee.CallAsync(request, TestContext.Current.CancellationToken);
 
         var captured = await shadowInvoked.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
-        Assert.False(captured.Meta.Headers.ContainsKey("rpc-shadow"));
-        Assert.Same(request.Meta, captured.Meta);
+        captured.Meta.Headers.ContainsKey("rpc-shadow").ShouldBeFalse();
+        captured.Meta.ShouldBeSameAs(request.Meta);
     }
 }

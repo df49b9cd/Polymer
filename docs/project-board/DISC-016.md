@@ -33,3 +33,25 @@ Expand the `omnirelay mesh` CLI to cover discovery-plane operations: listing pee
 
 ## References
 - `docs/architecture/service-discovery.md` – “Discoverable peer registry API”, “Transport & encoding strategy”, “Implementation backlog”.
+
+## Testing Strategy
+
+### Unit tests
+- Cover command routing, option binding, and validation to ensure each verb handles required/optional parameters, interactive confirmations, and mutually exclusive flags.
+- Add golden-file tests for table/JSON output so formatting remains consistent when new fields are introduced.
+- Test auth/token loaders to guarantee missing or expired credentials raise actionable errors and never leak sensitive values to logs.
+
+### Integration tests
+- Run CLI commands against mocked and real registry/controller endpoints, asserting pagination, streaming (`--watch`), and destructive flows (drain/promote/rebalance) behave as documented.
+- Execute `config validate` against curated config suites (valid + invalid) to confirm transport/encoding policies and shard expectations are enforced before deployment.
+- Validate completion scripts and cross-platform packaging by executing commands on macOS/Linux/Windows CI runners.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Script an end-to-end operator workflow using only the CLI: list peers, cordon/drain one, inspect shards, initiate a rebalance, and monitor progress via `--watch`, ensuring no portal access is needed.
+- Replay historical incidents such as config drift to confirm CLI commands surface warnings, suggested remediations, and correct exit codes.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Run CLI stress tests that paginate through tens of thousands of objects, stream long-running operations, and manage simultaneous drains/promotions from multiple terminals.
+- Execute cross-platform matrix runs (macOS/Linux/Windows) in parallel CI jobs to ensure auth caching, completion scripts, and output rendering stay consistent at scale.

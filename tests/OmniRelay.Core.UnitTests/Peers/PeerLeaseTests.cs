@@ -1,7 +1,4 @@
-using System;
-using System.Threading.Tasks;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Peers;
 using Xunit;
 

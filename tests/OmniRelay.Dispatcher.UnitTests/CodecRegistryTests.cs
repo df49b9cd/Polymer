@@ -1,7 +1,4 @@
-using System.Collections.Immutable;
-using OmniRelay.Dispatcher;
 using Xunit;
-using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 
@@ -78,7 +75,7 @@ public class CodecRegistryTests
             typeof(int),
             codec,
             codec.Encoding,
-            ImmutableArray<string>.Empty);
+            []);
 
         var registry = new CodecRegistry("svc", [registration]);
 

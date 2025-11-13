@@ -67,16 +67,11 @@ public sealed class BackpressureAwareRateLimiter
 /// <summary>
 /// Sample listener that toggles <see cref="BackpressureAwareRateLimiter"/> and logs transitions.
 /// </summary>
-public sealed class RateLimitingBackpressureListener : IResourceLeaseBackpressureListener
+public sealed class RateLimitingBackpressureListener(BackpressureAwareRateLimiter rateLimiter, ILogger? logger = null)
+    : IResourceLeaseBackpressureListener
 {
-    private readonly BackpressureAwareRateLimiter _rateLimiter;
-    private readonly ILogger? _logger;
-
-    public RateLimitingBackpressureListener(BackpressureAwareRateLimiter rateLimiter, ILogger? logger = null)
-    {
-        _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
-        _logger = logger;
-    }
+    private readonly BackpressureAwareRateLimiter _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
+    private readonly ILogger? _logger = logger;
 
     public ValueTask OnBackpressureChanged(ResourceLeaseBackpressureSignal signal, CancellationToken cancellationToken)
     {
@@ -92,20 +87,24 @@ public sealed class RateLimitingBackpressureListener : IResourceLeaseBackpressur
 
         if (signal.IsActive)
         {
-            _logger.LogWarning(
-                "Resource lease backpressure activated: {Pending} pending (high watermark {High}).",
-                signal.PendingCount,
-                signal.HighWatermark);
+            ResourceLeaseBackpressureListenersLog.BackpressureActivated(_logger, signal.PendingCount, signal.HighWatermark);
         }
         else
         {
-            _logger.LogInformation(
-                "Resource lease backpressure cleared at {Pending} pending items.",
-                signal.PendingCount);
+            ResourceLeaseBackpressureListenersLog.BackpressureCleared(_logger, signal.PendingCount);
         }
 
         return ValueTask.CompletedTask;
     }
+}
+
+internal static partial class ResourceLeaseBackpressureListenersLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Resource lease backpressure activated: {Pending} pending (high watermark {High}).")]
+    public static partial void BackpressureActivated(ILogger logger, long pending, long? high);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Resource lease backpressure cleared at {Pending} pending items.")]
+    public static partial void BackpressureCleared(ILogger logger, long pending);
 }
 
 /// <summary>

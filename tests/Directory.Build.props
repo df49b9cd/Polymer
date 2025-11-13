@@ -26,7 +26,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)TestSupport/TestCertificateInfo.cs"
+             Link="Support/TestCertificateInfo.cs"
+             Condition="Exists('$(MSBuildThisFileDirectory)TestSupport/TestCertificateInfo.cs')" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestSupport/TestCertificateConfiguration.cs"
+             Link="Support/TestCertificateConfiguration.cs"
+             Condition="Exists('$(MSBuildThisFileDirectory)TestSupport/TestCertificateConfiguration.cs')" />
   </ItemGroup>
 </Project>

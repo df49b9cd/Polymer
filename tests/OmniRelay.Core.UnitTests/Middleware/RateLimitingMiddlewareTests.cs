@@ -1,10 +1,6 @@
-using System;
-using System.Threading;
 using System.Threading.Channels;
 using System.Threading.RateLimiting;
-using System.Threading.Tasks;
 using Hugo;
-using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
@@ -23,16 +19,16 @@ public class RateLimitingMiddlewareTests
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var preLease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(preLease.IsAcquired);
+        preLease.IsAcquired.ShouldBeTrue();
 
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc", procedure: "proc");
 
-        UnaryOutboundDelegate next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
+        UnaryOutboundHandler next = (req, ct) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
         var result = await middleware.InvokeAsync(MakeRequest(meta), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
         preLease.Dispose();
     }
 
@@ -44,20 +40,20 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (request, callOptions, ct) =>
+        StreamOutboundHandler next = (request, callOptions, ct) =>
             ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), options, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         var blocked = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.False(blocked.IsAcquired);
+        blocked.IsAcquired.ShouldBeFalse();
         blocked.Dispose();
 
         await result.Value.DisposeAsync();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -69,14 +65,14 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (request, callOptions, ct) =>
+        StreamOutboundHandler next = (request, callOptions, ct) =>
             ValueTask.FromResult(Err<IStreamCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "test")));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), options, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -88,21 +84,21 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var options = new StreamCallOptions(StreamDirection.Server);
 
-        StreamOutboundDelegate next = (request, callOptions, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(request.Meta)));
+        StreamOutboundHandler next = (request, callOptions, ct) => ValueTask.FromResult(Ok<IStreamCall>(ServerStreamCall.Create(request.Meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), options, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         await result.Value.CompleteAsync(Error.Timeout(), TestContext.Current.CancellationToken);
 
         var intermediate = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.False(intermediate.IsAcquired);
+        intermediate.IsAcquired.ShouldBeFalse();
         intermediate.Dispose();
 
         await result.Value.DisposeAsync();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -113,26 +109,26 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
         {
             var call = new TestClientStreamCall(requestMeta);
             return ValueTask.FromResult(Ok<IClientStreamTransportCall>(call));
         };
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         var blocked = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.False(blocked.IsAcquired);
+        blocked.IsAcquired.ShouldBeFalse();
         blocked.Dispose();
 
         await result.Value.CompleteAsync(cancellationToken: TestContext.Current.CancellationToken);
         var response = await result.Value.Response;
-        Assert.True(response.IsSuccess);
+        response.IsSuccess.ShouldBeTrue();
         await result.Value.DisposeAsync();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -143,7 +139,7 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
         {
             var call = new TestClientStreamCall(
                 requestMeta,
@@ -152,14 +148,14 @@ public class RateLimitingMiddlewareTests
         };
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         var response = await result.Value.Response;
-        Assert.True(response.IsFailure);
+        response.IsFailure.ShouldBeTrue();
         await result.Value.DisposeAsync();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -170,14 +166,14 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        ClientStreamOutboundDelegate next = (requestMeta, ct) =>
+        ClientStreamOutboundHandler next = (requestMeta, ct) =>
             ValueTask.FromResult(Err<IClientStreamTransportCall>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "fail", transport: "test")));
 
         var result = await middleware.InvokeAsync(meta, TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -188,20 +184,20 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        DuplexOutboundDelegate next = (request, ct) =>
+        DuplexOutboundHandler next = (request, ct) =>
             ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         var blocked = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.False(blocked.IsAcquired);
+        blocked.IsAcquired.ShouldBeFalse();
         blocked.Dispose();
 
         await result.Value.DisposeAsync();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -212,17 +208,17 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        DuplexOutboundDelegate next = (request, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(request.Meta)));
+        DuplexOutboundHandler next = (request, ct) => ValueTask.FromResult(Ok<IDuplexStreamCall>(DuplexStreamCall.Create(request.Meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
         await result.Value.CompleteRequestsAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await result.Value.CompleteResponsesAsync(Error.Timeout(), TestContext.Current.CancellationToken);
         await result.Value.DisposeAsync();
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -239,7 +235,7 @@ public class RateLimitingMiddlewareTests
         var meta = new RequestMeta(service: "svc");
         var invoked = false;
 
-        UnaryOutboundDelegate next = (req, ct) =>
+        UnaryOutboundHandler next = (req, ct) =>
         {
             invoked = true;
             return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
@@ -247,8 +243,8 @@ public class RateLimitingMiddlewareTests
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), TestContext.Current.CancellationToken, next);
 
-        Assert.True(result.IsSuccess);
-        Assert.True(invoked);
+        result.IsSuccess.ShouldBeTrue();
+        invoked.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -258,16 +254,16 @@ public class RateLimitingMiddlewareTests
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
         var meta = new RequestMeta(service: "svc");
 
-        StreamOutboundDelegate next = (request, options, ct) =>
+        StreamOutboundHandler next = (request, options, ct) =>
             ValueTask.FromResult(Ok<IStreamCall>(new ThrowingStreamCall(request.Meta)));
 
         var result = await middleware.InvokeAsync(MakeRequest(meta), new StreamCallOptions(StreamDirection.Server), TestContext.Current.CancellationToken, next);
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.ShouldBeTrue();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => result.Value.DisposeAsync().AsTask());
+        await Should.ThrowAsync<InvalidOperationException>(() => result.Value.DisposeAsync().AsTask());
 
         var lease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
-        Assert.True(lease.IsAcquired);
+        lease.IsAcquired.ShouldBeTrue();
         lease.Dispose();
     }
 
@@ -311,23 +307,18 @@ public class RateLimitingMiddlewareTests
         }
     }
 
-    private sealed class ThrowingStreamCall : IStreamCall
+    private sealed class ThrowingStreamCall(RequestMeta meta) : IStreamCall
     {
         private readonly Channel<ReadOnlyMemory<byte>> _channel = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
 
-        public ThrowingStreamCall(RequestMeta meta)
-        {
-            RequestMeta = meta;
-        }
-
         public StreamDirection Direction => StreamDirection.Server;
-        public RequestMeta RequestMeta { get; }
+        public RequestMeta RequestMeta { get; } = meta;
         public ResponseMeta ResponseMeta { get; } = new();
         public StreamCallContext Context { get; } = new(StreamDirection.Server);
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _channel.Writer;
         public ChannelReader<ReadOnlyMemory<byte>> Responses => _channel.Reader;
 
-        public ValueTask CompleteAsync(Error? error = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+        public ValueTask CompleteAsync(Error? fault = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
         public ValueTask DisposeAsync() => ValueTask.FromException(new InvalidOperationException("dispose failure"));
     }

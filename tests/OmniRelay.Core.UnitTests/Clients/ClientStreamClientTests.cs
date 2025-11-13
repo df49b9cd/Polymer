@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Clients;
-using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
@@ -26,20 +20,14 @@ public class ClientStreamClientTests
         public string? S { get; init; }
     }
 
-    private sealed class TestClientStreamTransportCall : IClientStreamTransportCall
+    private sealed class TestClientStreamTransportCall(RequestMeta meta) : IClientStreamTransportCall
     {
         private readonly List<ReadOnlyMemory<byte>> _writes = [];
         private readonly TaskCompletionSource<Result<Response<ReadOnlyMemory<byte>>>> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public TestClientStreamTransportCall(RequestMeta meta)
-        {
-            RequestMeta = meta;
-            ResponseMeta = new ResponseMeta();
-        }
+        public RequestMeta RequestMeta { get; } = meta;
 
-        public RequestMeta RequestMeta { get; }
-
-        public ResponseMeta ResponseMeta { get; set; }
+        public ResponseMeta ResponseMeta { get; set; } = new();
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Response => new(_tcs.Task);
         public IReadOnlyList<ReadOnlyMemory<byte>> Writes => _writes;
@@ -93,7 +81,7 @@ public class ClientStreamClientTests
 
         var responseResult = await session.Response;
         var response = responseResult.ValueOrThrow();
-        Assert.Equal(Convert.ToBase64String(responseBytes), response.Body.S);
+        response.Body.S.ShouldBe(Convert.ToBase64String(responseBytes));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -107,7 +95,7 @@ public class ClientStreamClientTests
 
         var client = new ClientStreamClient<Req, Res>(outbound, codec, []);
         var result = await client.StartAsync(new RequestMeta(service: "svc"), TestContext.Current.CancellationToken);
-        Assert.True(result.IsFailure);
+        result.IsFailure.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -128,8 +116,8 @@ public class ClientStreamClientTests
         await using var session = sessionResult.ValueOrThrow();
 
         var writeResult = await session.WriteAsync(new Req { V = 1 }, TestContext.Current.CancellationToken);
-        Assert.True(writeResult.IsFailure);
-        Assert.Empty(transportCall.Writes);
+        writeResult.IsFailure.ShouldBeTrue();
+        transportCall.Writes.ShouldBeEmpty();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -153,7 +141,7 @@ public class ClientStreamClientTests
         transportCall.CompleteWith(Err<Response<ReadOnlyMemory<byte>>>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Internal, "fail", transport: "client")));
 
         var responseResult = await session.Response;
-        Assert.True(responseResult.IsFailure);
+        responseResult.IsFailure.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -178,7 +166,7 @@ public class ClientStreamClientTests
         transportCall.CompleteWith(Ok(Response<ReadOnlyMemory<byte>>.Create(new byte[] { 2 }, new ResponseMeta())));
 
         var responseResult = await session.Response;
-        Assert.True(responseResult.IsFailure);
+        responseResult.IsFailure.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -212,7 +200,7 @@ public class ClientStreamClientTests
         var responseResult = await session.Response;
         responseResult.ValueOrThrow();
 
-        Assert.NotNull(capturedMeta);
-        Assert.Equal("proto", capturedMeta!.Encoding);
+        capturedMeta.ShouldNotBeNull();
+        capturedMeta!.Encoding.ShouldBe("proto");
     }
 }

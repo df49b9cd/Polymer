@@ -16,7 +16,7 @@ public sealed class DispatcherOptions
     private readonly List<DispatcherLifecycleComponent> _componentDescriptors = [];
     private readonly List<DispatcherLifecycleComponent> _uniqueComponents = [];
     private readonly HashSet<ILifecycle> _uniqueComponentSet = new(ReferenceEqualityComparer.Instance);
-    private readonly Dictionary<string, OutboundCollectionBuilder> _outboundBuilders =
+    private readonly Dictionary<string, OutboundRegistryBuilder> _outboundBuilders =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ProcedureCodecRegistration> _codecRegistrations = [];
 
@@ -59,7 +59,7 @@ public sealed class DispatcherOptions
 
     internal IReadOnlyList<DispatcherLifecycleComponent> ComponentDescriptors => _componentDescriptors;
     internal IReadOnlyList<DispatcherLifecycleComponent> UniqueComponents => _uniqueComponents;
-    internal IReadOnlyDictionary<string, OutboundCollectionBuilder> OutboundBuilders => _outboundBuilders;
+    internal IReadOnlyDictionary<string, OutboundRegistryBuilder> OutboundBuilders => _outboundBuilders;
     internal IReadOnlyList<ProcedureCodecRegistration> CodecRegistrations => _codecRegistrations;
 
     /// <summary>Adds a transport and wires it into dispatcher lifecycle.</summary>
@@ -139,7 +139,7 @@ public sealed class DispatcherOptions
         AddLifecycle(BuildOutboundComponentName(service, key, "duplex-stream"), outbound);
     }
 
-    private OutboundCollectionBuilder GetOrCreateOutboundBuilder(string service)
+    private OutboundRegistryBuilder GetOrCreateOutboundBuilder(string service)
     {
         if (string.IsNullOrWhiteSpace(service))
         {
@@ -148,7 +148,7 @@ public sealed class DispatcherOptions
 
         if (!_outboundBuilders.TryGetValue(service, out var builder))
         {
-            builder = new OutboundCollectionBuilder(service);
+            builder = new OutboundRegistryBuilder(service);
             _outboundBuilders.Add(service, builder);
         }
 
@@ -157,7 +157,7 @@ public sealed class DispatcherOptions
 
     private static string BuildOutboundComponentName(string service, string? key, string kind)
     {
-        var variant = string.IsNullOrWhiteSpace(key) ? OutboundCollection.DefaultKey : key;
+        var variant = string.IsNullOrWhiteSpace(key) ? OutboundRegistry.DefaultKey : key;
         return $"{service}:{variant}:{kind}";
     }
 
@@ -247,7 +247,7 @@ public sealed class DispatcherOptions
 
     internal sealed record DispatcherLifecycleComponent(string Name, ILifecycle Lifecycle);
 
-    internal sealed class OutboundCollectionBuilder(string service)
+    internal sealed class OutboundRegistryBuilder(string service)
     {
         private readonly string _service = service;
         private readonly Dictionary<string, IUnaryOutbound> _unary = new(StringComparer.OrdinalIgnoreCase);
@@ -316,7 +316,7 @@ public sealed class DispatcherOptions
             _duplex[normalized] = outbound;
         }
 
-        public OutboundCollection Build()
+        public OutboundRegistry Build()
         {
             var unary = _unary.Count == 0
                 ? []
@@ -338,14 +338,14 @@ public sealed class DispatcherOptions
                 ? []
                 : ImmutableDictionary.CreateRange(StringComparer.OrdinalIgnoreCase, _duplex);
 
-            return new OutboundCollection(_service, unary, oneway, stream, clientStream, duplex);
+            return new OutboundRegistry(_service, unary, oneway, stream, clientStream, duplex);
         }
 
         private static string NormalizeKey(string? key)
         {
             if (string.IsNullOrWhiteSpace(key))
             {
-                return OutboundCollection.DefaultKey;
+                return OutboundRegistry.DefaultKey;
             }
 
             return key!.Trim();

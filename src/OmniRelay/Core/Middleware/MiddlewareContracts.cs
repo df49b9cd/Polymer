@@ -3,6 +3,8 @@ using OmniRelay.Core.Transport;
 
 namespace OmniRelay.Core.Middleware;
 
+#pragma warning disable CA1068 // CancellationToken parameter precedes pipeline delegate for ergonomic middleware signatures.
+
 /// <summary>Unary outbound middleware contract.</summary>
 public interface IUnaryOutboundMiddleware
 {
@@ -10,7 +12,7 @@ public interface IUnaryOutboundMiddleware
     ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundDelegate next);
+        UnaryOutboundHandler nextHandler);
 }
 
 /// <summary>Unary inbound middleware contract.</summary>
@@ -20,7 +22,7 @@ public interface IUnaryInboundMiddleware
     ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next);
+        UnaryInboundHandler nextHandler);
 }
 
 /// <summary>Oneway outbound middleware contract.</summary>
@@ -30,7 +32,7 @@ public interface IOnewayOutboundMiddleware
     ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundDelegate next);
+        OnewayOutboundHandler nextHandler);
 }
 
 /// <summary>Oneway inbound middleware contract.</summary>
@@ -40,7 +42,7 @@ public interface IOnewayInboundMiddleware
     ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next);
+        OnewayInboundHandler nextHandler);
 }
 
 /// <summary>Server-streaming outbound middleware contract.</summary>
@@ -51,7 +53,7 @@ public interface IStreamOutboundMiddleware
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundDelegate next);
+        StreamOutboundHandler nextHandler);
 }
 
 /// <summary>Server-streaming inbound middleware contract.</summary>
@@ -62,7 +64,7 @@ public interface IStreamInboundMiddleware
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next);
+        StreamInboundHandler nextHandler);
 }
 
 /// <summary>Client-stream inbound middleware contract.</summary>
@@ -72,7 +74,7 @@ public interface IClientStreamInboundMiddleware
     ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundDelegate next);
+        ClientStreamInboundHandler nextHandler);
 }
 
 /// <summary>Client-stream outbound middleware contract.</summary>
@@ -82,7 +84,7 @@ public interface IClientStreamOutboundMiddleware
     ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundDelegate next);
+        ClientStreamOutboundHandler nextHandler);
 }
 
 /// <summary>Duplex inbound middleware contract.</summary>
@@ -92,7 +94,7 @@ public interface IDuplexInboundMiddleware
     ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundDelegate next);
+        DuplexInboundHandler nextHandler);
 }
 
 /// <summary>Duplex outbound middleware contract.</summary>
@@ -102,5 +104,7 @@ public interface IDuplexOutboundMiddleware
     ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundDelegate next);
+        DuplexOutboundHandler nextHandler);
 }
+
+#pragma warning restore CA1068

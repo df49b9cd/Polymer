@@ -1,10 +1,4 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Hugo;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Peers;
 using OmniRelay.Errors;
 using Xunit;
@@ -18,7 +12,7 @@ public class FewestPendingPeerChooserTests
     [Fact(Timeout = TestTimeouts.Default)]
     public void RequiresAtLeastOnePeer()
     {
-        Assert.Throws<ArgumentException>(() => new FewestPendingPeerChooser(Array.Empty<IPeer>()));
+        Should.Throw<ArgumentException>(() => new FewestPendingPeerChooser([]));
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -29,8 +23,8 @@ public class FewestPendingPeerChooserTests
 
         var chooser = new FewestPendingPeerChooser(high, low);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsSuccess);
-        Assert.Same(low, res.Value.Peer);
+        res.IsSuccess.ShouldBeTrue();
+        res.Value.Peer.ShouldBeSameAs(low);
         await res.Value.DisposeAsync();
     }
 
@@ -43,8 +37,8 @@ public class FewestPendingPeerChooserTests
 
         var chooser = new FewestPendingPeerChooser(a, b, c);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsSuccess);
-        Assert.Contains(res.Value.Peer.Identifier, new[] { "a", "b" });
+        res.IsSuccess.ShouldBeTrue();
+        new[] { "a", "b" }.ShouldContain(res.Value.Peer.Identifier);
         await res.Value.DisposeAsync();
     }
 
@@ -55,8 +49,8 @@ public class FewestPendingPeerChooserTests
         var ub = Substitute.For<IPeer>(); ub.Identifier.Returns("ub"); ub.Status.Returns(new PeerStatus(PeerState.Unavailable, 0, null, null));
         var chooser = new FewestPendingPeerChooser(ua, ub);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -65,7 +59,7 @@ public class FewestPendingPeerChooserTests
         var p = Substitute.For<IPeer>(); p.Identifier.Returns("p"); p.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
         var chooser = new FewestPendingPeerChooser(p);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
-        Assert.True(res.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(res.Error!));
+        res.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(res.Error!).ShouldBe(OmniRelayStatusCode.ResourceExhausted);
     }
 }

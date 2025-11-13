@@ -1,4 +1,3 @@
-using OmniRelay.Core;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Core;
@@ -17,7 +16,7 @@ public class ProtobufEncodingTests
     [InlineData("", false)]
     public void IsBinary_Works(string? encoding, bool expected)
     {
-        Assert.Equal(expected, ProtobufEncoding.IsBinary(encoding));
+        ProtobufEncoding.IsBinary(encoding).ShouldBe(expected);
     }
 
     [Theory(Timeout = TestTimeouts.Default)]
@@ -27,7 +26,7 @@ public class ProtobufEncodingTests
     [InlineData(null, false)]
     public void IsJson_Works(string? encoding, bool expected)
     {
-        Assert.Equal(expected, ProtobufEncoding.IsJson(encoding));
+        ProtobufEncoding.IsJson(encoding).ShouldBe(expected);
     }
 
     [Theory(Timeout = TestTimeouts.Default)]
@@ -38,7 +37,7 @@ public class ProtobufEncodingTests
     [InlineData("", null)]
     public void GetMediaType_Maps(string? input, string? expected)
     {
-        Assert.Equal(expected, ProtobufEncoding.GetMediaType(input));
+        ProtobufEncoding.GetMediaType(input).ShouldBe(expected);
     }
 
     [Theory(Timeout = TestTimeouts.Default)]
@@ -50,6 +49,6 @@ public class ProtobufEncodingTests
     [InlineData(null, null)]
     public void Normalize_Works(string? input, string? expected)
     {
-        Assert.Equal(expected, ProtobufEncoding.Normalize(input));
+        ProtobufEncoding.Normalize(input).ShouldBe(expected);
     }
 }

@@ -1,9 +1,7 @@
-using System.Threading.Channels;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using OmniRelay.Core;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;

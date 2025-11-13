@@ -16,9 +16,13 @@ internal static class Program
 {
     private const string AotWarning = "Minimal API bridge dynamically registers OmniRelay components and is not compatible with trimming/AOT.";
 
+    [UnconditionalSuppressMessage("AOT", "IL2026", Justification = AotWarning)]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = AotWarning)]
+    public static Task Main(string[] args) => RunAsync(args);
+
     [RequiresDynamicCode(AotWarning)]
     [RequiresUnreferencedCode(AotWarning)]
-    public static async Task Main(string[] args)
+    private static async Task RunAsync(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -266,7 +270,7 @@ internal sealed class ConsoleLoggingMiddleware(ILogger<ConsoleLoggingMiddleware>
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         logger.LogInformation("[{Transport}] {Procedure} unary inbound", request.Meta.Transport ?? "unknown", request.Meta.Procedure ?? "unknown");
         return await next(request, cancellationToken).ConfigureAwait(false);
@@ -275,7 +279,7 @@ internal sealed class ConsoleLoggingMiddleware(ILogger<ConsoleLoggingMiddleware>
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         logger.LogInformation("[{Transport}] {Procedure} oneway inbound", request.Meta.Transport ?? "unknown", request.Meta.Procedure ?? "unknown");
         return await next(request, cancellationToken).ConfigureAwait(false);

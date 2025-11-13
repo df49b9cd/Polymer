@@ -29,3 +29,25 @@ Integrate OmniRelay with a workload identity provider (SPIFFE/SPIRE or cloud-nat
 
 ## References
 - `docs/architecture/service-discovery.md` – “Secure peer bootstrap”, “Risks & mitigations”.
+
+## Testing Strategy
+
+### Unit tests
+- Validate policy/CRD parsing to ensure role/cluster allowlists, environment tags, and expiry windows are enforced before issuance.
+- Test certificate builder utilities for embedding SPIFFE IDs, role metadata, and proper SANs while preventing reuse of revoked tokens.
+- Cover renewal scheduler logic so overlapping validity windows, jittered refresh, and exponential backoff during provider outages behave as expected.
+
+### Integration tests
+- Stand up the bootstrap service against SPIRE (and cloud mocks) to perform attestation, issuance, renewal, and revocation while verifying audit logs and metrics for each phase.
+- Exercise transport wiring by feeding issued certs into gossip + control-plane listeners, confirming mTLS handshakes succeed and certificate rotation does not drop connections.
+- Inject policy violations (expired token, wrong role, revoked cert) and assert the service rejects the join with actionable errors and alert hooks.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Script a zero-touch provisioning workflow where a new node attests, receives credentials, joins the mesh, and shows up in `/control/peers` and telemetry with the correct role metadata.
+- Execute a revocation drill that pulls a compromised node’s cert, ensuring bootstrap services, gossip, and CLI tooling all surface the removal immediately.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Provision and rotate credentials for large batches of nodes simultaneously to validate rate limits, overlapping validity windows, and alert noise when many renewals occur.
+- Revoke subsets of nodes across regions to ensure policy propagation, gossip eviction, and audit logging scale without delaying healthy traffic.

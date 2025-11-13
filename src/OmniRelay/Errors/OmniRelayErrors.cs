@@ -35,9 +35,9 @@ public static class OmniRelayErrors
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        if (exception is OmniRelayException polymerException)
+        if (exception is OmniRelayException omnirelayException)
         {
-            return EnsureTransport(polymerException, transport);
+            return EnsureTransport(omnirelayException, transport);
         }
 
         if (exception is ResultException resultException && resultException.Error is not null)
@@ -97,9 +97,9 @@ public static class OmniRelayErrors
     /// <summary>Attempts to extract an OmniRelay status code from the exception.</summary>
     public static bool TryGetStatus(Exception exception, out OmniRelayStatusCode statusCode)
     {
-        if (exception is OmniRelayException polymerException)
+        if (exception is OmniRelayException omnirelayException)
         {
-            statusCode = polymerException.StatusCode;
+            statusCode = omnirelayException.StatusCode;
             return true;
         }
 
@@ -130,9 +130,9 @@ public static class OmniRelayErrors
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        if (exception is OmniRelayException polymerException)
+        if (exception is OmniRelayException omnirelayException)
         {
-            return GetFaultType(polymerException.Error);
+            return GetFaultType(omnirelayException.Error);
         }
 
         if (exception is ResultException resultException && resultException.Error is not null)
@@ -170,7 +170,7 @@ public static class OmniRelayErrors
 
         return exception switch
         {
-            OmniRelayException polymerException => IsRetryable(polymerException.Error),
+            OmniRelayException omnirelayException => IsRetryable(omnirelayException.Error),
             ResultException resultException when resultException.Error is not null => IsRetryable(resultException.Error),
             _ => TryGetStatus(exception, out var status) && IsRetryable(status)
         };
@@ -223,7 +223,7 @@ public static class OmniRelayErrors
         return new OmniRelayException(exception.StatusCode, exception.Message, updatedError, transport, exception);
     }
 
-    private static IReadOnlyDictionary<string, object?> CreateExceptionMetadata(Exception exception, string stage) =>
+    private static Dictionary<string, object?> CreateExceptionMetadata(Exception exception, string stage) =>
         new Dictionary<string, object?>
         {
             ["stage"] = stage,

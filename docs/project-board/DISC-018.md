@@ -27,3 +27,25 @@ Provision reproducible multi-node environments (docker-compose and Kubernetes) f
 
 ## References
 - `docs/architecture/service-discovery.md` – “Testing & chaos validation”, “Implementation backlog item 9”.
+
+## Testing Strategy
+
+### Unit tests
+- Validate scenario definitions and fault-injection helpers (tc/netem wrappers, chaos container drivers) via schema tests and dry-run previews to ensure parameters are parsed correctly.
+- Add script-level tests for provisioning/teardown commands to guarantee environment variables, directory layouts, and cleanup sequences behave on macOS/Linux CI runners.
+- Test log/metric collection utilities so artifact packaging always includes timestamps, cluster ids, and scenario metadata for later analysis.
+
+### Integration tests
+- Stand up the docker-compose and Kubernetes chaos stacks in CI, verifying OmniRelay nodes, registry, and observability components all bootstrap successfully before faults are injected.
+- Execute sample fault chains (leader kill, network partition, latency spike, cert expiration) and confirm orchestration scripts apply the desired tc/netem settings and revert them afterward.
+- Validate collected artifacts (logs, metrics snapshots, topology dumps) are uploaded to the expected storage bucket and referenced in the run summary.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Run documented chaos scenarios as regular game days, ensuring engineers follow playbooks to inject faults, monitor dashboards, and capture findings for retrospectives.
+- Replay prior incidents to verify chaos helpers faithfully reproduce the conditions and that cleanup scripts reset the environment for the next run.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Execute chained fault experiments (network partitions, leader kills, cert expirations) across large node counts to validate orchestration reliability and observability at scale.
+- Stress artifact collection by capturing high-volume logs/metrics/checkpoints from extended runs, confirming archival pipelines and storage quotas keep pace.

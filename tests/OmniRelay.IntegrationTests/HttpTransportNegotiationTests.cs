@@ -1,21 +1,21 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Mime;
 using System.Net.Security;
+using System.Net.Sockets;
 using System.Security.Authentication;
-using System.Text;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.Tests;
+using OmniRelay.Tests.Support;
 using OmniRelay.TestSupport;
 using OmniRelay.Transport.Http;
+using Shouldly;
 using Xunit;
 using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
 
-public class HttpTransportNegotiationTests
+public sealed class HttpTransportNegotiationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
     [Fact(Timeout = 30_000)]
     public async Task HttpInbound_WithHttps_AcceptsHttp11()
@@ -31,31 +31,25 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await DispatcherHost.StartAsync("http11-service", dispatcher, LoggerFactory, ct);
+        await WaitForEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp11Handler();
-            using var client = new HttpClient(handler);
-            client.BaseAddress = baseAddress;
-            client.DefaultRequestVersion = HttpVersion.Version11;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        using var handler = CreateHttp11Handler();
+        using var client = new HttpClient(handler);
+        client.BaseAddress = baseAddress;
+        client.DefaultRequestVersion = HttpVersion.Version11;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
 
-            using var content = new ByteArrayContent([]);
-            var response = await client.PostAsync("/", content, ct);
+        using var content = new ByteArrayContent([]);
+        var response = await client.PostAsync("/", content, ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(1, response.Version.Major);
-            var body = await response.Content.ReadAsStringAsync(ct);
-            Assert.Equal("pong", body);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(CancellationToken.None);
-        }
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Version.Major.ShouldBe(1);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        body.ShouldBe("pong");
     }
 
     [Fact(Timeout = 30_000)]
@@ -72,29 +66,23 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await DispatcherHost.StartAsync("http2-service", dispatcher, LoggerFactory, ct);
+        await WaitForEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp2Handler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            client.DefaultRequestVersion = HttpVersion.Version20;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
+        using var handler = CreateHttp2Handler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version20;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
 
-            using var content = new ByteArrayContent([]);
-            var response = await client.PostAsync("/", content, ct);
+        using var content = new ByteArrayContent([]);
+        var response = await client.PostAsync("/", content, ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(2, response.Version.Major);
-            var body = await response.Content.ReadAsStringAsync(ct);
-            Assert.Equal("pong", body);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(CancellationToken.None);
-        }
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Version.Major.ShouldBe(2);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        body.ShouldBe("pong");
     }
 
     [Http3Fact(Timeout = 30_000)]
@@ -115,33 +103,27 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await DispatcherHost.StartAsync("http3-service", dispatcher, LoggerFactory, ct);
+        await WaitForEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp3Handler();
-            using var client = new HttpClient(handler);
-            client.BaseAddress = baseAddress;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
-            client.DefaultRequestVersion = HttpVersion.Version20;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+        using var handler = CreateHttp3Handler();
+        using var client = new HttpClient(handler);
+        client.BaseAddress = baseAddress;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
+        client.DefaultRequestVersion = HttpVersion.Version20;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
 
-            var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
+        var response = await client.PostAsync("/", new ByteArrayContent([]), ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(2, response.Version.Major);
-            Assert.True(response.Headers.TryGetValues("Alt-Svc", out var altSvcValues));
-            Assert.Contains(altSvcValues, value => value.Contains("h3=\"", StringComparison.OrdinalIgnoreCase));
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Version.Major.ShouldBe(2);
+        response.Headers.TryGetValues("Alt-Svc", out var altSvcValues).ShouldBeTrue();
+        altSvcValues.ShouldContain(value => value.Contains("h3=\"", StringComparison.OrdinalIgnoreCase));
 
-            var response2 = await client.PostAsync("/", new ByteArrayContent([]), ct);
-            Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
-            Assert.Equal(3, response2.Version.Major);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(CancellationToken.None);
-        }
+        var response2 = await client.PostAsync("/", new ByteArrayContent([]), ct);
+        response2.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response2.Version.Major.ShouldBe(3);
     }
 
     [Http3Fact(Timeout = 30_000)]
@@ -158,27 +140,21 @@ public class HttpTransportNegotiationTests
             new HttpServerTlsOptions { Certificate = certificate });
 
         var ct = TestContext.Current.CancellationToken;
-        await dispatcher.StartOrThrowAsync(ct);
+        await using var host = await DispatcherHost.StartAsync("http3-fallback", dispatcher, LoggerFactory, ct);
+        await WaitForEndpointReadyAsync(baseAddress, ct);
 
-        try
-        {
-            using var handler = CreateHttp3Handler();
-            using var client = new HttpClient(handler) { BaseAddress = baseAddress };
-            client.DefaultRequestVersion = HttpVersion.Version30;
-            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
-            client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
+        using var handler = CreateHttp3Handler();
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+        client.DefaultRequestVersion = HttpVersion.Version30;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Procedure, "protocol::ping");
+        client.DefaultRequestHeaders.Add(HttpTransportHeaders.Transport, "http");
 
-            using var content = new ByteArrayContent([]);
-            var response = await client.PostAsync("/", content, ct);
+        using var content = new ByteArrayContent([]);
+        var response = await client.PostAsync("/", content, ct);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(2, response.Version.Major);
-        }
-        finally
-        {
-            await dispatcher.StopOrThrowAsync(CancellationToken.None);
-        }
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Version.Major.ShouldBe(2);
     }
 
     private static OmniRelay.Dispatcher.Dispatcher CreateDispatcher(
@@ -203,6 +179,28 @@ public class HttpTransportNegotiationTests
             }));
 
         return dispatcher;
+    }
+
+    private static async Task WaitForEndpointReadyAsync(Uri address, CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 100;
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                using var client = new TcpClient();
+                await client.ConnectAsync(address.Host, address.Port).WaitAsync(TimeSpan.FromMilliseconds(200), cancellationToken);
+                await Task.Delay(50, cancellationToken);
+                return;
+            }
+            catch
+            {
+                await Task.Delay(50, cancellationToken);
+            }
+        }
+
+        throw new TimeoutException($"Endpoint {address} did not accept connections within {maxAttempts} attempts.");
     }
 
     private static HttpClientHandler CreateHttp11Handler() => new()

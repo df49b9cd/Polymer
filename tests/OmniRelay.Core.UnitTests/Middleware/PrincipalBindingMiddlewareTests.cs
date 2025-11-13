@@ -1,8 +1,4 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Threading.Channels;
-using Hugo;
-using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using Xunit;
@@ -18,7 +14,7 @@ public sealed class PrincipalBindingMiddlewareTests
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ["x-client-principal"],
-            AuthorizationHeaderNames = ImmutableArray<string>.Empty
+            AuthorizationHeaderNames = []
         });
 
         var meta = new RequestMeta(
@@ -39,10 +35,10 @@ public sealed class PrincipalBindingMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             });
 
-        Assert.NotNull(observed);
-        Assert.Equal("subject-a", observed!.Caller);
-        Assert.True(observed.TryGetHeader("rpc.principal", out var principal));
-        Assert.Equal("subject-a", principal);
+        observed.ShouldNotBeNull();
+        observed!.Caller.ShouldBe("subject-a");
+        observed.TryGetHeader("rpc.principal", out var principal).ShouldBeTrue();
+        principal.ShouldBe("subject-a");
     }
 
     [Fact]
@@ -50,7 +46,7 @@ public sealed class PrincipalBindingMiddlewareTests
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
-            PrincipalHeaderNames = ImmutableArray<string>.Empty,
+            PrincipalHeaderNames = [],
             AuthorizationHeaderNames = ["authorization"]
         });
 
@@ -72,9 +68,9 @@ public sealed class PrincipalBindingMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             });
 
-        Assert.NotNull(observed);
-        Assert.Equal("abc.def", observed!.Caller);
-        Assert.Equal("abc.def", observed.Headers["rpc.principal"]);
+        observed.ShouldNotBeNull();
+        observed!.Caller.ShouldBe("abc.def");
+        observed.Headers["rpc.principal"].ShouldBe("abc.def");
     }
 
     [Fact]
@@ -82,7 +78,7 @@ public sealed class PrincipalBindingMiddlewareTests
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
-            PrincipalHeaderNames = ImmutableArray<string>.Empty,
+            PrincipalHeaderNames = [],
             AuthorizationHeaderNames = ["authorization"],
             AcceptBearerTokens = false,
             AcceptMutualTlsSubjects = true
@@ -106,9 +102,9 @@ public sealed class PrincipalBindingMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             });
 
-        Assert.NotNull(observed);
-        Assert.Equal("CN=client-app", observed!.Caller);
-        Assert.Equal("CN=client-app", observed.Headers["rpc.principal"]);
+        observed.ShouldNotBeNull();
+        observed!.Caller.ShouldBe("CN=client-app");
+        observed.Headers["rpc.principal"].ShouldBe("CN=client-app");
     }
 
     [Fact]
@@ -117,7 +113,7 @@ public sealed class PrincipalBindingMiddlewareTests
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ["x-client-principal"],
-            AuthorizationHeaderNames = ImmutableArray<string>.Empty
+            AuthorizationHeaderNames = []
         });
 
         var meta = new RequestMeta(
@@ -140,9 +136,9 @@ public sealed class PrincipalBindingMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             });
 
-        Assert.NotNull(observed);
+        observed.ShouldNotBeNull();
         var updated = observed!.Value;
-        Assert.Equal("streaming-user", updated.Meta.Caller);
+        updated.Meta.Caller.ShouldBe("streaming-user");
     }
 
     [Fact]
@@ -151,7 +147,7 @@ public sealed class PrincipalBindingMiddlewareTests
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ["x-mtls-subject"],
-            AuthorizationHeaderNames = ImmutableArray<string>.Empty,
+            AuthorizationHeaderNames = [],
             IncludeThumbprint = true,
             ThumbprintHeaderName = "x-mtls-thumbprint"
         });
@@ -175,10 +171,10 @@ public sealed class PrincipalBindingMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             });
 
-        Assert.NotNull(observed);
-        Assert.Equal("subject-thumb", observed!.Caller);
-        Assert.True(observed.TryGetHeader("rpc.principal_thumbprint", out var thumbprint));
-        Assert.Equal("THUMBPRINT123", thumbprint);
+        observed.ShouldNotBeNull();
+        observed!.Caller.ShouldBe("subject-thumb");
+        observed.TryGetHeader("rpc.principal_thumbprint", out var thumbprint).ShouldBeTrue();
+        thumbprint.ShouldBe("THUMBPRINT123");
     }
 
     [Fact]
@@ -187,7 +183,7 @@ public sealed class PrincipalBindingMiddlewareTests
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ["x-client-principal"],
-            AuthorizationHeaderNames = ImmutableArray<string>.Empty,
+            AuthorizationHeaderNames = [],
             PromoteToCaller = false
         });
 
@@ -210,8 +206,8 @@ public sealed class PrincipalBindingMiddlewareTests
                 return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
             });
 
-        Assert.NotNull(observed);
-        Assert.Equal("existing-caller", observed!.Caller);
-        Assert.Equal("new-principal", observed.Headers["rpc.principal"]);
+        observed.ShouldNotBeNull();
+        observed!.Caller.ShouldBe("existing-caller");
+        observed.Headers["rpc.principal"].ShouldBe("new-principal");
     }
 }

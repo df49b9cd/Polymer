@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using System.Threading;
-
 namespace OmniRelay.IntegrationTests.Support;
 
 internal static class RepositoryPaths

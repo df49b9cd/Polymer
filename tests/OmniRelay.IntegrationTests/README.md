@@ -2,6 +2,42 @@
 
 Guidance for running the integration suite locally and in CI, with an emphasis on HTTP/3 scenarios that rely on MsQuic.
 
+## Test Scope, Goals, and Approach
+
+### Scope
+- Cover end-to-end dispatcher, transport (gRPC/HTTP), codec, and client interactions instead of isolated classes.
+- Exercise realistic workflows (handshakes, message exchange, cancellations, error propagation) using production wiring like `DispatcherOptions` and live transports.
+- Include lifecycle and infrastructure behavior (startup/shutdown, port allocation, middleware, TLS/runtime flags) to mirror deployed systems.
+
+### Goals
+- Catch regressions in cross-component contracts, such as cancellation propagation or metadata negotiation.
+- Validate reliability features—timeouts, retries, flow control, metrics hooks—under concurrent or long-running workloads.
+- Ensure status codes, payload encodings, and fault translation stay consistent across process boundaries.
+
+### Reasoning
+- Unit tests guard local logic, but integration failures usually stem from orchestration gaps, timing races, or transport quirks that only surface with real stacks.
+- Using actual transports (HTTP/3, gRPC) exposes platform differences seen in CI runners versus dev machines.
+- Reproducing workflows that have failed in production/CI (e.g., duplex cancellation) provides direct regression coverage.
+
+### Methodology
+- Spin up dispatchers with concrete inbound/outbound transports on ephemeral ports, registering lightweight fixtures that mimic real services.
+- Drive clients via public APIs (`CreateDuplexStreamClient`, etc.) and assert on both client-visible results and server-side signals (task completion sources, counters).
+- Combine linked cancellation tokens, explicit `WaitAsync` guards, and readiness probes to surface timing bugs deterministically.
+- Capture logs/metrics when scenarios fail so CI artifacts include actionable diagnostics.
+
+### Approach
+- Start with deterministic happy-path scenarios, then layer stress cases (client/server cancellation, flow-control pressure, injected errors).
+- Use helper utilities like `WaitForGrpcReadyAsync` to remove startup races before assertions.
+- Keep fixtures self-contained and fast to minimize flakiness; prefer per-test dispatcher instances over shared global state.
+- Document natural follow-up actions (rerunning suites, inspecting metrics) alongside each scenario so failures are easy to triage.
+
+### Best Practices
+- **Test public seams.** Continue to drive behavior through DI, transports, and clients exactly as production does so failures describe actual regressions.
+- **One scenario per test.** Follow a `Feature_Scenario_Outcome` pattern and keep assertions scoped to that scenario to simplify triage.
+- **Lean on async fixtures.** Reuse `IAsyncLifetime`/collection fixtures for expensive hosts or Testcontainers so they spin up once and always dispose cleanly.
+- **Capture diagnostics.** Pipe dispatcher logs and container output into `ITestOutputHelper`/`ILoggerFactory` so CI failures include actionable traces.
+- **Gate optional dependencies.** Just like HTTP/3 gating, wrap Docker/tooling prerequisites in feature flags or capability checks and fail fast when unavailable.
+
 ## MsQuic / HTTP/3 prerequisites
 
 - **Use modern runner images.** HTTP/3 tests require MsQuic support (libmsquic ≥ 2.2). Choose:

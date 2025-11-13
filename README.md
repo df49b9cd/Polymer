@@ -45,6 +45,22 @@ dotnet test tests/OmniRelay.Tests/OmniRelay.Tests.csproj
 
 OmniRelay targets `.NET 10` and pulls Hugo, gRPC, and JsonSchema.Net from NuGet. Tests expect loopback HTTP/2 support for gRPC scenarios.
 
+### Reproduce CI Locally
+
+Use the Docker CI recipe to match the pipeline’s restore/build/test steps:
+
+```bash
+./eng/run-ci.sh --build-arg DOTNET_VERSION=10.0.100
+```
+
+Pass any additional `docker build` flags after the script (for example, `--progress=plain`).
+Add `--arch x64` or `--arch arm64` to force the platform (defaults to your host).
+Docker logging levels map to `docker build --progress=<level>`:
+
+- `auto` (default) – Docker chooses between TTY/plain depending on the terminal.
+- `plain` – line-oriented logs, useful for CI and truncation-free output.
+- `tty` – interactive TTY view with live-updating build steps.
+
 ## Samples
 
 The `samples/` directory contains runnable projects that focus on different runtime features (manual bootstrap, configuration-driven hosting, tee/shadow outbounds, multi-service Docker demos). See `docs/reference/samples.md` for a tour and usage guide.

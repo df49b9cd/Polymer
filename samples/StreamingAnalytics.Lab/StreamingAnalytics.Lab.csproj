@@ -4,6 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>OmniRelay.Samples.StreamingAnalytics</RootNamespace>
+    <NoWarn>$(NoWarn);CA2007;CS1591;CA1848;CA1852;IDE0060</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

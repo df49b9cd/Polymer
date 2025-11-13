@@ -20,6 +20,10 @@ internal sealed record RequestInvocation(
 
 internal static class BenchmarkRunner
 {
+    internal static Func<RequestInvocation, CancellationToken, Task<IRequestInvoker>>? InvokerFactoryOverride { get; set; }
+
+    internal static void ResetForTests() => InvokerFactoryOverride = null;
+
     internal sealed record BenchmarkExecutionOptions(
         int Concurrency,
         long? MaxRequests,
@@ -105,18 +109,27 @@ internal static class BenchmarkRunner
 
     private static async Task<IRequestInvoker> CreateInvokerAsync(RequestInvocation invocation, CancellationToken cancellationToken)
     {
-        IRequestInvoker invoker = invocation.Transport switch
+        IRequestInvoker invoker;
+        if (InvokerFactoryOverride is { } overrideFactory)
         {
-            "http" => CreateHttpInvoker(invocation),
-            "grpc" => CreateGrpcInvoker(invocation),
-            _ => throw new InvalidOperationException($"Transport '{invocation.Transport}' is not supported for benchmarking.")
-        };
+            invoker = await overrideFactory(invocation, cancellationToken).ConfigureAwait(false)
+                     ?? throw new InvalidOperationException("Benchmark invoker override returned null.");
+        }
+        else
+        {
+            invoker = invocation.Transport switch
+            {
+                "http" => CreateHttpInvoker(invocation),
+                "grpc" => CreateGrpcInvoker(invocation),
+                _ => throw new InvalidOperationException($"Transport '{invocation.Transport}' is not supported for benchmarking.")
+            };
+        }
 
         await invoker.StartAsync(cancellationToken).ConfigureAwait(false);
         return invoker;
     }
 
-    private static IRequestInvoker CreateHttpInvoker(RequestInvocation invocation)
+    private static HttpRequestInvoker CreateHttpInvoker(RequestInvocation invocation)
     {
         if (string.IsNullOrWhiteSpace(invocation.HttpUrl))
         {
@@ -131,7 +144,7 @@ internal static class BenchmarkRunner
         return new HttpRequestInvoker(uri, invocation.HttpClientRuntime);
     }
 
-    private static IRequestInvoker CreateGrpcInvoker(RequestInvocation invocation)
+    private static GrpcRequestInvoker CreateGrpcInvoker(RequestInvocation invocation)
     {
         if (invocation.Addresses is not { Length: > 0 })
         {
@@ -347,7 +360,7 @@ internal static class BenchmarkRunner
             mean);
     }
 
-    private static double GetPercentile(IReadOnlyList<double> samples, double percentile)
+    private static double GetPercentile(List<double> samples, double percentile)
     {
         if (samples.Count == 0)
         {
@@ -374,11 +387,11 @@ internal static class BenchmarkRunner
 
     private static string FormatError(Error error, string transport)
     {
-        var polymerException = OmniRelayErrors.FromError(error, transport);
-        return $"{polymerException.StatusCode}: {polymerException.Message}";
+        var omnirelayException = OmniRelayErrors.FromError(error, transport);
+        return $"{omnirelayException.StatusCode}: {omnirelayException.Message}";
     }
 
-    private interface IRequestInvoker : IAsyncDisposable
+    internal interface IRequestInvoker : IAsyncDisposable
     {
         Task StartAsync(CancellationToken cancellationToken);
         Task<RequestCallResult> InvokeAsync(Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken);
@@ -392,7 +405,7 @@ internal static class BenchmarkRunner
 
         public HttpRequestInvoker(Uri requestUri, HttpClientRuntimeOptions? runtimeOptions)
         {
-            _httpClient = new HttpClient();
+            _httpClient = CliRuntime.HttpClientFactory.CreateClient();
             _outbound = new HttpOutbound(_httpClient, requestUri, runtimeOptions: runtimeOptions);
             _unaryOutbound = _outbound;
         }
@@ -418,23 +431,20 @@ internal static class BenchmarkRunner
         }
     }
 
-    private sealed class GrpcRequestInvoker : IRequestInvoker
+    private sealed class GrpcRequestInvoker(
+        IReadOnlyList<Uri> addresses,
+        string service,
+        GrpcClientRuntimeOptions? runtimeOptions)
+        : IRequestInvoker
     {
-        private readonly GrpcOutbound _outbound;
-        private readonly IUnaryOutbound _unaryOutbound;
-
-        public GrpcRequestInvoker(IReadOnlyList<Uri> addresses, string service, GrpcClientRuntimeOptions? runtimeOptions)
-        {
-            _outbound = new GrpcOutbound(addresses, service, clientRuntimeOptions: runtimeOptions);
-            _unaryOutbound = _outbound;
-        }
+        private readonly IGrpcInvoker _invoker = CliRuntime.GrpcInvokerFactory.Create(addresses, service, runtimeOptions);
 
         public Task StartAsync(CancellationToken cancellationToken) =>
-            _outbound.StartAsync(cancellationToken).AsTask();
+            _invoker.StartAsync(cancellationToken).AsTask();
 
         public async Task<RequestCallResult> InvokeAsync(Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken)
         {
-            var result = await _outbound.CallAsync(request, cancellationToken).ConfigureAwait(false);
+            var result = await _invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
             if (result.IsSuccess)
             {
                 return RequestCallResult.FromSuccess();
@@ -443,10 +453,14 @@ internal static class BenchmarkRunner
             return RequestCallResult.FromFailure(FormatError(result.Error!, "grpc"));
         }
 
-        public async ValueTask DisposeAsync() => await _outbound.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        public async ValueTask DisposeAsync()
+        {
+            await _invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await _invoker.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
-    private readonly record struct RequestCallResult(bool Success, string? Error)
+    internal readonly record struct RequestCallResult(bool Success, string? Error)
     {
         public static RequestCallResult FromSuccess() => new(true, null);
         public static RequestCallResult FromFailure(string? error) => new(false, error);

@@ -149,17 +149,15 @@ internal static class TenantProcedures
     }
 }
 
-internal sealed class TenantQuotaMiddleware : IUnaryInboundMiddleware
+internal sealed class TenantQuotaMiddleware(Dictionary<string, int> limits) : IUnaryInboundMiddleware
 {
-    private readonly Dictionary<string, int> _limits;
+    private readonly Dictionary<string, int> _limits = limits;
     private readonly ConcurrentDictionary<string, int> _usage = new();
-
-    public TenantQuotaMiddleware(Dictionary<string, int> limits) => _limits = limits;
 
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         var tenant = request.Meta.Headers.TryGetValue("x-tenant-id", out var value) ? value : null;
         if (tenant is null)
@@ -190,7 +188,7 @@ internal sealed class TenantLoggingMiddleware : IUnaryInboundMiddleware
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundDelegate next)
+        UnaryInboundHandler next)
     {
         var tenant = request.Meta.Headers.TryGetValue("x-tenant-id", out var value) ? value : "unknown";
         Console.WriteLine($"[{tenant}] {request.Meta.Procedure} called");

@@ -1,4 +1,3 @@
-using System;
 using Hugo;
 using OmniRelay.Core.Transport;
 using Xunit;
@@ -11,16 +10,16 @@ public class StreamCallContextTests
     public void Increment_And_Complete_Tracks_State()
     {
         var ctx = new StreamCallContext(StreamDirection.Server);
-        Assert.Equal(0, ctx.MessageCount);
+        ctx.MessageCount.ShouldBe(0);
         ctx.IncrementMessageCount();
         ctx.IncrementMessageCount();
-        Assert.Equal(2, ctx.MessageCount);
+        ctx.MessageCount.ShouldBe(2);
 
         var err = Error.From("oops", "internal");
-        Assert.True(ctx.TrySetCompletion(StreamCompletionStatus.Faulted, err));
-        Assert.False(ctx.TrySetCompletion(StreamCompletionStatus.Succeeded));
-        Assert.Equal(StreamCompletionStatus.Faulted, ctx.CompletionStatus);
-        Assert.NotNull(ctx.CompletedAtUtc);
-        Assert.NotNull(ctx.CompletionError);
+        ctx.TrySetCompletion(StreamCompletionStatus.Faulted, err).ShouldBeTrue();
+        ctx.TrySetCompletion(StreamCompletionStatus.Succeeded).ShouldBeFalse();
+        ctx.CompletionStatus.ShouldBe(StreamCompletionStatus.Faulted);
+        ctx.CompletedAtUtc.ShouldNotBeNull();
+        ctx.CompletionError.ShouldNotBeNull();
     }
 }

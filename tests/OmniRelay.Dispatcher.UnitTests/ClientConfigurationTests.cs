@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using NSubstitute;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
@@ -50,13 +49,13 @@ public class ClientConfigurationTests
         var clientStreamMiddleware = ImmutableArray.Create(Substitute.For<IClientStreamOutboundMiddleware>());
         var duplexMiddleware = ImmutableArray.Create(Substitute.For<IDuplexOutboundMiddleware>());
 
-        var collection = new OutboundCollection(
+        var collection = new OutboundRegistry(
             "downstream",
-            ImmutableDictionary<string, IUnaryOutbound>.Empty,
-            ImmutableDictionary<string, IOnewayOutbound>.Empty,
-            ImmutableDictionary<string, IStreamOutbound>.Empty,
-            ImmutableDictionary<string, IClientStreamOutbound>.Empty,
-            ImmutableDictionary<string, IDuplexOutbound>.Empty);
+            [],
+            [],
+            [],
+            [],
+            []);
 
         var config = new ClientConfiguration(
             collection,
@@ -81,20 +80,20 @@ public class ClientConfigurationTests
         var clientStreamOutbound = Substitute.For<IClientStreamOutbound>();
         var duplexOutbound = Substitute.For<IDuplexOutbound>();
 
-        var collection = new OutboundCollection(
+        var collection = new OutboundRegistry(
             "downstream",
-            ImmutableDictionary<string, IUnaryOutbound>.Empty.Add(OutboundCollection.DefaultKey, unaryOutbound),
-            ImmutableDictionary<string, IOnewayOutbound>.Empty.Add(OutboundCollection.DefaultKey, onewayOutbound),
-            ImmutableDictionary<string, IStreamOutbound>.Empty.Add(OutboundCollection.DefaultKey, streamOutbound),
-            ImmutableDictionary<string, IClientStreamOutbound>.Empty.Add(OutboundCollection.DefaultKey, clientStreamOutbound),
-            ImmutableDictionary<string, IDuplexOutbound>.Empty.Add(OutboundCollection.DefaultKey, duplexOutbound));
+            ImmutableDictionary<string, IUnaryOutbound>.Empty.Add(OutboundRegistry.DefaultKey, unaryOutbound),
+            ImmutableDictionary<string, IOnewayOutbound>.Empty.Add(OutboundRegistry.DefaultKey, onewayOutbound),
+            ImmutableDictionary<string, IStreamOutbound>.Empty.Add(OutboundRegistry.DefaultKey, streamOutbound),
+            ImmutableDictionary<string, IClientStreamOutbound>.Empty.Add(OutboundRegistry.DefaultKey, clientStreamOutbound),
+            ImmutableDictionary<string, IDuplexOutbound>.Empty.Add(OutboundRegistry.DefaultKey, duplexOutbound));
 
         return new ClientConfiguration(
             collection,
-            ImmutableArray<IUnaryOutboundMiddleware>.Empty,
-            ImmutableArray<IOnewayOutboundMiddleware>.Empty,
-            ImmutableArray<IStreamOutboundMiddleware>.Empty,
-            ImmutableArray<IClientStreamOutboundMiddleware>.Empty,
-            ImmutableArray<IDuplexOutboundMiddleware>.Empty);
+            [],
+            [],
+            [],
+            [],
+            []);
     }
 }

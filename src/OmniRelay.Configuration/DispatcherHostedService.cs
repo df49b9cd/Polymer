@@ -18,7 +18,7 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
     {
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Starting OmniRelay dispatcher for service {ServiceName}", _dispatcher.ServiceName);
+            DispatcherHostedServiceLog.Starting(_logger, _dispatcher.ServiceName);
         }
 
         var startResult = await _dispatcher.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -29,7 +29,7 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("OmniRelay dispatcher for service {ServiceName} started", _dispatcher.ServiceName);
+            DispatcherHostedServiceLog.Started(_logger, _dispatcher.ServiceName);
         }
     }
 
@@ -38,7 +38,7 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
     {
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Stopping OmniRelay dispatcher for service {ServiceName}", _dispatcher.ServiceName);
+            DispatcherHostedServiceLog.Stopping(_logger, _dispatcher.ServiceName);
         }
 
         var stopResult = await _dispatcher.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -49,7 +49,22 @@ internal sealed class DispatcherHostedService(Dispatcher.Dispatcher dispatcher, 
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("OmniRelay dispatcher for service {ServiceName} stopped", _dispatcher.ServiceName);
+            DispatcherHostedServiceLog.Stopped(_logger, _dispatcher.ServiceName);
         }
     }
+}
+
+internal static partial class DispatcherHostedServiceLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Starting OmniRelay dispatcher for service {ServiceName}")]
+    public static partial void Starting(ILogger logger, string serviceName);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "OmniRelay dispatcher for service {ServiceName} started")]
+    public static partial void Started(ILogger logger, string serviceName);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Stopping OmniRelay dispatcher for service {ServiceName}")]
+    public static partial void Stopping(ILogger logger, string serviceName);
+
+    [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "OmniRelay dispatcher for service {ServiceName} stopped")]
+    public static partial void Stopped(ILogger logger, string serviceName);
 }

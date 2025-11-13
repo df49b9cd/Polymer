@@ -1,11 +1,6 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
 using NSubstitute;
-using OmniRelay.Core;
 using OmniRelay.Core.Clients;
-using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using Xunit;
 using static Hugo.Go;
@@ -45,8 +40,8 @@ public class UnaryClientTests
         var client = new UnaryClient<Req, Res>(outbound, codec, []);
         var result = await client.CallAsync(new Request<Req>(meta, req), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(42, result.Value.Body.Y);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Body.Y.ShouldBe(42);
         await outbound.Received(1).CallAsync(
             Arg.Is<IRequest<ReadOnlyMemory<byte>>>(r => r.Meta.Encoding == "json" && r.Body.ToArray().SequenceEqual(encoded)),
             Arg.Any<CancellationToken>());
@@ -64,8 +59,8 @@ public class UnaryClientTests
         var client = new UnaryClient<Req, Res>(outbound, codec, []);
         var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsFailure);
-        Assert.Same(err, result.Error);
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBeSameAs(err);
         await outbound.DidNotReceive().CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>());
     }
 
@@ -83,8 +78,8 @@ public class UnaryClientTests
         var client = new UnaryClient<Req, Res>(outbound, codec, []);
         var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsFailure);
-        Assert.Same(err, result.Error);
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBeSameAs(err);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -103,7 +98,7 @@ public class UnaryClientTests
         var client = new UnaryClient<Req, Res>(outbound, codec, []);
         var result = await client.CallAsync(Request<Req>.Create(new Req()), TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsFailure);
-        Assert.Same(err, result.Error);
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBeSameAs(err);
     }
 }

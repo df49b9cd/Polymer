@@ -1,7 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
+using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OmniRelay.Configuration;
+using OmniRelay.Tests;
+using OmniRelay.Tests.Support;
 using Xunit;
 
 namespace OmniRelay.FeatureTests.Fixtures;
@@ -24,12 +27,23 @@ public sealed class FeatureTestApplication : IAsyncLifetime
     private FeatureTestApplication(FeatureTestApplicationOptions options)
     {
         Options = options ?? throw new ArgumentNullException(nameof(options));
+        ControlPlanePort = Options.ControlPlanePort ?? TestPortAllocator.GetRandomPort();
+        GossipPort = Options.GossipPort ?? TestPortAllocator.GetRandomPort();
         Containers = new FeatureTestContainers(Options.ContainerOptions);
+        Certificate = TestCertificateFactory.EnsureDeveloperCertificateInfo("CN=OmniRelay.FeatureTests");
     }
 
     public FeatureTestApplicationOptions Options { get; }
 
+    public int ControlPlanePort { get; }
+
+    public int GossipPort { get; }
+
+    public string ControlPlaneBaseAddress => $"http://127.0.0.1:{ControlPlanePort}";
+
     public FeatureTestContainers Containers { get; }
+
+    internal TestCertificateInfo Certificate { get; }
 
     public IConfigurationRoot Configuration { get; private set; } = default!;
 
@@ -69,8 +83,10 @@ public sealed class FeatureTestApplication : IAsyncLifetime
 
     private IConfigurationRoot BuildConfiguration()
     {
+        var tlsDefaults = TestCertificateConfiguration.BuildTlsDefaults(Certificate, "FeatureTests");
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
+            .AddInMemoryCollection(tlsDefaults)
             .AddJsonFile("appsettings.featuretests.json", optional: false)
             .AddEnvironmentVariables(prefix: Options.EnvironmentPrefix);
 
@@ -79,8 +95,21 @@ public sealed class FeatureTestApplication : IAsyncLifetime
             configuration.AddJsonFile(Options.AdditionalConfigPath!, optional: true, reloadOnChange: false);
         }
 
+        var overrides = BuildGossipDefaults(Certificate);
+        overrides["omniRelay:inbounds:http:0:urls:0"] = ControlPlaneBaseAddress;
+        overrides["omniRelay:mesh:gossip:port"] = GossipPort.ToString(CultureInfo.InvariantCulture);
+        overrides["omniRelay:mesh:gossip:advertisePort"] = GossipPort.ToString(CultureInfo.InvariantCulture);
+        configuration.AddInMemoryCollection(overrides);
+
         return configuration.Build();
     }
+
+    private static Dictionary<string, string?> BuildGossipDefaults(TestCertificateInfo certificate) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["omniRelay:mesh:gossip:tls:certificateData"] = certificate.CertificateData,
+            ["omniRelay:mesh:gossip:tls:certificatePassword"] = certificate.Password
+        };
 }
 
 public sealed record FeatureTestApplicationOptions
@@ -94,6 +123,10 @@ public sealed record FeatureTestApplicationOptions
 
     public FeatureTestContainerOptions ContainerOptions { get; init; } = FeatureTestContainerOptions.FromEnvironment();
 
+    public int? ControlPlanePort { get; init; }
+
+    public int? GossipPort { get; init; }
+
     public static FeatureTestApplicationOptions FromEnvironment()
     {
         var environmentName = Environment.GetEnvironmentVariable("OMNIRELAY_FEATURETESTS_ENVIRONMENT") ?? "FeatureTests";
@@ -104,5 +137,3 @@ public sealed record FeatureTestApplicationOptions
         };
     }
 }
-
-

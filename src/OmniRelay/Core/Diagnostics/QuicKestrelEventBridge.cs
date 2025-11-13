@@ -14,6 +14,12 @@ internal sealed class QuicKestrelEventBridge(ILogger<QuicKestrelEventBridge> log
 
     private const string MsQuicEventSource = "Private.InternalDiagnostics.System.Net.Quic";
     private const string KestrelEventSource = "Microsoft-AspNetCore-Server-Kestrel";
+    private static readonly Action<ILogger, string, Exception?> HandshakeFailureLog =
+        LoggerMessage.Define<string>(LogLevel.Warning, new EventId(1000, "QuicHandshakeFailure"), "quic event: category={Category}");
+    private static readonly Action<ILogger, string, Exception?> InformationalLog =
+        LoggerMessage.Define<string>(LogLevel.Information, new EventId(1001, "QuicInfoEvent"), "quic event: category={Category}");
+    private static readonly Action<ILogger, string, Exception?> DebugLog =
+        LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1002, "QuicDebugEvent"), "quic event: category={Category}");
 
     protected override void OnEventSourceCreated(EventSource eventSource)
     {
@@ -47,16 +53,15 @@ internal sealed class QuicKestrelEventBridge(ILogger<QuicKestrelEventBridge> log
                 ["level"] = eventData.Level.ToString()
             };
 
-            if (eventData.PayloadNames is { Count: > 0 } && eventData.Payload is { Count: > 0 })
+            if (eventData.Payload is { Count: > 0 })
             {
-                for (var i = 0; i < Math.Min(eventData.PayloadNames.Count, eventData.Payload.Count); i++)
+                var hasNames = eventData.PayloadNames is { Count: > 0 };
+                for (var i = 0; i < eventData.Payload.Count; i++)
                 {
-                    var key = eventData.PayloadNames[i];
+                    var key = hasNames && i < eventData.PayloadNames!.Count ? eventData.PayloadNames[i] : null;
                     var value = eventData.Payload[i];
-                    if (!string.IsNullOrWhiteSpace(key))
-                    {
-                        payload[key] = value;
-                    }
+                    key = string.IsNullOrWhiteSpace(key) ? $"arg{i}" : key;
+                    payload[key] = value;
                 }
             }
 
@@ -68,17 +73,14 @@ internal sealed class QuicKestrelEventBridge(ILogger<QuicKestrelEventBridge> log
             switch (category)
             {
                 case "handshake_failure":
-                    _logger.LogWarning("quic event: category={Category}", category);
+                    HandshakeFailureLog(_logger, category, null);
                     break;
                 case "migration":
                 case "congestion":
-                    _logger.LogInformation("quic event: category={Category}", category);
+                    InformationalLog(_logger, category, null);
                     break;
                 default:
-                    if (_logger.IsEnabled(LogLevel.Debug))
-                    {
-                        _logger.LogDebug("quic event: category={Category}", category);
-                    }
+                    DebugLog(_logger, category, null);
                     break;
             }
         }
@@ -92,6 +94,16 @@ internal sealed class QuicKestrelEventBridge(ILogger<QuicKestrelEventBridge> log
     {
         // Heuristic classification based on common keywords
         var key = provider + ":" + name;
+
+        if (Contains(name, "handshake") && (Contains(name, "fail") || Contains(name, "error")))
+        {
+            return "handshake_failure";
+        }
+
+        if (Contains(name, "pathvalidated") || Contains(name, "migration"))
+        {
+            return "migration";
+        }
 
         var text = string.Join(' ', payload.Select(kv => kv.Key + "=" + (kv.Value?.ToString() ?? string.Empty))).ToLowerInvariant();
 
@@ -117,12 +129,15 @@ internal sealed class QuicKestrelEventBridge(ILogger<QuicKestrelEventBridge> log
 
         return "other";
     }
+
+    private static bool Contains(string source, string value) =>
+        source.Contains(value, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
 /// Hosted service to control the lifetime of the QuicKestrelEventBridge.
 /// </summary>
-internal sealed class QuicDiagnosticsHostedService(ILogger<QuicKestrelEventBridge> logger) : IHostedService
+internal sealed class QuicDiagnosticsHostedService(ILogger<QuicKestrelEventBridge> logger) : IHostedService, IDisposable
 {
     private readonly QuicKestrelEventBridge _bridge = new QuicKestrelEventBridge(logger);
 
@@ -132,5 +147,11 @@ internal sealed class QuicDiagnosticsHostedService(ILogger<QuicKestrelEventBridg
     {
         _bridge.Dispose();
         return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _bridge.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

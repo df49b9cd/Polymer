@@ -1,0 +1,28 @@
+{
+  "omnirelay": {
+    "service": "sample",
+    "inbounds": {
+      "http": [
+        {
+          "urls": [
+            "http://0.0.0.0:8080"
+          ],
+          "runtime": {
+            "maxRequestBodySize": 8388608
+          }
+        }
+      ],
+      "grpc": [
+        {
+          "urls": [
+            "http://0.0.0.0:8090"
+          ],
+          "runtime": {
+            "maxReceiveMessageSize": 8388608,
+            "maxSendMessageSize": 8388608
+          }
+        }
+      ]
+    }
+  }
+}

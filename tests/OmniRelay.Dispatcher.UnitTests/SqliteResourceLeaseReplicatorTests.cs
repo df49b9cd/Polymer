@@ -1,9 +1,5 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Text.Json;
-using System.Threading;
 using Microsoft.Data.Sqlite;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
@@ -46,7 +42,7 @@ public sealed class SqliteResourceLeaseReplicatorTests
             "peer",
             new ResourceLeaseItemPayload("type", "id", "pk", "json", [], new Dictionary<string, string> { ["owner"] = "test" }),
             null,
-            ImmutableDictionary<string, string>.Empty);
+            []);
 
     private sealed class RecordingSink : IResourceLeaseReplicationSink
     {
@@ -61,12 +57,7 @@ public sealed class SqliteResourceLeaseReplicatorTests
 
     private sealed class TempFile : IDisposable
     {
-        public TempFile()
-        {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
-        }
-
-        public string Path { get; }
+        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
 
         public void Dispose()
         {

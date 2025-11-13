@@ -42,10 +42,11 @@
     <Project Path="tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj" />
     <Project Path="tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj" />
     <Project Path="tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample/ProtobufIncrementalSample.csproj" />
+    <Project Path="tests/OmniRelay.Cli.UnitTests/OmniRelay.Cli.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj" />
+    <Project Path="tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj" />
-    <Project Path="tests/OmniRelay.Tests/OmniRelay.Tests.csproj" />
     <Project Path="tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj" />
     <Project Path="tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj" />
     <Project Path="tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj" />

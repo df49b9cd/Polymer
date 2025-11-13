@@ -49,7 +49,7 @@ builder.Services.AddGrpc(options =>
 Benefits:
 
 - Non-`RpcException` failures become `RpcException`s whose status matches `OmniRelayStatusCode`.
-- Trailers include OmniRelay metadata (`polymer-status`, `polymer-error-code`, `polymer-transport`, fault/retry hints).
+- Trailers include OmniRelay metadata (`omnirelay-status`, `omnirelay-error-code`, `omnirelay-transport`, fault/retry hints).
 - Existing middleware and diagnostics that rely on trailers stay aligned with the HTTP transport.
 
 If you already throw `RpcException` with OmniRelay trailers, the interceptor leaves the exception untouched.

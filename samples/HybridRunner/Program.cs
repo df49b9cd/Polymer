@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Hugo;
 using OmniRelay.Core;
@@ -84,7 +85,7 @@ internal static class HybridProcedures
                 builder.WithEncoding("application/json");
                 builder.Handle(async (request, _) =>
                 {
-                    var decode = JsonSerializer.Deserialize<BatchJob>(request.Body.Span);
+                    var decode = JsonSerializer.Deserialize(request.Body.Span, HybridRunnerJsonSerializerContext.Default.BatchJob);
                     if (decode is null)
                     {
                         return Err<OnewayAck>(OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.InvalidArgument, "Malformed payload."));
@@ -110,6 +111,7 @@ internal static class HybridProcedures
 
     public static ValueTask PublishProgressAsync(ProgressUpdate update, CancellationToken cancellationToken) =>
         Progress.Writer.WriteAsync(update, cancellationToken);
+
 }
 
 internal static class DashboardStream
@@ -117,7 +119,7 @@ internal static class DashboardStream
     public static ValueTask<Result<IStreamCall>> CreateAsync(
         ChannelReader<ProgressUpdate> updates,
         IRequest<ReadOnlyMemory<byte>> request,
-        CancellationToken cancellationToken)
+    CancellationToken cancellationToken)
     {
         var call = ServerStreamCall.Create(request.Meta, new ResponseMeta(encoding: "application/json"));
 
@@ -127,7 +129,7 @@ internal static class DashboardStream
             {
                 await foreach (var update in updates.ReadAllAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var payload = JsonSerializer.SerializeToUtf8Bytes(update);
+                    var payload = JsonSerializer.SerializeToUtf8Bytes(update, HybridRunnerJsonSerializerContext.Default.ProgressUpdate);
                     await call.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -169,7 +171,7 @@ internal sealed class DeadlineMiddleware(TimeSpan deadline) : IOnewayInboundMidd
     public ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(deadline);
@@ -184,7 +186,7 @@ internal sealed class RetryBudgetMiddleware(int maxRetries) : IOnewayInboundMidd
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundDelegate next)
+        OnewayInboundHandler next)
     {
         var attempts = 0;
         Result<OnewayAck> result;
@@ -205,7 +207,7 @@ internal sealed class DashboardLoggingMiddleware : IStreamInboundMiddleware
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundDelegate next)
+        StreamInboundHandler next)
     {
         Console.WriteLine($"[dashboard] stream requested from {request.Meta.Caller ?? "unknown"}");
         var result = await next(request, options, cancellationToken).ConfigureAwait(false);
@@ -215,4 +217,10 @@ internal sealed class DashboardLoggingMiddleware : IStreamInboundMiddleware
         }
         return result;
     }
+}
+
+[JsonSerializable(typeof(BatchJob))]
+[JsonSerializable(typeof(ProgressUpdate))]
+internal partial class HybridRunnerJsonSerializerContext : JsonSerializerContext
+{
 }

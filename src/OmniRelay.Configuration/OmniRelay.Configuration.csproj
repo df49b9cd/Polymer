@@ -7,6 +7,8 @@
     <PackageTags>omnirelay;yarpc;configuration;hosting;dependency-injection</PackageTags>
     <PackageReadmeFile>OmniRelay.Configuration.README.md</PackageReadmeFile>
     <PackageIcon>omnirelay-icon.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

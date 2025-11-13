@@ -1,13 +1,6 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Dispatcher;
-using OmniRelay.Tests;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests;
@@ -21,7 +14,7 @@ public sealed class ResourceLeaseIntegrationTests
         dispatcherOptions.UnaryInboundMiddleware.Add(new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
             PrincipalHeaderNames = ["x-client-principal"],
-            AuthorizationHeaderNames = ImmutableArray<string>.Empty,
+            AuthorizationHeaderNames = [],
             ThumbprintHeaderName = "x-mtls-thumbprint",
             IncludeThumbprint = true
         }));

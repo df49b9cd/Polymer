@@ -29,7 +29,7 @@ public sealed class GrpcResourceLeaseReplicator : IResourceLeaseReplicator
         _client = client;
         _sequenceNumber = startingSequence;
         _sinks = sinks is null
-            ? ImmutableArray<IResourceLeaseReplicationSink>.Empty
+            ? []
             : [.. sinks.Where(s => s is not null)];
     }
 

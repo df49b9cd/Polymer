@@ -31,3 +31,25 @@ Deliver a comprehensive observability pack (Grafana dashboards + Prometheus/OTLP
 
 ## References
 - `docs/architecture/service-discovery.md` – “Observability + operator tooling”, “Risks & mitigations”.
+
+## Testing Strategy
+
+### Unit tests
+- Validate dashboard JSON and alert YAML via schema/tooling (`grizzly`, `tanka`, or Grafana JSON lint) so every commit passes structure and datasource checks.
+- Cover helper libraries that compute derived metrics (e.g., shard imbalance heatmaps, transport downgrade ratios) to ensure calculations match documented formulas.
+- Test synthetic check definitions to verify probe intervals, timeout thresholds, and label conventions remain consistent.
+
+### Integration tests
+- Provision dashboards in a staging Grafana connected to real Prometheus data, capturing screenshot diffs or panel JSON snapshots to detect regressions.
+- Run Prometheus alert unit tests/simulations that replay sample metrics for leader flaps, gossip failures, shard imbalance, and replication lag to ensure correct firing behavior.
+- Execute synthetic health checks end to end, verifying they write status metrics, raise alerts, and feed the operator overview panels.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Orchestrate SRE game days injecting leadership churn, gossip degradation, and transport downgrades, confirming dashboards guide remediation and alerts escalate appropriately.
+- Conduct acceptance walkthroughs with exec, on-call, and operator personas to verify templating and RBAC-filtered panels surface the expected detail for each audience.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Replay simultaneous incidents across multiple clusters to test dashboard performance, alert deduplication, and silence handling when signal volume spikes.
+- Validate export/report tooling by generating organization-wide snapshots from dozens of dashboards, ensuring links, screenshots, and annotations remain coherent at scale.

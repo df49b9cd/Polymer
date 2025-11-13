@@ -28,3 +28,25 @@ Deliver dashboards, alerts, and telemetry wiring that make rebalancing activity 
 
 ## References
 - `docs/architecture/service-discovery.md` – “Health-aware rebalancing”, “Observability + operator tooling”.
+
+## Testing Strategy
+
+### Unit tests
+- Add metric/label contract tests to ensure every Prometheus counter/gauge uses the documented namespace/plan labels without exploding cardinality.
+- Introduce JSON/YAML linting plus schema validation for Grafana dashboards and alert rules so CI refuses malformed uploads.
+- Write unit tests for alert template functions (e.g., stuck plan detection) to confirm threshold math and annotations render correctly.
+
+### Integration tests
+- Provision the dashboards against the staging controller, replaying sample metrics to verify each panel populates, links to runbooks, and respects templated filters for namespace/cluster.
+- Execute alert rule tests via Prometheus `unit_test` harness (or `ephemeral-rules` tooling) to assert alerts fire/silence at the expected thresholds and honor maintenance windows.
+- Capture and diff Grafana screenshot snapshots to guard against accidental regressions in layout or datasource bindings.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Run a full rebalance scenario inside the feature harness, validating dashboards highlight the active plan, drain progress, and shard redistribution while alerts map to the documented runbook steps.
+- Trigger a stuck-rebalance drill to ensure alerts escalate to on-call, approval queues flag pending action, and linked docs walk responders through remediation.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Replay overlapping rebalances across many clusters/namespaces to confirm dashboard templating, panel performance, and alert volume remain manageable.
+- Inject telemetry gaps or noisy metrics at scale to verify alert rules avoid flapping and that dashboards degrade gracefully with large time series counts.

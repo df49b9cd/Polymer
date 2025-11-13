@@ -26,4 +26,8 @@
     <ProjectReference Include="../../src/OmniRelay.ResourceLeaseReplicator.ObjectStorage/OmniRelay.ResourceLeaseReplicator.ObjectStorage.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ResourceLeaseReplicator.Grpc/OmniRelay.ResourceLeaseReplicator.Grpc.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../TestSupport/Serialization/OmniRelayTestsJsonContext.cs" Link="Support/OmniRelayTestsJsonContext.cs" />
+  </ItemGroup>
 </Project>

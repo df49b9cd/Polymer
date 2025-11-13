@@ -20,15 +20,9 @@ public readonly struct PeerStatus(PeerState state, int inflight, DateTimeOffset?
     /// <summary>Unknown status sentinel.</summary>
     public static PeerStatus Unknown => new(PeerState.Unknown, 0, null, null);
 
-    public override bool Equals(object obj)
-    {
-        throw new NotImplementedException();
-    }
+    public override bool Equals(object? obj) => obj is PeerStatus other && Equals(other);
 
-    public override int GetHashCode()
-    {
-        throw new NotImplementedException();
-    }
+    public override int GetHashCode() => HashCode.Combine(State, Inflight, LastSuccess, LastFailure);
 
     public static bool operator ==(PeerStatus left, PeerStatus right)
     {
@@ -40,10 +34,11 @@ public readonly struct PeerStatus(PeerState state, int inflight, DateTimeOffset?
         return !(left == right);
     }
 
-    public bool Equals(PeerStatus other)
-    {
-        throw new NotImplementedException();
-    }
+    public bool Equals(PeerStatus other) =>
+        State == other.State &&
+        Inflight == other.Inflight &&
+        Nullable.Equals(LastSuccess, other.LastSuccess) &&
+        Nullable.Equals(LastFailure, other.LastFailure);
 }
 
 /// <summary>Represents the connectivity state of a peer.</summary>

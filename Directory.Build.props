@@ -33,12 +33,7 @@
     <PublishAot>true</PublishAot>
   </PropertyGroup>
 
-
   <PropertyGroup Condition="'$(IsPackable)' != 'false' and '$(OutputType)' == 'Library'">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
-  <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
-  </ItemGroup>
 </Project>

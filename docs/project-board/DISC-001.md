@@ -28,5 +28,35 @@ Embed a reusable gossip subsystem into every OmniRelay host (dispatcher, gateway
 - Configuration can be toggled without code changes (appsettings/environment).
 - Security audit confirms gossip traffic uses mTLS and honors certificate revocation.
 
+## Testing Strategy
+
+### Unit tests
+- Cover the SWIM timer wheel, suspicion counters, and retransmit limiter logic with deterministic time providers so join/suspect/leave transitions always match the configured fanout and interval settings.
+- Validate metadata schema handling by feeding mixed-version payloads and asserting unknown fields are ignored while required fields trigger actionable validation errors.
+- Exercise TLS certificate reload paths to ensure the host swaps credentials without dropping packets or leaking sockets.
+
+### Integration tests
+- Spin up three in-memory hosts with real gossip sockets to verify mutual discovery, metadata propagation (`http3Support`, `meshVersion`), and `/control/peers` surfacing gossip-derived state before the registry is available.
+- Add failure-injection tests that kill or partition nodes to confirm suspicion timers, metrics (`mesh_gossip_*`), and structured logs converge within the acceptance thresholds.
+- Run certificate rotation scenarios against the bootstrap service to ensure overlapping validity windows keep gossip traffic encrypted end to end.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Use the OmniRelay.FeatureTests harness to boot dispatcher, gateway, and worker roles with gossip enabled, then assert `omnirelay mesh peers` output, `/control/peers`, and dashboard metrics converge on the same membership view within 2 seconds.
+- Execute an operator workflow (drain/cordon) entirely inside the feature harness, verifying gossip status flags, CLI output, and alert hooks reflect each lifecycle transition in real time.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Spin up large node sets (tens to low hundreds) under the OmniRelay.HyperscaleFeatureTests suite, inject rolling deployments and packet loss, and confirm the gossip mesh maintains quorum, RTT budgets, and fast convergence.
+- Run hyperscale certificate rotation and cross-region latency drills to ensure metadata propagation, suspicion timers, and metric/alert noise stay within defined thresholds even at elevated fanout.
+
 ## References
 - `docs/architecture/service-discovery.md` – Sections “Membership gossip layer + leader elections” and “Transport & encoding strategy”.
+
+## Implementation status (mesh gossip v1)
+
+- **Code** – `MeshGossipHost` + option types live under `src/OmniRelay/Core/Gossip/` and are wired into every dispatcher via `AddMeshGossipAgent` (see `src/OmniRelay.Configuration`). The host emits structured join/leave/suspect logs, reloads mTLS certificates without downtime, and pushes metadata into `PeerLeaseHealthTracker`.
+- **Instrumentation** – Prometheus meters `mesh_gossip_members`, `mesh_gossip_rtt_ms`, and `mesh_gossip_messages_total` are produced by the `OmniRelay.Core.Gossip` meter and enabled automatically inside `AddOmniRelayDispatcher`. Sample dashboards pick them up through the Prometheus scrape on `/metrics`.
+- **Diagnostics** – `/control/peers` comes from the gossip snapshot and is exposed by every HTTP inbound regardless of whether the logging/toggle runtime is enabled. `/omnirelay/control/lease-health` now reflects gossip metadata, so operators can compare both views before the registry ships.
+- **Configuration** – `mesh:gossip:*` settings support env variables, `appsettings.*`, and the sample dev/prod configs under `samples/ResourceLease.MeshDemo/`. Production templates document TLS paths, seed lists, fanout tuning, and certificate pinning.
+- **Samples/tests** – The ResourceLease mesh demo enables gossip by default in `appsettings.Development.json` and demonstrates TLS/seed wiring in `appsettings.Production.json`. `MeshGossipMembershipTableTests` (in `tests/OmniRelay.Core.UnitTests/Gossip`) exercise join/metadata upgrades plus suspect/left transitions to guard the SWIM timers.

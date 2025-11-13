@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Threading.Tasks;
-using OmniRelay.Dispatcher;
 using OmniRelay.Dispatcher.Grpc;
 using Xunit;
 
@@ -34,7 +29,7 @@ public sealed class GrpcResourceLeaseReplicatorTests
             "peer-a",
             new ResourceLeaseItemPayload("resource", "id", "pk", "json", []),
             new ResourceLeaseErrorInfo("info", "code"),
-            ImmutableDictionary<string, string>.Empty);
+            []);
 
     private sealed class RecordingClient : IGrpcResourceLeaseReplicatorClient
     {

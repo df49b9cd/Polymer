@@ -31,3 +31,25 @@ Stream replication logs between clusters with version vectors, monitor lag, and 
 
 ## References
 - `docs/architecture/service-discovery.md` – “Multi-cluster awareness”, “Implementation backlog item 6”.
+
+## Testing Strategy
+
+### Unit tests
+- Cover version-vector math (merge, compare, increment) plus deduplication logic to guarantee monotonic ordering and safe replays across clusters.
+- Validate workflow state machines for planned vs emergency failovers, ensuring guardrails (preflight checks, approvals, cooldowns) fire in the right order.
+- Test serialization layers for replication events so protobuf contracts remain backward compatible and embed the necessary cluster metadata.
+
+### Integration tests
+- Spin up two clusters with real replication channels to measure lag metrics, simulate packet loss, and verify `/control/clusters` exposes `mesh_replication_*` data accurately.
+- Execute planned failovers end to end: drain primary, promote secondary, update routing metadata, and confirm clients reconnect without stale fencing tokens.
+- Inject chaos (region kill, store lag) to drive emergency workflows and ensure alerts, audit records, and CLI outputs match documentation.
+
+### Feature tests
+
+#### OmniRelay.FeatureTests
+- Run a runbook-driven drill where SREs execute planned failover, capture metrics/logs, and verify the system returns to steady state before triggering failback.
+- Automate nightly regression suites that promote/demote clusters, confirming SLO adherence (<30 s) and zero data divergence across the standard topology.
+
+#### OmniRelay.HyperscaleFeatureTests
+- Execute concurrent planned failovers across multiple cluster pairs to validate orchestration, approvals, and telemetry when many regions participate.
+- Simulate emergency failovers during replication lag spikes to ensure fencing tokens, automation hooks, and dashboards scale with global traffic volumes.
