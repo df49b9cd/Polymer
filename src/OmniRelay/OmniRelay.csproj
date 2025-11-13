@@ -20,6 +20,7 @@
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="JsonSchema.Net" />
     <PackageReference Include="OpenTelemetry" />
+    <PackageReference Remove="Microsoft.SourceLink.GitHub" />
   </ItemGroup>
 
   <ItemGroup>

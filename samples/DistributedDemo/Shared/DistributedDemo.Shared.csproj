@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />
+    <PackageReference Remove="Microsoft.SourceLink.GitHub" />
   </ItemGroup>
 </Project>

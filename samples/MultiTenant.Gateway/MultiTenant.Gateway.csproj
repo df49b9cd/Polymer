@@ -14,5 +14,6 @@
 
   <ItemGroup>
     <PackageReference Include="Hugo" />
+    <PackageReference Remove="Microsoft.SourceLink.GitHub" />
   </ItemGroup>
 </Project>

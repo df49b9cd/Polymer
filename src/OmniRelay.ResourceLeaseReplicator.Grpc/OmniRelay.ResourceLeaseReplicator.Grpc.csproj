@@ -12,6 +12,7 @@
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="Grpc.Net.Client" />
     <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+    <PackageReference Remove="Microsoft.SourceLink.GitHub" />
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="ResourceLeaseReplication.proto" GrpcServices="Both" />

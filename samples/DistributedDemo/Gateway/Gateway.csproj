@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="Hugo" />
+    <PackageReference Remove="Microsoft.SourceLink.GitHub" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="appsettings.json">
