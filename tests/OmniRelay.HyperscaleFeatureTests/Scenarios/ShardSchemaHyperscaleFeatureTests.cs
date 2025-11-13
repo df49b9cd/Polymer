@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.Hashing;
+using OmniRelay.ShardStore.Relational;
+using OmniRelay.ShardStore.Sqlite;
 using OmniRelay.Tests;
 using Shouldly;
 using Xunit;
@@ -16,7 +18,7 @@ namespace OmniRelay.HyperscaleFeatureTests.Scenarios;
 public sealed class ShardSchemaHyperscaleFeatureTests : IAsyncLifetime
 {
     private readonly SqliteConnection _keepAlive;
-    private readonly RelationalShardRepository _repository;
+    private readonly RelationalShardStore _repository;
     private readonly ShardHashStrategyRegistry _strategies = new();
 
     public ShardSchemaHyperscaleFeatureTests()
@@ -24,7 +26,7 @@ public sealed class ShardSchemaHyperscaleFeatureTests : IAsyncLifetime
         _keepAlive = new SqliteConnection("Data Source=disc003-hyperscale;Mode=Memory;Cache=Shared");
         _keepAlive.Open();
         InitializeSchema(_keepAlive);
-        _repository = new RelationalShardRepository(() => new SqliteConnection(_keepAlive.ConnectionString));
+        _repository = SqliteShardStoreFactory.Create(_keepAlive.ConnectionString);
     }
 
     public ValueTask InitializeAsync() => ValueTask.CompletedTask;

@@ -6,23 +6,24 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.Hashing;
+using OmniRelay.ShardStore.Relational;
 using OmniRelay.Tests;
 using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Shards;
 
-public sealed class RelationalShardRepositoryTests : IAsyncLifetime, IDisposable
+public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
 {
     private readonly SqliteConnection _keepAlive;
-    private readonly RelationalShardRepository _repository;
+    private readonly RelationalShardStore _repository;
 
-    public RelationalShardRepositoryTests()
+    public RelationalShardStoreTests()
     {
         _keepAlive = new SqliteConnection("Data Source=omnirelay-shards;Mode=Memory;Cache=Shared");
         _keepAlive.Open();
         InitializeSchema(_keepAlive);
-        _repository = new RelationalShardRepository(CreateConnection);
+        _repository = new RelationalShardStore(CreateConnection);
     }
 
     public ValueTask InitializeAsync() => ValueTask.CompletedTask;

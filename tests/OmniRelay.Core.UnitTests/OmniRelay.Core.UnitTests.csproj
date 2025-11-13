@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.ShardStore.ObjectStorage/OmniRelay.ShardStore.ObjectStorage.csproj" />
   </ItemGroup>
 
   <ItemGroup>

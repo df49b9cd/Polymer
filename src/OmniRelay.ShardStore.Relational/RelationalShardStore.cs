@@ -1,19 +1,24 @@
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using OmniRelay.Core.Shards;
 
 #pragma warning disable CA2007 // awaited disposals cannot use ConfigureAwait
 
-namespace OmniRelay.Core.Shards;
+namespace OmniRelay.ShardStore.Relational;
 
 /// <summary>Relational database backed shard repository with optimistic concurrency and audit history.</summary>
-public sealed class RelationalShardRepository : IShardRepository
+public sealed class RelationalShardStore : IShardRepository
 {
     private readonly Func<DbConnection> _connectionFactory;
     private readonly TimeProvider _timeProvider;
 
-    public RelationalShardRepository(Func<DbConnection> connectionFactory, TimeProvider? timeProvider = null)
+    public RelationalShardStore(Func<DbConnection> connectionFactory, TimeProvider? timeProvider = null)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         _timeProvider = timeProvider ?? TimeProvider.System;

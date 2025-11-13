@@ -221,7 +221,7 @@ Grafana/Prometheus rules from DISC-001 now have concrete signals to target, and 
   - Versioned shard tables persisted in the registry with diff history for auditing.
   - Watch semantics that notify SDKs/agents when shards move or are paused.
 - **Implementation notes (2024-10)**:
-  - `RelationalShardRepository` persists the shard contract described above, issuing optimistic concurrency checks on every mutation and mirroring history into `shard_history`. The schema lives in `eng/migrations/20241014-disc-003-shards.sql`.
+  - `OmniRelay.ShardStore.Relational` persists the shard contract described above, issuing optimistic concurrency checks on every mutation and mirroring history into `shard_history`. The schema lives in `eng/migrations/20241014-disc-003-shards.sql`, with provider wrappers (`OmniRelay.ShardStore.Postgres`, `OmniRelay.ShardStore.Sqlite`, `OmniRelay.ShardStore.ObjectStorage`) for the common backends.
   - The hashing library (`ShardHashStrategyRegistry`) now ships ring, rendezvous, and locality-aware plans that are bound from configuration via `ShardingConfiguration`. Namespaces may specify preferred nodes + locality hints and materialize plans directly from config.
   - Hyperscale validations (`ShardSchemaHyperscaleFeatureTests`) ingest thousands of shards, roll node membership, and hammer the repository with concurrent governance edits to ensure determinism and auditing survive production-grade load.
 - **Interfaces & data contracts**:

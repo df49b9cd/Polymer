@@ -29,9 +29,9 @@ Design and implement the durable shard ownership store that tracks which mesh no
 
 ## Implementation Summary (2024-10)
 - Added the new `OmniRelay.Core.Shards` domain with typed `ShardRecord`, `ShardHistoryRecord`, `ShardMutationRequest`, and `ShardHashStrategyRegistry` plus ring, rendezvous, and locality-aware implementations that can be selected through configuration (`ShardingConfiguration`, `ShardNamespaceConfiguration`).
-- Shipped the relational persistence layer via `RelationalShardRepository` with optimistic concurrency + audit history backed by the SQL schema in `eng/migrations/20241014-disc-003-shards.sql`.
+- Shipped the relational persistence layer via `OmniRelay.ShardStore.Relational` with optimistic concurrency + audit history backed by the SQL schema in `eng/migrations/20241014-disc-003-shards.sql`, plus provider wrappers (`OmniRelay.ShardStore.Postgres`, `...Sqlite`, `...ObjectStorage`) to align with the repo naming pattern.
 - Configuration binding helpers (`ShardingConfigurationExtensions`) let namespaces materialize deterministic plans directly from `appsettings`, and reference docs were updated to describe the schema contracts and strategy behavior.
-- Unit coverage: deterministic hashing fixtures (`ShardHashStrategyTests`), optimistic concurrency and history verification (`RelationalShardRepositoryTests`), and configuration binding tests ensure governance metadata is enforced.
+- Unit coverage: deterministic hashing fixtures (`ShardHashStrategyTests`), optimistic concurrency and history verification (`RelationalShardStoreTests`), and configuration binding tests ensure governance metadata is enforced.
 - Feature coverage: `ShardSchemaHyperscaleFeatureTests` exercises thousands of shards with rolling node updates plus concurrent governance writers to prove hashing determinism, audit history, and conflict detection hold under hyperscale churn.
 ## Testing Strategy
 
