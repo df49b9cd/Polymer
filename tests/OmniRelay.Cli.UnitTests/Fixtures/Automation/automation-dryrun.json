@@ -1,0 +1,24 @@
+{
+  "steps": [
+    {
+      "type": "request",
+      "description": "Dry run request",
+      "transport": "http",
+      "service": "demo",
+      "procedure": "Echo/Call",
+      "url": "https://automation.local/rpc",
+      "body": "{\"message\":\"dry\"}"
+    },
+    {
+      "type": "introspect",
+      "description": "Should be skipped",
+      "url": "https://control.local/omnirelay/introspect",
+      "format": "text"
+    },
+    {
+      "type": "delay",
+      "description": "Also skipped",
+      "duration": "00:00:00.01"
+    }
+  ]
+}

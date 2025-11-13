@@ -9,53 +9,53 @@ internal sealed record AutomationStep
 {
     public string Type { get; init; } = string.Empty;
 
-    public static string? Description { get; set; }
+    public string? Description { get; init; }
 
-    public static string? Transport { get; set; }
+    public string? Transport { get; init; }
 
-    public static string? Service { get; set; }
+    public string? Service { get; init; }
 
-    public static string? Procedure { get; set; }
+    public string? Procedure { get; init; }
 
-    public static string? Caller { get; set; }
+    public string? Caller { get; init; }
 
-    public static string? Encoding { get; set; }
+    public string? Encoding { get; init; }
 
-    public static Dictionary<string, string>? Headers { get; set; }
+    public Dictionary<string, string>? Headers { get; init; }
 
-    public static string[]? Profiles { get; set; }
+    public string[]? Profiles { get; init; }
 
-    public static string? ShardKey { get; set; }
+    public string? ShardKey { get; init; }
 
-    public static string? RoutingKey { get; set; }
+    public string? RoutingKey { get; init; }
 
-    public static string? RoutingDelegate { get; set; }
+    public string? RoutingDelegate { get; init; }
 
-    public static string[]? ProtoFiles { get; set; }
+    public string[]? ProtoFiles { get; init; }
 
-    public static string? ProtoMessage { get; set; }
+    public string? ProtoMessage { get; init; }
 
-    public static string? Ttl { get; set; }
+    public string? Ttl { get; init; }
 
-    public static string? Deadline { get; set; }
+    public string? Deadline { get; init; }
 
-    public static string? Timeout { get; set; }
+    public string? Timeout { get; init; }
 
-    public static string? Body { get; set; }
+    public string? Body { get; init; }
 
-    public static string? BodyFile { get; set; }
+    public string? BodyFile { get; init; }
 
-    public static string? BodyBase64 { get; set; }
+    public string? BodyBase64 { get; init; }
 
-    public static string? Url { get; set; }
+    public string? Url { get; init; }
 
-    public static string? Address { get; set; }
+    public string? Address { get; init; }
 
-    public static string[]? Addresses { get; set; }
+    public string[]? Addresses { get; init; }
 
-    public static string? Format { get; set; }
+    public string? Format { get; init; }
 
-    public static string? Duration { get; set; }
+    public string? Duration { get; init; }
 
-    public static string? Delay { get; set; }
+    public string? Delay { get; init; }
 }

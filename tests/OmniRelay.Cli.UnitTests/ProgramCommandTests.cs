@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using OmniRelay.Cli;
 using OmniRelay.Cli.UnitTests.Infrastructure;
@@ -190,7 +192,7 @@ public sealed class ProgramCommandTests : CliTestBase
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync("introspect", "--url", "http://localhost:9000/omnirelay/introspect", "--format", "json");
 
-        result.ExitCode.ShouldBe(0);
+        result.ExitCode.ShouldBe(0, $"StdOut:{Environment.NewLine}{result.StdOut}{Environment.NewLine}StdErr:{Environment.NewLine}{result.StdErr}");
         result.StdOut.ShouldContain("demo-service");
     }
 
@@ -258,10 +260,56 @@ public sealed class ProgramCommandTests : CliTestBase
             "--warmup",
             "00:00:00.02");
 
-        result.ExitCode.ShouldBe(0);
+        result.ExitCode.ShouldBe(0, $"StdOut:{Environment.NewLine}{result.StdOut}{Environment.NewLine}StdErr:{Environment.NewLine}{result.StdErr}");
         result.StdOut.ShouldContain("Measured requests: 5");
         result.StdOut.ShouldContain("Success: 5");
         fakeInvoker.CallCount.ShouldBeGreaterThan(5);
+    }
+
+    [Fact]
+    public async Task ScriptRunCommand_ExecutesRequestAndIntrospect()
+    {
+        var scriptPath = GetAutomationFixture("automation-happy.json");
+        var handler = CreateAutomationHandler();
+        CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
+
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var result = await harness.InvokeAsync("script", "run", "--file", scriptPath);
+
+        result.ExitCode.ShouldBe(0, $"StdOut:{Environment.NewLine}{result.StdOut}{Environment.NewLine}StdErr:{Environment.NewLine}{result.StdErr}");
+        result.StdOut.ShouldContain("Loaded script");
+        result.StdOut.ShouldContain("... waiting for");
+        handler.Requests.Count.ShouldBe(2);
+        handler.Requests.Count(message => message.RequestUri!.AbsoluteUri.Contains("/omnirelay/introspect", StringComparison.OrdinalIgnoreCase)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ScriptRunCommand_DryRun_SkipsExecution()
+    {
+        var scriptPath = GetAutomationFixture("automation-dryrun.json");
+        var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("dry-run should not invoke network"));
+        CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
+
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var result = await harness.InvokeAsync("script", "run", "--file", scriptPath, "--dry-run");
+
+        result.ExitCode.ShouldBe(0, $"StdOut:{Environment.NewLine}{result.StdOut}{Environment.NewLine}StdErr:{Environment.NewLine}{result.StdErr}");
+        result.StdOut.ShouldContain("dry-run: skipping request execution.");
+        handler.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ScriptRunCommand_ContinueOnError_AllowsLaterSteps()
+    {
+        var scriptPath = GetAutomationFixture("automation-continue.json");
+        CliRuntime.HttpClientFactory = new FakeHttpClientFactory(CreateAutomationHandler());
+
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var result = await harness.InvokeAsync("script", "run", "--file", scriptPath, "--continue-on-error");
+
+        result.ExitCode.ShouldBe(1, $"StdOut:{Environment.NewLine}{result.StdOut}{Environment.NewLine}StdErr:{Environment.NewLine}{result.StdErr}");
+        result.StdErr.ShouldContain("Request step is missing 'service' or 'procedure'.");
+        result.StdOut.ShouldContain("[2/2] introspect");
     }
 
     [Fact]
@@ -284,12 +332,159 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdErr.ShouldContain("Invalid control-plane URL 'invalid'.");
     }
 
+    [Fact]
+    public async Task MeshStatusCommand_Snapshot_PrintsLeaders()
+    {
+        var snapshotJson = """
+        {
+          "generatedAt": "2024-01-02T03:04:05Z",
+          "tokens": [
+            {
+              "scope": "alpha",
+              "scopeKind": "global",
+              "leaderId": "node-a",
+              "term": 3,
+              "fenceToken": 7,
+              "issuedAt": "2024-01-02T03:00:00Z",
+              "expiresAt": "2024-01-02T03:10:00Z"
+            }
+          ]
+        }
+        """;
+
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            request.Method.ShouldBe(HttpMethod.Get);
+            request.RequestUri!.AbsolutePath.ShouldContain("/control/leaders");
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(snapshotJson, Encoding.UTF8, "application/json")
+            };
+        });
+        CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
+
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var result = await harness.InvokeAsync("mesh", "leaders", "status", "--url", "https://control.local", "--scope", "alpha");
+
+        result.ExitCode.ShouldBe(0, $"StdOut:{Environment.NewLine}{result.StdOut}{Environment.NewLine}StdErr:{Environment.NewLine}{result.StdErr}");
+        result.StdOut.ShouldContain("alpha");
+        handler.Requests.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task MeshStatusCommand_Watch_StreamsEvents()
+    {
+        var ssePayload = string.Join('\n', new[]
+        {
+            """data: {"eventKind":"elected","scope":"alpha","occurredAt":"2024-01-02T03:04:05Z","token":{"scope":"alpha","scopeKind":"global","leaderId":"node-a","term":2,"fenceToken":4,"issuedAt":"2024-01-02T03:04:00Z","expiresAt":"2024-01-02T03:06:00Z"}}""",
+            "",
+            """data: {"eventKind":"revoked","scope":"alpha","occurredAt":"2024-01-02T03:05:05Z","reason":"manual","token":{"scope":"alpha","scopeKind":"global","leaderId":"node-a","term":2,"fenceToken":4,"issuedAt":"2024-01-02T03:04:00Z","expiresAt":"2024-01-02T03:06:00Z"}}""",
+            "",
+        });
+
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(ssePayload)))
+            };
+            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/event-stream");
+            return response;
+        });
+        CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
+
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var result = await harness.InvokeAsync(
+            "mesh",
+            "leaders",
+            "status",
+            "--url",
+            "https://control.local",
+            "--watch",
+            "--timeout",
+            "00:00:01");
+
+        result.ExitCode.ShouldBe(0, $"StdOut:{Environment.NewLine}{result.StdOut}{Environment.NewLine}StdErr:{Environment.NewLine}{result.StdErr}");
+        result.StdOut.ShouldContain("Streaming leadership events");
+        result.StdOut.ShouldContain("ELECTED");
+        handler.Requests.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task MeshStatusCommand_WatchTimeout_ReturnsTwo()
+    {
+        var handler = new StubHttpMessageHandler(_ => throw new TaskCanceledException());
+        CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
+
+        var harness = new CommandTestHarness(Program.BuildRootCommand());
+        var result = await harness.InvokeAsync(
+            "mesh",
+            "leaders",
+            "status",
+            "--url",
+            "https://control.local",
+            "--watch",
+            "--timeout",
+            "00:00:00.10");
+
+        result.ExitCode.ShouldBe(2);
+        result.StdErr.ShouldContain("Leadership stream connection timed out.");
+    }
+
     private static string CreateConfigFile()
     {
         var path = Path.Combine(Path.GetTempPath(), $"omnirelay-cli-config-{Guid.NewGuid():N}.json");
         File.WriteAllText(path, """{"omnirelay":{}}""");
         return path;
     }
+
+    private static string GetAutomationFixture(string fileName) =>
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "Automation", fileName);
+
+    private static StubHttpMessageHandler CreateAutomationHandler()
+    {
+        var snapshot = CreateSampleIntrospection();
+        return new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri!.AbsoluteUri.Contains("/omnirelay/introspect", StringComparison.OrdinalIgnoreCase))
+            {
+                var json = JsonSerializer.Serialize(snapshot, OmniRelayCliJsonContext.Default.DispatcherIntrospection);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+            };
+        });
+    }
+
+    private static DispatcherIntrospection CreateSampleIntrospection() =>
+        new(
+            Service: "automation-demo",
+            Status: DispatcherStatus.Running,
+            Procedures: new ProcedureGroups(
+                ImmutableArray<ProcedureDescriptor>.Empty,
+                ImmutableArray<ProcedureDescriptor>.Empty,
+                ImmutableArray<StreamProcedureDescriptor>.Empty,
+                ImmutableArray<ClientStreamProcedureDescriptor>.Empty,
+                ImmutableArray<DuplexProcedureDescriptor>.Empty),
+            Components: ImmutableArray<LifecycleComponentDescriptor>.Empty,
+            Outbounds: ImmutableArray<OutboundDescriptor>.Empty,
+            Middleware: new MiddlewareSummary(
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty,
+                ImmutableArray<string>.Empty));
 
     private static void AssertGoldenConfig(string actualPath, string goldenFileName)
     {

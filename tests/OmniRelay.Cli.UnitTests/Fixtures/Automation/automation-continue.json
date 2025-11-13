@@ -1,0 +1,17 @@
+{
+  "steps": [
+    {
+      "type": "request",
+      "description": "This step is missing required fields to trigger an error",
+      "transport": "http",
+      "url": "https://automation.local/rpc",
+      "body": "{}"
+    },
+    {
+      "type": "introspect",
+      "description": "Follow-up step after the failure",
+      "url": "https://control.local/omnirelay/introspect",
+      "format": "text"
+    }
+  ]
+}

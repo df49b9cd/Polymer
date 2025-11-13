@@ -1873,14 +1873,14 @@ public static class Program
         {
             var step = script.Steps[index];
             var typeLabel = string.IsNullOrWhiteSpace(step.Type) ? "(unspecified)" : step.Type;
-            var description = string.IsNullOrWhiteSpace(AutomationStep.Description) ? string.Empty : $" - {AutomationStep.Description}";
+            var description = string.IsNullOrWhiteSpace(step.Description) ? string.Empty : $" - {step.Description}";
             Console.WriteLine($"[{index + 1}/{script.Steps.Length}] {typeLabel}{description}");
 
             var normalizedType = step.Type?.Trim().ToLowerInvariant() ?? string.Empty;
             switch (normalizedType)
             {
                 case "request":
-                    if (string.IsNullOrWhiteSpace(AutomationStep.Service) || string.IsNullOrWhiteSpace(AutomationStep.Procedure))
+                    if (string.IsNullOrWhiteSpace(step.Service) || string.IsNullOrWhiteSpace(step.Procedure))
                     {
                         await Console.Error.WriteLineAsync("  Request step is missing 'service' or 'procedure'.").ConfigureAwait(false);
                         exitCode = exitCode == 0 ? 1 : exitCode;
@@ -1891,18 +1891,18 @@ public static class Program
                         continue;
                     }
 
-                    var headerPairs = AutomationStep.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
-                    var profiles = AutomationStep.Profiles ?? [];
-                    var addresses = AutomationStep.Addresses ?? [];
-                    if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(AutomationStep.Address))
+                    var headerPairs = step.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
+                    var profiles = step.Profiles ?? [];
+                    var addresses = step.Addresses?.Where(static address => !string.IsNullOrWhiteSpace(address)).ToArray() ?? [];
+                    if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(step.Address))
                     {
-                        addresses = [AutomationStep.Address!];
+                        addresses = [step.Address];
                     }
 
-                    var targetSummary = !string.IsNullOrWhiteSpace(AutomationStep.Url)
-                        ? AutomationStep.Url
+                    var targetSummary = !string.IsNullOrWhiteSpace(step.Url)
+                        ? step.Url
                         : (addresses.Length > 0 ? string.Join(", ", addresses) : "(default transport settings)");
-                    Console.WriteLine($"  -> {AutomationStep.Transport ?? "http"} {AutomationStep.Service}/{AutomationStep.Procedure} @ {targetSummary}");
+                    Console.WriteLine($"  -> {step.Transport ?? "http"} {step.Service}/{step.Procedure} @ {targetSummary}");
 
                     if (dryRun)
                     {
@@ -1911,25 +1911,25 @@ public static class Program
                     }
 
                     var requestResult = await RunRequestAsync(
-                        AutomationStep.Transport ?? "http",
-                        AutomationStep.Service,
-                        AutomationStep.Procedure,
-                        AutomationStep.Caller,
-                        AutomationStep.Encoding,
+                        step.Transport ?? "http",
+                        step.Service,
+                        step.Procedure,
+                        step.Caller,
+                        step.Encoding,
                         headerPairs,
                         profiles,
-                        AutomationStep.ShardKey,
-                        AutomationStep.RoutingKey,
-                        AutomationStep.RoutingDelegate,
-                        AutomationStep.ProtoFiles ?? [],
-                        AutomationStep.ProtoMessage,
-                        AutomationStep.Ttl,
-                        AutomationStep.Deadline,
-                        AutomationStep.Timeout,
-                        AutomationStep.Body,
-                        AutomationStep.BodyFile,
-                        AutomationStep.BodyBase64,
-                        AutomationStep.Url,
+                        step.ShardKey,
+                        step.RoutingKey,
+                        step.RoutingDelegate,
+                        step.ProtoFiles ?? [],
+                        step.ProtoMessage,
+                        step.Ttl,
+                        step.Deadline,
+                        step.Timeout,
+                        step.Body,
+                        step.BodyFile,
+                        step.BodyBase64,
+                        step.Url,
                         addresses,
                         enableHttp3: false,
                         enableGrpcHttp3: false).ConfigureAwait(false);
@@ -1945,8 +1945,8 @@ public static class Program
                     break;
 
                 case "introspect":
-                    var targetUrl = string.IsNullOrWhiteSpace(AutomationStep.Url) ? DefaultIntrospectionUrl : AutomationStep.Url!;
-                    Console.WriteLine($"  -> GET {targetUrl} (format={AutomationStep.Format ?? "text"})");
+                    var targetUrl = string.IsNullOrWhiteSpace(step.Url) ? DefaultIntrospectionUrl : step.Url!;
+                    Console.WriteLine($"  -> GET {targetUrl} (format={step.Format ?? "text"})");
 
                     if (dryRun)
                     {
@@ -1954,7 +1954,7 @@ public static class Program
                         continue;
                     }
 
-                    var introspectResult = await RunIntrospectAsync(targetUrl, AutomationStep.Format ?? "text", AutomationStep.Timeout).ConfigureAwait(false);
+                    var introspectResult = await RunIntrospectAsync(targetUrl, step.Format ?? "text", step.Timeout).ConfigureAwait(false);
                     if (introspectResult != 0)
                     {
                         exitCode = exitCode == 0 ? introspectResult : exitCode;
@@ -1968,7 +1968,7 @@ public static class Program
                 case "delay":
                 case "sleep":
                 case "wait":
-                    var delayValue = AutomationStep.Duration ?? AutomationStep.Delay;
+                    var delayValue = step.Duration ?? step.Delay;
                     if (string.IsNullOrWhiteSpace(delayValue))
                     {
                         await Console.Error.WriteLineAsync("  Delay step requires a 'duration' or 'delay' value.").ConfigureAwait(false);
@@ -1980,8 +1980,7 @@ public static class Program
                         continue;
                     }
 
-                    var delayText = delayValue!;
-                    if (!TryParseDuration(delayText, out var delay))
+                    if (!TryParseDuration(delayValue!, out var delay))
                     {
                         await Console.Error.WriteLineAsync($"  Could not parse delay '{delayValue}'.").ConfigureAwait(false);
                         exitCode = exitCode == 0 ? 1 : exitCode;
