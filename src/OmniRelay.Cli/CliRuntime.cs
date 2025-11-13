@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 using OmniRelay.Configuration;
 using OmniRelay.Core;
 using OmniRelay.Transport.Grpc;
@@ -68,6 +69,8 @@ internal sealed class SystemCliFileSystem : ICliFileSystem
 
 internal interface IServeHostFactory
 {
+    [RequiresUnreferencedCode("OmniRelay dispatcher bootstrapping uses reflection and dynamic configuration; it is not trimming/AOT safe.")]
+    [RequiresDynamicCode("OmniRelay dispatcher bootstrapping uses reflection and dynamic configuration; it is not trimming/AOT safe.")]
     IServeHost CreateHost(IConfigurationRoot configuration, string section);
 }
 
@@ -80,6 +83,8 @@ internal interface IServeHost : IAsyncDisposable
 
 internal sealed class DefaultServeHostFactory : IServeHostFactory
 {
+    [RequiresUnreferencedCode("OmniRelay dispatcher bootstrapping uses reflection and dynamic configuration; it is not trimming/AOT safe.")]
+    [RequiresDynamicCode("OmniRelay dispatcher bootstrapping uses reflection and dynamic configuration; it is not trimming/AOT safe.")]
     public IServeHost CreateHost(IConfigurationRoot configuration, string section)
     {
         ArgumentNullException.ThrowIfNull(configuration);

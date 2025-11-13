@@ -25,14 +25,14 @@ public sealed class OmniRelayExceptionFilterTests
         await filter.OnExceptionAsync(exceptionContext);
 
         exceptionContext.ExceptionHandled.ShouldBeTrue();
-        var result = exceptionContext.Result.ShouldBeOfType<ObjectResult>();
+        var result = Assert.IsType<ObjectResult>(exceptionContext.Result);
         result.StatusCode.ShouldBe(HttpStatusMapper.ToStatusCode(OmniRelayStatusCode.DeadlineExceeded));
 
-        var payload = result.Value.ShouldBeOfType<Dictionary<string, object?>>();
+        var payload = Assert.IsType<Dictionary<string, object?>>(result.Value);
         payload["message"].ShouldBe("deadline");
         payload["status"].ShouldBe(nameof(OmniRelayStatusCode.DeadlineExceeded));
         payload["code"].ShouldBe(OmniRelayErrorAdapter.GetStatusName(OmniRelayStatusCode.DeadlineExceeded));
-        var metadata = payload["metadata"].ShouldBeAssignableTo<IReadOnlyDictionary<string, object?>>();
+        var metadata = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(payload["metadata"]);
         metadata["omnirelay.transport"].ShouldBe("http");
         metadata.TryGetValue(OmniRelayErrorAdapter.RetryableMetadataKey, out var retryable).ShouldBeTrue();
         retryable.ShouldBe(true);
