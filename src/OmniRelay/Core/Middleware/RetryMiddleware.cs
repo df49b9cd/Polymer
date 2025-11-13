@@ -20,8 +20,8 @@ public sealed class RetryMiddleware(RetryOptions? options = null) : IUnaryOutbou
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundHandler next) =>
-        ExecuteWithRetryAsync(request, cancellationToken, next);
+        UnaryOutboundHandler nextHandler) =>
+        ExecuteWithRetryAsync(request, cancellationToken, nextHandler);
 
     private async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> ExecuteWithRetryAsync(
         IRequest<ReadOnlyMemory<byte>> request,

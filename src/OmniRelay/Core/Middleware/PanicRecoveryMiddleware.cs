@@ -27,14 +27,14 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryInboundHandler next)
+        UnaryInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -46,14 +46,14 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        UnaryOutboundHandler next)
+        UnaryOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -65,14 +65,14 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayInboundHandler next)
+        OnewayInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -84,14 +84,14 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<OnewayAck>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        OnewayOutboundHandler next)
+        OnewayOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -104,16 +104,16 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamInboundHandler next)
+        StreamInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, options, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, options, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -126,16 +126,16 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
         IRequest<ReadOnlyMemory<byte>> request,
         StreamCallOptions options,
         CancellationToken cancellationToken,
-        StreamOutboundHandler next)
+        StreamOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
         options = EnsureNotNull(options, nameof(options));
 
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, options, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, options, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -147,13 +147,13 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
         ClientStreamRequestContext context,
         CancellationToken cancellationToken,
-        ClientStreamInboundHandler next)
+        ClientStreamInboundHandler nextHandler)
     {
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(context, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(context, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -165,14 +165,14 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<IClientStreamTransportCall>> InvokeAsync(
         RequestMeta requestMeta,
         CancellationToken cancellationToken,
-        ClientStreamOutboundHandler next)
+        ClientStreamOutboundHandler nextHandler)
     {
         requestMeta = EnsureNotNull(requestMeta, nameof(requestMeta));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(requestMeta, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(requestMeta, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -184,14 +184,14 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexInboundHandler next)
+        DuplexInboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -203,14 +203,14 @@ public sealed class PanicRecoveryMiddleware(ILogger<PanicRecoveryMiddleware>? lo
     public async ValueTask<Result<IDuplexStreamCall>> InvokeAsync(
         IRequest<ReadOnlyMemory<byte>> request,
         CancellationToken cancellationToken,
-        DuplexOutboundHandler next)
+        DuplexOutboundHandler nextHandler)
     {
         request = EnsureNotNull(request, nameof(request));
-        next = EnsureNotNull(next, nameof(next));
+        nextHandler = EnsureNotNull(nextHandler, nameof(nextHandler));
 
         try
         {
-            return await next(request, cancellationToken).ConfigureAwait(false);
+            return await nextHandler(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
