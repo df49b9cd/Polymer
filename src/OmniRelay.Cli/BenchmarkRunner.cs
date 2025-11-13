@@ -392,7 +392,7 @@ internal static class BenchmarkRunner
 
         public HttpRequestInvoker(Uri requestUri, HttpClientRuntimeOptions? runtimeOptions)
         {
-            _httpClient = new HttpClient();
+            _httpClient = CliRuntime.HttpClientFactory.CreateClient();
             _outbound = new HttpOutbound(_httpClient, requestUri, runtimeOptions: runtimeOptions);
             _unaryOutbound = _outbound;
         }
@@ -420,21 +420,17 @@ internal static class BenchmarkRunner
 
     private sealed class GrpcRequestInvoker : IRequestInvoker
     {
-        private readonly GrpcOutbound _outbound;
-        private readonly IUnaryOutbound _unaryOutbound;
+        private readonly IGrpcInvoker _invoker;
 
-        public GrpcRequestInvoker(IReadOnlyList<Uri> addresses, string service, GrpcClientRuntimeOptions? runtimeOptions)
-        {
-            _outbound = new GrpcOutbound(addresses, service, clientRuntimeOptions: runtimeOptions);
-            _unaryOutbound = _outbound;
-        }
+        public GrpcRequestInvoker(IReadOnlyList<Uri> addresses, string service, GrpcClientRuntimeOptions? runtimeOptions) =>
+            _invoker = CliRuntime.GrpcInvokerFactory.Create(addresses, service, runtimeOptions);
 
         public Task StartAsync(CancellationToken cancellationToken) =>
-            _outbound.StartAsync(cancellationToken).AsTask();
+            _invoker.StartAsync(cancellationToken).AsTask();
 
         public async Task<RequestCallResult> InvokeAsync(Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken)
         {
-            var result = await _outbound.CallAsync(request, cancellationToken).ConfigureAwait(false);
+            var result = await _invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
             if (result.IsSuccess)
             {
                 return RequestCallResult.FromSuccess();
@@ -443,7 +439,11 @@ internal static class BenchmarkRunner
             return RequestCallResult.FromFailure(FormatError(result.Error!, "grpc"));
         }
 
-        public async ValueTask DisposeAsync() => await _outbound.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        public async ValueTask DisposeAsync()
+        {
+            await _invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await _invoker.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     private readonly record struct RequestCallResult(bool Success, string? Error)

@@ -79,7 +79,7 @@ public static class Program
         }
     }
 
-    private static RootCommand BuildRootCommand()
+    internal static RootCommand BuildRootCommand()
     {
         var root = new RootCommand("OmniRelay CLI providing configuration validation, dispatcher introspection, and ad-hoc request tooling.")
         {
@@ -94,7 +94,7 @@ public static class Program
         return root;
     }
 
-    private static Command CreateConfigCommand()
+    internal static Command CreateConfigCommand()
     {
         var command = new Command("config", "Configuration utilities.")
         {
@@ -104,7 +104,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateServeCommand()
+    internal static Command CreateServeCommand()
     {
         var command = new Command("serve", "Run an OmniRelay dispatcher using configuration files.");
 
@@ -158,7 +158,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateConfigScaffoldCommand()
+    internal static Command CreateConfigScaffoldCommand()
     {
         var command = new Command("scaffold", "Generate an example appsettings.json with optional HTTP/3 toggles.");
 
@@ -225,7 +225,7 @@ public static class Program
         return command;
     }
 
-    private static async Task<int> RunConfigScaffoldAsync(
+    internal static async Task<int> RunConfigScaffoldAsync(
         string outputPath,
         string section,
         string service,
@@ -390,7 +390,7 @@ public static class Program
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static Command CreateScriptCommand()
+    internal static Command CreateScriptCommand()
     {
         var command = new Command("script", "Run scripted OmniRelay CLI automation.");
 
@@ -429,7 +429,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateMeshCommand()
+    internal static Command CreateMeshCommand()
     {
         var command = new Command("mesh", "Mesh control-plane tooling.")
         {
@@ -438,7 +438,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateMeshLeadersCommand()
+    internal static Command CreateMeshLeadersCommand()
     {
         var command = new Command("leaders", "Leadership status and diagnostics.")
         {
@@ -447,7 +447,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateMeshLeadersStatusCommand()
+    internal static Command CreateMeshLeadersStatusCommand()
     {
         var command = new Command("status", "Show current leadership tokens or stream leadership events.");
 
@@ -490,7 +490,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateConfigValidateCommand()
+    internal static Command CreateConfigValidateCommand()
     {
         var command = new Command("validate", "Validate OmniRelay dispatcher configuration.");
 
@@ -531,7 +531,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateIntrospectCommand()
+    internal static Command CreateIntrospectCommand()
     {
         var command = new Command("introspect", "Fetch dispatcher introspection over HTTP.");
 
@@ -567,7 +567,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateRequestCommand()
+    internal static Command CreateRequestCommand()
     {
         var command = new Command("request", "Issue a unary RPC over HTTP or gRPC.");
 
@@ -770,7 +770,7 @@ public static class Program
         return command;
     }
 
-    private static Command CreateBenchmarkCommand()
+    internal static Command CreateBenchmarkCommand()
     {
         var command = new Command("benchmark", "Run concurrent unary RPC load tests over HTTP or gRPC.");
 
@@ -1018,7 +1018,7 @@ public static class Program
         return command;
     }
 
-    private static async Task<int> RunConfigValidateAsync(string[] configPaths, string section, string[] setOverrides)
+    internal static async Task<int> RunConfigValidateAsync(string[] configPaths, string section, string[] setOverrides)
     {
         if (!TryBuildConfiguration(configPaths, setOverrides, out var configuration, out var errorMessage))
         {
@@ -1089,7 +1089,7 @@ public static class Program
         }
     }
 
-    private static async Task<int> RunServeAsync(string[] configPaths, string section, string[] setOverrides, string? readyFile, string? shutdownAfterOption)
+    internal static async Task<int> RunServeAsync(string[] configPaths, string section, string[] setOverrides, string? readyFile, string? shutdownAfterOption)
     {
         if (!TryBuildConfiguration(configPaths, setOverrides, out var configuration, out var errorMessage))
         {
@@ -1115,18 +1115,11 @@ public static class Program
             shutdownAfter = parsed;
         }
 
-        var builder = Host.CreateApplicationBuilder();
-        builder.Configuration.Sources.Clear();
-        builder.Configuration.AddConfiguration(configuration);
-        builder.Services.AddLogging(static logging => logging.AddSimpleConsole(options =>
-        {
-            options.SingleLine = true;
-            options.TimestampFormat = "HH:mm:ss ";
-        }));
-
+        var resolvedSection = string.IsNullOrWhiteSpace(section) ? DefaultConfigSection : section;
+        IServeHost? serveHost;
         try
         {
-            builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection(section ?? DefaultConfigSection));
+            serveHost = CliRuntime.ServeHostFactory.CreateHost(configuration, resolvedSection);
         }
         catch (Exception ex)
         {
@@ -1134,7 +1127,7 @@ public static class Program
             return 1;
         }
 
-        using var host = builder.Build();
+        await using var host = serveHost;
         var shutdownSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         ConsoleCancelEventHandler? cancelHandler = null;
 
@@ -1170,8 +1163,9 @@ public static class Program
         try
         {
             await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();
-            Console.WriteLine($"OmniRelay dispatcher '{dispatcher.ServiceName}' started.");
+            var dispatcher = host.Dispatcher;
+            var serviceName = dispatcher?.ServiceName ?? resolvedSection;
+            Console.WriteLine($"OmniRelay dispatcher '{serviceName}' started.");
 
             if (!string.IsNullOrWhiteSpace(readyFile))
             {
@@ -1199,7 +1193,7 @@ public static class Program
 
     [RequiresDynamicCode("Calls System.Text.Json.Serialization.JsonStringEnumConverter.JsonStringEnumConverter(JsonNamingPolicy, Boolean)")]
     [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
-    private static async Task<int> RunIntrospectAsync(string url, string format, string? timeoutOption)
+    internal static async Task<int> RunIntrospectAsync(string url, string format, string? timeoutOption)
     {
         var normalizedFormat = string.IsNullOrWhiteSpace(format) ? "text" : format.ToLowerInvariant();
         var timeout = TimeSpan.FromSeconds(10);
@@ -1210,7 +1204,7 @@ public static class Program
             return 1;
         }
 
-        using var httpClient = new HttpClient();
+        using var httpClient = CliRuntime.HttpClientFactory.CreateClient();
         httpClient.Timeout = Timeout.InfiniteTimeSpan;
 
         using var cts = new CancellationTokenSource(timeout);
@@ -1274,7 +1268,7 @@ public static class Program
         }
     }
 
-    private static bool TryBuildConfiguration(string[] configPaths, string[] setOverrides, out IConfigurationRoot configuration, out string? errorMessage)
+    internal static bool TryBuildConfiguration(string[] configPaths, string[] setOverrides, out IConfigurationRoot configuration, out string? errorMessage)
     {
         configuration = null!;
         errorMessage = null;
@@ -1336,25 +1330,21 @@ public static class Program
         }
     }
 
-    private static void TryWriteReadyFile(string path)
+    internal static void TryWriteReadyFile(string path)
     {
         try
         {
             var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            File.WriteAllText(path, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+            CliRuntime.FileSystem.EnsureDirectory(directory);
+            CliRuntime.FileSystem.WriteAllText(path, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Failed to write ready file '{path}': {ex.Message}");
+            CliRuntime.Console.WriteError($"Failed to write ready file '{path}': {ex.Message}");
         }
     }
 
-    private static async Task<int> RunRequestAsync(
+    internal static async Task<int> RunRequestAsync(
         string transport,
         string service,
         string procedure,
@@ -1420,7 +1410,7 @@ public static class Program
         };
     }
 
-    private static bool TryBuildRequestInvocation(
+    internal static bool TryBuildRequestInvocation(
         string transport,
         string service,
         string procedure,
@@ -1606,7 +1596,7 @@ public static class Program
         return true;
     }
 
-    private static async Task<int> RunBenchmarkAsync(
+    internal static async Task<int> RunBenchmarkAsync(
         string transport,
         string service,
         string procedure,
@@ -1746,7 +1736,7 @@ public static class Program
         return summary.Successes > 0 ? 0 : 1;
     }
 
-    private static async Task<int> ExecuteHttpRequestAsync(string? url, Request<ReadOnlyMemory<byte>> request, HttpClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
+    internal static async Task<int> ExecuteHttpRequestAsync(string? url, Request<ReadOnlyMemory<byte>> request, HttpClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -1760,7 +1750,7 @@ public static class Program
             return 1;
         }
 
-        using var httpClient = new HttpClient();
+        using var httpClient = CliRuntime.HttpClientFactory.CreateClient();
         var outbound = new HttpOutbound(httpClient, requestUri, runtimeOptions: runtimeOptions);
 
         try
@@ -1789,7 +1779,7 @@ public static class Program
         }
     }
 
-    private static async Task<int> ExecuteGrpcRequestAsync(string[] addresses, string remoteService, Request<ReadOnlyMemory<byte>> request, GrpcClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
+    internal static async Task<int> ExecuteGrpcRequestAsync(string[] addresses, string remoteService, Request<ReadOnlyMemory<byte>> request, GrpcClientRuntimeOptions? runtimeOptions, CancellationToken cancellationToken)
     {
         if (addresses.Length == 0)
         {
@@ -1809,12 +1799,12 @@ public static class Program
             uris.Add(uri);
         }
 
-        var outbound = new GrpcOutbound(uris, remoteService, clientRuntimeOptions: runtimeOptions);
+        await using var invoker = CliRuntime.GrpcInvokerFactory.Create(uris, remoteService, runtimeOptions);
 
         try
         {
-            await outbound.StartAsync(cancellationToken).ConfigureAwait(false);
-            var result = await outbound.CallAsync(request, cancellationToken).ConfigureAwait(false);
+            await invoker.StartAsync(cancellationToken).ConfigureAwait(false);
+            var result = await invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
 
             if (result.IsSuccess)
             {
@@ -1832,12 +1822,12 @@ public static class Program
         }
         finally
         {
-            await outbound.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
         }
     }
 
     [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
-    private static async Task<int> RunAutomationAsync(string scriptPath, bool dryRun, bool continueOnError)
+    internal static async Task<int> RunAutomationAsync(string scriptPath, bool dryRun, bool continueOnError)
     {
         if (string.IsNullOrWhiteSpace(scriptPath))
         {
@@ -2203,7 +2193,7 @@ public static class Program
         PrintMiddlewareLine("Duplex", snapshot.Middleware.InboundDuplex, snapshot.Middleware.OutboundDuplex);
     }
 
-    private static async Task<int> RunMeshLeadersStatusAsync(string baseUrl, string? scope, bool watch, string? timeoutOption)
+    internal static async Task<int> RunMeshLeadersStatusAsync(string baseUrl, string? scope, bool watch, string? timeoutOption)
     {
         var timeout = TimeSpan.FromSeconds(10);
         if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
@@ -2221,7 +2211,7 @@ public static class Program
     }
 
     [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
-    private static async Task<int> RunMeshLeadersSnapshotAsync(string baseUrl, string? scope, TimeSpan timeout)
+    internal static async Task<int> RunMeshLeadersSnapshotAsync(string baseUrl, string? scope, TimeSpan timeout)
     {
         Uri target;
         try
@@ -2234,7 +2224,8 @@ public static class Program
             return 1;
         }
 
-        using var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
         using var cts = new CancellationTokenSource(timeout);
 
         try
@@ -2259,7 +2250,7 @@ public static class Program
     }
 
     [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
-    private static async Task<int> RunMeshLeadersWatchAsync(string baseUrl, string? scope, TimeSpan timeout)
+    internal static async Task<int> RunMeshLeadersWatchAsync(string baseUrl, string? scope, TimeSpan timeout)
     {
         Uri target;
         try
@@ -2272,7 +2263,8 @@ public static class Program
             return 1;
         }
 
-        using var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
         using var request = new HttpRequestMessage(HttpMethod.Get, target);
         request.Headers.Accept.ParseAdd("text/event-stream");
 
@@ -3579,7 +3571,7 @@ public static class Program
         }
     }
 
-    private static bool TryParseDuration(string value, out TimeSpan duration)
+    internal static bool TryParseDuration(string value, out TimeSpan duration)
     {
         if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out duration))
         {
