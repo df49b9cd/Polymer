@@ -55,7 +55,7 @@ jobs:
 
       - name: Report test results
         if: ${{ always() && steps.extract-artifacts.outcome == 'success' }}
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         with:
           name: .NET Tests
           path: artifacts/test-results/**/*.trx
