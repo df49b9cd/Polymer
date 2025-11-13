@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ARG DOTNET_VERSION=10.0.100
-ARG TEST_PROJECTS="tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj"
+ARG TEST_PROJECTS="tests/OmniRelay.Cli.UnitTests/OmniRelay.Cli.UnitTests.csproj tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj"
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble AS base
 
