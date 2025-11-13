@@ -10,10 +10,12 @@ RUN apk add --upgrade --no-cache \
         bash \
         coreutils \
         curl \
+        gcompat \
         icu-data-full \
         icu-libs \
         iputils \
         krb5-libs \
+        libc6-compat \
         libmsquic \
         lldb \
         llvm \
