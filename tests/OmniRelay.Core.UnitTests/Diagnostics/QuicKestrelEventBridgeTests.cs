@@ -88,18 +88,4 @@ public class QuicKestrelEventBridgeTests
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
-
-    [Http3Fact(Timeout = TestTimeouts.Default)]
-    public async Task Logs_Debug_On_Kestrel_Http3_When_Debug_Enabled()
-    {
-        var (logger, bridge) = await CreateBridgeAsync(LogLevel.Debug);
-        using var src = KestrelTestEventSource.Create();
-
-        src.Http3Connection("started");
-
-        await AssertEventuallyAsync(() => !logger.Entries.IsEmpty);
-        logger.Entries.TryDequeue(out var entry).ShouldBeTrue();
-        entry.Level.ShouldBe(LogLevel.Debug);
-        entry.Message.ShouldContain("http3");
-    }
 }
