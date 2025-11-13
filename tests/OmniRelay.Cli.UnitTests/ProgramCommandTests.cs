@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Net;
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using OmniRelay.Cli.UnitTests.Infrastructure;
@@ -487,7 +488,18 @@ public sealed class ProgramCommandTests : CliTestBase
     {
         using var actualDocument = JsonDocument.Parse(File.ReadAllText(actualPath));
         using var expectedDocument = JsonDocument.Parse(ReadGoldenFile(goldenFileName));
-        actualDocument.RootElement.ToString().ShouldBe(expectedDocument.RootElement.ToString(), $"Golden file '{goldenFileName}' mismatch.");
+        var actualJson = Canonicalize(actualDocument.RootElement);
+        var expectedJson = Canonicalize(expectedDocument.RootElement);
+        actualJson.ShouldBe(expectedJson, $"Golden file '{goldenFileName}' mismatch.");
+    }
+
+    private static string Canonicalize(JsonElement element)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        element.WriteTo(writer);
+        writer.Flush();
+        return Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private static string ReadGoldenFile(string fileName)

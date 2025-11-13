@@ -144,7 +144,7 @@ public sealed class ProgramHelperTests : CliTestBase
         error.ShouldBeNull();
 
         var payloadText = Encoding.UTF8.GetString(invocation.Request.Body.Span);
-        payloadText.ShouldBe("{\n  \"message\": \"hello\"\n}");
+        payloadText.ReplaceLineEndings("\n").ShouldBe("{\n  \"message\": \"hello\"\n}");
 
         invocation.Request.Meta.Encoding.ShouldBe("application/json");
         invocation.Request.Meta.Headers["Content-Type"].ShouldBe("application/json");
