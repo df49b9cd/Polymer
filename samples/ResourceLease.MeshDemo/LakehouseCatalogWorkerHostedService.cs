@@ -4,25 +4,18 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-internal sealed class LakehouseCatalogWorkerHostedService : BackgroundService
+internal sealed class LakehouseCatalogWorkerHostedService(
+    ResourceLeaseHttpClient client,
+    IOptions<MeshDemoOptions> options,
+    LakehouseCatalogState catalogState,
+    ILogger<LakehouseCatalogWorkerHostedService> logger)
+    : BackgroundService
 {
-    private readonly ResourceLeaseHttpClient _client;
-    private readonly MeshDemoOptions _options;
-    private readonly LakehouseCatalogState _catalogState;
-    private readonly ILogger<LakehouseCatalogWorkerHostedService> _logger;
+    private readonly ResourceLeaseHttpClient _client = client;
+    private readonly MeshDemoOptions _options = options.Value;
+    private readonly LakehouseCatalogState _catalogState = catalogState;
+    private readonly ILogger<LakehouseCatalogWorkerHostedService> _logger = logger;
     private readonly Random _random = new();
-
-    public LakehouseCatalogWorkerHostedService(
-        ResourceLeaseHttpClient client,
-        IOptions<MeshDemoOptions> options,
-        LakehouseCatalogState catalogState,
-        ILogger<LakehouseCatalogWorkerHostedService> logger)
-    {
-        _client = client;
-        _options = options.Value;
-        _catalogState = catalogState;
-        _logger = logger;
-    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

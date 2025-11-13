@@ -13,13 +13,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class Http3OrHigherFallbackTests : TransportIntegrationTest
+public sealed class Http3OrHigherFallbackTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public Http3OrHigherFallbackTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 45_000)]
     public async Task HttpInbound_WithHttp3Enabled_RequestVersionOrHigher_UpgradesToHttp3()
     {

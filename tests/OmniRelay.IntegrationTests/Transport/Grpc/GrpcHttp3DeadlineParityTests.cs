@@ -16,13 +16,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
 
-public class GrpcHttp3DeadlineParityTests : TransportIntegrationTest
+public class GrpcHttp3DeadlineParityTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public GrpcHttp3DeadlineParityTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 30_000)]
     public async Task Grpc_Http3_DeadlineExceeded_Matches_Http2()
     {

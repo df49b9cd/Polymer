@@ -7,10 +7,13 @@ namespace OmniRelay.Core.Gossip;
 /// <summary>
 /// Loads and refreshes the X509 certificate used for gossip TLS.
 /// </summary>
-public sealed class MeshGossipCertificateProvider : IDisposable
+public sealed class MeshGossipCertificateProvider(
+    MeshGossipOptions options,
+    ILogger<MeshGossipCertificateProvider> logger)
+    : IDisposable
 {
-    private readonly MeshGossipOptions _options;
-    private readonly ILogger<MeshGossipCertificateProvider> _logger;
+    private readonly MeshGossipOptions _options = options ?? throw new ArgumentNullException(nameof(options));
+    private readonly ILogger<MeshGossipCertificateProvider> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly object _lock = new();
     private X509Certificate2? _certificate;
     private DateTimeOffset _lastLoaded;
@@ -20,12 +23,6 @@ public sealed class MeshGossipCertificateProvider : IDisposable
             LogLevel.Information,
             new EventId(1, "MeshGossipCertificateLoaded"),
             "Mesh gossip certificate loaded from {Path}. Subject={Subject}");
-
-    public MeshGossipCertificateProvider(MeshGossipOptions options, ILogger<MeshGossipCertificateProvider> logger)
-    {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(_options.Tls.CertificatePath) ||

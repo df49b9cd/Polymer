@@ -9,13 +9,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class HttpsBindingTests : TransportIntegrationTest
+public sealed class HttpsBindingTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public HttpsBindingTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30000)]
     public async Task Https_WithCertificate_BindsAndServes()
     {

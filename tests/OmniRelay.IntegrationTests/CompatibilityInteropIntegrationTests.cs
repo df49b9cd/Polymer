@@ -734,17 +734,12 @@ public sealed class CompatibilityInteropIntegrationTests
     }
 }
 
-internal sealed class CapturingUnaryOutbound : IUnaryOutbound
+internal sealed class CapturingUnaryOutbound(string clusterLabel, TaskCompletionSource<RequestMeta> capture)
+    : IUnaryOutbound
 {
-    private readonly string _clusterLabel;
+    private readonly string _clusterLabel = clusterLabel;
 
-    public CapturingUnaryOutbound(string clusterLabel, TaskCompletionSource<RequestMeta> capture)
-    {
-        _clusterLabel = clusterLabel;
-        Capture = capture;
-    }
-
-    public TaskCompletionSource<RequestMeta> Capture { get; }
+    public TaskCompletionSource<RequestMeta> Capture { get; } = capture;
 
     public ValueTask StartAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 

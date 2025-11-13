@@ -16,13 +16,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
 
-public sealed class GrpcOutboundHttp3ClientTests : TransportIntegrationTest
+public sealed class GrpcOutboundHttp3ClientTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public GrpcOutboundHttp3ClientTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 45_000)]
     public async Task GrpcOutbound_WithHttp3Enabled_UsesHttp3()
     {

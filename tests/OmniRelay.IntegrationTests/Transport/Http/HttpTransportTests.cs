@@ -13,13 +13,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport;
 
-public sealed class HttpTransportTests : TransportIntegrationTest
+public sealed class HttpTransportTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public HttpTransportTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30000)]
     public async Task UnaryRoundtrip_EncodesAndDecodesPayload()
     {

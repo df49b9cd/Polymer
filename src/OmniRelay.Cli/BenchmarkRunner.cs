@@ -431,12 +431,13 @@ internal static class BenchmarkRunner
         }
     }
 
-    private sealed class GrpcRequestInvoker : IRequestInvoker
+    private sealed class GrpcRequestInvoker(
+        IReadOnlyList<Uri> addresses,
+        string service,
+        GrpcClientRuntimeOptions? runtimeOptions)
+        : IRequestInvoker
     {
-        private readonly IGrpcInvoker _invoker;
-
-        public GrpcRequestInvoker(IReadOnlyList<Uri> addresses, string service, GrpcClientRuntimeOptions? runtimeOptions) =>
-            _invoker = CliRuntime.GrpcInvokerFactory.Create(addresses, service, runtimeOptions);
+        private readonly IGrpcInvoker _invoker = CliRuntime.GrpcInvokerFactory.Create(addresses, service, runtimeOptions);
 
         public Task StartAsync(CancellationToken cancellationToken) =>
             _invoker.StartAsync(cancellationToken).AsTask();

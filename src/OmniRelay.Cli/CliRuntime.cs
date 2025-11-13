@@ -102,12 +102,10 @@ internal sealed class DefaultServeHostFactory : IServeHostFactory
         return new DefaultServeHost(host);
     }
 
-    private sealed class DefaultServeHost : IServeHost
+    private sealed class DefaultServeHost(IHost host) : IServeHost
     {
-        private readonly IHost _host;
+        private readonly IHost _host = host;
         private Dispatcher.Dispatcher? _dispatcher;
-
-        public DefaultServeHost(IHost host) => _host = host;
 
         public Dispatcher.Dispatcher? Dispatcher => _dispatcher ??= _host.Services.GetRequiredService<Dispatcher.Dispatcher>();
 
@@ -153,11 +151,9 @@ internal sealed class DefaultGrpcInvokerFactory : IGrpcInvokerFactory
         return new GrpcInvoker(outbound);
     }
 
-    private sealed class GrpcInvoker : IGrpcInvoker
+    private sealed class GrpcInvoker(GrpcOutbound outbound) : IGrpcInvoker
     {
-        private readonly GrpcOutbound _outbound;
-
-        public GrpcInvoker(GrpcOutbound outbound) => _outbound = outbound;
+        private readonly GrpcOutbound _outbound = outbound;
 
         public ValueTask StartAsync(CancellationToken cancellationToken) => _outbound.StartAsync(cancellationToken);
 

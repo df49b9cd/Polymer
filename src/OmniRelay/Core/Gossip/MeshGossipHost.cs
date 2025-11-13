@@ -653,11 +653,9 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         public static partial void DisposalFailed(ILogger logger, Exception exception);
     }
 
-    private sealed class ForwardingLoggerProvider : ILoggerProvider
+    private sealed class ForwardingLoggerProvider(ILogger logger) : ILoggerProvider
     {
-        private readonly ILogger _logger;
-
-        public ForwardingLoggerProvider(ILogger logger) => _logger = logger;
+        private readonly ILogger _logger = logger;
 
         public ILogger CreateLogger(string categoryName) => new ForwardingLogger(_logger);
 
@@ -665,11 +663,9 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
         }
 
-        private sealed class ForwardingLogger : ILogger
+        private sealed class ForwardingLogger(ILogger inner) : ILogger
         {
-            private readonly ILogger _inner;
-
-            public ForwardingLogger(ILogger inner) => _inner = inner;
+            private readonly ILogger _inner = inner;
 
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull => _inner.BeginScope(state);
 

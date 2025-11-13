@@ -289,11 +289,9 @@ public sealed class MeshGossipHostTests
         return task;
     }
 
-    private sealed class TestTimeProvider : TimeProvider
+    private sealed class TestTimeProvider(DateTimeOffset start) : TimeProvider
     {
-        private DateTimeOffset _current;
-
-        public TestTimeProvider(DateTimeOffset start) => _current = start;
+        private DateTimeOffset _current = start;
 
         public override DateTimeOffset GetUtcNow() => _current;
 

@@ -5,10 +5,9 @@ namespace OmniRelay.Core.UnitTests.Peers;
 
 public class PeerCircuitBreakerTests
 {
-    private sealed class FakeTimeProvider : TimeProvider
+    private sealed class FakeTimeProvider(DateTimeOffset start) : TimeProvider
     {
-        private DateTimeOffset _now;
-        public FakeTimeProvider(DateTimeOffset start) => _now = start;
+        private DateTimeOffset _now = start;
         public override long GetTimestamp() => System.GetTimestamp();
         public override DateTimeOffset GetUtcNow() => _now;
         public void Advance(TimeSpan by) => _now = _now.Add(by);

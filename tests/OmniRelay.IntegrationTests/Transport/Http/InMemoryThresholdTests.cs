@@ -10,13 +10,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class InMemoryThresholdTests : TransportIntegrationTest
+public sealed class InMemoryThresholdTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public InMemoryThresholdTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30000)]
     public async Task ContentLengthAboveThreshold_Returns429()
     {

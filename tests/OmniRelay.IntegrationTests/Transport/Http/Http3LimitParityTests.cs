@@ -17,13 +17,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class Http3LimitParityTests : TransportIntegrationTest
+public sealed class Http3LimitParityTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public Http3LimitParityTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 60_000)]
     public async Task HttpInbound_WithHttp3_ChunkedPayloadOverLimit_Returns429WithProtocolHeader()
     {

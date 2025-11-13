@@ -9,13 +9,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class SseBehaviorTests : TransportIntegrationTest
+public sealed class SseBehaviorTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public SseBehaviorTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30000)]
     public async Task MissingAcceptHeader_ForSse_Returns406()
     {

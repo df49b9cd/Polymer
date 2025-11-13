@@ -15,13 +15,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport;
 
-public sealed class HttpInboundLifecycleTests : TransportIntegrationTest
+public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public HttpInboundLifecycleTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30_000)]
     public async Task StopAsync_WaitsForActiveRequestsAndRejectsNewOnes()
     {

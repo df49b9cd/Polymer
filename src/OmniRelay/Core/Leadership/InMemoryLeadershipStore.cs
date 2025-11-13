@@ -3,15 +3,10 @@ using System.Collections.Concurrent;
 namespace OmniRelay.Core.Leadership;
 
 /// <summary>Default leadership store backed by process memory. Useful for dev clusters and unit tests.</summary>
-public sealed class InMemoryLeadershipStore : ILeadershipStore
+public sealed class InMemoryLeadershipStore(TimeProvider? timeProvider = null) : ILeadershipStore
 {
     private readonly ConcurrentDictionary<string, ScopeLeaseState> _scopes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly TimeProvider _timeProvider;
-
-    public InMemoryLeadershipStore(TimeProvider? timeProvider = null)
-    {
-        _timeProvider = timeProvider ?? TimeProvider.System;
-    }
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public ValueTask<LeadershipLeaseRecord?> GetAsync(string scope, CancellationToken cancellationToken)
     {

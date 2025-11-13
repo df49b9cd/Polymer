@@ -14,13 +14,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class Http3FallbackErrorTests : TransportIntegrationTest
+public sealed class Http3FallbackErrorTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public Http3FallbackErrorTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 45_000)]
     public async Task MissingProcedure_Http3AndHttp2ResponsesMatch()
     {
@@ -170,14 +165,10 @@ public sealed class Http3FallbackErrorTests : TransportIntegrationTest
         };
     }
 
-    private sealed class Http3VersionHandler : DelegatingHandler
+    private sealed class Http3VersionHandler(HttpMessageHandler inner, HttpVersionPolicy policy)
+        : DelegatingHandler(inner)
     {
-        private readonly HttpVersionPolicy _policy;
-
-        public Http3VersionHandler(HttpMessageHandler inner, HttpVersionPolicy policy) : base(inner)
-        {
-            _policy = policy;
-        }
+        private readonly HttpVersionPolicy _policy = policy;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -213,12 +204,8 @@ public sealed class Http3FallbackErrorTests : TransportIntegrationTest
         };
     }
 
-    private sealed class Http2VersionHandler : DelegatingHandler
+    private sealed class Http2VersionHandler(HttpMessageHandler inner) : DelegatingHandler(inner)
     {
-        public Http2VersionHandler(HttpMessageHandler inner) : base(inner)
-        {
-        }
-
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             request.Version = HttpVersion.Version20;

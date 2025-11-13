@@ -2,11 +2,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace OmniRelay.Cli.UnitTests.Infrastructure;
 
-internal sealed class FakeServeHostFactory : IServeHostFactory
+internal sealed class FakeServeHostFactory(FakeServeHost? host = null) : IServeHostFactory
 {
-    private readonly FakeServeHost _host;
-
-    public FakeServeHostFactory(FakeServeHost? host = null) => _host = host ?? new FakeServeHost();
+    private readonly FakeServeHost _host = host ?? new FakeServeHost();
 
     public FakeServeHost Host => _host;
 
@@ -75,23 +73,19 @@ internal sealed class FakeCliConsole : ICliConsole
     public void WriteLine(string message) => Lines.Add(message);
 }
 
-internal sealed class FakeHttpClientFactory : IHttpClientFactory
+internal sealed class FakeHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory
 {
-    private readonly HttpMessageHandler _handler;
-
-    public FakeHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
+    private readonly HttpMessageHandler _handler = handler;
 
     public HttpClient CreateClient() => new HttpClient(_handler, disposeHandler: false);
 }
 
-internal sealed class StubHttpMessageHandler : HttpMessageHandler
+internal sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory)
+    : HttpMessageHandler
 {
-    private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory;
+    private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory = responseFactory;
 
     public List<HttpRequestMessage> Requests { get; } = new();
-
-    public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) =>
-        _responseFactory = responseFactory;
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

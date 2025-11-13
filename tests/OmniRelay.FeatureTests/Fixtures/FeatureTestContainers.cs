@@ -6,19 +6,14 @@ namespace OmniRelay.FeatureTests.Fixtures;
 /// <summary>
 /// Lazily provisions disposable infrastructure dependencies via Testcontainers.
 /// </summary>
-public sealed class FeatureTestContainers : IAsyncDisposable
+public sealed class FeatureTestContainers(FeatureTestContainerOptions? options = null) : IAsyncDisposable
 {
-    private readonly FeatureTestContainerOptions _options;
+    private readonly FeatureTestContainerOptions _options = options ?? FeatureTestContainerOptions.FromEnvironment();
     private readonly List<IContainer> _managed = new();
     private IContainer? _postgres;
     private IContainer? _eventStore;
     private IContainer? _objectStorage;
     private IContainer? _messageBus;
-
-    public FeatureTestContainers(FeatureTestContainerOptions? options = null)
-    {
-        _options = options ?? FeatureTestContainerOptions.FromEnvironment();
-    }
 
     public bool ContainersEnabled => _options.ContainersEnabled;
 

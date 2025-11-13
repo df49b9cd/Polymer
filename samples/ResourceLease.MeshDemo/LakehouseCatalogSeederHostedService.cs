@@ -5,22 +5,19 @@ using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;
 
-internal sealed class LakehouseCatalogSeederHostedService : BackgroundService
+internal sealed class LakehouseCatalogSeederHostedService(
+    ResourceLeaseHttpClient client,
+    IOptions<MeshDemoOptions> options,
+    ILogger<LakehouseCatalogSeederHostedService> logger)
+    : BackgroundService
 {
-    private readonly ResourceLeaseHttpClient _client;
-    private readonly MeshDemoOptions _options;
-    private readonly ILogger<LakehouseCatalogSeederHostedService> _logger;
+    private readonly ResourceLeaseHttpClient _client = client;
+    private readonly MeshDemoOptions _options = options.Value;
+    private readonly ILogger<LakehouseCatalogSeederHostedService> _logger = logger;
     private readonly Random _random = new();
     private readonly List<CatalogTable> _tables = [];
     private readonly object _lock = new();
     private int _tableCounter;
-
-    public LakehouseCatalogSeederHostedService(ResourceLeaseHttpClient client, IOptions<MeshDemoOptions> options, ILogger<LakehouseCatalogSeederHostedService> logger)
-    {
-        _client = client;
-        _options = options.Value;
-        _logger = logger;
-    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -213,20 +210,13 @@ internal sealed class LakehouseCatalogSeederHostedService : BackgroundService
         return $"ALTER COLUMN {mutated}";
     }
 
-    private sealed class CatalogTable
+    private sealed class CatalogTable(string catalog, string database, string table)
     {
-        public CatalogTable(string catalog, string database, string table)
-        {
-            Catalog = catalog;
-            Database = database;
-            Table = table;
-        }
+        public string Catalog { get; } = catalog;
 
-        public string Catalog { get; }
+        public string Database { get; } = database;
 
-        public string Database { get; }
-
-        public string Table { get; }
+        public string Table { get; } = table;
 
         public int Version { get; set; }
 

@@ -41,20 +41,14 @@ public sealed class PeerListCoordinatorTests
     private static IPeer? SelectFirst(IReadOnlyList<IPeer> peers) =>
         peers.Count > 0 ? peers[0] : null;
 
-    private sealed class TestPeer : IPeer
+    private sealed class TestPeer(string identifier, PeerState state, int maxConcurrency = int.MaxValue)
+        : IPeer
     {
-        private readonly int _maxConcurrency;
-        private readonly PeerState _state;
+        private readonly int _maxConcurrency = maxConcurrency;
+        private readonly PeerState _state = state;
         private int _inflight;
 
-        public TestPeer(string identifier, PeerState state, int maxConcurrency = int.MaxValue)
-        {
-            Identifier = identifier;
-            _state = state;
-            _maxConcurrency = maxConcurrency;
-        }
-
-        public string Identifier { get; }
+        public string Identifier { get; } = identifier;
 
         public PeerStatus Status => new(_state, _inflight, null, null);
 

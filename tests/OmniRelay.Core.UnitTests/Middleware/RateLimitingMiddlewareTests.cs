@@ -307,17 +307,12 @@ public class RateLimitingMiddlewareTests
         }
     }
 
-    private sealed class ThrowingStreamCall : IStreamCall
+    private sealed class ThrowingStreamCall(RequestMeta meta) : IStreamCall
     {
         private readonly Channel<ReadOnlyMemory<byte>> _channel = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
 
-        public ThrowingStreamCall(RequestMeta meta)
-        {
-            RequestMeta = meta;
-        }
-
         public StreamDirection Direction => StreamDirection.Server;
-        public RequestMeta RequestMeta { get; }
+        public RequestMeta RequestMeta { get; } = meta;
         public ResponseMeta ResponseMeta { get; } = new();
         public StreamCallContext Context { get; } = new(StreamDirection.Server);
         public ChannelWriter<ReadOnlyMemory<byte>> Requests => _channel.Writer;

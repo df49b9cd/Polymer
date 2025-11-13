@@ -3,13 +3,8 @@ using Xunit;
 
 namespace OmniRelay.IntegrationTests.Support;
 
-public abstract class TransportIntegrationTest : IntegrationTest
+public abstract class TransportIntegrationTest(ITestOutputHelper output) : IntegrationTest(output)
 {
-    protected TransportIntegrationTest(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     protected Task<DispatcherHost> StartDispatcherAsync(
         string name,
         Dispatcher.Dispatcher dispatcher,

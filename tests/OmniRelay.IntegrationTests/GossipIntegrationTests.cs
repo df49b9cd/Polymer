@@ -7,18 +7,12 @@ using Xunit;
 
 namespace OmniRelay.IntegrationTests;
 
-public sealed class GossipIntegrationTests : IntegrationTest
+public sealed class GossipIntegrationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
     private const string LoopbackAddress = "127.0.0.1";
     private static readonly TimeSpan ConvergenceTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan DepartureTimeout = TimeSpan.FromSeconds(20);
-    private readonly TestCertificateInfo _certificate;
-
-    public GossipIntegrationTests(ITestOutputHelper output)
-        : base(output)
-    {
-        _certificate = TestCertificateFactory.EnsureDeveloperCertificateInfo("CN=integration-gossip");
-    }
+    private readonly TestCertificateInfo _certificate = TestCertificateFactory.EnsureDeveloperCertificateInfo("CN=integration-gossip");
 
     [Fact(Timeout = 60_000)]
     public async Task GossipMesh_MutualSeeds_ConvergesClusterView()

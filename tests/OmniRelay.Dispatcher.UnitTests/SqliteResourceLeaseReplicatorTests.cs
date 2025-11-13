@@ -57,12 +57,7 @@ public sealed class SqliteResourceLeaseReplicatorTests
 
     private sealed class TempFile : IDisposable
     {
-        public TempFile()
-        {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
-        }
-
-        public string Path { get; }
+        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
 
         public void Dispose()
         {

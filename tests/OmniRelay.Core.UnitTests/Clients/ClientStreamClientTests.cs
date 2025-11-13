@@ -20,20 +20,14 @@ public class ClientStreamClientTests
         public string? S { get; init; }
     }
 
-    private sealed class TestClientStreamTransportCall : IClientStreamTransportCall
+    private sealed class TestClientStreamTransportCall(RequestMeta meta) : IClientStreamTransportCall
     {
         private readonly List<ReadOnlyMemory<byte>> _writes = [];
         private readonly TaskCompletionSource<Result<Response<ReadOnlyMemory<byte>>>> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public TestClientStreamTransportCall(RequestMeta meta)
-        {
-            RequestMeta = meta;
-            ResponseMeta = new ResponseMeta();
-        }
+        public RequestMeta RequestMeta { get; } = meta;
 
-        public RequestMeta RequestMeta { get; }
-
-        public ResponseMeta ResponseMeta { get; set; }
+        public ResponseMeta ResponseMeta { get; set; } = new();
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Response => new(_tcs.Task);
         public IReadOnlyList<ReadOnlyMemory<byte>> Writes => _writes;

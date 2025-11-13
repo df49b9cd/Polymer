@@ -10,14 +10,9 @@ namespace OmniRelay.Core.UnitTests.Middleware;
 
 public class RpcLoggingMiddlewareTests
 {
-    private sealed class TestLogger<T> : ILogger<T>
+    private sealed class TestLogger<T>(Func<LogLevel, bool>? isEnabled = null) : ILogger<T>
     {
-        private readonly Func<LogLevel, bool> _isEnabled;
-
-        public TestLogger(Func<LogLevel, bool>? isEnabled = null)
-        {
-            _isEnabled = isEnabled ?? (_ => true);
-        }
+        private readonly Func<LogLevel, bool> _isEnabled = isEnabled ?? (_ => true);
 
         public ConcurrentQueue<(LogLevel level, string message)> Entries { get; } = new();
 

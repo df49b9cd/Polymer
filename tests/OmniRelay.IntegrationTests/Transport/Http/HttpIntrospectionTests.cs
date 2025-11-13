@@ -9,13 +9,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport;
 
-public sealed class HttpIntrospectionTests : TransportIntegrationTest
+public sealed class HttpIntrospectionTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public HttpIntrospectionTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30_000)]
     public async Task IntrospectionEndpoint_ReportsDispatcherState()
     {

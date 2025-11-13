@@ -15,13 +15,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
 
-public sealed class GrpcDiscoveryPreferenceTests : TransportIntegrationTest
+public sealed class GrpcDiscoveryPreferenceTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public GrpcDiscoveryPreferenceTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 60_000)]
     public async Task Prefer_Http3_Endpoints_When_Available()
     {

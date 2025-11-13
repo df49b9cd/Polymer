@@ -591,14 +591,9 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
     private static bool IsFatal(Exception ex) =>
         ex is OutOfMemoryException or StackOverflowException;
 
-    private sealed class ScopeState
+    private sealed class ScopeState(LeadershipScope scope)
     {
-        public ScopeState(LeadershipScope scope)
-        {
-            Scope = scope;
-        }
-
-        public LeadershipScope Scope { get; }
+        public LeadershipScope Scope { get; } = scope;
 
         public LeadershipLeaseRecord? Lease;
 

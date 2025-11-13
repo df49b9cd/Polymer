@@ -15,13 +15,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class Http3NegotiationTests : TransportIntegrationTest
+public sealed class Http3NegotiationTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public Http3NegotiationTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 45000)]
     public async Task HttpInbound_WithHttp3Enabled_AllowsHttp3Requests()
     {

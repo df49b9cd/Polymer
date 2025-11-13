@@ -67,16 +67,11 @@ public sealed class BackpressureAwareRateLimiter
 /// <summary>
 /// Sample listener that toggles <see cref="BackpressureAwareRateLimiter"/> and logs transitions.
 /// </summary>
-public sealed class RateLimitingBackpressureListener : IResourceLeaseBackpressureListener
+public sealed class RateLimitingBackpressureListener(BackpressureAwareRateLimiter rateLimiter, ILogger? logger = null)
+    : IResourceLeaseBackpressureListener
 {
-    private readonly BackpressureAwareRateLimiter _rateLimiter;
-    private readonly ILogger? _logger;
-
-    public RateLimitingBackpressureListener(BackpressureAwareRateLimiter rateLimiter, ILogger? logger = null)
-    {
-        _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
-        _logger = logger;
-    }
+    private readonly BackpressureAwareRateLimiter _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
+    private readonly ILogger? _logger = logger;
 
     public ValueTask OnBackpressureChanged(ResourceLeaseBackpressureSignal signal, CancellationToken cancellationToken)
     {

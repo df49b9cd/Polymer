@@ -1,14 +1,9 @@
 namespace OmniRelay.Cli.UnitTests.Infrastructure;
 
-internal sealed class CommandTestHarness
+internal sealed class CommandTestHarness(RootCommand rootCommand)
 {
-    private readonly RootCommand _rootCommand;
+    private readonly RootCommand _rootCommand = rootCommand ?? throw new ArgumentNullException(nameof(rootCommand));
     private readonly ParserConfiguration _parserConfiguration = new();
-
-    public CommandTestHarness(RootCommand rootCommand)
-    {
-        _rootCommand = rootCommand ?? throw new ArgumentNullException(nameof(rootCommand));
-    }
 
     public async Task<CommandInvocationResult> InvokeAsync(params string[] args)
     {

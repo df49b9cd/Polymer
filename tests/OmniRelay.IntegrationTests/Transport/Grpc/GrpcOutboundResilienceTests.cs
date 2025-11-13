@@ -13,13 +13,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
 
-public sealed class GrpcOutboundResilienceTests : TransportIntegrationTest
+public sealed class GrpcOutboundResilienceTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public GrpcOutboundResilienceTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 60_000)]
     public async Task Breaker_Trips_On_Http3_Handshake_Failures()
     {

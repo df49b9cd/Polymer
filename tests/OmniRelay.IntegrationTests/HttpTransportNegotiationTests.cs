@@ -15,13 +15,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
 
-public sealed class HttpTransportNegotiationTests : IntegrationTest
+public sealed class HttpTransportNegotiationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
-    public HttpTransportNegotiationTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30_000)]
     public async Task HttpInbound_WithHttps_AcceptsHttp11()
     {

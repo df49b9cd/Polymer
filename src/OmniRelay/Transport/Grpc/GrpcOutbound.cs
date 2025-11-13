@@ -1071,16 +1071,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             }
         }
 
-        private sealed class PeerSubscription : IDisposable
+        private sealed class PeerSubscription(GrpcPeer owner, IPeerSubscriber subscriber) : IDisposable
         {
-            private GrpcPeer? _owner;
-            private IPeerSubscriber? _subscriber;
-
-            public PeerSubscription(GrpcPeer owner, IPeerSubscriber subscriber)
-            {
-                _owner = owner;
-                _subscriber = subscriber;
-            }
+            private GrpcPeer? _owner = owner;
+            private IPeerSubscriber? _subscriber = subscriber;
 
             public void Dispose()
             {

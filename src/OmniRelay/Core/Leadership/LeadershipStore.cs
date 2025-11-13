@@ -29,20 +29,16 @@ public sealed record LeadershipLeaseRecord(
 }
 
 /// <summary>Result returned by the leadership store when acquire/renew actions complete.</summary>
-public readonly struct LeadershipLeaseResult
+public readonly struct LeadershipLeaseResult(
+    bool succeeded,
+    LeadershipLeaseRecord? lease,
+    LeadershipLeaseFailureReason? failureReason)
 {
-    public LeadershipLeaseResult(bool succeeded, LeadershipLeaseRecord? lease, LeadershipLeaseFailureReason? failureReason)
-    {
-        Succeeded = succeeded;
-        Lease = lease;
-        FailureReason = failureReason;
-    }
+    public bool Succeeded { get; } = succeeded;
 
-    public bool Succeeded { get; }
+    public LeadershipLeaseRecord? Lease { get; } = lease;
 
-    public LeadershipLeaseRecord? Lease { get; }
-
-    public LeadershipLeaseFailureReason? FailureReason { get; }
+    public LeadershipLeaseFailureReason? FailureReason { get; } = failureReason;
 
     public static LeadershipLeaseResult Success(LeadershipLeaseRecord lease) => new(true, lease, null);
 

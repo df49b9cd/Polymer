@@ -8,13 +8,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class HeaderValidationTests : TransportIntegrationTest
+public sealed class HeaderValidationTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public HeaderValidationTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30000)]
     public async Task MissingRpcProcedureHeader_Returns400()
     {

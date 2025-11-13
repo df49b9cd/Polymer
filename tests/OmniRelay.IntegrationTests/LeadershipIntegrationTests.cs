@@ -9,17 +9,12 @@ using Xunit;
 
 namespace OmniRelay.IntegrationTests;
 
-public sealed class LeadershipIntegrationTests : IntegrationTest
+public sealed class LeadershipIntegrationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
     private static readonly string ScopeId = LeadershipScope.GlobalControl.ScopeId;
     private static readonly TimeSpan ElectionTimeout = TimeSpan.FromSeconds(15);
     // CI containers can be slower to surface the renewed lease, so give them more time.
     private readonly TimeSpan _renewalTimeout = TimeSpan.FromSeconds(20);
-
-    public LeadershipIntegrationTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
 
     [Fact(Timeout = 60_000)]
     public async Task LeadershipCoordinator_SharedStore_ElectsSingleLeaderAndRenews()

@@ -29,13 +29,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport;
 
-public partial class GrpcTransportTests : TransportIntegrationTest
+public partial class GrpcTransportTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public GrpcTransportTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     static GrpcTransportTests()
     {
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);

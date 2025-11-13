@@ -25,13 +25,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
 
-public class GrpcHttp3NegotiationTests : TransportIntegrationTest
+public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public GrpcHttp3NegotiationTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 45_000)]
     public async Task GrpcInbound_WithHttp3Enabled_ExecutesInterceptorsOverHttp3()
     {
@@ -859,14 +854,10 @@ public class GrpcHttp3NegotiationTests : TransportIntegrationTest
     private static HttpMessageHandler CreateHttp3Handler(HttpVersionPolicy policy) =>
         new Http3VersionHandler(CreateHttp3SocketsHandler(), policy);
 
-    private sealed class Http3VersionHandler : DelegatingHandler
+    private sealed class Http3VersionHandler(HttpMessageHandler inner, HttpVersionPolicy policy)
+        : DelegatingHandler(inner)
     {
-        private readonly HttpVersionPolicy _policy;
-
-        public Http3VersionHandler(HttpMessageHandler inner, HttpVersionPolicy policy) : base(inner)
-        {
-            _policy = policy;
-        }
+        private readonly HttpVersionPolicy _policy = policy;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {

@@ -114,9 +114,9 @@ public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
     private PeerLeaseHealthState GetOrCreateState(string peerId) =>
         _states.GetOrAdd(peerId, static id => new PeerLeaseHealthState(id));
 
-    private sealed class PeerLeaseHealthState
+    private sealed class PeerLeaseHealthState(string peerId)
     {
-        private readonly string _peerId;
+        private readonly string _peerId = peerId;
         private readonly object _lock = new();
         private readonly Dictionary<Guid, PeerLeaseHandle> _activeLeases = [];
         private ImmutableDictionary<string, string> _metadata = [];
@@ -124,11 +124,6 @@ public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
         private DateTimeOffset? _lastDisconnect;
         private bool _isDisconnected;
         private int _pendingReassignments;
-
-        public PeerLeaseHealthState(string peerId)
-        {
-            _peerId = peerId;
-        }
 
         public void RecordAssignment(PeerLeaseHandle handle, DateTimeOffset observedAt, string? resourceType, string? resourceId)
         {

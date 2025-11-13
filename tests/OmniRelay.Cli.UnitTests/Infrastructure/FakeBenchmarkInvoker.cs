@@ -3,22 +3,16 @@ using OmniRelay.Core;
 
 namespace OmniRelay.Cli.UnitTests.Infrastructure;
 
-internal sealed class FakeBenchmarkInvoker : BenchmarkRunner.IRequestInvoker
+internal sealed class FakeBenchmarkInvoker(TimeSpan? delay = null, bool shouldFail = false, string? errorMessage = null)
+    : BenchmarkRunner.IRequestInvoker
 {
-    private readonly TimeSpan _delay;
-    private readonly bool _shouldFail;
-    private readonly string _errorMessage;
+    private readonly TimeSpan _delay = delay ?? TimeSpan.Zero;
+    private readonly bool _shouldFail = shouldFail;
+    private readonly string _errorMessage = errorMessage ?? "simulated-error";
     private readonly ConcurrentQueue<DateTimeOffset> _timestamps = new();
     private int _inFlight;
     private int _maxConcurrency;
     private int _callCount;
-
-    public FakeBenchmarkInvoker(TimeSpan? delay = null, bool shouldFail = false, string? errorMessage = null)
-    {
-        _delay = delay ?? TimeSpan.Zero;
-        _shouldFail = shouldFail;
-        _errorMessage = errorMessage ?? "simulated-error";
-    }
 
     public int CallCount => Volatile.Read(ref _callCount);
     public int MaxConcurrency => Volatile.Read(ref _maxConcurrency);

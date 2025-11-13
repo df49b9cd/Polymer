@@ -96,12 +96,12 @@ public sealed record GrpcServerRuntimeOptions
         type ?? throw new ArgumentNullException(nameof(type));
 }
 
-internal readonly struct AnnotatedServerInterceptorType
+internal readonly struct AnnotatedServerInterceptorType(
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors |
+                                DynamicallyAccessedMemberTypes.PublicMethods)]
+    Type type)
 {
-    public AnnotatedServerInterceptorType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] Type type) =>
-        Type = type ?? throw new ArgumentNullException(nameof(type));
-
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
     [field: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
-    public Type Type { get; }
+    public Type Type { get; } = type ?? throw new ArgumentNullException(nameof(type));
 }

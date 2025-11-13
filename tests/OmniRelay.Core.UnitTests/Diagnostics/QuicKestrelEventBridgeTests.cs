@@ -9,17 +9,12 @@ namespace OmniRelay.Core.UnitTests.Diagnostics;
 
 public class QuicKestrelEventBridgeTests
 {
-    private sealed class TestLogger : ILogger<QuicKestrelEventBridge>
+    private sealed class TestLogger(LogLevel minLevel = LogLevel.Debug) : ILogger<QuicKestrelEventBridge>
     {
-        private readonly LogLevel _minLevel;
+        private readonly LogLevel _minLevel = minLevel;
         private readonly AsyncLocal<object?> _currentScope = new();
 
         public ConcurrentQueue<(LogLevel level, string message, object? scope)> Entries { get; } = new();
-
-        public TestLogger(LogLevel minLevel = LogLevel.Debug)
-        {
-            _minLevel = minLevel;
-        }
 
         public IDisposable BeginScope<TState>(TState state) where TState : notnull
         {

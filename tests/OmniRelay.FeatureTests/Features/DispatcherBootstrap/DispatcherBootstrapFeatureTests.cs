@@ -8,14 +8,9 @@ using Xunit;
 namespace OmniRelay.FeatureTests.Features.DispatcherBootstrap;
 
 [Collection(nameof(FeatureTestCollection))]
-public sealed class DispatcherBootstrapFeatureTests
+public sealed class DispatcherBootstrapFeatureTests(FeatureTestApplication application)
 {
-    private readonly FeatureTestApplication _application;
-
-    public DispatcherBootstrapFeatureTests(FeatureTestApplication application)
-    {
-        _application = application;
-    }
+    private readonly FeatureTestApplication _application = application;
 
     [Fact(DisplayName = "Dispatcher host boots with feature configuration")]
     public void DispatcherStartsWithFeatureConfiguration()

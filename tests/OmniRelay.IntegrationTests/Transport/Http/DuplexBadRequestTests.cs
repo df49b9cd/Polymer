@@ -9,13 +9,8 @@ using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
 namespace OmniRelay.IntegrationTests.Transport.Http;
 
-public sealed class DuplexBadRequestTests : TransportIntegrationTest
+public sealed class DuplexBadRequestTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
-    public DuplexBadRequestTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Fact(Timeout = 30000)]
     public async Task NonWebSocketGet_ForDuplex_Returns406()
     {

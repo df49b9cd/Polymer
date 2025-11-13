@@ -7,21 +7,15 @@ namespace OmniRelay.Core.Peers;
 /// <summary>
 /// Async auto-reset signal used by peer choosers to wait for availability notifications.
 /// </summary>
-internal sealed class PeerAvailabilitySignal : IDisposable
+internal sealed class PeerAvailabilitySignal(TimeProvider timeProvider) : IDisposable
 {
-    private readonly Channel<bool> _channel;
-    private readonly TimeProvider _timeProvider;
-
-    public PeerAvailabilitySignal(TimeProvider timeProvider)
+    private readonly Channel<bool> _channel = MakeChannel<bool>(new BoundedChannelOptions(1)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
-        _channel = MakeChannel<bool>(new BoundedChannelOptions(1)
-        {
-            SingleReader = false,
-            SingleWriter = false,
-            FullMode = BoundedChannelFullMode.DropOldest
-        });
-    }
+        SingleReader = false,
+        SingleWriter = false,
+        FullMode = BoundedChannelFullMode.DropOldest
+    });
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public void Signal()
     {

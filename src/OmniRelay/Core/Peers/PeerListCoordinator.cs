@@ -360,14 +360,9 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         }
     }
 
-    private sealed class PeerRegistration
+    private sealed class PeerRegistration(IPeer peer)
     {
-        public PeerRegistration(IPeer peer)
-        {
-            Peer = peer ?? throw new ArgumentNullException(nameof(peer));
-        }
-
-        public IPeer Peer { get; }
+        public IPeer Peer { get; } = peer ?? throw new ArgumentNullException(nameof(peer));
         public IDisposable? Subscription { get; set; }
         public bool IsAvailable { get; set; }
     }

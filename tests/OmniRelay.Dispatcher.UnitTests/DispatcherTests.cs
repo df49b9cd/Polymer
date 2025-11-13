@@ -229,16 +229,10 @@ public class DispatcherTests
         }
     }
 
-    private sealed class ThrowingLifecycle : ILifecycle
+    private sealed class ThrowingLifecycle(bool startThrows = false, bool stopThrows = false) : ILifecycle
     {
-        private readonly bool _startThrows;
-        private readonly bool _stopThrows;
-
-        public ThrowingLifecycle(bool startThrows = false, bool stopThrows = false)
-        {
-            _startThrows = startThrows;
-            _stopThrows = stopThrows;
-        }
+        private readonly bool _startThrows = startThrows;
+        private readonly bool _stopThrows = stopThrows;
 
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {

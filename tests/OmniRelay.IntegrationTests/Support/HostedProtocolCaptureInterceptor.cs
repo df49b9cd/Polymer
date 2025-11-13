@@ -4,14 +4,9 @@ using Grpc.Core.Interceptors;
 
 namespace OmniRelay.IntegrationTests.Support;
 
-public sealed class HostedProtocolCaptureInterceptor : Interceptor
+public sealed class HostedProtocolCaptureInterceptor(ConcurrentQueue<string> observed) : Interceptor
 {
-    private readonly ConcurrentQueue<string> _observed;
-
-    public HostedProtocolCaptureInterceptor(ConcurrentQueue<string> observed)
-    {
-        _observed = observed ?? throw new ArgumentNullException(nameof(observed));
-    }
+    private readonly ConcurrentQueue<string> _observed = observed ?? throw new ArgumentNullException(nameof(observed));
 
     public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(
         TRequest request,

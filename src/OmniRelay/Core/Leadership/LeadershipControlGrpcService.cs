@@ -7,16 +7,13 @@ using ProtoLeadershipSubscribeRequest = OmniRelay.Mesh.Control.V1.LeadershipSubs
 namespace OmniRelay.Core.Leadership;
 
 /// <summary>gRPC control-plane service that streams leadership events.</summary>
-internal sealed class LeadershipControlGrpcService : ProtoLeadershipControlService.LeadershipControlServiceBase
+internal sealed class LeadershipControlGrpcService(
+    ILeadershipObserver leadership,
+    ILogger<LeadershipControlGrpcService> logger)
+    : ProtoLeadershipControlService.LeadershipControlServiceBase
 {
-    private readonly ILeadershipObserver _leadership;
-    private readonly ILogger<LeadershipControlGrpcService> _logger;
-
-    public LeadershipControlGrpcService(ILeadershipObserver leadership, ILogger<LeadershipControlGrpcService> logger)
-    {
-        _leadership = leadership ?? throw new ArgumentNullException(nameof(leadership));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly ILeadershipObserver _leadership = leadership ?? throw new ArgumentNullException(nameof(leadership));
+    private readonly ILogger<LeadershipControlGrpcService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     public override async Task Subscribe(ProtoLeadershipSubscribeRequest request, IServerStreamWriter<ProtoLeadershipEvent> responseStream, ServerCallContext context)
     {

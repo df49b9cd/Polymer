@@ -19,13 +19,8 @@ using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
 
-public sealed class HttpOutboundIntegrationTests : IntegrationTest
+public sealed class HttpOutboundIntegrationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
-    public HttpOutboundIntegrationTests(ITestOutputHelper output)
-        : base(output)
-    {
-    }
-
     [Http3Fact(Timeout = 45_000)]
     public async Task HttpOutbound_WithHttp3Preferred_FallsBackToHttp2()
     {

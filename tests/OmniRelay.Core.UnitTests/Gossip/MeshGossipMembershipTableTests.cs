@@ -118,11 +118,9 @@ public sealed class MeshGossipMembershipTableTests
         peer.Status.ShouldBe(MeshGossipMemberStatus.Left);
     }
 
-    private sealed class TestTimeProvider : TimeProvider
+    private sealed class TestTimeProvider(DateTimeOffset start) : TimeProvider
     {
-        private DateTimeOffset _current;
-
-        public TestTimeProvider(DateTimeOffset start) => _current = start;
+        private DateTimeOffset _current = start;
 
         public override DateTimeOffset GetUtcNow() => _current;
 

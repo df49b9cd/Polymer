@@ -316,7 +316,7 @@ public class MiddlewareComposerTests
         return call;
     }
 
-    private sealed class RecordingMiddleware :
+    private sealed class RecordingMiddleware(string id, List<string> order) :
         IUnaryInboundMiddleware,
         IUnaryOutboundMiddleware,
         IOnewayInboundMiddleware,
@@ -328,14 +328,8 @@ public class MiddlewareComposerTests
         IDuplexInboundMiddleware,
         IDuplexOutboundMiddleware
     {
-        private readonly string _id;
-        private readonly List<string> _order;
-
-        public RecordingMiddleware(string id, List<string> order)
-        {
-            _id = id;
-            _order = order;
-        }
+        private readonly string _id = id;
+        private readonly List<string> _order = order;
 
         public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> InvokeAsync(
             IRequest<ReadOnlyMemory<byte>> request,
