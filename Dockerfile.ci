@@ -3,16 +3,28 @@
 ARG DOTNET_VERSION=10.0.100
 ARG TEST_PROJECTS="tests/OmniRelay.Cli.UnitTests/OmniRelay.Cli.UnitTests.csproj tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj"
 
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble AS base
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS base
 
-# Add MsQuic
-RUN curl -LO https://packages.microsoft.com/keys/microsoft.asc && \
-    apt-key add microsoft.asc && \
-    rm microsoft.asc && \
-    apt-add-repository https://packages.microsoft.com/ubuntu/24.04/prod && \
-    apt-get update && \
-    apt-get install -y libmsquic && \
-    rm -rf /var/lib/apt/lists/*
+# Install .NET and test dependencies
+RUN apk add --upgrade --no-cache \
+        bash \
+        coreutils \
+        curl \
+        icu-data-full \
+        icu-libs \
+        iputils \
+        krb5-libs \
+        libmsquic \
+        lldb \
+        llvm \
+        lttng-ust \
+        musl-locales \
+        openssl \
+        python3 \
+        python3-dev \
+        py3-pip \
+        sudo \
+        tzdata
 
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
