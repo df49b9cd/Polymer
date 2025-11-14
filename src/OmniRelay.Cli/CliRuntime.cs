@@ -4,9 +4,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Configuration;
+using OmniRelay.ControlPlane.Clients;
 using OmniRelay.Core;
 using OmniRelay.Transport.Grpc;
+using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Cli;
 
@@ -14,19 +17,68 @@ internal static class CliRuntime
 {
     static CliRuntime() => Reset();
 
+    private static ServiceProvider? _controlPlaneServiceProvider;
+
     public static IServeHostFactory ServeHostFactory { get; set; } = null!;
     public static IHttpClientFactory HttpClientFactory { get; set; } = null!;
     public static IGrpcInvokerFactory GrpcInvokerFactory { get; set; } = null!;
+    public static IGrpcControlPlaneClientFactory GrpcControlPlaneClientFactory { get; set; } = null!;
     public static ICliFileSystem FileSystem { get; set; } = null!;
     public static ICliConsole Console { get; set; } = null!;
 
     public static void Reset()
     {
+        _controlPlaneServiceProvider?.Dispose();
+        _controlPlaneServiceProvider = BuildControlPlaneServiceProvider();
+        var httpControlPlaneFactory = _controlPlaneServiceProvider.GetRequiredService<IHttpControlPlaneClientFactory>();
+        var grpcControlPlaneFactory = _controlPlaneServiceProvider.GetRequiredService<IGrpcControlPlaneClientFactory>();
+
         ServeHostFactory = new DefaultServeHostFactory();
-        HttpClientFactory = new DefaultHttpClientFactory();
+        HttpClientFactory = new DefaultHttpClientFactory(httpControlPlaneFactory);
         GrpcInvokerFactory = new DefaultGrpcInvokerFactory();
+        GrpcControlPlaneClientFactory = grpcControlPlaneFactory;
         FileSystem = new SystemCliFileSystem();
         Console = new SystemCliConsole();
+    }
+
+    private static ServiceProvider BuildControlPlaneServiceProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
+
+        services.AddOptions<HttpControlPlaneClientFactoryOptions>()
+            .Configure(options =>
+            {
+                options.Profiles["default"] = new HttpControlPlaneClientProfile
+                {
+                    BaseAddress = new Uri("http://127.0.0.1"),
+                    UseSharedTls = false,
+                    Runtime = new HttpClientRuntimeOptions
+                    {
+                        EnableHttp3 = true
+                    }
+                };
+            });
+
+        services.AddOptions<GrpcControlPlaneClientFactoryOptions>()
+            .Configure(options =>
+            {
+                options.Profiles["default"] = new GrpcControlPlaneClientProfile
+                {
+                    Address = new Uri("http://127.0.0.1:17421"),
+                    PreferHttp3 = true,
+                    UseSharedTls = false,
+                    Runtime = new GrpcClientRuntimeOptions
+                    {
+                        EnableHttp3 = true
+                    }
+                };
+            });
+
+        services.AddSingleton<IHttpControlPlaneClientFactory, HttpControlPlaneClientFactory>();
+        services.AddSingleton<IGrpcControlPlaneClientFactory, GrpcControlPlaneClientFactory>();
+        return services.BuildServiceProvider();
     }
 }
 
@@ -133,7 +185,14 @@ internal interface IHttpClientFactory
 
 internal sealed class DefaultHttpClientFactory : IHttpClientFactory
 {
-    public HttpClient CreateClient() => new();
+    private readonly IHttpControlPlaneClientFactory _factory;
+
+    public DefaultHttpClientFactory(IHttpControlPlaneClientFactory factory)
+    {
+        _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+    }
+
+    public HttpClient CreateClient() => _factory.CreateClient("default");
 }
 
 internal interface IGrpcInvokerFactory

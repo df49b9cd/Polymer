@@ -53,6 +53,9 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, perform rolling certificate rotations across dozens of nodes, ensuring the shared manager never presents stale certs and that control-plane traffic stays encrypted.
 - Combine chaos injections (revocation toggled, thumbprint mismatch) to verify consistent enforcement across all consumers.
 
+## Implementation status
+- `TransportTlsManager` + `TransportTlsOptions` live under `OmniRelay.ControlPlane.Security` and have replaced the bespoke gossip certificate provider. `MeshGossipHost`, `DiagnosticsControlPlaneHost`, and `LeadershipControlPlaneHost` all read the same `transportTls` configuration and reload certificates in lockstep, so HTTP/gRPC control-plane sockets now inherit the same rotation semantics and revocation policies as the dispatcher's data-plane inbounds.
+
 ## References
 - `src/OmniRelay/Transport/Grpc/GrpcInbound.cs` / `GrpcOutbound.cs` - Current TLS option usage.
 - `src/OmniRelay/Core/Gossip/MeshGossipCertificateProvider.cs` - Logic to consolidate.

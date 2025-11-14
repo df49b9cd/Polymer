@@ -53,6 +53,9 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, push high volumes of events to ensure bus scales, maintains ordering guarantees where necessary, and surfaces lag metrics.
 - Stress test subscriber churn (many subscribers joining/leaving) to confirm stability.
 
+## Implementation status
+- `ControlPlaneEventBus` now lives in `OmniRelay.ControlPlane.Events` and is wired through the gossip + leadership stacks. `MeshGossipHost` publishes membership changes on every envelope, sweep, or forced-status transition, and the dedicated diagnostics host subscribes to the bus when serving `/control/peers` so CLI users see immediate updates even before the registry is online. Leadership streaming reuses the same bus for SSE and the new gRPC control-plane host, keeping diagnostics and tooling in sync.
+
 ## References
 - Current event handling spread across gossip/leadership diagnostics code.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.

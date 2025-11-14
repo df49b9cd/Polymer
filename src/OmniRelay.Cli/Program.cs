@@ -3,6 +3,7 @@ using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,16 +11,21 @@ using System.Text.Json.Serialization.Metadata;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
+using Grpc.Core;
+using Grpc.Net.Client;
 using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using OmniRelay.ControlPlane.Clients;
 using OmniRelay.Configuration;
 using OmniRelay.Core;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
+using OmniRelay.Mesh.Control.V1;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 
@@ -518,10 +524,16 @@ public static class Program
             Description = "Request timeout (e.g. 10s, 1m)."
         };
 
+        var grpcUrlOption = new Option<string?>("--grpc-url")
+        {
+            Description = "Optional gRPC control-plane URL for leadership streaming (e.g. http://127.0.0.1:9090)."
+        };
+
         command.Add(urlOption);
         command.Add(scopeOption);
         command.Add(watchOption);
         command.Add(timeoutOption);
+        command.Add(grpcUrlOption);
 
         command.SetAction(parseResult =>
         {
@@ -529,7 +541,8 @@ public static class Program
             var scope = parseResult.GetValue(scopeOption);
             var watch = parseResult.GetValue(watchOption);
             var timeout = parseResult.GetValue(timeoutOption);
-            return RunMeshLeadersStatusAsync(url, scope, watch, timeout).GetAwaiter().GetResult();
+            var grpcUrl = parseResult.GetValue(grpcUrlOption);
+            return RunMeshLeadersStatusAsync(url, scope, watch, timeout, grpcUrl).GetAwaiter().GetResult();
         });
 
         return command;
@@ -2237,7 +2250,7 @@ public static class Program
         PrintMiddlewareLine("Duplex", snapshot.Middleware.InboundDuplex, snapshot.Middleware.OutboundDuplex);
     }
 
-    internal static async Task<int> RunMeshLeadersStatusAsync(string baseUrl, string? scope, bool watch, string? timeoutOption)
+    internal static async Task<int> RunMeshLeadersStatusAsync(string baseUrl, string? scope, bool watch, string? timeoutOption, string? grpcUrlOption)
     {
         var timeout = TimeSpan.FromSeconds(10);
         if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
@@ -2248,6 +2261,15 @@ public static class Program
 
         if (watch)
         {
+            if (!string.IsNullOrWhiteSpace(grpcUrlOption))
+            {
+                var grpcResult = await TryRunMeshLeadersWatchGrpcAsync(grpcUrlOption!, scope, timeout).ConfigureAwait(false);
+                if (grpcResult.HasValue)
+                {
+                    return grpcResult.Value;
+                }
+            }
+
             return await RunMeshLeadersWatchAsync(baseUrl, scope, timeout).ConfigureAwait(false);
         }
 
@@ -2430,6 +2452,59 @@ public static class Program
             }
 
             return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Leadership stream connection timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
+    private static async Task<int?> TryRunMeshLeadersWatchGrpcAsync(string grpcUrl, string? scope, TimeSpan timeout)
+    {
+        if (!Uri.TryCreate(grpcUrl, UriKind.Absolute, out var address))
+        {
+            await Console.Error.WriteLineAsync($"Invalid gRPC URL '{grpcUrl}'.").ConfigureAwait(false);
+            return 1;
+        }
+
+        var profile = new GrpcControlPlaneClientProfile
+        {
+            Address = address,
+            PreferHttp3 = !string.Equals(address.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase),
+            UseSharedTls = false,
+            Runtime = new GrpcClientRuntimeOptions
+            {
+                EnableHttp3 = true
+            }
+        };
+
+        try
+        {
+            using var channel = CliRuntime.GrpcControlPlaneClientFactory.CreateChannel(profile);
+            var client = new LeadershipControlService.LeadershipControlServiceClient(channel);
+            using var cts = new CancellationTokenSource(timeout);
+            using var call = client.Subscribe(new LeadershipSubscribeRequest { Scope = scope ?? string.Empty }, cancellationToken: cts.Token);
+
+            Console.WriteLine($"Streaming leadership events via gRPC from {address} (scope={scope ?? "*"}). Press Ctrl+C to exit.");
+
+            await foreach (var leadershipEvent in call.ResponseStream.ReadAllAsync(cts.Token).ConfigureAwait(false))
+            {
+                var dto = LeadershipEventDto.FromProto(leadershipEvent);
+                PrintLeadershipEvent(dto);
+            }
+
+            return 0;
+        }
+        catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.Unimplemented)
+        {
+            await Console.Error.WriteLineAsync($"gRPC leadership stream unavailable ({ex.StatusCode}). Falling back to HTTP SSE...").ConfigureAwait(false);
+            return null;
+        }
+        catch (RpcException ex)
+        {
+            await Console.Error.WriteLineAsync($"gRPC leadership stream failed: {ex.StatusCode} {ex.Message}").ConfigureAwait(false);
+            return 1;
         }
         catch (TaskCanceledException)
         {
@@ -3676,6 +3751,53 @@ public static class Program
         public Guid CorrelationId { get; set; }
 
         public DateTimeOffset OccurredAt { get; set; }
+
+        public static LeadershipEventDto FromProto(LeadershipEvent source)
+        {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            var dto = new LeadershipEventDto
+            {
+                EventKind = source.Kind switch
+                {
+                    LeadershipEventKind.LeadershipEventKindObserved => LeadershipEventKind.Observed,
+                    LeadershipEventKind.LeadershipEventKindElected => LeadershipEventKind.Elected,
+                    LeadershipEventKind.LeadershipEventKindRenewed => LeadershipEventKind.Renewed,
+                    LeadershipEventKind.LeadershipEventKindLost => LeadershipEventKind.Lost,
+                    LeadershipEventKind.LeadershipEventKindExpired => LeadershipEventKind.Expired,
+                    LeadershipEventKind.LeadershipEventKindSteppedDown => LeadershipEventKind.SteppedDown,
+                    _ => LeadershipEventKind.Snapshot
+                },
+                Scope = string.IsNullOrWhiteSpace(source.Scope) ? null : source.Scope,
+                LeaderId = string.IsNullOrWhiteSpace(source.LeaderId) ? null : source.LeaderId,
+                Reason = string.IsNullOrWhiteSpace(source.Reason) ? null : source.Reason,
+                CorrelationId = Guid.TryParse(source.CorrelationId, out var correlation) ? correlation : Guid.Empty,
+                OccurredAt = source.OccurredAt?.ToDateTimeOffset() ?? DateTimeOffset.UtcNow
+            };
+
+            if (source.Token is not null)
+            {
+                dto.Token = new LeadershipTokenResponse
+                {
+                    Scope = source.Token.Scope,
+                    ScopeKind = source.Token.ScopeKind,
+                    LeaderId = source.Token.LeaderId,
+                    Term = source.Token.Term,
+                    FenceToken = source.Token.FenceToken,
+                    IssuedAt = source.Token.IssuedAt?.ToDateTimeOffset() ?? DateTimeOffset.MinValue,
+                    ExpiresAt = source.Token.ExpiresAt?.ToDateTimeOffset() ?? DateTimeOffset.MinValue,
+                    Labels = source.Token.Labels.ToDictionary(
+                        pair => pair.Key,
+                        pair => pair.Value,
+                        StringComparer.OrdinalIgnoreCase)
+                };
+            }
+
+            return dto;
+        }
     }
 
     private sealed record DescriptorCacheEntry(

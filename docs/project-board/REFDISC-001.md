@@ -54,6 +54,9 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, start dozens of control-plane hosts using the builders, inject rolling restarts, and confirm QUIC stream limits, TLS renegotiation, and HTTP connection churn remain stable.
 - Run stress scenarios alternating HTTP/3 availability (forcing downgrades) and thrashing HTTP middleware to ensure connection churn does not regress latency/throughput expectations.
 
+## Implementation status
+- `GrpcControlPlaneHostBuilder` + `HttpControlPlaneHostBuilder` are now exercised end-to-end by the dispatcher. When a `diagnostics.controlPlane` block is present the builder binds HTTP and gRPC URLs, plugs in the shared `TransportTlsManager`, and registers `DiagnosticsControlPlaneHost` / `LeadershipControlPlaneHost` in the dispatcher lifecycle so they start/stop cleanly with the data plane instead of piggybacking on user-facing inbounds. The leadership host implements `IGrpcServerInterceptorSink`, so every transport interceptor configured through `dispatcherOptions.GrpcInterceptors` flows automatically to the gRPC control-plane endpoints, preserving auth/logging behavior without ad-hoc wiring.
+
 ## References
 - `src/OmniRelay/Transport/Grpc/GrpcInbound.cs` and `src/OmniRelay/Transport/Http/HttpInbound.cs` - current inbound logic to extract.
 - `docs/architecture/service-discovery.md` - Control-plane transport requirements.

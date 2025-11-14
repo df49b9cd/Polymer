@@ -38,6 +38,7 @@ public static class LeadershipServiceCollectionExtensions
         services.TryAddSingleton<LeadershipEventHub>();
         services.TryAddSingleton<LeadershipCoordinator>();
         services.TryAddSingleton<ILeadershipObserver>(static sp => sp.GetRequiredService<LeadershipCoordinator>());
+        services.TryAddSingleton<LeadershipControlGrpcService>();
 
         return services;
     }

@@ -54,6 +54,9 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, run large node counts generating sustained control-plane traffic using the factories to ensure handler pooling, retries, and TLS renegotiation stay healthy.
 - Stress configuration toggles (switch HTTP versions, rotate certificates) to ensure factories recycle handlers without leaks.
 
+## Implementation status
+- The factories now back real tooling. `DiagnosticsControlPlaneHost` and `LeadershipControlPlaneHost` resolve the HTTP/gRPC builders through the shared factories so their handlers inherit the same HTTP/3 preferences, TLS policies, and middleware stacks as dispatcher-owned transports. The `omnirelay mesh` CLI provisions those factories through the built-in options pipeline (no more ad-hoc monitors), so every control-plane request—including the live leadership watch via gRPC—flows through `IHttpControlPlaneClientFactory`/`IGrpcControlPlaneClientFactory` and picks up HTTP version negotiation, retry, and TLS defaults automatically.
+
 ## References
 - `src/OmniRelay/Transport/Grpc/GrpcOutbound.cs` and `src/OmniRelay/Transport/Http/HttpOutbound.cs` - current outbound logic to extract.
 - `docs/architecture/service-discovery.md` - Control-plane transport requirements.

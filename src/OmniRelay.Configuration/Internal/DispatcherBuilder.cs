@@ -18,6 +18,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OmniRelay.Configuration.Models;
+using OmniRelay.ControlPlane.Hosting;
+using OmniRelay.ControlPlane.Security;
 using OmniRelay.Core;
 using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Gossip;
@@ -28,6 +30,7 @@ using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace OmniRelay.Configuration.Internal;
 
@@ -811,11 +814,6 @@ internal sealed partial class DispatcherBuilder
             actions.Add(app => app.MapPrometheusScrapingEndpoint(path));
         }
 
-        if (TryGetDiagnosticsControlPlaneOptions(out var controlPlaneOptions))
-        {
-            actions.Add(app => ConfigureDiagnosticsControlPlane(app, controlPlaneOptions));
-        }
-
         if (actions.Count == 0)
         {
             return null;
@@ -832,18 +830,38 @@ internal sealed partial class DispatcherBuilder
 
     private Action<IServiceCollection>? CreateHttpInboundServiceConfigurator()
     {
-        // The HTTP inbound hosts its own minimal WebApplication instance with its own DI container.
-        // We may need to register a MeterProvider (for Prometheus scraping) and diagnostics runtime services
-        // (for control-plane endpoints) in that container.
-
-        var addMetrics = ShouldExposePrometheusMetrics();
-        var addControlPlane = TryGetDiagnosticsControlPlaneOptions(out var controlPlaneOptions);
-
-        if (!addMetrics && !addControlPlane)
+        if (!ShouldExposePrometheusMetrics())
         {
             return null;
         }
 
+        var scrapePath = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
+        return services =>
+        {
+            var otel = services.AddOpenTelemetry();
+            var serviceName = string.IsNullOrWhiteSpace(_options.Service) ? "OmniRelay" : _options.Service!;
+            var resourceBuilder = ResourceBuilder.CreateEmpty()
+                .AddService(serviceName: serviceName, serviceInstanceId: serviceName);
+            otel.ConfigureResource(resourceBuilder);
+            otel.WithLoggingInstrumentation();
+
+            services.AddOpenTelemetry()
+                .WithMetrics(builder =>
+                {
+                    builder.AddPrometheusExporter();
+                    builder.AddRuntimeInstrumentation();
+                    builder.AddMeter(TeeOutbounds.MeterName);
+                    builder.AddMeter("OmniRelay.Core.Diagnostics");
+                    builder.AddMeter("OmniRelay.Transport.Http");
+                    builder.AddMeter("OmniRelay.Transport.Grpc");
+                });
+
+            services.Configure<PrometheusAspNetCoreOptions>(options =>
+            {
+                options.ScrapeEndpointPath = scrapePath;
+            });
+        };
+    }
         var scrapePath = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
         var rootRuntime = _serviceProvider.GetService<IDiagnosticsRuntime>();
         var peerHealthProviders = controlPlaneOptions.EnableLeaseHealthDiagnostics
@@ -910,20 +928,7 @@ internal sealed partial class DispatcherBuilder
 
     private Action<IServiceCollection>? CreateGrpcInboundServiceConfigurator()
     {
-        var leadershipOptions = _serviceProvider.GetService<IOptions<LeadershipOptions>>()?.Value;
-        var leadershipObserver = leadershipOptions?.Enabled == true
-            ? _serviceProvider.GetService<ILeadershipObserver>()
-            : null;
-        if (leadershipObserver is null)
-        {
-            return null;
-        }
-
-        return services =>
-        {
-            services.AddSingleton(leadershipObserver);
-            services.AddSingleton<LeadershipControlGrpcService>();
-        };
+        return null;
     }
 
     private static string NormalizeScrapeEndpointPathForInbound(string? path)
@@ -1139,283 +1144,6 @@ internal sealed partial class DispatcherBuilder
 
         return otelEnabled && metricsEnabled && promEnabled;
     }
-
-    private bool TryGetDiagnosticsControlPlaneOptions(out DiagnosticsControlPlaneOptions options)
-    {
-        var runtime = _options.Diagnostics?.Runtime;
-        if (runtime is null)
-        {
-            options = default;
-            return false;
-        }
-
-        var enableLogging = runtime.EnableLoggingLevelToggle ?? false;
-        var enableSampling = runtime.EnableTraceSamplingToggle ?? false;
-        var hasPeerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>().Any();
-        var gossipAgent = _serviceProvider.GetService<IMeshGossipAgent>();
-        var enablePeerDiagnostics = gossipAgent is not null && gossipAgent.IsEnabled;
-        var leadershipObserver = _serviceProvider.GetService<ILeadershipObserver>();
-        var enableLeadershipDiagnostics = leadershipObserver is not null;
-        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling || hasPeerHealthProviders || enablePeerDiagnostics || enableLeadershipDiagnostics);
-
-        if (!enableControlPlane)
-        {
-            options = default;
-            return false;
-        }
-
-        options = new DiagnosticsControlPlaneOptions(
-            enableLogging,
-            enableSampling,
-            hasPeerHealthProviders,
-            enablePeerDiagnostics,
-            enableLeadershipDiagnostics,
-            gossipAgent,
-            leadershipObserver);
-        return enableLogging || enableSampling || hasPeerHealthProviders || enablePeerDiagnostics || enableLeadershipDiagnostics;
-    }
-
-    [RequiresDynamicCode("Calls Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions.MapGet(String, Delegate)")]
-    [RequiresUnreferencedCode("Calls Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions.MapGet(String, Delegate)")]
-    private static void ConfigureDiagnosticsControlPlane(WebApplication app, DiagnosticsControlPlaneOptions options)
-    {
-        if (options.EnableLoggingToggle)
-        {
-            app.MapGet("/omnirelay/control/logging", (IDiagnosticsRuntime runtime) =>
-            {
-                var level = runtime.MinimumLogLevel?.ToString();
-                return Results.Json(new { minimumLevel = level });
-            });
-
-            app.MapPost("/omnirelay/control/logging", (DiagnosticsLogLevelRequest request, IDiagnosticsRuntime runtime) =>
-            {
-                if (request is null)
-                {
-                    return Results.BadRequest(new { error = "Request body required." });
-                }
-
-                if (string.IsNullOrWhiteSpace(request.Level))
-                {
-                    runtime.SetMinimumLogLevel(null);
-                    return Results.NoContent();
-                }
-
-                if (!Enum.TryParse<LogLevel>(request.Level, ignoreCase: true, out var parsed))
-                {
-                    return Results.BadRequest(new { error = $"Invalid log level '{request.Level}'." });
-                }
-
-                runtime.SetMinimumLogLevel(parsed);
-                return Results.NoContent();
-            });
-        }
-
-        if (options.EnableSamplingToggle)
-        {
-            app.MapGet("/omnirelay/control/tracing", (IDiagnosticsRuntime runtime) =>
-            {
-                return Results.Json(new { samplingProbability = runtime.TraceSamplingProbability });
-            });
-
-            app.MapPost("/omnirelay/control/tracing", (DiagnosticsSamplingRequest request, IDiagnosticsRuntime runtime) =>
-            {
-                if (request is null)
-                {
-                    return Results.BadRequest(new { error = "Request body required." });
-                }
-
-                try
-                {
-                    runtime.SetTraceSamplingProbability(request.Probability);
-                }
-                catch (ArgumentOutOfRangeException ex)
-                {
-                    return Results.BadRequest(new { error = ex.Message });
-                }
-
-                return Results.NoContent();
-            });
-        }
-
-        if (options.EnableLeaseHealthDiagnostics)
-        {
-            app.MapGet("/omnirelay/control/lease-health", (IEnumerable<IPeerHealthSnapshotProvider> providers) =>
-            {
-                var builder = ImmutableArray.CreateBuilder<PeerLeaseHealthSnapshot>();
-                foreach (var provider in providers)
-                {
-                    if (provider is null)
-                    {
-                        continue;
-                    }
-
-                    var snapshot = provider.Snapshot();
-                    if (!snapshot.IsDefaultOrEmpty)
-                    {
-                        builder.AddRange(snapshot);
-                    }
-                }
-
-                var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(builder.ToImmutable());
-                return Results.Json(diagnostics);
-            });
-        }
-
-        if (options.EnablePeerDiagnostics)
-        {
-            static IResult HandlePeers(IMeshGossipAgent agent)
-            {
-                var snapshot = agent.Snapshot();
-                var peers = snapshot.Members.Select(member => new
-                {
-                    member.NodeId,
-                    status = member.Status.ToString(),
-                    member.LastSeen,
-                    rttMs = member.RoundTripTimeMs,
-                    metadata = new
-                    {
-                        member.Metadata.Role,
-                        member.Metadata.ClusterId,
-                        member.Metadata.Region,
-                        member.Metadata.MeshVersion,
-                        member.Metadata.Http3Support,
-                        member.Metadata.Endpoint,
-                        member.Metadata.MetadataVersion,
-                        Labels = member.Metadata.Labels
-                    }
-                });
-
-                return Results.Json(new
-                {
-                    snapshot.SchemaVersion,
-                    snapshot.GeneratedAt,
-                    snapshot.LocalNodeId,
-                    peers
-                });
-            }
-
-            app.MapGet("/control/peers", HandlePeers);
-            app.MapGet("/omnirelay/control/peers", HandlePeers);
-        }
-
-        if (options.EnableLeadershipDiagnostics && options.LeadershipObserver is not null)
-        {
-            app.MapGet("/control/leaders", (HttpRequest request, ILeadershipObserver observer) =>
-            {
-                var snapshot = observer.Snapshot();
-                if (request.Query.TryGetValue("scope", out var scopeValues) && !string.IsNullOrWhiteSpace(scopeValues))
-                {
-                    var scopeFilter = scopeValues.ToString();
-                    var filtered = snapshot.Tokens
-                        .Where(token => string.Equals(token.Scope, scopeFilter, StringComparison.OrdinalIgnoreCase))
-                        .ToImmutableArray();
-                    snapshot = new LeadershipSnapshot(snapshot.GeneratedAt, filtered);
-                }
-
-                return Results.Json(snapshot);
-            });
-            app.MapGet("/control/events/leadership", async (HttpContext context, ILeadershipObserver observer, ILogger<LeadershipEventStreamMarker> logger) =>
-            {
-                await StreamLeadershipEventsAsync(context, observer, logger).ConfigureAwait(false);
-            });
-        }
-    }
-
-    [RequiresDynamicCode("Serializes leadership events using System.Text.Json.")]
-    [RequiresUnreferencedCode("Serializes leadership events using System.Text.Json.")]
-    private static async Task StreamLeadershipEventsAsync(HttpContext context, ILeadershipObserver observer, ILogger<LeadershipEventStreamMarker> logger)
-    {
-        context.Response.Headers.CacheControl = "no-cache";
-        context.Response.Headers["Content-Type"] = "text/event-stream";
-        var scopeFilter = context.Request.Query.TryGetValue("scope", out var scopeValues)
-            ? scopeValues.ToString()
-            : null;
-        var scopeLabel = string.IsNullOrWhiteSpace(scopeFilter) ? "*" : scopeFilter!;
-        var transport = context.Request.Protocol;
-        LeadershipDiagnosticsLog.LeadershipStreamOpened(logger, scopeLabel, transport);
-
-        try
-        {
-            await foreach (var leadershipEvent in observer.SubscribeAsync(scopeFilter, context.RequestAborted).ConfigureAwait(false))
-            {
-                var payload = JsonSerializer.Serialize(leadershipEvent, LeadershipEventJsonOptions);
-                await context.Response.WriteAsync($"data: {payload}\\n\\n", context.RequestAborted).ConfigureAwait(false);
-                await context.Response.Body.FlushAsync(context.RequestAborted).ConfigureAwait(false);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when the client disconnects or the request is cancelled.
-        }
-        finally
-        {
-            LeadershipDiagnosticsLog.LeadershipStreamClosed(logger, scopeLabel);
-        }
-    }
-
-    private readonly record struct DiagnosticsControlPlaneOptions(
-        bool EnableLoggingToggle,
-        bool EnableSamplingToggle,
-        bool EnableLeaseHealthDiagnostics,
-        bool EnablePeerDiagnostics,
-        bool EnableLeadershipDiagnostics,
-        IMeshGossipAgent? GossipAgent,
-        ILeadershipObserver? LeadershipObserver)
-    {
-        public bool EnableLoggingToggle { get; init; } = EnableLoggingToggle;
-
-        public bool EnableSamplingToggle { get; init; } = EnableSamplingToggle;
-
-        public bool EnableLeaseHealthDiagnostics { get; init; } = EnableLeaseHealthDiagnostics;
-
-        public bool EnablePeerDiagnostics
-        {
-            get => field;
-            init => field = value;
-        } = EnablePeerDiagnostics;
-
-        public bool EnableLeadershipDiagnostics
-        {
-            get => field;
-            init => field = value;
-        } = EnableLeadershipDiagnostics;
-
-        public IMeshGossipAgent? GossipAgent
-        {
-            get => field;
-            init => field = value;
-        } = GossipAgent;
-
-        public ILeadershipObserver? LeadershipObserver
-        {
-            get => field;
-            init => field = value;
-        } = LeadershipObserver;
-    }
-
-    internal sealed record DiagnosticsLogLevelRequest(string? Level)
-    {
-        public string? Level { get; init; } = Level;
-    }
-
-    internal sealed record DiagnosticsSamplingRequest(double? Probability)
-    {
-        public double? Probability { get; init; } = Probability;
-    }
-
-    internal sealed class LeadershipEventStreamMarker
-    {
-    }
-
-    private static partial class LeadershipDiagnosticsLog
-    {
-        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Leadership SSE stream opened (scope={Scope}, transport={Transport}).")]
-        public static partial void LeadershipStreamOpened(ILogger logger, string scope, string transport);
-
-        [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Leadership SSE stream closed (scope={Scope}).")]
-        public static partial void LeadershipStreamClosed(ILogger logger, string scope);
-    }
-
     [RequiresDynamicCode("Server interceptors are instantiated via dependency injection.")]
     [RequiresUnreferencedCode("Server interceptors are instantiated via dependency injection.")]
     private static GrpcServerRuntimeOptions? BuildGrpcServerRuntimeOptions(GrpcServerRuntimeConfiguration configuration)
@@ -1548,7 +1276,219 @@ internal sealed partial class DispatcherBuilder
         {
             dispatcherOptions.AddLifecycle("mesh-leadership", leadershipCoordinator);
         }
+
+        ConfigureControlPlaneHosts(dispatcherOptions);
     }
+
+    private void ConfigureControlPlaneHosts(DispatcherOptions dispatcherOptions)
+    {
+        if (!TryCreateDiagnosticsControlPlaneSettings(out var settings))
+        {
+            return;
+        }
+
+        if (settings.HttpTlsManager is not null)
+        {
+            settings.HttpOptions.SharedTls = settings.HttpTlsManager;
+        }
+
+        if (settings.GrpcOptions is not null && settings.GrpcTlsManager is not null)
+        {
+            settings.GrpcOptions.SharedTls = settings.GrpcTlsManager;
+        }
+
+        var loggerFactory = _serviceProvider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+        var httpHost = new DiagnosticsControlPlaneHost(
+            _serviceProvider,
+            settings.HttpOptions,
+            settings.EnableLoggingToggle,
+            settings.EnableSamplingToggle,
+            settings.EnableLeaseHealthDiagnostics,
+            settings.EnablePeerDiagnostics,
+            settings.EnableLeadershipDiagnostics,
+            loggerFactory.CreateLogger<DiagnosticsControlPlaneHost>(),
+            settings.HttpTlsManager);
+
+        dispatcherOptions.AddLifecycle("control-plane:http", httpHost);
+
+        if (settings.GrpcOptions is not null)
+        {
+            var grpcHost = new LeadershipControlPlaneHost(
+                _serviceProvider,
+                settings.GrpcOptions,
+                loggerFactory.CreateLogger<LeadershipControlPlaneHost>(),
+                settings.GrpcTlsManager);
+            dispatcherOptions.AddLifecycle("control-plane:grpc", grpcHost);
+        }
+    }
+
+    private bool TryCreateDiagnosticsControlPlaneSettings(out DiagnosticsControlPlaneSettings settings)
+    {
+        var diagnostics = _options.Diagnostics;
+        if (diagnostics is null)
+        {
+            settings = default;
+            return false;
+        }
+
+        var runtime = diagnostics.Runtime ?? new RuntimeDiagnosticsConfiguration();
+        var enableLogging = runtime.EnableLoggingLevelToggle ?? false;
+        var enableSampling = runtime.EnableTraceSamplingToggle ?? false;
+
+        var peerHealthProviders = _serviceProvider.GetServices<IPeerHealthSnapshotProvider>()
+            .Where(static provider => provider is not null)
+            .ToArray();
+        var enableLeaseHealth = peerHealthProviders.Length > 0;
+
+        var gossipAgent = _serviceProvider.GetService<IMeshGossipAgent>();
+        var enablePeerDiagnostics = gossipAgent is not null && gossipAgent.IsEnabled;
+
+        var leadershipObserver = _serviceProvider.GetService<ILeadershipObserver>();
+        var enableLeadershipDiagnostics = leadershipObserver is not null;
+
+        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling || enableLeaseHealth || enablePeerDiagnostics || enableLeadershipDiagnostics);
+        if (!enableControlPlane)
+        {
+            settings = default;
+            return false;
+        }
+
+        var controlPlane = diagnostics.ControlPlane ?? new DiagnosticsControlPlaneConfiguration();
+        var httpOptions = BuildHttpControlPlaneHostOptions(controlPlane);
+        if (httpOptions.Urls.Count == 0)
+        {
+            settings = default;
+            return false;
+        }
+
+        var httpTlsManager = CreateTransportTlsManager(controlPlane.Tls, "diagnostics HTTP");
+
+        GrpcControlPlaneHostOptions? grpcOptions = null;
+        TransportTlsManager? grpcTlsManager = null;
+        if (controlPlane.GrpcUrls.Count > 0 && enableLeadershipDiagnostics)
+        {
+            grpcOptions = BuildGrpcControlPlaneHostOptions(controlPlane);
+            grpcTlsManager = CreateTransportTlsManager(controlPlane.Tls, "diagnostics gRPC");
+        }
+
+        settings = new DiagnosticsControlPlaneSettings(
+            httpOptions,
+            grpcOptions,
+            httpTlsManager,
+            grpcTlsManager,
+            enableLogging,
+            enableSampling,
+            enableLeaseHealth,
+            enablePeerDiagnostics,
+            enableLeadershipDiagnostics);
+        return true;
+    }
+
+    private HttpControlPlaneHostOptions BuildHttpControlPlaneHostOptions(DiagnosticsControlPlaneConfiguration configuration)
+    {
+        var options = new HttpControlPlaneHostOptions();
+        foreach (var url in configuration.HttpUrls)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            options.Urls.Add(url);
+        }
+
+        options.Runtime = BuildHttpServerRuntimeOptions(configuration.HttpRuntime);
+        options.Tls = BuildHttpServerTlsOptions(configuration.HttpTls);
+        options.ClientCertificateMode = ParseClientCertificateMode(configuration.HttpTls.ClientCertificateMode);
+        options.CheckCertificateRevocation = configuration.HttpTls.CheckCertificateRevocation;
+        return options;
+    }
+
+    private GrpcControlPlaneHostOptions BuildGrpcControlPlaneHostOptions(DiagnosticsControlPlaneConfiguration configuration)
+    {
+        var options = new GrpcControlPlaneHostOptions();
+        foreach (var url in configuration.GrpcUrls)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            options.Urls.Add(url);
+        }
+
+        options.Runtime = BuildGrpcServerRuntimeOptions(configuration.GrpcRuntime);
+        options.Tls = BuildGrpcServerTlsOptions(configuration.GrpcTls);
+        options.ClientCertificateMode = ParseClientCertificateMode(configuration.GrpcTls.ClientCertificateMode);
+        options.CheckCertificateRevocation = configuration.GrpcTls.CheckCertificateRevocation;
+        options.Telemetry = new GrpcTelemetryOptions
+        {
+            EnableServerLogging = true,
+            LoggerFactory = _serviceProvider.GetService<ILoggerFactory>()
+        };
+        return options;
+    }
+
+    private TransportTlsManager? CreateTransportTlsManager(TransportTlsConfiguration configuration, string purpose)
+    {
+        if (configuration is null)
+        {
+            return null;
+        }
+
+        var hasCertificate = !string.IsNullOrWhiteSpace(configuration.CertificatePath) ||
+            !string.IsNullOrWhiteSpace(configuration.CertificateData);
+
+        if (!hasCertificate)
+        {
+            return null;
+        }
+
+        var options = new TransportTlsOptions
+        {
+            CertificatePath = configuration.CertificatePath,
+            CertificateData = configuration.CertificateData,
+            CertificatePassword = configuration.CertificatePassword,
+            AllowUntrustedCertificates = configuration.AllowUntrustedCertificates ?? false,
+            CheckCertificateRevocation = configuration.CheckCertificateRevocation ?? true
+        };
+
+        if (!string.IsNullOrWhiteSpace(configuration.ReloadInterval))
+        {
+            if (TimeSpan.TryParse(configuration.ReloadInterval, CultureInfo.InvariantCulture, out var parsed))
+            {
+                options.ReloadInterval = parsed;
+            }
+            else
+            {
+                throw new OmniRelayConfigurationException($"Invalid TLS reload interval '{configuration.ReloadInterval}' for {purpose}.");
+            }
+        }
+
+        foreach (var thumbprint in configuration.AllowedThumbprints)
+        {
+            if (string.IsNullOrWhiteSpace(thumbprint))
+            {
+                continue;
+            }
+
+            options.AllowedThumbprints.Add(thumbprint.Trim());
+        }
+
+        var loggerFactory = _serviceProvider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+        return new TransportTlsManager(options, loggerFactory.CreateLogger<TransportTlsManager>());
+    }
+
+    private sealed record DiagnosticsControlPlaneSettings(
+        HttpControlPlaneHostOptions HttpOptions,
+        GrpcControlPlaneHostOptions? GrpcOptions,
+        TransportTlsManager? HttpTlsManager,
+        TransportTlsManager? GrpcTlsManager,
+        bool EnableLoggingToggle,
+        bool EnableSamplingToggle,
+        bool EnableLeaseHealthDiagnostics,
+        bool EnablePeerDiagnostics,
+        bool EnableLeadershipDiagnostics);
 
     [RequiresDynamicCode("JSON codec registration relies on reflection.")]
     [RequiresUnreferencedCode("JSON codec registration relies on reflection.")]
@@ -2287,3 +2227,10 @@ internal sealed partial class DispatcherBuilder
         Duplex
     }
 }
+
+
+
+
+
+
+

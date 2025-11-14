@@ -8,6 +8,8 @@ public sealed class DiagnosticsConfiguration
     public OpenTelemetryConfiguration OpenTelemetry { get; init; } = new();
 
     public RuntimeDiagnosticsConfiguration Runtime { get; init; } = new();
+
+    public DiagnosticsControlPlaneConfiguration ControlPlane { get; init; } = new();
 }
 
 /// <summary>

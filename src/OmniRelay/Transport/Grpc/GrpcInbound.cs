@@ -399,11 +399,6 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
 
         app.MapGrpcService<GrpcDispatcherService>();
         app.MapGrpcService<GrpcTransportHealthService>();
-        if (app.Services.GetService<LeadershipControlGrpcService>() is not null)
-        {
-            app.MapGrpcService<LeadershipControlGrpcService>();
-        }
-
         await app.StartAsync(cancellationToken).ConfigureAwait(false);
         _app = app;
     }

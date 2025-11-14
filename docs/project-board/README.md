@@ -36,6 +36,34 @@ Lanes L1-L6 can progress concurrently provided their prerequisites remain health
 
 Use these epics to map REFDISC subtasks; child cards should not close until their parent DISC acceptance criteria are met.
 
+## Control-Plane Host Configuration
+
+The dispatcher now lights up dedicated diagnostics + leadership services whenever the `diagnostics.controlPlane` block is configured. Both the HTTP and gRPC hosts are built through the shared `HttpControlPlaneHostBuilder`/`GrpcControlPlaneHostBuilder`, pick up the transport TLS manager, and register with the dispatcher lifecycle so they start/stop next to the data plane.
+
+```json
+"diagnostics": {
+  "runtime": {
+    "enableControlPlane": true,
+    "enableLoggingLevelToggle": true,
+    "enableTraceSamplingToggle": true
+  },
+  "controlPlane": {
+    "httpUrls": [ "https://0.0.0.0:8080" ],
+    "grpcUrls": [ "https://0.0.0.0:17421" ],
+    "httpRuntime": { "enableHttp3": true },
+    "grpcRuntime": { "enableHttp3": true },
+    "tls": {
+      "certificatePath": "/var/certs/omnirelay-control-plane.pfx",
+      "certificatePassword": "change-me",
+      "reloadInterval": "00:05:00",
+      "allowedThumbprints": [ "‎AB12CD34EF56..." ]
+    }
+  }
+}
+```
+
+The shared `TransportTlsManager` hydrates both hosts from the `tls` section (or the protocol-specific `httpTls`/`grpcTls` overrides) so certificate rotation and revocation checks stay in sync. Teams onboarding DISC-001 cards can drop this block into their dispatcher configuration and immediately inherit the `/omnirelay/control/*` HTTP endpoints plus the gRPC leadership stream without creating ad-hoc ASP.NET hosts.
+
 ## AOT-First Requirement
 
 OmniRelay is cloud-native and hyperscale-focused, so **every DISC/REFDISC story carries an explicit AOT gate**:
