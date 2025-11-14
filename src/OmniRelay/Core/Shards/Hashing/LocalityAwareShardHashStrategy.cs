@@ -42,13 +42,12 @@ public sealed class LocalityAwareShardHashStrategy : IShardHashStrategy
         var buffer = new List<ShardNodeDescriptor>();
         if (!string.IsNullOrEmpty(parsed.Zone))
         {
-            foreach (var node in nodes)
-            {
-                if (!string.IsNullOrEmpty(node.Zone) && string.Equals(node.Zone, parsed.Zone, StringComparison.OrdinalIgnoreCase))
-                {
-                    buffer.Add(node);
-                }
-            }
+            buffer.AddRange(
+                nodes.Where(node =>
+                    !string.IsNullOrEmpty(node.Zone) &&
+                    string.Equals(node.Zone, parsed.Zone, StringComparison.OrdinalIgnoreCase)
+                )
+            );
         }
 
         if (buffer.Count > 0)
