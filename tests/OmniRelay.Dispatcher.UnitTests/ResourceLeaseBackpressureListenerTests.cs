@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using OmniRelay.ControlPlane.Throttling;
 using OmniRelay.Core;
 using Xunit;
 

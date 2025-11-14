@@ -1,6 +1,6 @@
-namespace OmniRelay.Dispatcher;
+namespace OmniRelay.ControlPlane.Throttling;
 
-/// <summary>Describes the current backpressure state observed on the resource lease queue.</summary>
+/// <summary>Describes the current backpressure state observed by control-plane services.</summary>
 public sealed record ResourceLeaseBackpressureSignal(
     bool IsActive,
     long PendingCount,
@@ -19,7 +19,7 @@ public sealed record ResourceLeaseBackpressureSignal(
     public long? LowWatermark { get; init; } = LowWatermark;
 }
 
-/// <summary>Consumers implement this to adjust throttling or instrumentation when backpressure toggles.</summary>
+/// <summary>Consumers implement this to adjust throttling/telemetry when backpressure toggles.</summary>
 public interface IResourceLeaseBackpressureListener
 {
     ValueTask OnBackpressureChanged(ResourceLeaseBackpressureSignal signal, CancellationToken cancellationToken);

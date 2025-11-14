@@ -3,37 +3,37 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging.Abstractions;
-using OmniRelay.Core.Gossip;
+using OmniRelay.ControlPlane.Security;
 using Shouldly;
 using Xunit;
 
-namespace OmniRelay.Core.UnitTests.Gossip;
+namespace OmniRelay.Core.UnitTests.ControlPlane;
 
-public sealed class MeshGossipCertificateProviderTests
+public sealed class TransportTlsManagerTests
 {
     [Fact]
     public void GetCertificate_ThrowsWhenCertificatePathMissing()
     {
         var options = CreateOptions();
-        options.Tls.CertificatePath = null;
-        options.Tls.CertificateData = null;
+        options.CertificatePath = null;
+        options.CertificateData = null;
 
-        using var provider = new MeshGossipCertificateProvider(options, NullLogger<MeshGossipCertificateProvider>.Instance);
+        using var manager = new TransportTlsManager(options, NullLogger<TransportTlsManager>.Instance);
 
-        Should.Throw<InvalidOperationException>(() => provider.GetCertificate())
-            .Message.ShouldContain("mesh:gossip:tls:certificatePath");
+        Should.Throw<InvalidOperationException>(() => manager.GetCertificate())
+            .Message.ShouldContain("certificate path");
     }
 
     [Fact]
     public void GetCertificate_ThrowsWhenInlineCertificateDataIsInvalid()
     {
         var options = CreateOptions();
-        options.Tls.CertificateData = "not-base64!";
-        options.Tls.CertificatePassword = "pass";
+        options.CertificateData = "not-base64!";
+        options.CertificatePassword = "pass";
 
-        using var provider = new MeshGossipCertificateProvider(options, NullLogger<MeshGossipCertificateProvider>.Instance);
+        using var manager = new TransportTlsManager(options, NullLogger<TransportTlsManager>.Instance);
 
-        Should.Throw<InvalidOperationException>(() => provider.GetCertificate())
+        Should.Throw<InvalidOperationException>(() => manager.GetCertificate())
             .Message.ShouldContain("Base64");
     }
 
@@ -41,25 +41,25 @@ public sealed class MeshGossipCertificateProviderTests
     public void GetCertificate_ReloadsWhenFileTimestampChanges()
     {
         using var tempDir = new TempDirectory();
-        var certificatePath = Path.Combine(tempDir.Path, "mesh-cert.pfx");
+        var certificatePath = Path.Combine(tempDir.Path, "transport-cert.pfx");
         const string password = "mesh-secret";
 
-        var firstBytes = CreateCertificateBytes("CN=mesh-first", password);
+        var firstBytes = CreateCertificateBytes("CN=transport-first", password);
         File.WriteAllBytes(certificatePath, firstBytes);
 
         var options = CreateOptions();
-        options.Tls.CertificatePath = certificatePath;
-        options.Tls.CertificatePassword = password;
+        options.CertificatePath = certificatePath;
+        options.CertificatePassword = password;
 
-        using var provider = new MeshGossipCertificateProvider(options, NullLogger<MeshGossipCertificateProvider>.Instance);
-        using var first = provider.GetCertificate();
+        using var manager = new TransportTlsManager(options, NullLogger<TransportTlsManager>.Instance);
+        using var first = manager.GetCertificate();
         var firstThumbprint = first.Thumbprint;
 
-        var secondBytes = CreateCertificateBytes("CN=mesh-second", password);
+        var secondBytes = CreateCertificateBytes("CN=transport-second", password);
         File.WriteAllBytes(certificatePath, secondBytes);
         File.SetLastWriteTimeUtc(certificatePath, DateTime.UtcNow.AddSeconds(1));
 
-        using var second = provider.GetCertificate();
+        using var second = manager.GetCertificate();
         second.Thumbprint.ShouldNotBe(firstThumbprint);
     }
 
@@ -68,34 +68,32 @@ public sealed class MeshGossipCertificateProviderTests
     {
         var options = CreateOptions();
         const string password = "inline-secret";
-        var bytes = CreateCertificateBytes("CN=mesh-inline", password);
-        options.Tls.CertificatePassword = password;
-        options.Tls.CertificateData = Convert.ToBase64String(bytes);
+        var bytes = CreateCertificateBytes("CN=transport-inline", password);
+        options.CertificatePassword = password;
+        options.CertificateData = Convert.ToBase64String(bytes);
 
         byte[]? observed = null;
-        MeshGossipCertificateProviderTestHooks.SecretsCleared = buffer => observed = buffer.ToArray();
+        TransportTlsManagerTestHooks.SecretsCleared = buffer => observed = buffer.ToArray();
 
         try
         {
-            using var provider = new MeshGossipCertificateProvider(options, NullLogger<MeshGossipCertificateProvider>.Instance);
-            using var certificate = provider.GetCertificate();
-            certificate.Subject.ShouldContain("mesh-inline");
+            using var manager = new TransportTlsManager(options, NullLogger<TransportTlsManager>.Instance);
+            using var certificate = manager.GetCertificate();
+            certificate.Subject.ShouldContain("transport-inline");
         }
         finally
         {
-            MeshGossipCertificateProviderTestHooks.SecretsCleared = null;
+            TransportTlsManagerTestHooks.SecretsCleared = null;
         }
 
         observed.ShouldNotBeNull();
         observed!.ShouldAllBe(b => b == 0);
     }
 
-    private static MeshGossipOptions CreateOptions() => new()
+    private static TransportTlsOptions CreateOptions() => new()
     {
-        NodeId = "test-node",
-        ClusterId = "cluster-a",
-        Region = "test",
-        MeshVersion = "test"
+        CertificatePath = Path.Combine(Path.GetTempPath(), $"omnirelay-transport-{Guid.NewGuid():N}.pfx"),
+        ReloadInterval = TimeSpan.FromSeconds(1)
     };
 
     private static byte[] CreateCertificateBytes(string subjectName, string password)
@@ -110,7 +108,7 @@ public sealed class MeshGossipCertificateProviderTests
     {
         public TempDirectory()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"mesh-gossip-{Guid.NewGuid():N}");
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"transport-tls-{Guid.NewGuid():N}");
             Directory.CreateDirectory(Path);
         }
 

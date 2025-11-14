@@ -2,18 +2,16 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
-namespace OmniRelay.Core.Gossip;
+namespace OmniRelay.ControlPlane.Security;
 
 /// <summary>
-/// Loads and refreshes the X509 certificate used for gossip TLS.
+/// Loads and refreshes TLS certificates for control-plane transports (gRPC/HTTP/gossip).
+/// Provides a single source of truth for both server and client credentials.
 /// </summary>
-public sealed class MeshGossipCertificateProvider(
-    MeshGossipOptions options,
-    ILogger<MeshGossipCertificateProvider> logger)
-    : IDisposable
+public sealed class TransportTlsManager : IDisposable
 {
-    private readonly MeshGossipOptions _options = options ?? throw new ArgumentNullException(nameof(options));
-    private readonly ILogger<MeshGossipCertificateProvider> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly TransportTlsOptions _options;
+    private readonly ILogger<TransportTlsManager> _logger;
     private readonly object _lock = new();
     private X509Certificate2? _certificate;
     private DateTimeOffset _lastLoaded;
@@ -21,13 +19,24 @@ public sealed class MeshGossipCertificateProvider(
     private static readonly Action<ILogger, string, string, Exception?> CertificateLoadedLog =
         LoggerMessage.Define<string, string>(
             LogLevel.Information,
-            new EventId(1, "MeshGossipCertificateLoaded"),
-            "Mesh gossip certificate loaded from {Path}. Subject={Subject}");
+            new EventId(1, "TransportCertificateLoaded"),
+            "Control-plane TLS certificate loaded from {Source}. Subject={Subject}");
 
+    public TransportTlsManager(TransportTlsOptions options, ILogger<TransportTlsManager> logger)
+    {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <summary>Returns true when a certificate source was configured.</summary>
     public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(_options.Tls.CertificatePath) ||
-        !string.IsNullOrWhiteSpace(_options.Tls.CertificateData);
+        !string.IsNullOrWhiteSpace(_options.CertificatePath) ||
+        !string.IsNullOrWhiteSpace(_options.CertificateData);
 
+    /// <summary>
+    /// Retrieves the latest certificate instance, reloading from disk/inline data when necessary.
+    /// The caller takes ownership over the returned <see cref="X509Certificate2"/>.
+    /// </summary>
     public X509Certificate2 GetCertificate()
     {
         lock (_lock)
@@ -37,7 +46,7 @@ public sealed class MeshGossipCertificateProvider(
                 ReloadLocked();
             }
 
-            return _certificate!;
+            return new X509Certificate2(_certificate!);
         }
     }
 
@@ -53,14 +62,16 @@ public sealed class MeshGossipCertificateProvider(
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(_options.Tls.CertificateData))
+        // Inline certificates are immutable until configuration reloads them.
+        if (!string.IsNullOrWhiteSpace(_options.CertificateData))
         {
             return false;
         }
 
         var now = DateTimeOffset.UtcNow;
-        var reloadInterval = _options.Tls.ReloadIntervalOverride ?? _options.CertificateReloadInterval;
-        if (reloadInterval > TimeSpan.Zero && now - _lastLoaded >= reloadInterval)
+        if (_options.ReloadInterval is { } interval &&
+            interval > TimeSpan.Zero &&
+            now - _lastLoaded >= interval)
         {
             return true;
         }
@@ -77,31 +88,31 @@ public sealed class MeshGossipCertificateProvider(
 
     private void ReloadLocked()
     {
-        var flags = X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable;
-        X509Certificate2 cert;
+        var flags = _options.KeyStorageFlags;
+        X509Certificate2 certificate;
         string source;
         DateTime? lastWrite = null;
 
-        if (!string.IsNullOrWhiteSpace(_options.Tls.CertificateData))
+        if (!string.IsNullOrWhiteSpace(_options.CertificateData))
         {
             byte[] rawBytes;
             try
             {
-                rawBytes = Convert.FromBase64String(_options.Tls.CertificateData);
+                rawBytes = Convert.FromBase64String(_options.CertificateData);
             }
             catch (FormatException ex)
             {
-                throw new InvalidOperationException("mesh:gossip:tls:certificateData is not valid Base64.", ex);
+                throw new InvalidOperationException("transport TLS certificate data is not valid Base64.", ex);
             }
 
             try
             {
-                cert = X509CertificateLoader.LoadPkcs12(rawBytes, _options.Tls.CertificatePassword, flags);
+                certificate = X509CertificateLoader.LoadPkcs12(rawBytes, _options.CertificatePassword, flags);
             }
             finally
             {
                 CryptographicOperations.ZeroMemory(rawBytes);
-                MeshGossipCertificateProviderTestHooks.NotifySecretsCleared(rawBytes);
+                TransportTlsManagerTestHooks.NotifySecretsCleared(rawBytes);
             }
 
             source = "inline certificate data";
@@ -111,25 +122,25 @@ public sealed class MeshGossipCertificateProvider(
             var path = ResolveCertificatePath();
             if (!File.Exists(path))
             {
-                throw new FileNotFoundException($"Mesh gossip certificate '{path}' was not found.");
+                throw new FileNotFoundException($"Transport TLS certificate '{path}' was not found.");
             }
 
             var raw = File.ReadAllBytes(path);
-            cert = X509CertificateLoader.LoadPkcs12(raw, _options.Tls.CertificatePassword, flags);
+            certificate = X509CertificateLoader.LoadPkcs12(raw, _options.CertificatePassword, flags);
             source = path;
             lastWrite = File.GetLastWriteTimeUtc(path);
         }
 
         _certificate?.Dispose();
-        _certificate = cert;
+        _certificate = certificate;
         _lastLoaded = DateTimeOffset.UtcNow;
         _lastWrite = lastWrite ?? DateTime.MinValue;
-        CertificateLoadedLog(_logger, source, cert.Subject, null);
+        CertificateLoadedLog(_logger, source, certificate.Subject, null);
     }
 
     private string ResolveCertificatePath()
     {
-        var path = _options.Tls.CertificatePath ?? throw new InvalidOperationException("mesh:gossip:tls:certificatePath must be configured.");
+        var path = _options.CertificatePath ?? throw new InvalidOperationException("A transport TLS certificate path must be configured.");
         if (Path.IsPathRooted(path))
         {
             return path;
@@ -148,7 +159,7 @@ public sealed class MeshGossipCertificateProvider(
     }
 }
 
-internal static class MeshGossipCertificateProviderTestHooks
+internal static class TransportTlsManagerTestHooks
 {
     public static Action<byte[]>? SecretsCleared { get; set; }
 

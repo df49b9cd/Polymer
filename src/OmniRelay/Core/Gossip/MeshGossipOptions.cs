@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using OmniRelay.ControlPlane.Security;
 
 namespace OmniRelay.Core.Gossip;
 
@@ -127,4 +128,28 @@ public sealed class MeshGossipTlsOptions
     /// <summary>Optional override for certificate reload interval.</summary>
     public TimeSpan? ReloadIntervalOverride { get; set; }
 
+    internal TransportTlsOptions ToTransportTlsOptions(TimeSpan defaultReloadInterval)
+    {
+        var options = new TransportTlsOptions
+        {
+            CertificatePath = CertificatePath,
+            CertificateData = CertificateData,
+            CertificatePassword = CertificatePassword,
+            AllowUntrustedCertificates = AllowUntrustedCertificates,
+            CheckCertificateRevocation = CheckCertificateRevocation,
+            ReloadInterval = ReloadIntervalOverride ?? defaultReloadInterval
+        };
+
+        foreach (var thumbprint in AllowedThumbprints)
+        {
+            if (string.IsNullOrWhiteSpace(thumbprint))
+            {
+                continue;
+            }
+
+            options.AllowedThumbprints.Add(thumbprint.Trim());
+        }
+
+        return options;
+    }
 }

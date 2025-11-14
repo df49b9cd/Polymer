@@ -15,6 +15,8 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OmniRelay.ControlPlane.Events;
+using OmniRelay.ControlPlane.Security;
 using OmniRelay.Core.Peers;
 
 namespace OmniRelay.Core.Gossip;
@@ -28,7 +30,8 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
     private readonly ILogger<MeshGossipHost> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly MeshGossipMembershipTable _membership;
-    private readonly MeshGossipCertificateProvider _certificateProvider;
+    private readonly IControlPlaneEventBus? _eventBus;
+    private readonly TransportTlsManager _tlsManager;
     private readonly List<MeshGossipPeerEndpoint> _seedPeers;
     private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
     private readonly ConcurrentDictionary<string, MeshGossipMemberStatus> _peerStatuses = new(StringComparer.Ordinal);
@@ -58,7 +61,8 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         ILoggerFactory loggerFactory,
         TimeProvider? timeProvider = null,
         PeerLeaseHealthTracker? leaseHealthTracker = null,
-        MeshGossipCertificateProvider? certificateProvider = null)
+        TransportTlsManager? tlsManager = null,
+        IControlPlaneEventBus? eventBus = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -72,7 +76,8 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         var localMetadata = metadata ?? BuildMetadata(options);
         localMetadata = EnsureEndpoint(localMetadata, options);
         _membership = new MeshGossipMembershipTable(localMetadata.NodeId, localMetadata, _timeProvider);
-        _certificateProvider = certificateProvider ?? new MeshGossipCertificateProvider(options, CreateCertificateLogger(loggerFactory));
+        _eventBus = eventBus;
+        _tlsManager = tlsManager ?? new TransportTlsManager(options.Tls.ToTransportTlsOptions(options.CertificateReloadInterval), CreateCertificateLogger(loggerFactory));
         _seedPeers = [.. options.GetNormalizedSeedPeers()
             .Select(value => MeshGossipPeerEndpoint.TryParse(value, out var endpoint) ? endpoint : (MeshGossipPeerEndpoint?)null)
             .Where(static endpoint => endpoint is not null)
@@ -95,7 +100,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = _cts.Token;
 
-        if (!_certificateProvider.IsConfigured)
+        if (!_tlsManager.IsConfigured)
         {
             throw new InvalidOperationException("mesh:gossip:tls:certificatePath must be configured when gossip is enabled.");
         }
@@ -171,7 +176,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 ClientCertificates = [],
                 LocalCertificateSelectionCallback = (_, host, certificates, _, issuers) =>
                 {
-                    var cert = _certificateProvider.GetCertificate();
+                    var cert = _tlsManager.GetCertificate();
                     if (cert is not null && !certificates.Contains(cert))
                     {
                         certificates.Add(cert);
@@ -231,7 +236,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             CheckCertificateRevocation = _options.Tls.CheckCertificateRevocation,
             ClientCertificateValidation = (certificate, chain, errors) =>
                 ValidateRemoteCertificate(sender: null, certificate, chain, errors),
-            ServerCertificateSelector = (_, _) => _certificateProvider.GetCertificate()
+            ServerCertificateSelector = (_, _) => _tlsManager.GetCertificate()
         };
     }
 
@@ -255,6 +260,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         var snapshot = _membership.Snapshot();
         RecordMetrics(snapshot);
         MeshGossipMetrics.RecordMessage("inbound", "success");
+        PublishMembershipEvent("inbound-envelope");
         return BuildEnvelope(snapshot);
     }
 
@@ -308,6 +314,8 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             return;
         }
 
+        var membershipChanged = false;
+
         var snapshot = _membership.Snapshot();
         var members = _membership.PickFanout(_options.Fanout);
         var targets = members
@@ -348,6 +356,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                     }
 
                     MeshGossipMetrics.RecordRoundTrip(responseEnvelope.Sender.NodeId, elapsed);
+                    membershipChanged = true;
                 }
 
                 MeshGossipMetrics.RecordMessage("outbound", "success");
@@ -375,6 +384,10 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 
         UpdateLeaseDiagnostics();
         RecordMetrics(_membership.Snapshot());
+        if (membershipChanged)
+        {
+            PublishMembershipEvent("outbound-round");
+        }
     }
 
     private async Task RunSweepLoopAsync(CancellationToken cancellationToken)
@@ -389,6 +402,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 await Task.Delay(_options.SuspicionInterval, cancellationToken).ConfigureAwait(false);
                 _membership.Sweep(suspicion, leave);
                 RecordMetrics(_membership.Snapshot());
+                PublishMembershipEvent("sweep");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -603,8 +617,29 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             : null;
     }
 
-    private static ILogger<MeshGossipCertificateProvider> CreateCertificateLogger(ILoggerFactory factory) =>
-        factory.CreateLogger<MeshGossipCertificateProvider>();
+    private void PublishMembershipEvent(string reason, MeshGossipMemberSnapshot? changedMember = null)
+    {
+        var bus = _eventBus;
+        if (bus is null)
+        {
+            return;
+        }
+
+        var snapshot = _membership.Snapshot();
+        var metadata = _membership.LocalMetadata;
+        var evt = new GossipMembershipEvent(
+            metadata.ClusterId,
+            metadata.Role,
+            metadata.Region,
+            reason,
+            snapshot,
+            changedMember);
+
+        _ = bus.PublishAsync(evt, CancellationToken.None).AsTask();
+    }
+
+    private static ILogger<TransportTlsManager> CreateCertificateLogger(ILoggerFactory factory) =>
+        factory.CreateLogger<TransportTlsManager>();
 
     internal void ForcePeerStatus(string nodeId, MeshGossipMemberStatus status)
     {
@@ -627,6 +662,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         };
 
         _membership.MarkObserved(forcedSnapshot);
+        PublishMembershipEvent("forced-status", forcedSnapshot);
     }
 
     public void Dispose()
@@ -646,7 +682,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             MeshGossipHostLog.DisposalFailed(_logger, ex);
         }
 
-        _certificateProvider.Dispose();
+        _tlsManager.Dispose();
     }
 
     private static partial class MeshGossipHostLog

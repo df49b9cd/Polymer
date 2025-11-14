@@ -2,6 +2,7 @@ using Hugo;
 using Microsoft.Extensions.Options;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Peers;
+using OmniRelay.ControlPlane.Throttling;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Http;
 using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;

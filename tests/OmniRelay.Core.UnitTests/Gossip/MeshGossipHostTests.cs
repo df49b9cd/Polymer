@@ -489,7 +489,8 @@ public sealed class MeshGossipHostTests
             NullLoggerFactory.Instance,
             timeProvider ?? new TestTimeProvider(DateTimeOffset.UtcNow),
             tracker,
-            certificateProvider: null);
+            tlsManager: null,
+            eventBus: null);
         return (host, logger);
     }
 

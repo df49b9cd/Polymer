@@ -3,7 +3,7 @@ using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core;
 
-namespace OmniRelay.Dispatcher;
+namespace OmniRelay.ControlPlane.Throttling;
 
 /// <summary>
 /// Provides a shared selector that toggles between normal and backpressure rate limiters.
