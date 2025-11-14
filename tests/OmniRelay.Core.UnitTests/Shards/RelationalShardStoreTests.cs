@@ -93,6 +93,25 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task StreamDiffs_ReplaysSnapshotsPerHistoryEntry()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var create = CreateMutation("mesh.analytics", "shard-09", "node-a");
+        await _repository.UpsertAsync(create, ct);
+
+        var update = CreateMutation("mesh.analytics", "shard-09", "node-b", expectedVersion: 1, changeTicket: "chg-analytics");
+        await _repository.UpsertAsync(update, ct);
+
+        var diffs = await ReadDiffsAsync(cancellationToken: ct);
+
+        diffs.Count.ShouldBe(2);
+        diffs[0].Current.OwnerNodeId.ShouldBe("node-a");
+        diffs[0].Current.Version.ShouldBe(1);
+        diffs[1].Current.OwnerNodeId.ShouldBe("node-b");
+        diffs[1].Current.Version.ShouldBe(2);
+    }
+
+    [Fact]
     public async Task Upsert_WithStaleVersionThrows()
     {
         var ct = TestContext.Current.CancellationToken;
