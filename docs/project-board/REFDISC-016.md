@@ -53,6 +53,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, handle large registry datasets to ensure serialization performance remains acceptable and memory usage stable.
 - Stress schema evolution scenarios (rolling upgrade) to confirm compatibility helpers prevent outages.
 
+## Implementation status
+- The canonical registry records (`ShardRecord`, `ShardHistoryRecord`, `ShardMutationRequest`, `ShardRecordDiff`, etc.) plus the strategy primitives live under `src/OmniRelay/Core/Shards/**`. They are file-scoped, serialization-friendly types that the dispatcher, CLI, and tooling now consume directly, and `ShardHashStrategyRegistry` + the `JsonCodec` helpers guarantee schema parity when emitting registry snapshots or diffs.
+- Configuration + code reuse is wired through `src/OmniRelay.Configuration/Sharding/ShardingConfigurationExtensions.cs`, which binds `appsettings` documents into the shared hash requests/plans. Every shard store implementation (`src/OmniRelay.ShardStore.Relational`, `src/OmniRelay.ShardStore.ObjectStorage`, `src/OmniRelay.ShardStore.Sqlite`, `src/OmniRelay.ShardStore.Postgres`) persists those records verbatim so control-plane services and governance tooling link against the same contracts.
+- Coverage spans `tests/OmniRelay.Core.UnitTests/Shards/*.cs` for optimistic concurrency, diff streaming, and hashing determinism plus the hyperscale scenario in `tests/OmniRelay.HyperscaleFeatureTests/Scenarios/ShardSchemaHyperscaleFeatureTests.cs`, which drives thousands of shard assignments and rolling node updates to prove the shared schemas/codecs stay stable under load.
+
 ## References
 - Existing registry models/codecs within dispatcher modules.
 - `docs/architecture/service-discovery.md` - Registry schema sections.

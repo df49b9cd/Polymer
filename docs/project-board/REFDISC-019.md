@@ -53,6 +53,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, stress adapters with high write throughput to ensure transactional guarantees hold and telemetry remains stable.
 - Simulate regional storage outages to confirm retries/backoff avoid cascading failures.
 
+## Implementation status
+- Shared deterministic state stores now ship in `src/OmniRelay/Dispatcher/FileSystemDeterministicStateStore.cs` and `src/OmniRelay.ResourceLeaseReplicator.Sqlite/SqliteDeterministicStateStore.cs`, giving control-plane services filesystem, SQLite, or in-memory persistence options that implement the same `IDeterministicStateStore` contract and JSON codecs as the dispatcher.
+- `src/OmniRelay/Dispatcher/ResourceLeaseDeterministic.cs` wires those stores into `DeterministicResourceLeaseCoordinator`, letting the dispatcher, CLI, and the `samples/ResourceLease.MeshDemo` host capture replication effects with identical change/version gates while `SqliteResourceLeaseReplicator` / `ObjectStorageResourceLeaseReplicator` provide durable fan-out adapters.
+- Determinism is enforced by `tests/OmniRelay.Dispatcher.UnitTests/FileSystemDeterministicStateStoreTests.cs`, `tests/OmniRelay.Dispatcher.UnitTests/SqliteDeterministicStateStoreTests.cs`, and `tests/OmniRelay.Dispatcher.UnitTests/ResourceLeaseReplicationTests.cs`, while `tests/OmniRelay.IntegrationTests/ResourceLeaseIntegrationTests.cs` runs the dispatcher, middleware, and replication sinks end-to-end under real HTTP metadata to ensure behavior stays unchanged for consumers.
+
 ## References
 - Existing deterministic state store implementations in samples/dispatcher.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.

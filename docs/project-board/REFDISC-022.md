@@ -53,6 +53,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, run high-volume job workloads to ensure queues scale and scheduling remains fair.
 - Simulate cascading failures to ensure retries don’t overwhelm systems.
 
+## Implementation status
+- The TaskQueue-backed scheduler is exposed through `src/OmniRelay/Dispatcher/ResourceLeaseDispatcher.cs`, giving control-plane services a drop-in `ResourceLeaseDispatcherComponent` with typed JSON contracts, safe leasing via `SafeTaskQueueWrapper`, deterministic coordination options, and integration points for peer health, replication, and throttling.
+- `src/OmniRelay/ControlPlane/Throttling/BackpressureAwareRateLimiter.cs` + `ResourceLeaseBackpressureDiagnosticsListener` translate SafeTaskQueue signals into limiter toggles/diagnostics feeds, and the sample in `samples/ResourceLease.MeshDemo` wires those listeners alongside deterministic state stores so operators can observe queue depth/backpressure just like dispatcher-owned jobs.
+- `tests/OmniRelay.IntegrationTests/ResourceLeaseIntegrationTests.cs` executes enqueue/lease/complete/drain cycles end-to-end (including middleware + replication fan-out) to prove the generalized scheduler matches legacy behavior, while the mesh demo host continuously runs background work to validate retries/backoff + queue draining through the shared abstractions.
+
 ## References
 - Dispatcher command queue/scheduler implementations (rebalancer, metadata refresh tasks).
 - REFDISC-034..037 - AOT readiness baseline and CI gating.

@@ -51,6 +51,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - In OmniRelay.HyperscaleFeatureTests, verify the toolkit handles large node counts and intensive chaos sequences without degrading reliability.
 - Measure orchestration overhead to ensure it scales acceptably.
 
+## Implementation status
+- `tests/OmniRelay.FeatureTests/Fixtures/*.cs` now provide the shared harness: `FeatureTestApplication` spins up dispatcher hosts via `Host.CreateApplicationBuilder`, allocates unique ports through `TestPortAllocator`, binds TLS with `TestCertificateFactory`, and exposes `FeatureTestContainers` so suites can opt into Postgres/EventStore/object storage/NATS containers on demand.
+- Hyperscale orchestration lives under `tests/OmniRelay.HyperscaleFeatureTests/Infrastructure`, where `HyperscaleLeadershipCluster`, `LaggyLeadershipStore`, and `HyperscaleTestEnvironment` manage dozens of dispatcher roles, deterministic seeds, and chaos injections while reusing the same toolkit primitives (port allocator, TLS, configuration snapshots).
+- Common helpers sit in `tests/TestSupport` (diagnostic TLS certs, HTTP/3 facts, JSON contexts, and TestRuntimeConfigurator) and are referenced by every suite plus the documentation in `tests/OmniRelay.FeatureTests/README.md` / `tests/OmniRelay.HyperscaleFeatureTests/README.md`, so new control-plane services can adopt the toolkit without rewriting scaffolding.
+
 ## References
 - `tests/OmniRelay.FeatureTests` and `tests/OmniRelay.HyperscaleFeatureTests`.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.

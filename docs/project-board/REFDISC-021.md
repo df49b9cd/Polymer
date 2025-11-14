@@ -53,6 +53,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, drive high event volumes to ensure sinks keep up and backpressure mechanisms engage when needed.
 - Test schema rollover scenarios to ensure mixed-version nodes handle events safely.
 
+## Implementation status
+- The replication schema, sequencing logic, and sink abstractions are implemented in `src/OmniRelay/Dispatcher/ResourceLeaseReplication.cs`, complete with immutable `ResourceLeaseReplicationEvent` records, checkpointing sinks, and `ShardedResourceLeaseReplicator`/`CompositeResourceLeaseReplicator` helpers so dispatcher- and control-plane-owned queues emit the exact same payloads.
+- Dedicated adapters ship via `src/OmniRelay.ResourceLeaseReplicator.Sqlite`, `.ObjectStorage`, and `.Grpc`, each persisting events before invoking downstream sinks. The gRPC adapter shares `ResourceLeaseReplication.proto` contracts and automatically maps to `ResourceLeaseJsonContext`, while the SQLite/object-store variants expose deterministic fan-out and resume logic.
+- Reliability coverage includes `tests/OmniRelay.Dispatcher.UnitTests/ResourceLeaseReplicationTests.cs` + `ResourceLeaseShardingReplicatorTests.cs`, the full dispatcher flow in `tests/OmniRelay.IntegrationTests/ResourceLeaseIntegrationTests.cs`, and the `samples/ResourceLease.MeshDemo` host, which wires the framework into TaskQueue workloads and validates telemetry/backpressure hooks in a real control-plane deployment.
+
 ## References
 - Resource lease replication components in `samples/ResourceLease.MeshDemo` and core dispatcher plans.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.
