@@ -53,6 +53,10 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, coordinate drains across large clusters, ensuring kit scales and prevents simultaneous pool depletion.
 - Stress concurrent drains to ensure state tracking remains consistent.
 
+## Implementation status
+- `NodeDrainCoordinator`, participant interfaces, and snapshot types ship under `src/OmniRelay/ControlPlane/Upgrade/`, giving every host a shared state machine that orchestrates drain/cordon workflows across HTTP and gRPC inbounds. `HttpInbound` and `GrpcInbound` now implement `INodeDrainParticipant` so the coordinator can flip their drain gates without ripping through `StopAsync`, and dispatcher wiring registers them by name so diagnostics can show their status.
+- Diagnostics and CLI tooling expose the workflow end to end: `/control/upgrade`, `/control/upgrade/drain`, and `/control/upgrade/resume` surface on `DiagnosticsControlPlaneHost`, returning rich snapshots that include per-participant state and errors. `omnirelay mesh upgrade status|drain|resume` drives those endpoints, prints human-readable summaries or JSON, and records optional reasons for drains—operators no longer have to flip bespoke flags during rollouts.
+
 ## References
 - Existing drain/cordon logic in dispatcher diagnostics/control endpoints.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.

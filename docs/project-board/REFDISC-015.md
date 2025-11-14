@@ -53,6 +53,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, run large clusters with the primitives, inject rolling failures, and ensure elections remain stable and timely.
 - Measure lease renewal scalability and observer notification latency at scale.
 
+## Implementation status
+- Leadership primitives now live in `src/OmniRelay/Core/Leadership/`, where `LeadershipCoordinator`, `LeadershipEventHub`, `LeadershipStore`, and `LeadershipServiceCollectionExtensions` expose DI-friendly elections, lease renewal, and observer APIs that can be consumed from dispatcher and auxiliary hosts without referencing dispatcher internals.
+- `/control/leaders`, `/control/events/leadership`, and the gRPC streaming endpoint have been refactored to ride the same observer through `DiagnosticsControlPlaneHost` and `LeadershipControlPlaneHost` (`src/OmniRelay/Core/Diagnostics/DiagnosticsControlPlaneHost.cs`, `src/OmniRelay/Core/Leadership/LeadershipControlPlaneHost.cs`), and `omnirelay mesh leaders status` in `src/OmniRelay.Cli/Program.cs:448` reads snapshots and streams via the primitives plus the shared transport client factories.
+- Deterministic elections, fence enforcement, and watcher churn are covered by `LeadershipCoordinatorTests` (`tests/OmniRelay.Core.UnitTests/Leadership/LeadershipCoordinatorTests.cs`) and `LeadershipHyperscaleFeatureTests` (`tests/OmniRelay.HyperscaleFeatureTests/Scenarios/LeadershipHyperscaleFeatureTests.cs`), which simulate concurrent contenders, renewal failures, transport downgrades, and large-scope failovers to validate the reusable library end to end.
+
 ## References
 - Existing leadership coordination code (refer to `mesh:leadership` services and docs).
 - REFDISC-034..037 - AOT readiness baseline and CI gating.

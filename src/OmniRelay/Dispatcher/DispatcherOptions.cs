@@ -71,7 +71,7 @@ public sealed class DispatcherOptions
     }
 
     /// <summary>Adds an arbitrary lifecycle component by name.</summary>
-    public void AddLifecycle(string name, ILifecycle lifecycle)
+    public void AddLifecycle(string name, ILifecycle lifecycle, IEnumerable<string>? dependencies = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -80,7 +80,7 @@ public sealed class DispatcherOptions
 
         ArgumentNullException.ThrowIfNull(lifecycle);
 
-        var component = new DispatcherLifecycleComponent(name, lifecycle);
+        var component = new DispatcherLifecycleComponent(name, lifecycle, NormalizeDependencies(dependencies));
         _componentDescriptors.Add(component);
 
         if (_uniqueComponentSet.Add(lifecycle))
@@ -245,7 +245,20 @@ public sealed class DispatcherOptions
         }
     }
 
-    internal sealed record DispatcherLifecycleComponent(string Name, ILifecycle Lifecycle);
+    internal sealed record DispatcherLifecycleComponent(string Name, ILifecycle Lifecycle, ImmutableArray<string> Dependencies);
+
+    private static ImmutableArray<string> NormalizeDependencies(IEnumerable<string>? dependencies)
+    {
+        if (dependencies is null)
+        {
+            return ImmutableArray<string>.Empty;
+        }
+
+        return [.. dependencies
+            .Where(static dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Select(static dependency => dependency!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
+    }
 
     internal sealed class OutboundRegistryBuilder(string service)
     {

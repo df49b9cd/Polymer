@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
+using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
@@ -32,7 +33,7 @@ namespace OmniRelay.Transport.Http;
 /// Hosts the OmniRelay HTTP inbound server exposing RPC endpoints, introspection, and health probes.
 /// Supports HTTP/1.1 and HTTP/2, and can enable HTTP/3 (QUIC) when configured with TLS 1.3.
 /// </summary>
-public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
+public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDrainParticipant
 {
     private readonly string[] _urls;
     private readonly Action<IServiceCollection>? _configureServices;
@@ -387,16 +388,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
             return;
         }
 
-        _isDraining = true;
-
-        try
-        {
-            await _activeRequests.WaitAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            // fall through for fast shutdown
-        }
+        await WaitForDrainCompletionAsync(swallowCancellation: true, cancellationToken).ConfigureAwait(false);
 
         var cancellationRequested = cancellationToken.IsCancellationRequested;
         var stopToken = cancellationRequested ? CancellationToken.None : cancellationToken;
@@ -421,6 +413,15 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         _app = null;
         _isDraining = false;
         Interlocked.Exchange(ref _activeRequestCount, 0);
+    }
+
+    ValueTask INodeDrainParticipant.DrainAsync(CancellationToken cancellationToken) =>
+        WaitForDrainCompletionAsync(swallowCancellation: false, cancellationToken);
+
+    ValueTask INodeDrainParticipant.ResumeAsync(CancellationToken cancellationToken)
+    {
+        _isDraining = false;
+        return ValueTask.CompletedTask;
     }
 
     private static bool TrySetQuicOption(QuicTransportOptions options, string propertyName, object value)
@@ -468,6 +469,28 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware
         lock (_contextLock)
         {
             _activeHttpContexts.Remove(context);
+        }
+    }
+
+    private async ValueTask WaitForDrainCompletionAsync(bool swallowCancellation, CancellationToken cancellationToken)
+    {
+        if (_app is null)
+        {
+            return;
+        }
+
+        if (!_isDraining)
+        {
+            _isDraining = true;
+        }
+
+        try
+        {
+            await _activeRequests.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (swallowCancellation)
+        {
+            // Fast shutdown requested; ignore cancellation.
         }
     }
 

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OmniRelay.ControlPlane.Hosting;
 using OmniRelay.ControlPlane.Security;
+using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Peers;
@@ -69,6 +70,12 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
             if (leadershipObserver is not null)
             {
                 services.AddSingleton(leadershipObserver);
+            }
+
+            var drainCoordinator = _services.GetService<NodeDrainCoordinator>();
+            if (drainCoordinator is not null)
+            {
+                services.AddSingleton(drainCoordinator);
             }
         });
 
@@ -265,6 +272,8 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
                 await StreamLeadershipEventsAsync(context, observer, logger).ConfigureAwait(false);
             });
         }
+
+        MapUpgradeEndpoints(app);
     }
 
     [RequiresDynamicCode("Diagnostics control plane streaming uses System.Text.Json reflection serialization.")]
@@ -298,7 +307,44 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
         }
     }
 
+    private static void MapUpgradeEndpoints(WebApplication app)
+    {
+        app.MapGet("/control/upgrade", (NodeDrainCoordinator coordinator) =>
+        {
+            var snapshot = coordinator.Snapshot();
+            return Results.Json(snapshot);
+        });
+
+        app.MapPost("/control/upgrade/drain", async (HttpContext context, NodeDrainCoordinator coordinator, NodeDrainCommand? request) =>
+        {
+            try
+            {
+                var snapshot = await coordinator.BeginDrainAsync(request?.Reason, context.RequestAborted).ConfigureAwait(false);
+                return Results.Json(snapshot);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+        });
+
+        app.MapPost("/control/upgrade/resume", async (HttpContext context, NodeDrainCoordinator coordinator) =>
+        {
+            try
+            {
+                var snapshot = await coordinator.ResumeAsync(context.RequestAborted).ConfigureAwait(false);
+                return Results.Json(snapshot);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+        });
+    }
+
 }
+
+internal sealed record NodeDrainCommand(string? Reason);
 
 internal readonly record struct DiagnosticsControlPlaneFeatures(
     bool EnableLoggingToggle,

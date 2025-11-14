@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Configuration;
 using OmniRelay.ControlPlane.Clients;
+using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
@@ -438,7 +439,8 @@ public static class Program
         var command = new Command("mesh", "Mesh control-plane tooling.")
         {
             CreateMeshLeadersCommand(),
-            CreateMeshPeersCommand()
+            CreateMeshPeersCommand(),
+            CreateMeshUpgradeCommand()
         };
         return command;
     }
@@ -458,6 +460,119 @@ public static class Program
         {
             CreateMeshPeersListCommand()
         };
+
+        return command;
+    }
+
+    internal static Command CreateMeshUpgradeCommand()
+    {
+        var command = new Command("upgrade", "Node upgrade and drain orchestration.")
+        {
+            CreateMeshUpgradeStatusCommand(),
+            CreateMeshUpgradeDrainCommand(),
+            CreateMeshUpgradeResumeCommand()
+        };
+
+        return command;
+    }
+
+    internal static Command CreateMeshUpgradeStatusCommand()
+    {
+        var command = new Command("status", "Show node drain state.");
+
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080).",
+            DefaultValueFactory = _ => DefaultControlPlaneUrl
+        };
+        urlOption.Aliases.Add("-u");
+
+        var jsonOption = new Option<bool>("--json")
+        {
+            Description = "Emit JSON instead of plain text."
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Request timeout (e.g. 10s, 1m)."
+        };
+
+        command.Add(urlOption);
+        command.Add(jsonOption);
+        command.Add(timeoutOption);
+
+        command.SetAction(parseResult =>
+        {
+            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
+            var asJson = parseResult.GetValue(jsonOption);
+            var timeout = parseResult.GetValue(timeoutOption);
+            return RunMeshUpgradeStatusAsync(url, asJson, timeout).GetAwaiter().GetResult();
+        });
+
+        return command;
+    }
+
+    internal static Command CreateMeshUpgradeDrainCommand()
+    {
+        var command = new Command("drain", "Begin draining the node for an upgrade.");
+
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080).",
+            DefaultValueFactory = _ => DefaultControlPlaneUrl
+        };
+        urlOption.Aliases.Add("-u");
+
+        var reasonOption = new Option<string?>("--reason")
+        {
+            Description = "Optional reason to record with the drain request."
+        };
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Request timeout (e.g. 10s, 1m)."
+        };
+
+        command.Add(urlOption);
+        command.Add(reasonOption);
+        command.Add(timeoutOption);
+
+        command.SetAction(parseResult =>
+        {
+            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
+            var reason = parseResult.GetValue(reasonOption);
+            var timeout = parseResult.GetValue(timeoutOption);
+            return RunMeshUpgradeDrainAsync(url, reason, timeout).GetAwaiter().GetResult();
+        });
+
+        return command;
+    }
+
+    internal static Command CreateMeshUpgradeResumeCommand()
+    {
+        var command = new Command("resume", "Resume serving traffic after a drain.");
+
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080).",
+            DefaultValueFactory = _ => DefaultControlPlaneUrl
+        };
+        urlOption.Aliases.Add("-u");
+
+        var timeoutOption = new Option<string?>("--timeout")
+        {
+            Description = "Request timeout (e.g. 10s, 1m)."
+        };
+
+        command.Add(urlOption);
+        command.Add(timeoutOption);
+
+        command.SetAction(parseResult =>
+        {
+            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
+            var timeout = parseResult.GetValue(timeoutOption);
+            return RunMeshUpgradeResumeAsync(url, timeout).GetAwaiter().GetResult();
+        });
 
         return command;
     }
@@ -2280,6 +2395,187 @@ public static class Program
         return await RunMeshLeadersSnapshotAsync(baseUrl, scope, timeout).ConfigureAwait(false);
     }
 
+    internal static async Task<int> RunMeshUpgradeStatusAsync(string baseUrl, bool asJson, string? timeoutOption)
+    {
+        var timeout = TimeSpan.FromSeconds(10);
+        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
+        {
+            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
+            return 1;
+        }
+
+        Uri target;
+        try
+        {
+            target = BuildControlPlaneUri(baseUrl, "/control/upgrade", scope: null);
+        }
+        catch (ArgumentException ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+            return 1;
+        }
+
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var cts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Console.Error.WriteLineAsync($"Upgrade status request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
+                return 1;
+            }
+
+            NodeDrainSnapshot? snapshot;
+            await using ((await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false)).AsAsyncDisposable(out var stream))
+            {
+                snapshot = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.NodeDrainSnapshot, cts.Token).ConfigureAwait(false);
+            }
+
+            if (snapshot is null)
+            {
+                await Console.Error.WriteLineAsync("Upgrade status response was empty.").ConfigureAwait(false);
+                return 1;
+            }
+
+            if (asJson)
+            {
+                var json = JsonSerializer.Serialize(snapshot, OmniRelayCliJsonContext.Default.NodeDrainSnapshot);
+                CliRuntime.Console.WriteLine(json);
+            }
+            else
+            {
+                PrintNodeDrainSnapshot(snapshot);
+            }
+
+            return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Upgrade status request timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
+    internal static async Task<int> RunMeshUpgradeDrainAsync(string baseUrl, string? reason, string? timeoutOption)
+    {
+        var timeout = TimeSpan.FromSeconds(10);
+        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
+        {
+            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
+            return 1;
+        }
+
+        Uri target;
+        try
+        {
+            target = BuildControlPlaneUri(baseUrl, "/control/upgrade/drain", scope: null);
+        }
+        catch (ArgumentException ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+            return 1;
+        }
+
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var cts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            var payload = JsonSerializer.SerializeToUtf8Bytes(new NodeDrainCommandDto(reason), OmniRelayCliJsonContext.Default.NodeDrainCommandDto);
+            using var request = new HttpRequestMessage(HttpMethod.Post, target)
+            {
+                Content = new ByteArrayContent(payload)
+            };
+            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+            using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Console.Error.WriteLineAsync($"Drain request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
+                return 1;
+            }
+
+            NodeDrainSnapshot? snapshot;
+            await using ((await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false)).AsAsyncDisposable(out var stream))
+            {
+                snapshot = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.NodeDrainSnapshot, cts.Token).ConfigureAwait(false);
+            }
+
+            if (snapshot is null)
+            {
+                await Console.Error.WriteLineAsync("Drain response was empty.").ConfigureAwait(false);
+                return 1;
+            }
+
+            PrintNodeDrainSnapshot(snapshot);
+            return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Drain request timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
+    internal static async Task<int> RunMeshUpgradeResumeAsync(string baseUrl, string? timeoutOption)
+    {
+        var timeout = TimeSpan.FromSeconds(10);
+        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
+        {
+            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
+            return 1;
+        }
+
+        Uri target;
+        try
+        {
+            target = BuildControlPlaneUri(baseUrl, "/control/upgrade/resume", scope: null);
+        }
+        catch (ArgumentException ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+            return 1;
+        }
+
+        using var client = CliRuntime.HttpClientFactory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var cts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            using var response = await client.PostAsync(target, content: null, cts.Token).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                await Console.Error.WriteLineAsync($"Resume request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
+                return 1;
+            }
+
+            NodeDrainSnapshot? snapshot;
+            await using ((await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false)).AsAsyncDisposable(out var stream))
+            {
+                snapshot = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.NodeDrainSnapshot, cts.Token).ConfigureAwait(false);
+            }
+
+            if (snapshot is null)
+            {
+                await Console.Error.WriteLineAsync("Resume response was empty.").ConfigureAwait(false);
+                return 1;
+            }
+
+            PrintNodeDrainSnapshot(snapshot);
+            return 0;
+        }
+        catch (TaskCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Resume request timed out.").ConfigureAwait(false);
+            return 2;
+        }
+    }
+
     internal static async Task<int> RunMeshPeersListAsync(string baseUrl, MeshPeersOutputFormat format, string? timeoutOption)
     {
         var timeout = TimeSpan.FromSeconds(10);
@@ -2605,6 +2901,30 @@ public static class Program
             var rtt = peer.RoundTripTimeMs.HasValue ? peer.RoundTripTimeMs.Value.ToString("0.##", CultureInfo.InvariantCulture) : "-";
             Console.WriteLine(
                 $"{peer.NodeId,-24} {peer.Status,-8} {metadata.Role,-12} {metadata.ClusterId,-18} {metadata.Region,-18} {metadata.MeshVersion,-12} {(metadata.Http3Support ? "yes" : "no"),-7} {rtt,8}");
+        }
+    }
+
+    private static void PrintNodeDrainSnapshot(NodeDrainSnapshot snapshot)
+    {
+        Console.WriteLine($"State   : {snapshot.State}");
+        if (!string.IsNullOrWhiteSpace(snapshot.Reason))
+        {
+            Console.WriteLine($"Reason  : {snapshot.Reason}");
+        }
+
+        Console.WriteLine($"Updated : {snapshot.UpdatedAt:O}");
+
+        if (snapshot.Participants.Length == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Participants:");
+        foreach (var participant in snapshot.Participants.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var errorSuffix = string.IsNullOrWhiteSpace(participant.LastError) ? string.Empty : $" (error: {participant.LastError})";
+            Console.WriteLine($"  - {participant.Name}: {participant.State} @ {participant.UpdatedAt:O}{errorSuffix}");
         }
     }
 
@@ -3724,6 +4044,8 @@ public static class Program
     }
 
     private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName);
+
+    private sealed record NodeDrainCommandDto(string? Reason);
 
     private enum PayloadSource
     {

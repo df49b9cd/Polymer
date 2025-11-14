@@ -53,6 +53,10 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, manage many components per host (gossip, leadership, telemetry exporters) to ensure orchestrator scales without deadlocks or long stop times.
 - Inject chaos (random component failure) and ensure orchestrator retries/backoff without cascading failures.
 
+## Implementation status
+- `ILifecycleOrchestrator`, `LifecycleComponentRegistration`, and the concrete `LifecycleOrchestrator` now live under `src/OmniRelay/ControlPlane/Hosting/` and encapsulate dependency ordering, retries, and diagnostics snapshots for any collection of `ILifecycle` components. The dispatcher constructor builds registrations from `DispatcherOptions`, feeds them into the orchestrator, and delegates start/stop so transports, gossip, leadership, and control-plane hosts all run through the shared coordinator instead of bespoke loops.
+- `DispatcherBuilder` records explicit dependencies for gossip (`mesh-gossip`), leadership (`mesh-leadership`), and the control-plane hosts (`control-plane:http`, `control-plane:grpc`), so the orchestrator enforces the ordering guarantees the story requires. Because the orchestrator is part of the public `ControlPlane.Hosting` surface, other hosts can reuse it (e.g., tests or future control-plane services) without referencing dispatcher internals.
+
 ## References
 - `src/OmniRelay/Dispatcher/Dispatcher.cs` - Current lifecycle management logic.
 - `docs/architecture/service-discovery.md` - Component lifecycle requirements.

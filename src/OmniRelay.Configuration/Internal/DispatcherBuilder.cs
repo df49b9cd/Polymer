@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 using OmniRelay.Configuration.Models;
 using OmniRelay.ControlPlane.Hosting;
 using OmniRelay.ControlPlane.Security;
+using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core;
 using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Gossip;
@@ -143,7 +144,9 @@ internal sealed partial class DispatcherBuilder
 
             var configureServices = CreateHttpInboundServiceConfigurator();
             var configureApp = CreateHttpInboundAppConfigurator();
-            dispatcherOptions.AddLifecycle(name, new HttpInbound(urls, configureServices: configureServices, configureApp: configureApp, serverRuntimeOptions: httpRuntimeOptions, serverTlsOptions: httpTlsOptions));
+            var httpInbound = new HttpInbound(urls, configureServices: configureServices, configureApp: configureApp, serverRuntimeOptions: httpRuntimeOptions, serverTlsOptions: httpTlsOptions);
+            dispatcherOptions.AddLifecycle(name, httpInbound);
+            RegisterDrainParticipant(name, httpInbound);
             index++;
         }
     }
@@ -173,14 +176,14 @@ internal sealed partial class DispatcherBuilder
                 ? $"grpc-inbound:{index}"
                 : inbound.Name!;
 
-            dispatcherOptions.AddLifecycle(
-                name,
-                new GrpcInbound(
-                    urls,
-                    configureServices: configureServices,
-                    serverRuntimeOptions: runtimeOptions,
-                    serverTlsOptions: tlsOptions,
-                    telemetryOptions: telemetryOptions));
+            var grpcInbound = new GrpcInbound(
+                urls,
+                configureServices: configureServices,
+                serverRuntimeOptions: runtimeOptions,
+                serverTlsOptions: tlsOptions,
+                telemetryOptions: telemetryOptions);
+            dispatcherOptions.AddLifecycle(name, grpcInbound);
+            RegisterDrainParticipant(name, grpcInbound);
 
             index++;
         }
@@ -1184,23 +1187,30 @@ internal sealed partial class DispatcherBuilder
 
     private void ConfigureMeshComponents(DispatcherOptions dispatcherOptions)
     {
+        var gossipAdded = false;
         var gossipAgent = _serviceProvider.GetService<IMeshGossipAgent>();
         if (gossipAgent is not null && gossipAgent.IsEnabled)
         {
             dispatcherOptions.AddLifecycle("mesh-gossip", gossipAgent);
+            gossipAdded = true;
         }
 
+        var leadershipAdded = false;
         var leadershipCoordinator = _serviceProvider.GetService<LeadershipCoordinator>();
         var leadershipOptions = _serviceProvider.GetService<IOptions<LeadershipOptions>>()?.Value;
         if (leadershipCoordinator is not null && leadershipOptions?.Enabled == true)
         {
-            dispatcherOptions.AddLifecycle("mesh-leadership", leadershipCoordinator);
+            dispatcherOptions.AddLifecycle(
+                "mesh-leadership",
+                leadershipCoordinator,
+                gossipAdded ? new[] { "mesh-gossip" } : null);
+            leadershipAdded = true;
         }
 
-        ConfigureControlPlaneHosts(dispatcherOptions);
+        ConfigureControlPlaneHosts(dispatcherOptions, gossipAdded, leadershipAdded);
     }
 
-    private void ConfigureControlPlaneHosts(DispatcherOptions dispatcherOptions)
+    private void ConfigureControlPlaneHosts(DispatcherOptions dispatcherOptions, bool gossipAdded, bool leadershipAdded)
     {
         if (!TryCreateDiagnosticsControlPlaneSettings(out var settings))
         {
@@ -1229,7 +1239,21 @@ internal sealed partial class DispatcherBuilder
             loggerFactory.CreateLogger<DiagnosticsControlPlaneHost>(),
             settings.HttpTlsManager);
 
-        dispatcherOptions.AddLifecycle("control-plane:http", httpHost);
+        var httpDependencies = new List<string>();
+        if (gossipAdded)
+        {
+            httpDependencies.Add("mesh-gossip");
+        }
+
+        if (leadershipAdded && settings.EnableLeadershipDiagnostics)
+        {
+            httpDependencies.Add("mesh-leadership");
+        }
+
+        dispatcherOptions.AddLifecycle(
+            "control-plane:http",
+            httpHost,
+            httpDependencies.Count == 0 ? null : httpDependencies);
 
         if (settings.GrpcOptions is not null)
         {
@@ -1238,8 +1262,22 @@ internal sealed partial class DispatcherBuilder
                 settings.GrpcOptions,
                 loggerFactory.CreateLogger<LeadershipControlPlaneHost>(),
                 settings.GrpcTlsManager);
-            dispatcherOptions.AddLifecycle("control-plane:grpc", grpcHost);
+            dispatcherOptions.AddLifecycle(
+                "control-plane:grpc",
+                grpcHost,
+                leadershipAdded ? new[] { "mesh-leadership" } : null);
         }
+    }
+
+    private void RegisterDrainParticipant(string name, ILifecycle lifecycle)
+    {
+        if (lifecycle is not INodeDrainParticipant participant)
+        {
+            return;
+        }
+
+        var coordinator = _serviceProvider.GetService<NodeDrainCoordinator>();
+        coordinator?.RegisterParticipant(name, participant);
     }
 
     private bool TryCreateDiagnosticsControlPlaneSettings(out DiagnosticsControlPlaneSettings? settings)

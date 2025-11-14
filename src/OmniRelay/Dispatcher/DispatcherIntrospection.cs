@@ -91,12 +91,14 @@ public sealed record DuplexProcedureDescriptor(string Name, string? Encoding, Im
     public DuplexIntrospectionMetadata Metadata { get; init; } = Metadata;
 }
 
-/// <summary>Lifecycle component descriptor including name and implementation type.</summary>
-public sealed record LifecycleComponentDescriptor(string Name, string ComponentType)
+/// <summary>Lifecycle component descriptor including name, implementation type, and dependencies.</summary>
+public sealed record LifecycleComponentDescriptor(string Name, string ComponentType, ImmutableArray<string> Dependencies)
 {
     public string Name { get; init; } = Name;
 
     public string ComponentType { get; init; } = ComponentType;
+
+    public ImmutableArray<string> Dependencies { get; init; } = Dependencies;
 }
 
 /// <summary>Outbound binding descriptor lists transports per RPC shape for a service.</summary>

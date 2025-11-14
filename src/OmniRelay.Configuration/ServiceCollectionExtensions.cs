@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OmniRelay.Configuration.Internal;
 using OmniRelay.Configuration.Models;
+using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
@@ -43,6 +44,7 @@ public static class OmniRelayServiceCollectionExtensions
         var (minimumLevel, overrides) = ParseLoggingConfiguration(snapshot.Logging);
 
         services.Configure<OmniRelayConfigurationOptions>(configuration);
+        services.TryAddSingleton<NodeDrainCoordinator>();
 
         var gossipSection = configuration.GetSection("mesh:gossip");
         if (gossipSection.Exists())
