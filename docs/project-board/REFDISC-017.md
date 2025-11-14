@@ -11,7 +11,7 @@ Provide a shared client helper library for interacting with OmniRelay control-pl
 
 ## Requirements
 1. **Auth parity** - Support the same authentication methods as dispatcher (mTLS, bearer tokens), leveraging the shared TLS + middleware registries.
-2. **Protocol support** - Clients must default to HTTP/3/gRPC with downgrade capability, reusing earlier factory work (REFDISC-002/007).
+2. **Protocol support** - Clients must default to HTTP/3/gRPC with downgrade capability, reusing the shared control-plane factories (REFDISC-002).
 3. **Error handling** - Normalize errors (status codes, gRPC statuses) into typed exceptions with actionable messages.
 4. **Serialization** - Use the shared registry + diagnostics models to parse responses, ensuring version compatibility.
 5. **Extensibility** - Allow new commands to plug into the helpers without duplicating transport or auth logic.
@@ -54,5 +54,5 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 
 ## References
 - Current CLI client implementations (see `src/OmniRelay.Cli`).
-- Shared transport/TLS refs: REFDISC-002, REFDISC-007, REFDISC-003.
+- Shared transport/TLS refs: REFDISC-002, REFDISC-003.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.

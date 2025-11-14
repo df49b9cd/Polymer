@@ -1,33 +1,34 @@
-# REFDISC-009 - Diagnostics Runtime Control Kit
+﻿# REFDISC-009 - Diagnostics Runtime & Peer Health Kit
 
 ## Goal
-Extract the dispatcher’s diagnostics runtime (logging/tracing toggles, runtime state) and `/omnirelay/control/*` endpoint handlers into a reusable kit so any host can expose control knobs without referencing dispatcher internals.
+Extract the dispatcher's diagnostics runtime (logging/tracing toggles, runtime state), `/omnirelay/control/*` handlers, and peer health/lease tracking into a reusable kit so any host can expose control knobs and publish peer health data without referencing dispatcher internals.
 
 ## Scope
-- Move `DiagnosticsRuntimeState`, `IDiagnosticsRuntime`, and related options binding into a neutral package.
-- Provide helper extensions to register control endpoints (logging level, tracing probability, diagnostics info) on any ASP.NET Core app.
-- Ensure runtime state can aggregate inputs from multiple hosts in the same process without conflicts.
-- Document how dispatcher, gossip, and leadership services consume the kit.
+- Move `DiagnosticsRuntimeState`, `IDiagnosticsRuntime`, control endpoint handlers, and options binding into a neutral package.
+- Lift `PeerLeaseHealthTracker`, snapshot providers, and diagnostics transformers into the same kit with DI registrations.
+- Provide helper extensions to register control endpoints plus peer health endpoints on any ASP.NET Core app and ensure multiple hosts in one process can share state safely.
+- Integrate with the shared telemetry module so peer health events emit consistent metrics/spans.
+- Document how dispatcher, gossip, leadership, and bootstrap services consume the kit.
 
 ## Requirements
-1. **State management** - Runtime state must remain thread-safe, support dynamic updates, and broadcast changes to subscribers.
-2. **Endpoint consistency** - `/omnirelay/control/logging`, `/omnirelay/control/tracing`, `/omnirelay/control/lease-health`, and `/omnirelay/control/peers` must return the same payloads regardless of host.
-3. **Authorization hooks** - Allow custom auth policies (mTLS identity, bearer tokens) to protect control endpoints.
-4. **Configuration binding** - Respect existing options (`diagnostics.runtime.*`) and allow enabling/disabling the control plane per host.
-5. **Extensibility** - Provide a way for new control modules to register endpoints using the same serialization + error-handling patterns.
+1. **Thread-safe runtime state** - Diagnostics and peer health state must support concurrent updates, propagate change notifications, and deduplicate registrations across hosts.
+2. **Endpoint consistency** - `/omnirelay/control/logging`, `/tracing`, `/lease-health`, `/peers`, and related endpoints must return identical payloads regardless of host and honor runtime toggle integration.
+3. **Shared data model** - Peer health data requires a common representation (status, labels, metadata, lease info) consumed by telemetry and diagnostics endpoints.
+4. **Authorization & configuration** - Allow custom auth policies (mTLS identity, bearer tokens) plus configuration binding (`diagnostics.runtime.*`) to enable/disable endpoints per host.
+5. **Extensibility** - Provide hooks for new diagnostics/health modules to register endpoints, telemetry, and snapshot providers using the same serialization/error-handling patterns.
 
 ## Deliverables
-- Diagnostics runtime kit (interfaces, state implementation, endpoint registration helpers).
+- Diagnostics runtime + peer health kit (interfaces, state implementation, endpoint registration helpers, trackers).
 - Dispatcher refactor to consume the kit rather than private implementations.
-- Updates to control-plane hosts to register the diagnostics kit endpoints.
-- Documentation describing configuration, security, and usage.
+- Updates to control-plane hosts to record/report peer health and register diagnostics endpoints via the kit.
+- Documentation describing configuration, security, data model conventions, and extension points.
 
 ## Acceptance Criteria
-- Control endpoints behave identically before and after dispatcher refactor (verified via diff of JSON payloads).
-- Control-plane hosts can enable logging/tracing toggles independently by referencing the kit.
-- Authorization policies can be attached via configuration and enforced consistently.
-- Runtime state survives multiple registrations (dispatcher + gossip) inside one host without duplicate endpoints.
-- Configuration toggles (`EnableControlPlane`, per-feature flags) work across all consumers.
+- Control endpoints return the same JSON payloads before/after dispatcher refactor and react to runtime toggles immediately.
+- Control-plane hosts can enable logging/tracing toggles and peer health diagnostics independently by referencing the kit.
+- Peer health diagnostics (`/omnirelay/control/lease-health`, `/peers`) function even when the dispatcher is offline as long as the kit is registered.
+- Authorization policies attach uniformly to all endpoints, and configuration toggles work across all consumers.
+- Metrics emitted by peer health trackers align with previous counters (counts per status, event rates) and feed existing dashboards.
 
 - Native AOT gate: Publish with /p:PublishAot=true and treat trimming warnings as errors per REFDISC-034..037.
 
@@ -36,24 +37,26 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 
 
 ### Unit tests
-- Verify runtime state updates (set log level, set sampling probability) propagate to subscribers and validate input ranges.
-- Test endpoint handlers for null/invalid requests to ensure consistent 400/204 responses.
-- Ensure authorization hooks are invoked and failures return 401/403 as configured.
+- Verify runtime state updates (set log level, set sampling probability) propagate to subscribers, validate payloads, and guard against invalid ranges.
+- Test peer health tracker concurrency, metadata enrichment, and snapshot generation, ensuring snapshots remain consistent under concurrent updates.
+- Exercise endpoint handlers for null/invalid requests to ensure consistent HTTP status codes and auth enforcement.
 
 ### Integration tests
-- Host a test app using the kit, issue control requests (GET/POST) and confirm state changes and JSON payloads.
-- Toggle configuration to disable specific endpoints and verify they return 404 or are not mapped.
-- Run multiple hosts in one process to confirm endpoints register once and share state.
+- Host a test app using the kit, issue control requests (GET/POST), record peer health events, and confirm state changes plus JSON payloads.
+- Toggle configuration to disable specific endpoints and verify they return 404 or are not mapped; repeat with multiple hosts in one process to ensure registrations deduplicate.
+- Confirm telemetry counters/spans emit when peer health transitions occur and when diagnostics toggles fire.
 
 ### Feature tests
-- Within OmniRelay.FeatureTests, enable diagnostics endpoints on dispatcher and gossip hosts via the kit, then drive logging/tracing toggles to ensure both react.
-- Validate `/omnirelay/control/peers` + `/lease-health` remain accessible and accurate even when the dispatcher is offline.
+- Within OmniRelay.FeatureTests, enable diagnostics endpoints on dispatcher and gossip hosts via the kit, then drive logging/tracing toggles and inspect peer health results to ensure parity.
+- Simulate node failures/lease churn, ensuring peer health diagnostics update promptly regardless of host origin.
 
 ### Hyperscale Feature Tests
-- Under OmniRelay.HyperscaleFeatureTests, stress control endpoints with concurrent toggles (log level thrash) to ensure state remains consistent and latency acceptable.
-- Simulate RBAC/mTLS auth requirements to ensure authorization hooks scale with many operators.
+- Under OmniRelay.HyperscaleFeatureTests, stress control endpoints with concurrent toggles (log level thrash) and high peer health event volume to ensure latency/perf remain acceptable.
+- Exercise RBAC/mTLS auth requirements at scale to ensure authorization hooks remain reliable.
 
 ## References
-- `src/OmniRelay.Configuration/ServiceCollectionExtensions.cs` - Current diagnostics runtime wiring.
-- `docs/architecture/service-discovery.md` - Control-plane diagnostics requirements.
+- `src/OmniRelay.Configuration/ServiceCollectionExtensions.cs` and `src/OmniRelay/Core/Peers/PeerLeaseHealthTracker.cs` - Source logic to extract.
+- `docs/architecture/service-discovery.md` - Control-plane diagnostics and peer health requirements.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.
+
+

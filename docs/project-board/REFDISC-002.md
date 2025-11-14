@@ -1,33 +1,34 @@
-# REFDISC-002 - HTTP/3 Client Factory for Control Plane
+# REFDISC-002 - Control-Plane Client Factories
 
 ## Goal
-Provide a reusable gRPC client/channel factory that encapsulates HTTP/3 preference, downgrade policy, client mTLS, and transport metrics so gossip, leadership, and discovery components can issue control-plane RPCs without duplicating `GrpcOutbound` internals.
+Provide reusable gRPC HTTP/3 and REST HTTP/2 client factories that encapsulate transport preferences, mTLS, retries, and middleware so control-plane components issue RPCs without duplicating `GrpcOutbound`/`HttpOutbound` internals.
 
 ## Scope
-- Extract channel construction, `SocketsHttpHandler` tuning, and TLS selection logic from `GrpcOutbound`.
-- Create a DI-friendly `IGrpcControlPlaneClientFactory` that supplies configured `GrpcChannel`/`HttpClient` instances keyed by endpoint metadata or named profiles.
-- Support endpoint-level HTTP/3 capability hints plus runtime overrides (force HTTP/2) based on health probes.
-- Ensure control-plane consumers can request lightweight unary clients (for gossip/leadership) without registering dispatcher middleware.
+- Extract channel construction, `SocketsHttpHandler` tuning, retry policies, and TLS selection logic from `GrpcOutbound` and `HttpOutbound`.
+- Create DI-friendly factories (`IGrpcControlPlaneClientFactory`, `IHttpControlPlaneClientFactory`) that return configured `GrpcChannel`/`HttpClient` instances keyed by endpoint metadata or named profiles.
+- Support endpoint-level HTTP/3/HTTP/2 capability hints plus runtime overrides (force HTTP/2/HTTP/1.1) driven by health probes.
+- Allow attaching shared interceptors/middleware (auth, tracing, rate limiting) through registries rather than bespoke handlers per client.
+- Document recommended factory profiles (control-plane vs. data-plane) and configuration keys for operators.
 
 ## Requirements
-1. **HTTP/3 preference** - Factory must default to HTTP/3 with automatic fallback to HTTP/2 by setting `HttpVersionPolicy.RequestVersionOrLower`; it must expose switches to disable HTTP/3 per endpoint.
-2. **Client mTLS** - Support client certificate loading, custom validation callbacks, and revocation checking identical to `GrpcOutbound.ApplyClientTlsOptions`.
-3. **Runtime knobs** - Expose limits for max message sizes, ping delays/timeouts, and retry/backoff policies so control-plane traffic can tune reliability.
-4. **Peer awareness** - Provide hooks for peer chooser + circuit breaker injection so service discovery utilities can balance across multiple control-plane replicas.
-5. **Observability** - Emit the same transport metrics (e.g., `grpc_outbound_requests_total`, RTT histograms) and tracing spans as dispatcher outbound calls.
+1. **Protocol preferences** - gRPC factory must default to HTTP/3 with automatic fallback to HTTP/2 using `HttpVersionPolicy.RequestVersionOrLower`; HTTP factory must default to HTTP/2 with HTTP/1.1 fallback and expose switches to force a specific version.
+2. **Client mTLS** - Both factories must load client certificates, support custom validation callbacks, and enforce revocation/thumbprint policies identical to existing outbound helpers.
+3. **Runtime knobs** - Expose configuration for max message sizes, ping delays/timeouts, retry/backoff policies, connection limits, decompression, and per-endpoint overrides.
+4. **Peer awareness** - Provide hooks for peer chooser + circuit breaker injection so service discovery utilities can balance across replicas and shed load consistently.
+5. **Observability & middleware** - Emit the current transport metrics (`grpc_outbound_*`, `omnirelay_transport_http_*`), tracing spans, and allow stacking shared interceptors/middleware via DI.
 
 ## Deliverables
-- Factory interface + implementation under `OmniRelay.Transport.Grpc`.
-- Refactoring of `GrpcOutbound` to consume the factory (removing duplicate handler setup).
-- Updates to gossip/leadership/service-discovery agents to resolve the factory rather than newing `HttpClient`/`GrpcChannel`.
-- Documentation outlining recommended factory profiles (control-plane vs. data-plane) and configuration keys.
+- Factory interfaces + implementations under `OmniRelay.Transport.Grpc` and `OmniRelay.Transport.Http`.
+- Refactoring of `GrpcOutbound`/`HttpOutbound` to consume the factories (removing duplicate handler setup).
+- Updates to gossip/leadership/service-discovery agents to resolve the factories rather than newing `HttpClient`/`GrpcChannel`.
+- Documentation outlining configuration keys, recommended profiles, and migration guidance.
 
 ## Acceptance Criteria
-- Dispatcher outbound calls continue working via the refactored `GrpcOutbound`.
-- Control-plane agents can dial peers over gRPC HTTP/3 using the factory without referencing dispatcher classes.
+- Dispatcher outbound calls continue working via the refactored outbound helpers.
+- Control-plane agents can dial peers over gRPC HTTP/3 and HTTP/2/HTTP/1.1 using the factories without referencing dispatcher classes.
 - Client mTLS failures surface as actionable errors and never silently downgrade to insecure transport.
-- Telemetry dashboards observe unchanged metrics despite the refactor.
-- Endpoint hints to disable HTTP/3 for specific peers take effect without restarting the process.
+- Telemetry dashboards observe unchanged metrics, and middleware/interceptors fire consistently across dispatcher + control-plane calls.
+- Endpoint hints to disable HTTP/3 or HTTP/2 for specific peers take effect without restarting the process.
 
 - Native AOT gate: Publish with /p:PublishAot=true and treat trimming warnings as errors per REFDISC-034..037.
 
@@ -36,24 +37,24 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 
 
 ### Unit tests
-- Validate handler creation under combinations of TLS settings, HTTP version policies, and message size limits.
+- Validate handler creation under combinations of TLS settings, HTTP version policies, message size limits, retries, and decompression toggles.
 - Exercise peer chooser + circuit breaker injection using fake endpoints to ensure round-robin, preferred-peer, and degraded modes behave.
-- Confirm telemetry hooks fire by injecting fake meters/tracers and asserting recorded tags (endpoint, protocol version).
+- Confirm middleware/interceptor stacking honors ordering rules and handles duplicate registrations gracefully.
 
 ### Integration tests
-- Establish gRPC control-plane calls between two hosts using the factory, verifying HTTP/3 handshake and fallback with QUIC disabled.
-- Rotate client certificates mid-run and ensure the factory reloads credentials without recreating the host service.
-- Simulate endpoint hint updates (e.g., disable HTTP/3) and confirm new calls negotiate HTTP/2 while existing HTTP/3 streams drain gracefully.
+- Dial test endpoints over HTTP/3, HTTP/2, and HTTP/1.1 to verify negotiation/fallback plus mTLS enforcement.
+- Toggle runtime settings (timeouts, retry limits, HTTP version) via configuration reload and confirm clients adapt.
+- Ensure telemetry counters/spans produced by outbound traffic remain unchanged relative to existing dispatcher behavior.
 
 ### Feature tests
-- Within OmniRelay.FeatureTests, wire the factory into gossip + leadership flows and validate peer lookups, circuit-breaker trips, and telemetry surfaces behave identically to pre-refactor HTTP clients.
-- Verify operator workflows that scale peers up/down still converge because the factory respects peer chooser updates emitted by service discovery.
+- Use OmniRelay.FeatureTests to run dispatcher + gossip roles simultaneously with the factories, driving control-plane traffic through both protocols and validating auth/logging hooks.
+- Simulate endpoint-level HTTP/3 disablement plus circuit-breaker trips to ensure peer selection + retries behave as expected.
 
 ### Hyperscale Feature Tests
-- In OmniRelay.HyperscaleFeatureTests, drive thousands of rapid control-plane calls through the factory, monitor connection pools, and ensure HTTP/3 downgrades under load do not exhaust sockets.
-- Run chaos scenarios (packet loss, certificate expiry) to validate the factory’s retry + mTLS enforcement keeps the control plane healthy.
+- Under OmniRelay.HyperscaleFeatureTests, run large node counts generating sustained control-plane traffic using the factories to ensure handler pooling, retries, and TLS renegotiation stay healthy.
+- Stress configuration toggles (switch HTTP versions, rotate certificates) to ensure factories recycle handlers without leaks.
 
 ## References
-- `src/OmniRelay/Transport/Grpc/GrpcOutbound.cs` - Existing client/channel setup.
-- `docs/architecture/service-discovery.md` - Control-plane client transport expectations.
+- `src/OmniRelay/Transport/Grpc/GrpcOutbound.cs` and `src/OmniRelay/Transport/Http/HttpOutbound.cs` - current outbound logic to extract.
+- `docs/architecture/service-discovery.md` - Control-plane transport requirements.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.
