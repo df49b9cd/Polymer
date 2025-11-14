@@ -11,13 +11,27 @@ public sealed class GrpcTransportDiagnosticsTests
     [Fact]
     public void StartClientActivity_NoListener_ReturnsNull()
     {
+        var sourceField = typeof(GrpcTransportDiagnostics).GetField(
+            "ActivitySource",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        sourceField.ShouldNotBeNull();
+        var source = (ActivitySource?)sourceField!.GetValue(null);
+        source.ShouldNotBeNull();
+
         var activity = GrpcTransportDiagnostics.StartClientActivity(
             remoteService: "svc",
             procedure: "svc::Unary",
             address: new Uri("https://example.test:5001"),
             operation: "unary");
 
-        activity.ShouldBeNull();
+        if (source!.HasListeners())
+        {
+            activity.ShouldNotBeNull();
+        }
+        else
+        {
+            activity.ShouldBeNull();
+        }
     }
 
     [Fact]

@@ -21,13 +21,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.ControlPlane.Clients;
 using OmniRelay.Configuration;
 using OmniRelay.Core;
-using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.Mesh.Control.V1;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
+using CoreLeadershipEventKind = OmniRelay.Core.Leadership.LeadershipEventKind;
+using ProtoLeadershipEvent = OmniRelay.Mesh.Control.V1.LeadershipEvent;
+using ProtoLeadershipEventKind = OmniRelay.Mesh.Control.V1.LeadershipEventKind;
 
 namespace OmniRelay.Cli;
 
@@ -2460,6 +2462,18 @@ public static class Program
         }
     }
 
+    private static readonly Method<LeadershipSubscribeRequest, ProtoLeadershipEvent> LeadershipSubscribeMethod =
+        new Method<LeadershipSubscribeRequest, ProtoLeadershipEvent>(
+            MethodType.ServerStreaming,
+            "omnirelay.mesh.control.v1.LeadershipControlService",
+            "Subscribe",
+            Marshallers.Create(
+                request => request.ToByteArray(),
+                data => LeadershipSubscribeRequest.Parser.ParseFrom(data)),
+            Marshallers.Create(
+                response => response.ToByteArray(),
+                data => ProtoLeadershipEvent.Parser.ParseFrom(data)));
+
     private static async Task<int?> TryRunMeshLeadersWatchGrpcAsync(string grpcUrl, string? scope, TimeSpan timeout)
     {
         if (!Uri.TryCreate(grpcUrl, UriKind.Absolute, out var address))
@@ -2482,15 +2496,19 @@ public static class Program
         try
         {
             using var channel = CliRuntime.GrpcControlPlaneClientFactory.CreateChannel(profile);
-            var client = new LeadershipControlService.LeadershipControlServiceClient(channel);
             using var cts = new CancellationTokenSource(timeout);
-            using var call = client.Subscribe(new LeadershipSubscribeRequest { Scope = scope ?? string.Empty }, cancellationToken: cts.Token);
+            var invoker = channel.CreateCallInvoker();
+            using var call = invoker.AsyncServerStreamingCall(
+                LeadershipSubscribeMethod,
+                host: null,
+                options: new CallOptions(cancellationToken: cts.Token),
+                request: new LeadershipSubscribeRequest { Scope = scope ?? string.Empty });
 
             Console.WriteLine($"Streaming leadership events via gRPC from {address} (scope={scope ?? "*"}). Press Ctrl+C to exit.");
 
-            await foreach (var leadershipEvent in call.ResponseStream.ReadAllAsync(cts.Token).ConfigureAwait(false))
+            while (await call.ResponseStream.MoveNext(cts.Token).ConfigureAwait(false))
             {
-                var dto = LeadershipEventDto.FromProto(leadershipEvent);
+                var dto = LeadershipEventDto.FromProto(call.ResponseStream.Current);
                 PrintLeadershipEvent(dto);
             }
 
@@ -3738,7 +3756,7 @@ public static class Program
 
     private sealed class LeadershipEventDto
     {
-        public LeadershipEventKind EventKind { get; set; } = LeadershipEventKind.Snapshot;
+        public CoreLeadershipEventKind EventKind { get; set; } = CoreLeadershipEventKind.Snapshot;
 
         public string? Scope { get; set; }
 
@@ -3752,7 +3770,7 @@ public static class Program
 
         public DateTimeOffset OccurredAt { get; set; }
 
-        public static LeadershipEventDto FromProto(LeadershipEvent source)
+        public static LeadershipEventDto FromProto(ProtoLeadershipEvent source)
         {
             if (source is null)
             {
@@ -3763,13 +3781,13 @@ public static class Program
             {
                 EventKind = source.Kind switch
                 {
-                    LeadershipEventKind.LeadershipEventKindObserved => LeadershipEventKind.Observed,
-                    LeadershipEventKind.LeadershipEventKindElected => LeadershipEventKind.Elected,
-                    LeadershipEventKind.LeadershipEventKindRenewed => LeadershipEventKind.Renewed,
-                    LeadershipEventKind.LeadershipEventKindLost => LeadershipEventKind.Lost,
-                    LeadershipEventKind.LeadershipEventKindExpired => LeadershipEventKind.Expired,
-                    LeadershipEventKind.LeadershipEventKindSteppedDown => LeadershipEventKind.SteppedDown,
-                    _ => LeadershipEventKind.Snapshot
+                    ProtoLeadershipEventKind.Observed => CoreLeadershipEventKind.Observed,
+                    ProtoLeadershipEventKind.Elected => CoreLeadershipEventKind.Elected,
+                    ProtoLeadershipEventKind.Renewed => CoreLeadershipEventKind.Renewed,
+                    ProtoLeadershipEventKind.Lost => CoreLeadershipEventKind.Lost,
+                    ProtoLeadershipEventKind.Expired => CoreLeadershipEventKind.Expired,
+                    ProtoLeadershipEventKind.SteppedDown => CoreLeadershipEventKind.SteppedDown,
+                    _ => CoreLeadershipEventKind.Snapshot
                 },
                 Scope = string.IsNullOrWhiteSpace(source.Scope) ? null : source.Scope,
                 LeaderId = string.IsNullOrWhiteSpace(source.LeaderId) ? null : source.LeaderId,

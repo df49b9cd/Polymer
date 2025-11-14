@@ -25,6 +25,7 @@ using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Peers;
+using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
@@ -836,93 +837,18 @@ internal sealed partial class DispatcherBuilder
         }
 
         var scrapePath = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
+        var serviceName = string.IsNullOrWhiteSpace(_options.Service) ? "OmniRelay" : _options.Service!;
         return services =>
         {
-            var otel = services.AddOpenTelemetry();
-            var serviceName = string.IsNullOrWhiteSpace(_options.Service) ? "OmniRelay" : _options.Service!;
-            var resourceBuilder = ResourceBuilder.CreateEmpty()
-                .AddService(serviceName: serviceName, serviceInstanceId: serviceName);
-            otel.ConfigureResource(resourceBuilder);
-            otel.WithLoggingInstrumentation();
-
             services.AddOpenTelemetry()
+                .ConfigureResource(resource => resource.AddService(serviceName: serviceName, serviceInstanceId: serviceName))
                 .WithMetrics(builder =>
                 {
-                    builder.AddPrometheusExporter();
-                    builder.AddRuntimeInstrumentation();
-                    builder.AddMeter(TeeOutbounds.MeterName);
+                    builder.AddPrometheusExporter(options => options.ScrapeEndpointPath = scrapePath);
                     builder.AddMeter("OmniRelay.Core.Diagnostics");
                     builder.AddMeter("OmniRelay.Transport.Http");
                     builder.AddMeter("OmniRelay.Transport.Grpc");
                 });
-
-            services.Configure<PrometheusAspNetCoreOptions>(options =>
-            {
-                options.ScrapeEndpointPath = scrapePath;
-            });
-        };
-    }
-        var scrapePath = NormalizeScrapeEndpointPathForInbound(_options.Diagnostics?.OpenTelemetry?.Prometheus?.ScrapeEndpointPath);
-        var rootRuntime = _serviceProvider.GetService<IDiagnosticsRuntime>();
-        var peerHealthProviders = controlPlaneOptions.EnableLeaseHealthDiagnostics
-            ? _serviceProvider.GetServices<IPeerHealthSnapshotProvider>()
-                .Where(static provider => provider is not null)
-                .ToArray()
-            : [];
-        var gossipAgent = controlPlaneOptions.GossipAgent;
-
-        return services =>
-        {
-            if (addMetrics)
-            {
-                var otel = services.AddOpenTelemetry();
-                // Align resource identity with the configured service name for consistent labels.
-                var serviceName = string.IsNullOrWhiteSpace(_options.Service) ? "OmniRelay" : _options.Service!;
-                otel.ConfigureResource(resource => resource.AddService(serviceName: serviceName));
-                otel.WithMetrics(builder =>
-                {
-                    builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Core.Gossip", "OmniRelay.Core.Leadership", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
-                    builder.AddPrometheusExporter(options =>
-                    {
-                        options.ScrapeEndpointPath = scrapePath;
-                    });
-                });
-            }
-
-            if (addControlPlane)
-            {
-                // Bridge diagnostics runtime into the inbound DI container so minimal APIs can resolve it from services.
-                if (rootRuntime is not null)
-                {
-                    services.AddSingleton(rootRuntime);
-                }
-                else
-                {
-                    services.AddSingleton<IDiagnosticsRuntime, DiagnosticsRuntimeState>();
-                }
-
-                // Also bridge the root logger factory so inbound logging honors global policies.
-                var rootLoggerFactory = _serviceProvider.GetService<ILoggerFactory>();
-                if (rootLoggerFactory is not null)
-                {
-                    services.AddSingleton(rootLoggerFactory);
-                }
-
-                if (controlPlaneOptions.EnableLeaseHealthDiagnostics && peerHealthProviders.Length > 0)
-                {
-                    services.AddSingleton<IEnumerable<IPeerHealthSnapshotProvider>>(peerHealthProviders);
-                }
-
-                if (controlPlaneOptions.EnablePeerDiagnostics && gossipAgent is not null)
-                {
-                    services.AddSingleton(gossipAgent);
-                }
-
-                if (controlPlaneOptions.EnableLeadershipDiagnostics && controlPlaneOptions.LeadershipObserver is not null)
-                {
-                    services.AddSingleton(controlPlaneOptions.LeadershipObserver);
-                }
-            }
         };
     }
 

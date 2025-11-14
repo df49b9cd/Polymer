@@ -16,7 +16,7 @@ public sealed class TransportTlsConfiguration
 
     public bool? CheckCertificateRevocation { get; set; }
 
-    public IList<string> AllowedThumbprints { get; } = new List<string>(StringComparer.OrdinalIgnoreCase);
+    public IList<string> AllowedThumbprints { get; } = new List<string>();
 
     public string? ReloadInterval { get; set; }
 }

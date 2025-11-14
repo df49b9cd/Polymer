@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,8 +28,24 @@ public sealed class FeatureTestApplication : IAsyncLifetime
     private FeatureTestApplication(FeatureTestApplicationOptions options)
     {
         Options = options ?? throw new ArgumentNullException(nameof(options));
-        ControlPlanePort = Options.ControlPlanePort ?? TestPortAllocator.GetRandomPort();
-        GossipPort = Options.GossipPort ?? TestPortAllocator.GetRandomPort();
+        var reservedPorts = new HashSet<int>();
+        ControlPlanePort = Options.ControlPlanePort ?? AllocateUniquePort(reservedPorts);
+        if (!reservedPorts.Contains(ControlPlanePort))
+        {
+            reservedPorts.Add(ControlPlanePort);
+        }
+
+        HttpInboundPort = AllocateUniquePort(reservedPorts);
+        reservedPorts.Add(HttpInboundPort);
+
+        if (Options.GossipPort.HasValue)
+        {
+            GossipPort = Options.GossipPort.Value;
+        }
+        else
+        {
+            GossipPort = AllocateUniquePort(reservedPorts);
+        }
         Containers = new FeatureTestContainers(Options.ContainerOptions);
         Certificate = TestCertificateFactory.EnsureDeveloperCertificateInfo("CN=OmniRelay.FeatureTests");
     }
@@ -36,6 +53,8 @@ public sealed class FeatureTestApplication : IAsyncLifetime
     public FeatureTestApplicationOptions Options { get; }
 
     public int ControlPlanePort { get; }
+
+    public int HttpInboundPort { get; }
 
     public int GossipPort { get; }
 
@@ -96,7 +115,8 @@ public sealed class FeatureTestApplication : IAsyncLifetime
         }
 
         var overrides = BuildGossipDefaults(Certificate);
-        overrides["omniRelay:inbounds:http:0:urls:0"] = ControlPlaneBaseAddress;
+        overrides["omniRelay:inbounds:http:0:urls:0"] = $"http://127.0.0.1:{HttpInboundPort}";
+        overrides["omniRelay:diagnostics:controlPlane:httpUrls:0"] = ControlPlaneBaseAddress;
         overrides["omniRelay:mesh:gossip:port"] = GossipPort.ToString(CultureInfo.InvariantCulture);
         overrides["omniRelay:mesh:gossip:advertisePort"] = GossipPort.ToString(CultureInfo.InvariantCulture);
         configuration.AddInMemoryCollection(overrides);
@@ -110,6 +130,18 @@ public sealed class FeatureTestApplication : IAsyncLifetime
             ["omniRelay:mesh:gossip:tls:certificateData"] = certificate.CertificateData,
             ["omniRelay:mesh:gossip:tls:certificatePassword"] = certificate.Password
         };
+
+    private static int AllocateUniquePort(ISet<int> reserved)
+    {
+        while (true)
+        {
+            var port = TestPortAllocator.GetRandomPort();
+            if (reserved.Add(port))
+            {
+                return port;
+            }
+        }
+    }
 }
 
 public sealed record FeatureTestApplicationOptions

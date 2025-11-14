@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -28,8 +29,14 @@ public sealed class MeshGossipFeatureTests(FeatureTestApplication application) :
         Assert.True(dispatcherAgent.IsEnabled, "Feature test dispatcher gossip agent is not enabled.");
         var loggerFactory = _application.Services.GetRequiredService<ILoggerFactory>();
         var dispatcherPort = _application.GossipPort;
-        var workerPort = TestPortAllocator.GetRandomPort();
-        var gatewayPort = TestPortAllocator.GetRandomPort();
+        var reservedPorts = new HashSet<int>
+        {
+            _application.ControlPlanePort,
+            _application.HttpInboundPort,
+            dispatcherPort
+        };
+        var workerPort = AllocateUniquePort(reservedPorts);
+        var gatewayPort = AllocateUniquePort(reservedPorts);
 
         var workerHost = await StartPeerAsync(
             "feature-tests-worker",
@@ -293,5 +300,17 @@ public sealed class MeshGossipFeatureTests(FeatureTestApplication application) :
             _counts.TryGetValue(status, out var value) ? value : 0;
 
         public void Dispose() => _listener.Dispose();
+    }
+
+    private static int AllocateUniquePort(ISet<int> reserved)
+    {
+        while (true)
+        {
+            var port = TestPortAllocator.GetRandomPort();
+            if (reserved.Add(port))
+            {
+                return port;
+            }
+        }
     }
 }
