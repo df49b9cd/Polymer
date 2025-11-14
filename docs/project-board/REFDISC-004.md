@@ -54,6 +54,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - In OmniRelay.HyperscaleFeatureTests, deploy many hosts with registries enabled, ensuring telemetry volume stays within expectations and runtime toggles remain responsive.
 - Stress diagnostics endpoints with concurrent requests to confirm routing + serialization remain efficient under load.
 
+## Implementation status
+- The gRPC side now lives under `src/OmniRelay/Transport/Grpc/Interceptors/` where `GrpcTransportInterceptorBuilder` produces `GrpcClientInterceptorRegistry`/`GrpcServerInterceptorRegistry` instances and composite interceptors that the dispatcher feeds into every inbound/outbound component via the `IGrpcInterceptorSink` interfaces. Control-plane gRPC hosts such as `src/OmniRelay/Core/Leadership/LeadershipControlPlaneHost.cs` simply implement `IGrpcServerInterceptorSink` to inherit the dispatcher’s logging/auth/tracing interceptors without any bespoke wiring.
+- HTTP middleware follows the same pattern via `HttpOutboundMiddlewareBuilder` and `HttpOutboundMiddlewareRegistry` in `src/OmniRelay/Transport/Http/Middleware/`. `HttpOutbound`/`HttpInbound` (and the CLI tooling that scaffolds them) attach the registry-provided stacks so logging, tracing, auth, and rate limiting can be toggled through configuration across dispatcher and standalone services.
+- Diagnostics hosts created through `src/OmniRelay/Core/Diagnostics/DiagnosticsControlPlaneHost.cs` reuse the registries when mapping `/omnirelay/control/*` endpoints, which keeps runtime logging/tracing toggles and authorization policies identical whether the traffic lands on the dispatcher, the dedicated diagnostics HTTP host, or the leadership gRPC host.
+
 ## References
 - `src/OmniRelay/Transport/Grpc/Interceptors/` and `src/OmniRelay/Transport/Http/Middleware/` - Existing infrastructure to extract.
 - `docs/architecture/service-discovery.md` - Observability + governance expectations.

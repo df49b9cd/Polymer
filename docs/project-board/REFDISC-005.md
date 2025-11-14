@@ -53,6 +53,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - In OmniRelay.HyperscaleFeatureTests, scale to hundreds of peers, inject rolling degradations, and ensure chooser logic maintains even distribution and breaker stability.
 - Measure RTT feedback loops to confirm high-latency peers are deprioritized for both control-plane and data-plane traffic without oscillation.
 
+## Implementation status
+- Shared peer models, choosers, breakers, and health trackers now live in `src/OmniRelay/Core/Peers/`. `PeerListCoordinator`, `PeerLeaseHealthTracker`, and the chooser implementations (`RoundRobinPeerChooser`, `TwoRandomPeerChooser`, `FewestPendingPeerChooser`) expose dispatcher-agnostic abstractions backed by unit tests so both the data-plane and service-discovery stacks consume the same logic.
+- `src/OmniRelay/Transport/Grpc/GrpcOutbound.cs` wraps each peer inside a `PeerCircuitBreaker` and resolves choosers through the new `IPeerChooser` factory so balancing, preferred-peer routing, and circuit breaking match the dispatcher baseline even when control-plane agents dial peers via the shared transport factories.
+- Gossip, diagnostics, and leadership services wire the same utilities: `MeshGossipHost` feeds membership + health updates into `PeerLeaseHealthTracker` (`src/OmniRelay/Core/Gossip/MeshGossipHost.cs`), and the diagnostics control-plane host renders `/control/peers` / `/omnirelay/control/lease-health` straight from `PeerLeaseHealthDiagnostics` (`src/OmniRelay/Core/Diagnostics/DiagnosticsControlPlaneHost.cs`), ensuring operators and CLI tooling observe the same peer state as the dispatcher.
+
 ## References
 - `src/OmniRelay/Transport/Grpc/GrpcOutbound.cs` - Source of current peer chooser/breaker logic.
 - `src/OmniRelay/Core/Gossip/` - Membership metadata feeding peer selection.

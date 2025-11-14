@@ -53,6 +53,11 @@ All test tiers must run against native AOT artifacts per REFDISC-034..037.
 - Under OmniRelay.HyperscaleFeatureTests, run large-scale traffic through the limiters to ensure they scale and maintain fairness.
 - Inject rapid load spikes to confirm adaptive backpressure engages without oscillation.
 
+## Implementation status
+- `src/OmniRelay/ControlPlane/Throttling/BackpressureAwareRateLimiter.cs` now owns the shared limiter selector plus the `RateLimitingBackpressureListener` and `ResourceLeaseBackpressureDiagnosticsListener`, giving every host a single component that can flip between normal and degraded rate limiters while streaming state changes through a diagnostics-friendly channel.
+- `ResourceLeaseDispatcher` exposes the listener hook via `ResourceLeaseDispatcherOptions.BackpressureListener` (`src/OmniRelay/Dispatcher/ResourceLeaseDispatcher.cs`), so dispatcher instances and control-plane agents can toggle the limiter gates whenever the SafeTaskQueue reports pressure. The ResourceLease mesh sample wires the listener + limiter selector together (`samples/ResourceLease.MeshDemo/Program.cs`) and exposes `/demo/backpressure` for operator feedback, proving the configuration + diagnostics flow end to end.
+- `tests/OmniRelay.Dispatcher.UnitTests/ResourceLeaseBackpressureListenerTests.cs` cover limiter switching, diagnostics buffering, and logging, providing regression coverage for the shared primitives the story introduced.
+
 ## References
 - `BackpressureAwareRateLimiter` and related middleware in samples/transport.
 - REFDISC-034..037 - AOT readiness baseline and CI gating.
