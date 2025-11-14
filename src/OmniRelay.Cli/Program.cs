@@ -1173,10 +1173,10 @@ public static class Program
         }
 
         var resolvedSection = string.IsNullOrWhiteSpace(section) ? DefaultConfigSection : section;
-        IServeHost? serveHost;
+        IServeHost host;
         try
         {
-            serveHost = CliRuntime.ServeHostFactory.CreateHost(configuration, resolvedSection);
+            host = CliRuntime.ServeHostFactory.CreateHost(configuration, resolvedSection);
         }
         catch (Exception ex)
         {
@@ -1184,67 +1184,69 @@ public static class Program
             return 1;
         }
 
-        await using var host = serveHost.ConfigureAwait(false);
-        var shutdownSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        ConsoleCancelEventHandler? cancelHandler = null;
-
-        void RequestShutdown()
+        await using (host.ConfigureAwait(false))
         {
-            shutdownSignal.TrySetResult(true);
-        }
+            var shutdownSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ConsoleCancelEventHandler? cancelHandler = null;
 
-        cancelHandler = (_, eventArgs) =>
-        {
-            eventArgs.Cancel = true;
-            RequestShutdown();
-        };
-
-        Console.CancelKeyPress += cancelHandler;
-
-        if (shutdownAfter.HasValue)
-        {
-            _ = Task.Run(async () =>
+            void RequestShutdown()
             {
-                try
-                {
-                    await Task.Delay(shutdownAfter.Value).ConfigureAwait(false);
-                    RequestShutdown();
-                }
-                catch
-                {
-                    RequestShutdown();
-                }
-            });
-        }
-
-        try
-        {
-            await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            var dispatcher = host.Dispatcher;
-            var serviceName = dispatcher?.ServiceName ?? resolvedSection;
-            Console.WriteLine($"OmniRelay dispatcher '{serviceName}' started.");
-
-            if (!string.IsNullOrWhiteSpace(readyFile))
-            {
-                TryWriteReadyFile(readyFile!);
+                shutdownSignal.TrySetResult(true);
             }
 
-            Console.WriteLine(shutdownAfter.HasValue
-                ? $"Shutting down automatically after {shutdownAfter.Value:c}."
-                : "Press Ctrl+C to stop.");
+            cancelHandler = (_, eventArgs) =>
+            {
+                eventArgs.Cancel = true;
+                RequestShutdown();
+            };
 
-            await shutdownSignal.Task.ConfigureAwait(false);
-            await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Failed to run dispatcher: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-        finally
-        {
-            Console.CancelKeyPress -= cancelHandler;
+            Console.CancelKeyPress += cancelHandler;
+
+            if (shutdownAfter.HasValue)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(shutdownAfter.Value).ConfigureAwait(false);
+                        RequestShutdown();
+                    }
+                    catch
+                    {
+                        RequestShutdown();
+                    }
+                });
+            }
+
+            try
+            {
+                await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                var dispatcher = host.Dispatcher;
+                var serviceName = dispatcher?.ServiceName ?? resolvedSection;
+                Console.WriteLine($"OmniRelay dispatcher '{serviceName}' started.");
+
+                if (!string.IsNullOrWhiteSpace(readyFile))
+                {
+                    TryWriteReadyFile(readyFile!);
+                }
+
+                Console.WriteLine(shutdownAfter.HasValue
+                    ? $"Shutting down automatically after {shutdownAfter.Value:c}."
+                    : "Press Ctrl+C to stop.");
+
+                await shutdownSignal.Task.ConfigureAwait(false);
+                await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Failed to run dispatcher: {ex.Message}").ConfigureAwait(false);
+                return 1;
+            }
+            finally
+            {
+                Console.CancelKeyPress -= cancelHandler;
+            }
         }
     }
 
@@ -1856,30 +1858,33 @@ public static class Program
             uris.Add(uri);
         }
 
-        await using var invoker = CliRuntime.GrpcInvokerFactory.Create(uris, remoteService, runtimeOptions).ConfigureAwait(false);
+        var invoker = CliRuntime.GrpcInvokerFactory.Create(uris, remoteService, runtimeOptions);
 
-        try
+        await using (invoker.ConfigureAwait(false))
         {
-            await invoker.StartAsync(cancellationToken).ConfigureAwait(false);
-            var result = await invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
-
-            if (result.IsSuccess)
+            try
             {
-                PrintResponse(result.Value);
-                return 0;
-            }
+                await invoker.StartAsync(cancellationToken).ConfigureAwait(false);
+                var result = await invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
 
-            PrintError(result.Error!, "grpc");
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"gRPC call failed: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-        finally
-        {
-            await invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                if (result.IsSuccess)
+                {
+                    PrintResponse(result.Value);
+                    return 0;
+                }
+
+                PrintError(result.Error!, "grpc");
+                return 1;
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"gRPC call failed: {ex.Message}").ConfigureAwait(false);
+                return 1;
+            }
+            finally
+            {
+                await invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
         }
     }
 
@@ -2308,8 +2313,11 @@ public static class Program
                 return 1;
             }
 
-            await using var stream = (await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false)).ConfigureAwait(false);
-            var result = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.MeshPeersResponse, cts.Token).ConfigureAwait(false);
+            MeshPeersResponse? result;
+            await using ((await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false)).AsAsyncDisposable(out var stream))
+            {
+                result = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.MeshPeersResponse, cts.Token).ConfigureAwait(false);
+            }
             if (result is null)
             {
                 await Console.Error.WriteLineAsync("Peer diagnostics response was empty.").ConfigureAwait(false);
