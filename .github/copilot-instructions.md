@@ -41,7 +41,7 @@ This repo is a .NET runtime modeled after Uber’s YARPC. It exposes a single Di
 ## Critical workflows
 - Build & test:
   - `dotnet build OmniRelay.slnx`
-  - `dotnet test tests/OmniRelay.Tests/OmniRelay.Tests.csproj`
+  - `dotnet test tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj`
 - CLI tooling (`src/OmniRelay.Cli`):
   - Validate config: `omnirelay config validate --config appsettings.json --section polymer`
   - Introspect a running HTTP inbound: `omnirelay introspect --url http://127.0.0.1:8080/omnirelay/introspect --format text`
@@ -70,7 +70,7 @@ This repo is a .NET runtime modeled after Uber’s YARPC. It exposes a single Di
 - gRPC transport: `src/OmniRelay/Transport/Grpc/*`
 - Configuration binder & models: `src/OmniRelay.Configuration/*`
 - Protobuf codegen: `src/OmniRelay.Codegen.Protobuf*`
-- Tests (good examples): `tests/OmniRelay.Tests/Transport/Http/*`, `tests/OmniRelay.Tests/Transport/Grpc/*`
+- Tests (good examples): `tests/OmniRelay.IntegrationTests/Transport/Http/*`, `tests/OmniRelay.IntegrationTests/Transport/Grpc/*`
 
 ## Common troubleshooting
 - If QUIC/HTTP/3 tests fail: Ensure your OS has MsQuic support and TLS 1.3 certificates are valid

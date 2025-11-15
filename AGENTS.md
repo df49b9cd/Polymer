@@ -150,7 +150,7 @@ Keep new assets inside those buckets so OmniRelay stays navigable.
 `global.json` pins the .NET SDK to `10.0.100`, so install that preview before building.
 Key loops:
 - `dotnet build OmniRelay.slnx` – compiles every library, CLI, and analyzer with Nullable + analyzers enabled via `Directory.Build.props`.
-- `dotnet test tests/OmniRelay.Tests/OmniRelay.Tests.csproj` – exercises the aggregate xUnit suite; ensure localhost HTTP/2 is available for gRPC flows.
+- `dotnet test tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj` – exercises the aggregate xUnit suite; ensure localhost HTTP/2 is available for gRPC flows.
 - `dotnet pack src/OmniRelay.Cli/OmniRelay.Cli.csproj -c Release -o artifacts/cli` – produces a local CLI NuGet; `dotnet tool install --global OmniRelay.Cli --add-source artifacts/cli` installs it for smoke testing.
 
 ## Coding Style & Naming Conventions

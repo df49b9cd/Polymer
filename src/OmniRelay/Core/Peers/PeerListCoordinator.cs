@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Immutable;
+using System.Threading;
 using Hugo;
 using OmniRelay.Errors;
 using static Hugo.Go;
+using static Hugo.Functional;
 
 namespace OmniRelay.Core.Peers;
 
@@ -12,12 +15,14 @@ namespace OmniRelay.Core.Peers;
 /// </summary>
 internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
 {
-    private readonly object _lock = new();
+    private readonly Hugo.Mutex _stateMutex = new();
     private readonly Dictionary<string, PeerRegistration> _registrations = new(StringComparer.Ordinal);
     private readonly List<IPeer> _availablePeers = [];
+    private IPeer[] _availableSnapshot = Array.Empty<IPeer>();
     private readonly PeerAvailabilitySignal _availabilitySignal;
     private readonly TimeProvider _timeProvider;
     private readonly IPeerHealthSnapshotProvider? _leaseHealthProvider;
+    private int _peerCount;
     private bool _disposed;
 
     public PeerListCoordinator(IEnumerable<IPeer> peers)
@@ -66,37 +71,33 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
             desired[peer.Identifier] = peer;
         }
 
-        lock (_lock)
+        using var scope = _stateMutex.EnterScope();
+
+        foreach (var existing in _registrations.Keys.Except(desired.Keys).ToList())
         {
-            foreach (var existing in _registrations.Keys.Except(desired.Keys).ToList())
-            {
-                RemovePeerInternal(existing);
-            }
-
-            foreach (var peer in desired.Values)
-            {
-                if (_registrations.TryGetValue(peer.Identifier, out var registration))
-                {
-                    if (!ReferenceEquals(registration.Peer, peer))
-                    {
-                        RemovePeerInternal(peer.Identifier);
-                        AddPeerInternal(peer);
-                    }
-                }
-                else
-                {
-                    AddPeerInternal(peer);
-                }
-            }
-
-            if (_availablePeers.Count > 0)
-            {
-                _availabilitySignal.Signal();
-            }
+            RemovePeerInternal(existing);
         }
+
+        foreach (var peer in desired.Values)
+        {
+            if (_registrations.TryGetValue(peer.Identifier, out var registration) && ReferenceEquals(registration.Peer, peer))
+            {
+                continue;
+            }
+
+            if (_registrations.ContainsKey(peer.Identifier))
+            {
+                RemovePeerInternal(peer.Identifier);
+            }
+
+            AddPeerInternal(peer);
+        }
+
+        _peerCount = _registrations.Count;
+        RefreshAvailableSnapshotLocked();
     }
 
-    public async ValueTask<Result<PeerLease>> AcquireAsync(
+    public ValueTask<Result<PeerLease>> AcquireAsync(
         RequestMeta meta,
         CancellationToken cancellationToken,
         Func<IReadOnlyList<IPeer>, IPeer?> selector)
@@ -106,31 +107,26 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!HasPeers())
-        {
-            var unavailable = OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.Unavailable,
-                "No peers are registered for the requested service.",
-                transport: meta.Transport ?? "unknown");
-            return Err<PeerLease>(unavailable);
-        }
+        var context = new AcquireContext(meta, selector, PeerChooserHelpers.ResolveDeadline(meta));
 
-        var waitDeadline = PeerChooserHelpers.ResolveDeadline(meta);
+        return Result
+            .Ok(context)
+            .Ensure(_ => HasPeers(), ctx => CreateUnavailable(ctx.Meta, "No peers are registered for the requested service."))
+            .ThenValueTaskAsync((ctx, token) => AcquireLoopAsync(ctx, token), cancellationToken);
+    }
 
+    private async ValueTask<Result<PeerLease>> AcquireLoopAsync(AcquireContext context, CancellationToken cancellationToken)
+    {
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (!HasPeers())
             {
-                var unavailable = OmniRelayErrorAdapter.FromStatus(
-                    OmniRelayStatusCode.Unavailable,
-                    "No peers are registered for the requested service.",
-                    transport: meta.Transport ?? "unknown");
-                return Err<PeerLease>(unavailable);
+                return Err<PeerLease>(CreateUnavailable(context.Meta, "No peers are registered for the requested service."));
             }
 
-            var attemptResult = TryAcquireFromAvailablePeers(meta, selector, cancellationToken, out var lease);
+            var attemptResult = TryAcquireFromAvailablePeers(context.Meta, context.Selector, cancellationToken, out var lease);
             if (attemptResult == AcquisitionAttemptResult.Success && lease is not null)
             {
                 return Ok(lease);
@@ -138,59 +134,75 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
 
             if (attemptResult == AcquisitionAttemptResult.Busy)
             {
-                PeerMetrics.RecordPoolExhausted(meta);
-                var exhausted = OmniRelayErrorAdapter.FromStatus(
-                    OmniRelayStatusCode.ResourceExhausted,
-                    "All peers are busy.",
-                    transport: meta.Transport ?? "unknown");
-                return Err<PeerLease>(exhausted);
+                PeerMetrics.RecordPoolExhausted(context.Meta);
+                return Err<PeerLease>(CreateBusyError(context.Meta));
             }
 
-            if (attemptResult == AcquisitionAttemptResult.NoAvailablePeers)
+            if (attemptResult == AcquisitionAttemptResult.NoAvailablePeers && context.WaitDeadline is null)
             {
-                if (waitDeadline is not null && PeerChooserHelpers.HasDeadlineElapsed(waitDeadline))
+                PeerMetrics.RecordPoolExhausted(context.Meta);
+                return Err<PeerLease>(CreateNoAvailabilityError(context.Meta));
+            }
+
+            if (context.WaitDeadline is { } waitDeadline && PeerChooserHelpers.HasDeadlineElapsed(waitDeadline))
+            {
+                PeerMetrics.RecordPoolExhausted(context.Meta);
+                return Err<PeerLease>(CreateDeadlineError(context.Meta));
+            }
+
+            var waitOutcome = await WaitForAvailabilityAsync(context, cancellationToken).ConfigureAwait(false);
+            if (waitOutcome.IsFailure)
+            {
+                if (waitOutcome.Error?.Code == ErrorCodes.Canceled)
                 {
-                    var deadlineError = OmniRelayErrorAdapter.FromStatus(
-                        OmniRelayStatusCode.DeadlineExceeded,
-                        "Peer acquisition deadline expired.",
-                        transport: meta.Transport ?? "unknown");
-                    return Err<PeerLease>(deadlineError);
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
 
-                PeerMetrics.RecordPoolExhausted(meta);
-                var unavailable = OmniRelayErrorAdapter.FromStatus(
-                    OmniRelayStatusCode.ResourceExhausted,
-                    "No peers are currently available.",
-                    transport: meta.Transport ?? "unknown");
-                return Err<PeerLease>(unavailable);
-            }
-
-            if (PeerChooserHelpers.HasDeadlineElapsed(waitDeadline))
-            {
-                var deadlineError = OmniRelayErrorAdapter.FromStatus(
-                    OmniRelayStatusCode.DeadlineExceeded,
-                    "Peer acquisition deadline expired.",
-                    transport: meta.Transport ?? "unknown");
-                return Err<PeerLease>(deadlineError);
-            }
-
-            var delay = PeerChooserHelpers.GetWaitDelay(waitDeadline);
-            var waitResult = await WithTimeoutAsync(
-                async token =>
+                if (waitOutcome.Error?.Code == ErrorCodes.Timeout)
                 {
-                    await _availabilitySignal.WaitAsync(delay, token).ConfigureAwait(false);
-                    return Ok(Unit.Value);
-                },
-                delay,
-                _timeProvider,
-                cancellationToken).ConfigureAwait(false);
+                    if (context.WaitDeadline is { } deadline && PeerChooserHelpers.HasDeadlineElapsed(deadline))
+                    {
+                        PeerMetrics.RecordPoolExhausted(context.Meta);
+                        return Err<PeerLease>(CreateDeadlineError(context.Meta));
+                    }
 
-            if (waitResult.IsFailure && waitResult.Error?.Code == ErrorCodes.Canceled)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
+                    continue;
+                }
+
+                return waitOutcome.CastFailure<PeerLease>();
             }
         }
     }
+
+    private ValueTask<Result<Unit>> WaitForAvailabilityAsync(AcquireContext context, CancellationToken cancellationToken)
+    {
+        var delay = PeerChooserHelpers.GetWaitDelay(context.WaitDeadline);
+        return _availabilitySignal.WaitAsync(delay, cancellationToken);
+    }
+
+    private static Error CreateUnavailable(RequestMeta meta, string message) =>
+        OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.Unavailable,
+            message,
+            transport: meta.Transport ?? "unknown");
+
+    private static Error CreateBusyError(RequestMeta meta) =>
+        OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.ResourceExhausted,
+            "All peers are busy.",
+            transport: meta.Transport ?? "unknown");
+
+    private static Error CreateNoAvailabilityError(RequestMeta meta) =>
+        OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.ResourceExhausted,
+            "No peers are currently available.",
+            transport: meta.Transport ?? "unknown");
+
+    private static Error CreateDeadlineError(RequestMeta meta) =>
+        OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.DeadlineExceeded,
+            "Peer acquisition deadline expired.",
+            transport: meta.Transport ?? "unknown");
 
     public void NotifyStatusChanged(IPeer peer)
     {
@@ -199,30 +211,31 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
             return;
         }
 
-        lock (_lock)
+        using var scope = _stateMutex.EnterScope();
+
+        if (!_registrations.TryGetValue(peer.Identifier, out var registration))
         {
-            if (!_registrations.TryGetValue(peer.Identifier, out var registration))
-            {
-                return;
-            }
-
-            var isAvailable = peer.Status.State == PeerState.Available;
-            if (isAvailable == registration.IsAvailable)
-            {
-                return;
-            }
-
-            registration.IsAvailable = isAvailable;
-            if (isAvailable)
-            {
-                _availablePeers.Add(peer);
-                _availabilitySignal.Signal();
-            }
-            else
-            {
-                _availablePeers.Remove(peer);
-            }
+            return;
         }
+
+        var isAvailable = peer.Status.State == PeerState.Available;
+        if (isAvailable == registration.IsAvailable)
+        {
+            return;
+        }
+
+        registration.IsAvailable = isAvailable;
+        if (isAvailable)
+        {
+            _availablePeers.Add(peer);
+            _availabilitySignal.Signal();
+        }
+        else
+        {
+            _availablePeers.Remove(peer);
+        }
+
+        RefreshAvailableSnapshotLocked();
     }
 
     public void Dispose()
@@ -234,27 +247,22 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
 
         _disposed = true;
 
-        lock (_lock)
-        {
-            foreach (var registration in _registrations.Values)
-            {
-                registration.Subscription?.Dispose();
-            }
+        using var scope = _stateMutex.EnterScope();
 
-            _registrations.Clear();
-            _availablePeers.Clear();
+        foreach (var registration in _registrations.Values)
+        {
+            registration.Subscription?.Dispose();
         }
+
+        _registrations.Clear();
+        _availablePeers.Clear();
+        _peerCount = 0;
+        RefreshAvailableSnapshotLocked();
 
         _availabilitySignal.Dispose();
     }
 
-    private bool HasPeers()
-    {
-        lock (_lock)
-        {
-            return _registrations.Count > 0;
-        }
-    }
+    private bool HasPeers() => Volatile.Read(ref _peerCount) > 0;
 
     private AcquisitionAttemptResult TryAcquireFromAvailablePeers(
         RequestMeta meta,
@@ -264,21 +272,13 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
     {
         lease = null;
 
-        List<IPeer>? snapshot = null;
-        lock (_lock)
-        {
-            if (_availablePeers.Count > 0)
-            {
-                snapshot = [.. _availablePeers];
-            }
-        }
-
-        if (snapshot is null || snapshot.Count == 0)
+        var snapshot = Volatile.Read(ref _availableSnapshot);
+        if (snapshot.Length == 0)
         {
             return AcquisitionAttemptResult.NoAvailablePeers;
         }
 
-        var candidates = snapshot;
+        var candidates = new List<IPeer>(snapshot);
         var attempted = false;
 
         while (candidates.Count > 0)
@@ -344,6 +344,8 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
             _availablePeers.Add(peer);
             _availabilitySignal.Signal();
         }
+
+        RefreshAvailableSnapshotLocked();
     }
 
     private void RemovePeerInternal(string identifier)
@@ -358,7 +360,23 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         {
             _availablePeers.Remove(registration.Peer);
         }
+
+        RefreshAvailableSnapshotLocked();
     }
+
+    private void RefreshAvailableSnapshotLocked()
+    {
+        var snapshot = _availablePeers.Count == 0
+            ? Array.Empty<IPeer>()
+            : _availablePeers.ToArray();
+
+        Volatile.Write(ref _availableSnapshot, snapshot);
+    }
+
+    private sealed record AcquireContext(
+        RequestMeta Meta,
+        Func<IReadOnlyList<IPeer>, IPeer?> Selector,
+        DateTimeOffset? WaitDeadline);
 
     private sealed class PeerRegistration(IPeer peer)
     {

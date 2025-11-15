@@ -56,6 +56,5 @@
 
 ### Feature Test Scenarios
 - Samples using `TaskQueueBackpressureMonitor` + ValueTask combinators to process workloads.
-- Running `dotnet test tests/OmniRelay.Tests` against upgraded Hugo bits to confirm compatibility.
+- Running `dotnet test tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj` against upgraded Hugo bits to confirm compatibility.
 - Benchmarks comparing Task vs ValueTask throughput to validate documented guidance.
-

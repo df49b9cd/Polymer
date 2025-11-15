@@ -22,40 +22,29 @@ internal sealed class PeerAvailabilitySignal(TimeProvider timeProvider) : IDispo
         _channel.Writer.TryWrite(true);
     }
 
-    public async ValueTask WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (timeout <= TimeSpan.Zero)
         {
-            return;
+            return Ok(Unit.Value);
         }
 
-        var waitResult = await WithTimeoutAsync(
+        return await WithTimeoutAsync(
             async token =>
             {
                 try
                 {
                     await _channel.Reader.ReadAsync(token).ConfigureAwait(false);
-                    return Ok(true);
+                    return Ok(Unit.Value);
                 }
                 catch (ChannelClosedException)
                 {
-                    return Ok(true);
+                    return Ok(Unit.Value);
                 }
             },
             timeout,
             _timeProvider,
             cancellationToken).ConfigureAwait(false);
-
-        if (waitResult.IsFailure)
-        {
-            if (waitResult.Error?.Code == ErrorCodes.Canceled)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-
-            // Timeout or other transient errors should simply let the caller re-evaluate.
-            return;
-        }
     }
 
     public void Dispose()
