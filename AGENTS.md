@@ -19,6 +19,13 @@ Declare file-scoped namespaces, always keep braces, and stick with implicit usin
 Follow the `OmniRelay.<Feature>` pattern for projects and namespaces; mirror it in test assemblies (`OmniRelay.<Feature>.UnitTests`, etc.).
 Depend on the centrally managed package versions in `Directory.Packages.props` rather than adding ad-hoc numbers.
 
+## Hugo Concurrency & Pipelines
+All concurrency, orchestration, and error-handling code must flow through the Hugo primitives so fan-in/out, retries, and deterministic behaviour stay observable and replay-safe.
+- Prefer `Hugo.Go` constructs (`WaitGroup`, `ErrGroup`, mutexes, timers, `SelectAsync`, prioritized/bounded channels, task queues) over raw `Task`, `SemaphoreSlim`, or manual `Task.WhenAll`. See `docs/reference/hugo/concurrency-primitives.md` (channels + leasing) and `docs/reference/hugo/hugo-api-reference.md` for supported APIs.
+- Express async control flow via functional `Result<T>` method chains (`Functional.Then`, `Result.Try`, `Result.RetryWithPolicyAsync`, `ResultExtensions.MapAsync`, etc.) instead of branching on booleans/exceptions. See `docs/reference/hugo/result-pipelines.md` for the allowed combinators and channel streaming helpers.
+- When coordinating upgrades or replayable work, run steps inside `DeterministicGate`/`DeterministicWorkflowContext` envelopes and capture side effects with `DeterministicEffectStore` per `docs/reference/hugo/deterministic-coordination.md`.
+- Instrument every primitive with `GoDiagnostics` (`docs/reference/hugo/hugo-diagnostics.md`) so wait groups, channels, and pipelines emit metrics/activity tags automatically.
+
 ## Testing Guidelines
 All suites run on xUnit v3 with Shouldly assertions plus the `coverlet.collector`, so collect coverage with `dotnet test --collect:"XPlat Code Coverage"` when validating larger changes.
 Place scenario-specific tests in the matching folder (`tests/OmniRelay.Dispatcher.UnitTests`, `tests/OmniRelay.IntegrationTests`, `tests/OmniRelay.YabInterop`, etc.) and reuse helpers from `tests/TestSupport`.
