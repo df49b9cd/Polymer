@@ -362,30 +362,58 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, Task<T>> handler,
         CancellationToken cancellationToken)
     {
-        return new ValueTask<Result<T>>(Result.TryAsync(
-            async token =>
-            {
-                using var httpRequest = BuildHttpRequest(request);
-                using var response = await SendWithMiddlewareAsync(
-                        httpRequest,
-                        request.Meta,
-                        callKind,
-                        completionOption,
-                        token)
-                    .ConfigureAwait(false);
+        return Go.Ok(request)
+            .Ensure(
+                req => !string.IsNullOrWhiteSpace(req.Meta.Procedure),
+                req => BuildMissingProcedureError(req.Meta))
+            .ThenValueTaskAsync(
+                (validatedRequest, token) => RunHttpCallAsync(validatedRequest, callKind, completionOption, handler, token),
+                cancellationToken);
+    }
 
-                return await handler(httpRequest, response, token).ConfigureAwait(false);
-            },
-            errorFactory: ex =>
-            {
-                if (ex is ResultException resultException && resultException.Error is not null)
+    private ValueTask<Result<T>> RunHttpCallAsync<T>(
+        IRequest<ReadOnlyMemory<byte>> request,
+        HttpOutboundCallKind callKind,
+        HttpCompletionOption completionOption,
+        Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, Task<T>> handler,
+        CancellationToken cancellationToken)
+    {
+        async ValueTask<Result<T>> InvokeAsync(CancellationToken token)
+        {
+            return await Result.TryAsync(
+                async innerToken =>
                 {
-                    return resultException.Error;
-                }
+                    using var httpRequest = BuildHttpRequest(request);
+                    using var response = await SendWithMiddlewareAsync(
+                            httpRequest,
+                            request.Meta,
+                            callKind,
+                            completionOption,
+                            innerToken)
+                        .ConfigureAwait(false);
 
-                return OmniRelayErrors.FromException(ex, transport: "http").Error;
-            },
-            cancellationToken: cancellationToken));
+                    return await handler(httpRequest, response, innerToken).ConfigureAwait(false);
+                },
+                errorFactory: NormalizeHttpOutboundException,
+                cancellationToken: token).ConfigureAwait(false);
+        }
+
+        var timeout = ResolveRequestTimeout(request.Meta);
+
+        if (timeout is { } remaining)
+        {
+            if (remaining <= TimeSpan.Zero)
+            {
+                return new ValueTask<Result<T>>(Go.Err<T>(BuildTimeoutError(request.Meta)));
+            }
+
+            return new ValueTask<Result<T>>(Go.WithTimeoutValueTaskAsync(
+                InvokeAsync,
+                remaining,
+                cancellationToken: cancellationToken));
+        }
+
+        return InvokeAsync(cancellationToken);
     }
 
     private async Task<Response<ReadOnlyMemory<byte>>> HandleUnaryResponseAsync(
@@ -457,6 +485,65 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         var tags = HttpTransportMetrics.AppendObservedProtocol(baseTags, observed);
         HttpTransportMetrics.ClientProtocolFallbacks.Add(1, tags);
     }
+
+    private static Error NormalizeHttpOutboundException(Exception exception)
+    {
+        if (exception is ResultException resultException && resultException.Error is not null)
+        {
+            return resultException.Error;
+        }
+
+        return OmniRelayErrors.FromException(exception, transport: "http").Error;
+    }
+
+    private static TimeSpan? ResolveRequestTimeout(RequestMeta meta, TimeProvider? timeProvider = null)
+    {
+        var ttlTimeout = NormalizeTimeout(meta.TimeToLive);
+        TimeSpan? deadlineTimeout = null;
+
+        if (meta.Deadline is { } deadline)
+        {
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+            deadlineTimeout = NormalizeTimeout(deadline - now);
+        }
+
+        if (ttlTimeout is null)
+        {
+            return deadlineTimeout;
+        }
+
+        if (deadlineTimeout is null)
+        {
+            return ttlTimeout;
+        }
+
+        return ttlTimeout.Value <= deadlineTimeout.Value ? ttlTimeout : deadlineTimeout;
+    }
+
+    private static TimeSpan? NormalizeTimeout(TimeSpan? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return value.Value <= TimeSpan.Zero ? TimeSpan.Zero : value;
+    }
+
+    private static TimeSpan? NormalizeTimeout(TimeSpan value) =>
+        value <= TimeSpan.Zero ? TimeSpan.Zero : value;
+
+    private static Error BuildTimeoutError(RequestMeta meta) =>
+        Error.Timeout(message: "The HTTP request deadline elapsed before sending.")
+            .WithMetadata("service", meta.Service)
+            .WithMetadata("procedure", meta.Procedure ?? string.Empty);
+
+    private static Error BuildMissingProcedureError(RequestMeta meta) =>
+        OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.InvalidArgument,
+            "Procedure metadata is required for HTTP outbound calls.",
+            transport: "http")
+        .WithMetadata("service", meta.Service);
 
     /// <inheritdoc />
     async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> IUnaryOutbound.CallAsync(

@@ -1336,12 +1336,46 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
 
             async Task PumpRequestsAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, int frameLimit, CancellationToken cancellationToken)
             {
+                var frameChannel = Go.MakeChannel<HttpDuplexProtocol.Frame>(new BoundedChannelOptions(8)
+                {
+                    AllowSynchronousContinuations = false,
+                    SingleReader = true,
+                    SingleWriter = true,
+                    FullMode = BoundedChannelFullMode.Wait
+                });
+
+                var receivePump = new WaitGroup();
+                receivePump.Go(async token =>
+                {
+                    try
+                    {
+                        while (!token.IsCancellationRequested)
+                        {
+                            var frame = await HttpDuplexProtocol.ReceiveFrameAsync(webSocket, tempBuffer, frameLimit, token).ConfigureAwait(false);
+                            await frameChannel.Writer.WriteAsync(frame, token).ConfigureAwait(false);
+
+                            if (frame.MessageType == WebSocketMessageType.Close)
+                            {
+                                break;
+                            }
+                        }
+
+                        frameChannel.Writer.TryComplete();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        frameChannel.Writer.TryComplete();
+                    }
+                    catch (Exception ex)
+                    {
+                        frameChannel.Writer.TryComplete(ex);
+                    }
+                }, cancellationToken);
+
                 try
                 {
-                    while (!cancellationToken.IsCancellationRequested)
+                    await foreach (var frame in frameChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        var frame = await HttpDuplexProtocol.ReceiveFrameAsync(webSocket, tempBuffer, frameLimit, cancellationToken).ConfigureAwait(false);
-
                         if (frame.MessageType == WebSocketMessageType.Close)
                         {
                             await streamCall.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
@@ -1410,6 +1444,10 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                     await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
                     await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
                     pumpCts.Cancel();
+                }
+                finally
+                {
+                    await receivePump.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                 }
             }
 
