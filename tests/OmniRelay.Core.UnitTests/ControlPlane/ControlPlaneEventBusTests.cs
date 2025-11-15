@@ -16,7 +16,8 @@ public sealed class ControlPlaneEventBusTests
         await using var subscription = bus.Subscribe();
 
         var evt = CreateMembershipEvent(clusterId: "cluster-a");
-        await bus.PublishAsync(evt, TestContext.Current.CancellationToken);
+        var publish = await bus.PublishAsync(evt, TestContext.Current.CancellationToken);
+        publish.IsSuccess.ShouldBeTrue(publish.Error?.Message);
 
         var delivered = await subscription.Reader.ReadAsync(TestContext.Current.CancellationToken);
         delivered.ShouldBe(evt);
@@ -29,11 +30,13 @@ public sealed class ControlPlaneEventBusTests
         await using var subscription = bus.Subscribe(new ControlPlaneEventFilter { ClusterId = "cluster-a" });
 
         var otherClusterEvent = CreateMembershipEvent(clusterId: "cluster-b");
-        await bus.PublishAsync(otherClusterEvent, TestContext.Current.CancellationToken);
+        var ignored = await bus.PublishAsync(otherClusterEvent, TestContext.Current.CancellationToken);
+        ignored.IsSuccess.ShouldBeTrue();
         subscription.Reader.TryRead(out _).ShouldBeFalse();
 
         var matching = CreateMembershipEvent(clusterId: "cluster-a");
-        await bus.PublishAsync(matching, TestContext.Current.CancellationToken);
+        var deliveredResult = await bus.PublishAsync(matching, TestContext.Current.CancellationToken);
+        deliveredResult.IsSuccess.ShouldBeTrue();
         var delivered = await subscription.Reader.ReadAsync(TestContext.Current.CancellationToken);
         delivered.ShouldBe(matching);
     }

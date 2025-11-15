@@ -13,7 +13,8 @@ public sealed class LifecycleOrchestrator : ILifecycleOrchestrator
 {
     private readonly ImmutableDictionary<string, LifecycleComponentRegistration> _components;
     private readonly ImmutableArray<LifecycleComponentRegistration> _startOrder;
-    private readonly ImmutableArray<LifecycleComponentRegistration> _stopOrder;
+    private readonly ImmutableArray<ImmutableArray<LifecycleComponentRegistration>> _startLayers;
+    private readonly ImmutableArray<ImmutableArray<LifecycleComponentRegistration>> _stopLayers;
     private readonly Dictionary<string, ComponentRuntimeState> _runtimeState;
     private readonly ResultExecutionPolicy _defaultStartPolicy;
     private readonly ResultExecutionPolicy _defaultStopPolicy;
@@ -38,7 +39,8 @@ public sealed class LifecycleOrchestrator : ILifecycleOrchestrator
         _logger = logger ?? NullLogger<LifecycleOrchestrator>.Instance;
 
         _startOrder = BuildStartOrder(_components);
-        _stopOrder = [.. _startOrder.Reverse()];
+        _startLayers = BuildStartLayers(_startOrder, _components);
+        _stopLayers = [.. _startLayers.Reverse()];
         _runtimeState = _components.Values.ToDictionary(
             static component => component.Name,
             static component => new ComponentRuntimeState(component),
@@ -55,33 +57,16 @@ public sealed class LifecycleOrchestrator : ILifecycleOrchestrator
 
         var started = new Stack<LifecycleComponentRegistration>();
 
-        foreach (var component in _startOrder)
+        foreach (var layer in _startLayers)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            var runtime = _runtimeState[component.Name];
-            runtime.Status = LifecycleComponentStatus.Starting;
-            _logger.LogInformation("Starting lifecycle component {Component}", component.Name);
-
-            var startResult = await ExecuteLifecycleAsync(
-                component.Name,
-                component.Lifecycle.StartAsync,
-                component.StartPolicy == ResultExecutionPolicy.None ? _defaultStartPolicy : component.StartPolicy,
-                cancellationToken).ConfigureAwait(false);
-
-            if (startResult.IsFailure)
+            var layerResult = await StartLayerAsync(layer, started, cancellationToken).ConfigureAwait(false);
+            if (layerResult.IsFailure)
             {
-                runtime.Status = LifecycleComponentStatus.Faulted;
-                runtime.LastError = startResult.Error;
                 await RollbackAsync(started, cancellationToken).ConfigureAwait(false);
                 MoveToState(LifecycleOrchestratorStatus.Stopped);
-                return startResult;
+                return layerResult;
             }
-
-            runtime.Status = LifecycleComponentStatus.Running;
-            runtime.LastError = null;
-            started.Push(component);
-            _logger.LogInformation("Lifecycle component {Component} started.", component.Name);
         }
 
         MoveToState(LifecycleOrchestratorStatus.Running);
@@ -103,36 +88,15 @@ public sealed class LifecycleOrchestrator : ILifecycleOrchestrator
             return Err<Unit>(Error.FromException(new InvalidOperationException("Lifecycle orchestrator is not running.")));
         }
 
-        foreach (var component in _stopOrder)
+        foreach (var layer in _stopLayers)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var runtime = _runtimeState[component.Name];
-
-            if (runtime.Status is LifecycleComponentStatus.Stopped or LifecycleComponentStatus.Created)
+            var layerResult = await StopLayerAsync(layer, cancellationToken).ConfigureAwait(false);
+            if (layerResult.IsFailure)
             {
-                continue;
-            }
-
-            runtime.Status = LifecycleComponentStatus.Stopping;
-            _logger.LogInformation("Stopping lifecycle component {Component}", component.Name);
-
-            var stopResult = await ExecuteLifecycleAsync(
-                component.Name,
-                component.Lifecycle.StopAsync,
-                component.StopPolicy == ResultExecutionPolicy.None ? _defaultStopPolicy : component.StopPolicy,
-                cancellationToken).ConfigureAwait(false);
-
-            if (stopResult.IsFailure)
-            {
-                runtime.Status = LifecycleComponentStatus.Faulted;
-                runtime.LastError = stopResult.Error;
                 MoveToState(LifecycleOrchestratorStatus.Stopped);
-                return stopResult;
+                return layerResult;
             }
-
-            runtime.Status = LifecycleComponentStatus.Stopped;
-            runtime.LastError = null;
-            _logger.LogInformation("Lifecycle component {Component} stopped.", component.Name);
         }
 
         MoveToState(LifecycleOrchestratorStatus.Stopped);
@@ -198,6 +162,99 @@ public sealed class LifecycleOrchestrator : ILifecycleOrchestrator
             cancellationToken).ConfigureAwait(false);
     }
 
+    private async ValueTask<Result<Unit>> StartLayerAsync(
+        ImmutableArray<LifecycleComponentRegistration> layer,
+        Stack<LifecycleComponentRegistration> started,
+        CancellationToken cancellationToken)
+    {
+        using var group = new ErrGroup(cancellationToken);
+        foreach (var component in layer)
+        {
+            var runtime = _runtimeState[component.Name];
+            runtime.Status = LifecycleComponentStatus.Starting;
+            _logger.LogInformation("Starting lifecycle component {Component}", component.Name);
+
+            var policy = component.StartPolicy == ResultExecutionPolicy.None ? _defaultStartPolicy : component.StartPolicy;
+
+            group.Go(async (_, token) =>
+            {
+                var result = await ExecuteLifecycleAsync(component.Name, component.Lifecycle.StartAsync, policy, token).ConfigureAwait(false);
+                if (result.IsSuccess)
+                {
+                    runtime.Status = LifecycleComponentStatus.Running;
+                    runtime.LastError = null;
+                    lock (started)
+                    {
+                        started.Push(component);
+                    }
+                    _logger.LogInformation("Lifecycle component {Component} started.", component.Name);
+                }
+                else
+                {
+                    runtime.Status = LifecycleComponentStatus.Faulted;
+                    runtime.LastError = result.Error;
+                }
+
+                return result;
+            });
+        }
+
+        if (layer.IsDefaultOrEmpty)
+        {
+            return Ok(Unit.Value);
+        }
+
+        return await group.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<Result<Unit>> StopLayerAsync(
+        ImmutableArray<LifecycleComponentRegistration> layer,
+        CancellationToken cancellationToken)
+    {
+        using var group = new ErrGroup(cancellationToken);
+        var scheduled = false;
+
+        foreach (var component in layer)
+        {
+            var runtime = _runtimeState[component.Name];
+            if (runtime.Status is LifecycleComponentStatus.Stopped or LifecycleComponentStatus.Created)
+            {
+                continue;
+            }
+
+            runtime.Status = LifecycleComponentStatus.Stopping;
+            _logger.LogInformation("Stopping lifecycle component {Component}", component.Name);
+
+            var policy = component.StopPolicy == ResultExecutionPolicy.None ? _defaultStopPolicy : component.StopPolicy;
+            scheduled = true;
+
+            group.Go(async (_, token) =>
+            {
+                var result = await ExecuteLifecycleAsync(component.Name, component.Lifecycle.StopAsync, policy, token).ConfigureAwait(false);
+                if (result.IsSuccess)
+                {
+                    runtime.Status = LifecycleComponentStatus.Stopped;
+                    runtime.LastError = null;
+                    _logger.LogInformation("Lifecycle component {Component} stopped.", component.Name);
+                }
+                else
+                {
+                    runtime.Status = LifecycleComponentStatus.Faulted;
+                    runtime.LastError = result.Error;
+                }
+
+                return result;
+            });
+        }
+
+        if (!scheduled)
+        {
+            return Ok(Unit.Value);
+        }
+
+        return await group.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private static ImmutableArray<LifecycleComponentRegistration> BuildStartOrder(
         ImmutableDictionary<string, LifecycleComponentRegistration> components)
     {
@@ -247,6 +304,35 @@ public sealed class LifecycleOrchestrator : ILifecycleOrchestrator
         }
 
         return [.. ordered];
+    }
+
+    private static ImmutableArray<ImmutableArray<LifecycleComponentRegistration>> BuildStartLayers(
+        ImmutableArray<LifecycleComponentRegistration> ordered,
+        ImmutableDictionary<string, LifecycleComponentRegistration> components)
+    {
+        if (ordered.IsDefaultOrEmpty)
+        {
+            return ImmutableArray<ImmutableArray<LifecycleComponentRegistration>>.Empty;
+        }
+
+        var depths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var component in ordered)
+        {
+            var depth = component.Dependencies.Length == 0
+                ? 0
+                : component.Dependencies.Max(dependency => depths[dependency] + 1);
+            depths[component.Name] = depth;
+        }
+
+        var layers = depths
+            .GroupBy(static pair => pair.Value)
+            .OrderBy(static group => group.Key)
+            .Select(group => group
+                .Select(pair => components[pair.Key])
+                .ToImmutableArray())
+            .ToImmutableArray();
+
+        return layers;
     }
 
     private bool TryMoveToState(LifecycleOrchestratorStatus target, params LifecycleOrchestratorStatus[] allowedSources)

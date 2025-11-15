@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Hugo;
 using Microsoft.Extensions.Logging;
+using static Hugo.Go;
 
 namespace OmniRelay.ControlPlane.Events;
 
@@ -11,6 +13,8 @@ public sealed partial class ControlPlaneEventBus : IControlPlaneEventBus, IDispo
     private readonly ILogger<ControlPlaneEventBus> _logger;
     private long _nextSubscriptionId;
     private bool _disposed;
+    private const string DisposedErrorCode = "controlplane.event_bus.disposed";
+    private const string CapacityErrorCode = "controlplane.event_bus.invalid_capacity";
 
     public ControlPlaneEventBus(ILogger<ControlPlaneEventBus> logger)
     {
@@ -21,46 +25,60 @@ public sealed partial class ControlPlaneEventBus : IControlPlaneEventBus, IDispo
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ControlPlaneEventBus));
 
-        if (capacity <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(capacity), "Subscription capacity must be at least 1.");
-        }
+        var subscription = Go.Ok(capacity)
+            .Ensure(value => value > 0, _ => Error.From("Subscription capacity must be at least 1.", CapacityErrorCode))
+            .Map(value => MakeChannel<ControlPlaneEvent>(new BoundedChannelOptions(value)
+            {
+                SingleReader = false,
+                SingleWriter = false,
+                FullMode = BoundedChannelFullMode.DropOldest
+            }))
+            .Map(channel =>
+            {
+                var id = Interlocked.Increment(ref _nextSubscriptionId);
+                _subscribers.TryAdd(id, new Subscriber(filter, channel));
+                ControlPlaneEventBusLog.SubscriberAdded(_logger, id, filter?.EventType);
+                return new ControlPlaneEventSubscription(this, id, channel.Reader);
+            })
+            .ValueOrThrow();
 
-        var channel = Channel.CreateBounded<ControlPlaneEvent>(new BoundedChannelOptions(capacity)
-        {
-            SingleReader = false,
-            SingleWriter = false,
-            FullMode = BoundedChannelFullMode.DropOldest
-        });
-
-        var id = Interlocked.Increment(ref _nextSubscriptionId);
-        _subscribers.TryAdd(id, new Subscriber(filter, channel));
-        ControlPlaneEventBusLog.SubscriberAdded(_logger, id, filter?.EventType);
-        return new ControlPlaneEventSubscription(this, id, channel.Reader);
+        return subscription;
     }
 
-    public ValueTask PublishAsync(ControlPlaneEvent message, CancellationToken cancellationToken = default)
+    public ValueTask<Result<Unit>> PublishAsync(ControlPlaneEvent message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
-        if (_disposed || _subscribers.IsEmpty)
+        if (_disposed)
         {
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(Result.Fail<Unit>(Error.From("Control-plane event bus was disposed.", DisposedErrorCode)));
         }
 
-        foreach (var (id, subscriber) in _subscribers)
+        if (_subscribers.IsEmpty)
         {
-            if (!subscriber.ShouldDeliver(message))
-            {
-                continue;
-            }
-
-            if (!subscriber.Writer.TryWrite(message))
-            {
-                ControlPlaneEventBusLog.EventDropped(_logger, message.EventType, id);
-            }
+            return ValueTask.FromResult(Ok(Unit.Value));
         }
 
-        return ValueTask.CompletedTask;
+        return ValueTask.FromResult(Result.Try(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            foreach (var (id, subscriber) in _subscribers)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!subscriber.ShouldDeliver(message))
+                {
+                    continue;
+                }
+
+                if (!subscriber.Writer.TryWrite(message))
+                {
+                    ControlPlaneEventBusLog.EventDropped(_logger, message.EventType, id);
+                }
+            }
+
+            return Unit.Value;
+        }));
     }
 
     internal void Unsubscribe(long subscriptionId)

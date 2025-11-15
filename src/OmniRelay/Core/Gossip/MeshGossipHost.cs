@@ -54,6 +54,11 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             LogLevel.Warning,
             new EventId(2, "MeshGossipSchemaRejected"),
             "Rejected gossip envelope with incompatible schema {Schema}");
+    private static readonly Action<ILogger, string, string?, Exception?> GossipEventBusPublishFailedLog =
+        LoggerMessage.Define<string, string?>(
+            LogLevel.Warning,
+            new EventId(3, "MeshGossipEventPublishFailed"),
+            "Failed to publish control-plane event {EventType}: {Reason}");
 
     public MeshGossipHost(
         MeshGossipOptions options,
@@ -640,7 +645,16 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             snapshot,
             changedMember);
 
-        _ = bus.PublishAsync(evt, CancellationToken.None).AsTask();
+        _ = PublishAsync();
+
+        async Task PublishAsync()
+        {
+            var publishResult = await bus.PublishAsync(evt, CancellationToken.None).ConfigureAwait(false);
+            if (publishResult.IsFailure)
+            {
+                GossipEventBusPublishFailedLog(_logger, evt.EventType, publishResult.Error?.Message, publishResult.Error?.Cause);
+            }
+        }
     }
 
     private static ILogger<TransportTlsManager> CreateCertificateLogger(ILoggerFactory factory) =>
