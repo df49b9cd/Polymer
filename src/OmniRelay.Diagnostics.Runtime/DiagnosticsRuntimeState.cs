@@ -1,13 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OmniRelay.Core.Diagnostics;
 
-namespace OmniRelay.Configuration.Internal;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>
-/// In-memory implementation of <see cref="OmniRelay.Core.Diagnostics.IDiagnosticsRuntime"/> backing runtime toggles.
+/// In-memory implementation of <see cref="IDiagnosticsRuntime"/> backing runtime toggles.
 /// </summary>
-internal sealed class DiagnosticsRuntimeState(
+public sealed class DiagnosticsRuntimeState(
     IOptionsMonitor<LoggerFilterOptions> loggerFilterOptionsMonitor,
     IOptionsMonitorCache<LoggerFilterOptions> loggerFilterOptionsCache)
     : IDiagnosticsRuntime
@@ -17,7 +16,7 @@ internal sealed class DiagnosticsRuntimeState(
     private LogLevel? _overrideMinLevel;
     private double? _traceSamplingProbability;
 
-    /// <summary>Gets the overridden minimum log level, if set.</summary>
+    /// <inheritdoc />
     public LogLevel? MinimumLogLevel
     {
         get
@@ -29,7 +28,7 @@ internal sealed class DiagnosticsRuntimeState(
         }
     }
 
-    /// <summary>Gets the trace sampling probability override, if set.</summary>
+    /// <inheritdoc />
     public double? TraceSamplingProbability
     {
         get
@@ -41,7 +40,7 @@ internal sealed class DiagnosticsRuntimeState(
         }
     }
 
-    /// <summary>Sets or clears the override for minimum log level.</summary>
+    /// <inheritdoc />
     public void SetMinimumLogLevel(LogLevel? level)
     {
         lock (_syncRoot)
@@ -64,7 +63,7 @@ internal sealed class DiagnosticsRuntimeState(
         }
     }
 
-    /// <summary>Sets or clears the trace sampling probability override (0..1).</summary>
+    /// <inheritdoc />
     public void SetTraceSamplingProbability(double? probability)
     {
         if (probability is < 0 or > 1)

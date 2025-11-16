@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using OmniRelay.ControlPlane.Throttling;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Peers;
+using OmniRelay.Diagnostics;
 using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Http;
 using OmniRelayDispatcher = OmniRelay.Dispatcher.Dispatcher;

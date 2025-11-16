@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Hugo;
+using OmniRelay.Diagnostics;
 
 namespace OmniRelay.Core.Peers;
 

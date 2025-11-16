@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using OmniRelay.Diagnostics.Alerting;
 
-namespace OmniRelay.Core.Peers;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>
 /// Tracks SafeTaskQueue lease heartbeats and membership gossip for metadata peers.
@@ -29,7 +29,7 @@ public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
         var state = GetOrCreateState(peerId);
         var now = _timeProvider.GetUtcNow();
         state.RecordAssignment(handle, now, resourceType, resourceId);
-        PeerMetrics.RecordLeaseAssignmentSignal(peerId, resourceType, resourceId);
+        PeerLeaseHealthSignals.RecordLeaseAssignment(peerId, resourceType, resourceId);
     }
 
     /// <summary>Marks the lease as released and records whether it was requeued.</summary>
@@ -46,7 +46,7 @@ public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
         var state = GetOrCreateState(peerId);
         var now = _timeProvider.GetUtcNow();
         state.RecordHeartbeat(now, handle, pendingCount);
-        PeerMetrics.RecordLeaseHeartbeatSignal(peerId);
+        PeerLeaseHealthSignals.RecordLeaseHeartbeat(peerId);
     }
 
     /// <summary>Registers a disconnect or failure signal for the peer.</summary>
@@ -55,7 +55,7 @@ public sealed class PeerLeaseHealthTracker : IPeerHealthSnapshotProvider
         var state = GetOrCreateState(peerId);
         var now = _timeProvider.GetUtcNow();
         state.RecordDisconnect(now, reason);
-        PeerMetrics.RecordLeaseDisconnectSignal(peerId, reason);
+        PeerLeaseHealthSignals.RecordLeaseDisconnect(peerId, reason);
         PublishAlert(peerId, reason);
     }
 

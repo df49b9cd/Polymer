@@ -10,6 +10,12 @@ public sealed class DiagnosticsConfiguration
     public RuntimeDiagnosticsConfiguration Runtime { get; init; } = new();
 
     public DiagnosticsControlPlaneConfiguration ControlPlane { get; init; } = new();
+
+    public DocumentationDiagnosticsConfiguration Documentation { get; init; } = new();
+
+    public ProbesDiagnosticsConfiguration Probes { get; init; } = new();
+
+    public ChaosDiagnosticsConfiguration Chaos { get; init; } = new();
 }
 
 /// <summary>
@@ -56,4 +62,40 @@ public sealed class RuntimeDiagnosticsConfiguration
     public bool? EnableLoggingLevelToggle { get; set; }
 
     public bool? EnableTraceSamplingToggle { get; set; }
+}
+
+/// <summary>Documentation generation and discovery endpoint configuration.</summary>
+public sealed class DocumentationDiagnosticsConfiguration
+{
+    public bool? EnableOpenApi { get; set; }
+
+    public bool? EnableGrpcReflection { get; set; }
+
+    public string? Route { get; set; }
+
+    public string? AuthorizationPolicy { get; set; }
+
+    public IDictionary<string, string> Metadata { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>Probe scheduler and diagnostics configuration.</summary>
+public sealed class ProbesDiagnosticsConfiguration
+{
+    public bool? EnableScheduler { get; set; }
+
+    public bool? EnableDiagnosticsEndpoint { get; set; }
+
+    public string? AuthorizationPolicy { get; set; }
+        = null;
+}
+
+/// <summary>Chaos experiment coordination configuration.</summary>
+public sealed class ChaosDiagnosticsConfiguration
+{
+    public bool? EnableCoordinator { get; set; }
+
+    public bool? EnableControlEndpoint { get; set; }
+
+    public string? AuthorizationPolicy { get; set; }
+        = null;
 }

@@ -6,6 +6,7 @@ using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
+using OmniRelay.Diagnostics;
 using Xunit;
 using static Hugo.Go;
 

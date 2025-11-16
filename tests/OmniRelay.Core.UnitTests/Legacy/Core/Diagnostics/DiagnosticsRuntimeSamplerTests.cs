@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Diagnostics;
+using OmniRelay.Diagnostics;
 using OpenTelemetry.Trace;
 using Xunit;
 

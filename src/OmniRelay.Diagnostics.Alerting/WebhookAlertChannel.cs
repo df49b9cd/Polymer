@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace OmniRelay.Diagnostics.Alerting;
 
-internal sealed class WebhookAlertChannel : IAlertChannel
+public sealed class WebhookAlertChannel : IAlertChannel
 {
     private readonly HttpClient _httpClient;
     private readonly Uri _endpoint;

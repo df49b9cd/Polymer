@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Peers;
+using OmniRelay.Diagnostics;
 using OmniRelay.Tests.Support;
 using Xunit;
 

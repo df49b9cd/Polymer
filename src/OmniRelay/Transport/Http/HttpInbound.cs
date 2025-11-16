@@ -25,6 +25,7 @@ using OmniRelay.Core;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Transport;
+using OmniRelay.Diagnostics;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using OmniRelay.Security.Authorization;
@@ -1222,15 +1223,16 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
 
     private static async Task HandlePeerDiagnosticsAsync(HttpContext context)
     {
-        var agent = context.RequestServices.GetService<IMeshGossipAgent>();
-        if (agent is null || !agent.IsEnabled)
+        var provider = context.RequestServices.GetService<IPeerDiagnosticsProvider>();
+        if (provider is null)
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-            await context.Response.WriteAsync("mesh gossip diagnostics unavailable.", context.RequestAborted).ConfigureAwait(false);
+            await context.Response.WriteAsync("peer diagnostics unavailable.", context.RequestAborted).ConfigureAwait(false);
             return;
         }
 
-        await PeerDiagnosticsEndpoint.CreateResponse(agent).ExecuteAsync(context).ConfigureAwait(false);
+        var snapshot = provider.CreateSnapshot();
+        await Results.Json(snapshot).ExecuteAsync(context).ConfigureAwait(false);
     }
 
     private async Task HandleDuplexAsync(HttpContext context)

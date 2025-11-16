@@ -1,6 +1,6 @@
 using Hugo;
 
-namespace OmniRelay.Core.Peers;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>
 /// Lightweight descriptor for SafeTaskQueue ownership tokens used when gossiping lease health.

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
+using OmniRelay.Diagnostics;
 
 namespace OmniRelay.Core.Leadership;
 

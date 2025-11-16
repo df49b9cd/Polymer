@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace OmniRelay.Core.Diagnostics;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>
 /// Provides mutable diagnostics controls for logging and tracing at runtime.

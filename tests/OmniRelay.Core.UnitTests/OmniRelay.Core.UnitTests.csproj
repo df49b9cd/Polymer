@@ -25,6 +25,8 @@
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ShardStore.ObjectStorage/OmniRelay.ShardStore.ObjectStorage.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.Diagnostics.Abstractions/OmniRelay.Diagnostics.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.Diagnostics.Runtime/OmniRelay.Diagnostics.Runtime.csproj" />
   </ItemGroup>
 
   <ItemGroup>

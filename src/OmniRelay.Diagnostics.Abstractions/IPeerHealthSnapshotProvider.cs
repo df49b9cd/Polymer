@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace OmniRelay.Core.Peers;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>
 /// Supplies peer lease health snapshots for routing and diagnostics components.

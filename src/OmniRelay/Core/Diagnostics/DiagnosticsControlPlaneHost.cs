@@ -14,6 +14,7 @@ using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
+using OmniRelay.Diagnostics;
 
 namespace OmniRelay.Core.Diagnostics;
 
@@ -41,12 +42,15 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
         bool enableLeaseHealthDiagnostics,
         bool enablePeerDiagnostics,
         bool enableLeadershipDiagnostics,
+        bool enableDocumentation,
+        bool enableProbeDiagnostics,
+        bool enableChaosControl,
         ILogger<DiagnosticsControlPlaneHost> logger,
         TransportTlsManager? tlsManager = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _features = new DiagnosticsControlPlaneFeatures(enableLoggingToggle, enableSamplingToggle, enableLeaseHealthDiagnostics, enablePeerDiagnostics, enableLeadershipDiagnostics);
+        _features = new DiagnosticsControlPlaneFeatures(enableLoggingToggle, enableSamplingToggle, enableLeaseHealthDiagnostics, enablePeerDiagnostics, enableLeadershipDiagnostics, enableDocumentation, enableProbeDiagnostics, enableChaosControl);
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _tlsManager = tlsManager;
     }
@@ -67,6 +71,25 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
             services.AddSingleton(_ => _services.GetRequiredService<IDiagnosticsRuntime>());
             services.AddSingleton(_ => _services.GetRequiredService<IMeshGossipAgent>());
             services.AddSingleton<IEnumerable<IPeerHealthSnapshotProvider>>(_ => _services.GetServices<IPeerHealthSnapshotProvider>());
+            var peerDiagnosticsProvider = _services.GetService<IPeerDiagnosticsProvider>();
+            if (peerDiagnosticsProvider is not null)
+            {
+                services.AddSingleton(peerDiagnosticsProvider);
+            }
+            else
+            {
+                services.AddSingleton<IPeerDiagnosticsProvider, NullPeerDiagnosticsProvider>();
+            }
+
+            if (_features.EnableProbeDiagnostics)
+            {
+                services.AddSingleton(_ => _services.GetRequiredService<IProbeSnapshotProvider>());
+            }
+
+            if (_features.EnableChaosControl)
+            {
+                services.AddSingleton(_ => _services.GetRequiredService<ChaosCoordinator>());
+            }
 
             var leadershipObserver = _services.GetService<ILeadershipObserver>();
             if (leadershipObserver is not null)
@@ -133,91 +156,26 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
     [RequiresUnreferencedCode("Diagnostics control plane endpoints use minimal APIs with reflection.")]
     private void ConfigureAppCore(WebApplication app)
     {
-        if (_features.EnableLoggingToggle)
+        app.MapOmniRelayDiagnosticsControlPlane(options =>
         {
-            app.MapGet("/omnirelay/control/logging", (IDiagnosticsRuntime runtime) =>
-            {
-                var level = runtime.MinimumLogLevel?.ToString();
-                return Results.Json(new { minimumLevel = level });
-            });
+            options.EnableLoggingToggle = _features.EnableLoggingToggle;
+            options.EnableTraceSamplingToggle = _features.EnableSamplingToggle;
+            options.EnableLeaseHealthDiagnostics = _features.EnableLeaseHealthDiagnostics;
+            options.EnablePeerDiagnostics = _features.EnablePeerDiagnostics;
+        });
 
-            app.MapPost("/omnirelay/control/logging", (DiagnosticsLogLevelRequest request, IDiagnosticsRuntime runtime) =>
-            {
-                if (request is null)
-                {
-                    return Results.BadRequest(new { error = "Request body required." });
-                }
-
-                if (string.IsNullOrWhiteSpace(request.Level))
-                {
-                    runtime.SetMinimumLogLevel(null);
-                    return Results.NoContent();
-                }
-
-                if (!Enum.TryParse<LogLevel>(request.Level, ignoreCase: true, out var parsed))
-                {
-                    return Results.BadRequest(new { error = $"Invalid log level '{request.Level}'." });
-                }
-
-                runtime.SetMinimumLogLevel(parsed);
-                return Results.NoContent();
-            });
+        if (_features.EnableDocumentation)
+        {
+            app.MapOmniRelayDocumentation();
         }
 
-        if (_features.EnableSamplingToggle)
+        if (_features.EnableProbeDiagnostics || _features.EnableChaosControl)
         {
-            app.MapGet("/omnirelay/control/tracing", (IDiagnosticsRuntime runtime) =>
+            app.MapOmniRelayProbeDiagnostics(options =>
             {
-                return Results.Json(new { samplingProbability = runtime.TraceSamplingProbability });
+                options.EnableProbeResults = _features.EnableProbeDiagnostics;
+                options.EnableChaosControl = _features.EnableChaosControl;
             });
-
-            app.MapPost("/omnirelay/control/tracing", (DiagnosticsSamplingRequest request, IDiagnosticsRuntime runtime) =>
-            {
-                if (request is null)
-                {
-                    return Results.BadRequest(new { error = "Request body required." });
-                }
-
-                try
-                {
-                    runtime.SetTraceSamplingProbability(request.Probability);
-                }
-                catch (ArgumentOutOfRangeException ex)
-                {
-                    return Results.BadRequest(new { error = ex.Message });
-                }
-
-                return Results.NoContent();
-            });
-        }
-
-        if (_features.EnableLeaseHealthDiagnostics)
-        {
-            app.MapGet("/omnirelay/control/lease-health", (IEnumerable<IPeerHealthSnapshotProvider> providers) =>
-            {
-                var builder = ImmutableArray.CreateBuilder<PeerLeaseHealthSnapshot>();
-                foreach (var provider in providers)
-                {
-                    if (provider is null)
-                    {
-                        continue;
-                    }
-
-                    var snapshot = provider.Snapshot();
-                    if (!snapshot.IsDefaultOrEmpty)
-                    {
-                        builder.AddRange(snapshot);
-                    }
-                }
-
-                var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(builder.ToImmutable());
-                return Results.Json(diagnostics);
-            });
-        }
-
-        if (_features.EnablePeerDiagnostics)
-        {
-            PeerDiagnosticsEndpoint.Map(app);
         }
 
         if (_features.EnableLeadershipDiagnostics)
@@ -321,4 +279,7 @@ internal readonly record struct DiagnosticsControlPlaneFeatures(
     bool EnableSamplingToggle,
     bool EnableLeaseHealthDiagnostics,
     bool EnablePeerDiagnostics,
-    bool EnableLeadershipDiagnostics);
+    bool EnableLeadershipDiagnostics,
+    bool EnableDocumentation,
+    bool EnableProbeDiagnostics,
+    bool EnableChaosControl);

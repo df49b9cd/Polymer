@@ -17,14 +17,11 @@ using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Peers;
+using OmniRelay.Diagnostics;
 using OmniRelay.Diagnostics.Alerting;
 using OmniRelay.Security.Authorization;
 using OmniRelay.Security.Secrets;
 using OmniRelay.Transport.Security;
-using OpenTelemetry.Exporter;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 
 namespace OmniRelay.Configuration;
 
@@ -56,6 +53,18 @@ public static class OmniRelayServiceCollectionExtensions
         services.Configure<OmniRelayConfigurationOptions>(configuration);
         services.TryAddSingleton<NodeDrainCoordinator>();
 
+        var loggingOptions = new OmniRelayLoggingOptions
+        {
+            MinimumLevel = minimumLevel
+        };
+
+        foreach (var (category, level) in overrides)
+        {
+            loggingOptions.CategoryLevels[category] = level;
+        }
+
+        services.AddLogging(builder => builder.AddOmniRelayLogging(loggingOptions));
+
         var gossipSection = configuration.GetSection("mesh:gossip");
         if (gossipSection.Exists())
         {
@@ -65,6 +74,17 @@ public static class OmniRelayServiceCollectionExtensions
         {
             services.TryAddSingleton<IMeshGossipAgent>(NullMeshGossipAgent.Instance);
         }
+
+        services.TryAddSingleton<IPeerDiagnosticsProvider>(sp =>
+        {
+            var agent = sp.GetService<IMeshGossipAgent>();
+            if (agent is null || ReferenceEquals(agent, NullMeshGossipAgent.Instance))
+            {
+                return new NullPeerDiagnosticsProvider();
+            }
+
+            return new MeshPeerDiagnosticsProvider(agent);
+        });
 
         var leadershipSection = configuration.GetSection("mesh:leadership");
         if (leadershipSection.Exists())
@@ -77,22 +97,6 @@ public static class OmniRelayServiceCollectionExtensions
 
         ConfigureDiagnostics(services, snapshot);
         ConfigureSecurity(services, snapshot);
-
-        if (minimumLevel.HasValue || overrides.Count > 0)
-        {
-            services.Configure<LoggerFilterOptions>(options =>
-            {
-                if (minimumLevel.HasValue)
-                {
-                    options.MinLevel = minimumLevel.Value;
-                }
-
-                foreach (var (category, level) in overrides)
-                {
-                    options.Rules.Add(new LoggerFilterRule(providerName: null, categoryName: category, logLevel: level, filter: null));
-                }
-            });
-        }
 
         services.AddSingleton(provider =>
         {
@@ -118,6 +122,8 @@ public static class OmniRelayServiceCollectionExtensions
         var diagnostics = options.Diagnostics;
 
         ConfigureRuntimeDiagnostics(services, diagnostics);
+        ConfigureDocumentationDiagnostics(services, diagnostics);
+        ConfigureProbeDiagnostics(services, diagnostics);
 
         var otel = diagnostics.OpenTelemetry;
 
@@ -139,82 +145,25 @@ public static class OmniRelayServiceCollectionExtensions
 
         var serviceName = string.IsNullOrWhiteSpace(otel.ServiceName) ? options.Service ?? "OmniRelay" : otel.ServiceName!;
 
-        var openTelemetryBuilder = services.AddOpenTelemetry();
-        openTelemetryBuilder.ConfigureResource(resource => resource.AddService(serviceName: serviceName));
-
-        if (metricsEnabled)
+        var telemetryOptions = new OmniRelayTelemetryOptions
         {
-            openTelemetryBuilder.WithMetrics(builder =>
-            {
-                builder.AddMeter("OmniRelay.Core.Peers", "OmniRelay.Core.Gossip", "OmniRelay.Core.Leadership", "OmniRelay.Transport.Grpc", "OmniRelay.Transport.Http", "OmniRelay.Rpc", "Hugo.Go");
+            ServiceName = serviceName,
+            EnableTelemetry = otelEnabled,
+            EnableMetrics = metricsEnabled,
+            EnableTracing = otelEnabled && (otlpEnabled || (diagnostics.Runtime.EnableTraceSamplingToggle ?? false)),
+            EnableRuntimeTraceSampler = diagnostics.Runtime.EnableTraceSamplingToggle ?? false,
+        };
 
-                if (prometheusEnabled)
-                {
-                    builder.AddPrometheusExporter(prometheusAspNetCoreOptions =>
-                    {
-                        prometheusAspNetCoreOptions.ScrapeEndpointPath = NormalizeScrapeEndpointPath(otel.Prometheus.ScrapeEndpointPath);
-                    });
-                }
+        telemetryOptions.Prometheus.Enabled = prometheusEnabled;
+        telemetryOptions.Prometheus.ScrapeEndpointPath = otel.Prometheus.ScrapeEndpointPath;
+        telemetryOptions.Otlp.Enabled = otlpEnabled;
+        telemetryOptions.Otlp.Endpoint = otel.Otlp.Endpoint;
+        telemetryOptions.Otlp.Protocol = otel.Otlp.Protocol;
 
-                if (otlpEnabled)
-                {
-                    builder.AddOtlpExporter(otlpExporterOptions =>
-                    {
-                        otlpExporterOptions.Protocol = ParseOtlpProtocol(otel.Otlp.Protocol);
-                        if (string.IsNullOrWhiteSpace(otel.Otlp.Endpoint))
-                        {
-                            return;
-                        }
-
-                        if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
-                        {
-                            throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
-                        }
-
-                        otlpExporterOptions.Endpoint = endpoint;
-                    });
-                }
-            });
-
-            services.AddHostedService<DiagnosticsRegistrationHostedService>();
-        }
+        services.AddOmniRelayTelemetry(telemetryOptions);
 
         // Bridge QUIC/Kestrel events to the logging pipeline for structured observability
         services.AddHostedService<QuicDiagnosticsHostedService>();
-
-        // Enable tracing pipeline if explicitly enabled in configuration (primarily for OTLP export).
-        var tracingEnabled = otelEnabled && (otlpEnabled || (diagnostics.Runtime.EnableTraceSamplingToggle ?? false));
-        if (tracingEnabled)
-        {
-            openTelemetryBuilder.WithTracing(builder =>
-            {
-                builder.AddSource("OmniRelay.Rpc", "OmniRelay.Transport.Grpc");
-                builder.SetSampler(provider =>
-                {
-                    var runtime = provider.GetService<IDiagnosticsRuntime>();
-                    return new DiagnosticsRuntimeSampler(runtime, new AlwaysOnSampler());
-                });
-
-                if (otlpEnabled)
-                {
-                    builder.AddOtlpExporter(otlpExporterOptions =>
-                    {
-                        otlpExporterOptions.Protocol = ParseOtlpProtocol(otel.Otlp.Protocol);
-                        if (string.IsNullOrWhiteSpace(otel.Otlp.Endpoint))
-                        {
-                            return;
-                        }
-
-                        if (!Uri.TryCreate(otel.Otlp.Endpoint, UriKind.Absolute, out var endpoint))
-                        {
-                            throw new OmniRelayConfigurationException($"OTLP endpoint '{otel.Otlp.Endpoint}' is not a valid absolute URI.");
-                        }
-
-                        otlpExporterOptions.Endpoint = endpoint;
-                    });
-                }
-            });
-        }
     }
 
     private static void ConfigureRuntimeDiagnostics(
@@ -232,40 +181,62 @@ public static class OmniRelayServiceCollectionExtensions
             return;
         }
 
-        services.TryAddSingleton<DiagnosticsRuntimeState>();
-        services.TryAddSingleton<IDiagnosticsRuntime>(sp => sp.GetRequiredService<DiagnosticsRuntimeState>());
+        services.AddOmniRelayDiagnosticsRuntime();
     }
 
-    private static string NormalizeScrapeEndpointPath(string? path)
+    private static void ConfigureDocumentationDiagnostics(
+        IServiceCollection services,
+        DiagnosticsConfiguration diagnostics)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        var documentation = diagnostics.Documentation ?? new DocumentationDiagnosticsConfiguration();
+        var enableOpenApi = documentation.EnableOpenApi ?? false;
+        var enableGrpcReflection = documentation.EnableGrpcReflection ?? false;
+        if (!enableOpenApi && !enableGrpcReflection)
         {
-            return "/omnirelay/metrics";
+            return;
         }
 
-        var normalized = path.Trim();
-        if (!normalized.StartsWith('/'))
+        services.AddOmniRelayDocumentation(options =>
         {
-            normalized = "/" + normalized;
-        }
+            options.EnableOpenApi = enableOpenApi;
+            options.EnableGrpcReflection = enableGrpcReflection;
+            if (!string.IsNullOrWhiteSpace(documentation.Route))
+            {
+                options.RoutePattern = documentation.Route!;
+            }
 
-        return normalized;
+            options.AuthorizationPolicy = documentation.AuthorizationPolicy;
+            foreach (var pair in documentation.Metadata)
+            {
+                options.Metadata[pair.Key] = pair.Value;
+            }
+        });
     }
 
-    private static OtlpExportProtocol ParseOtlpProtocol(string? protocol)
+    private static void ConfigureProbeDiagnostics(
+        IServiceCollection services,
+        DiagnosticsConfiguration diagnostics)
     {
-        if (string.IsNullOrWhiteSpace(protocol))
+        var probes = diagnostics.Probes ?? new ProbesDiagnosticsConfiguration();
+        var chaos = diagnostics.Chaos ?? new ChaosDiagnosticsConfiguration();
+        var enableScheduler = probes.EnableScheduler ?? false;
+        var enableProbeEndpoint = probes.EnableDiagnosticsEndpoint ?? false;
+        var enableChaosCoordinator = chaos.EnableCoordinator ?? false;
+        var enableChaosControl = chaos.EnableControlEndpoint ?? false;
+
+        if (!(enableScheduler || enableProbeEndpoint || enableChaosCoordinator || enableChaosControl))
         {
-            return OtlpExportProtocol.Grpc;
+            return;
         }
 
-        if (Enum.TryParse<OtlpExportProtocol>(protocol, ignoreCase: true, out var parsed))
+        services.AddOmniRelayProbes(enableScheduler || enableChaosCoordinator);
+        services.PostConfigure<ProbeDiagnosticsOptions>(options =>
         {
-            return parsed;
-        }
-
-        throw new OmniRelayConfigurationException(
-            $"OTLP protocol '{protocol}' is not valid. Supported values: {string.Join(", ", Enum.GetNames<OtlpExportProtocol>())}.");
+            options.EnableProbeResults = enableProbeEndpoint;
+            options.EnableChaosControl = enableChaosControl;
+            options.ProbeAuthorizationPolicy = probes.AuthorizationPolicy;
+            options.ChaosAuthorizationPolicy = chaos.AuthorizationPolicy;
+        });
     }
 
     private static void ValidateBasicConfiguration(OmniRelayConfigurationOptions options)
@@ -311,19 +282,7 @@ public static class OmniRelayServiceCollectionExtensions
             services.TryAddSingleton<IAlertPublisher, NullAlertPublisher>();
         }
 
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IPeerHealthSnapshotProvider, PeerLeaseHealthTracker>());
-        services.TryAddSingleton<PeerLeaseHealthTracker>(sp =>
-        {
-            foreach (var provider in sp.GetServices<IPeerHealthSnapshotProvider>())
-            {
-                if (provider is PeerLeaseHealthTracker tracker)
-                {
-                    return tracker;
-                }
-            }
-
-            throw new InvalidOperationException("PeerLeaseHealthTracker must be registered as an IPeerHealthSnapshotProvider.");
-        });
+        services.AddPeerLeaseHealthDiagnostics();
 
         ConfigureBootstrapServices(services, security.Bootstrap, options.Service);
     }

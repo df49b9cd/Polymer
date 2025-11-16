@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using OpenTelemetry.Trace;
 
-namespace OmniRelay.Core.Diagnostics;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>
 /// A sampler that consults <see cref="IDiagnosticsRuntime.TraceSamplingProbability"/> at runtime.

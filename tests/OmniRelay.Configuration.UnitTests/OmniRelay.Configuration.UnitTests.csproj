@@ -23,5 +23,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
     <ProjectReference Include="../../src/OmniRelay.Configuration/OmniRelay.Configuration.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.Diagnostics.Telemetry/OmniRelay.Diagnostics.Telemetry.csproj" />
   </ItemGroup>
 </Project>

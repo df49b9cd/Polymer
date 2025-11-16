@@ -36,4 +36,12 @@
     <Protobuf Include="Core/Leadership/Protos/leadership_control.proto" GrpcServices="Server" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Abstractions\OmniRelay.Diagnostics.Abstractions.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Alerting\OmniRelay.Diagnostics.Alerting.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Runtime\OmniRelay.Diagnostics.Runtime.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Documentation\OmniRelay.Diagnostics.Documentation.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Probes\OmniRelay.Diagnostics.Probes.csproj" />
+  </ItemGroup>
+
 </Project>

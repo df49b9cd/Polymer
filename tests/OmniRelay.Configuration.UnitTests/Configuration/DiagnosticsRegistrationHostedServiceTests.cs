@@ -1,5 +1,5 @@
 using System.Diagnostics.Metrics;
-using OmniRelay.Configuration.Internal;
+using OmniRelay.Diagnostics;
 using Xunit;
 
 namespace OmniRelay.Configuration.UnitTests.Configuration;

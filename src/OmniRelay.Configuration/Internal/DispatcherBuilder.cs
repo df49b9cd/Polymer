@@ -28,6 +28,7 @@ using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
+using OmniRelay.Diagnostics;
 using OmniRelay.Dispatcher;
 using OmniRelay.Security.Authorization;
 using OmniRelay.Security.Secrets;
@@ -1373,6 +1374,9 @@ internal sealed partial class DispatcherBuilder
             settings.EnableLeaseHealthDiagnostics,
             settings.EnablePeerDiagnostics,
             settings.EnableLeadershipDiagnostics,
+            settings.EnableDocumentation,
+            settings.EnableProbeDiagnostics,
+            settings.EnableChaosControl,
             loggerFactory.CreateLogger<DiagnosticsControlPlaneHost>(),
             settings.HttpTlsManager);
 
@@ -1443,7 +1447,16 @@ internal sealed partial class DispatcherBuilder
         var leadershipObserver = _serviceProvider.GetService<ILeadershipObserver>();
         var enableLeadershipDiagnostics = leadershipObserver is not null;
 
-        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling || enableLeaseHealth || enablePeerDiagnostics || enableLeadershipDiagnostics);
+        var documentation = diagnostics.Documentation ?? new DocumentationDiagnosticsConfiguration();
+        var enableDocumentation = (documentation.EnableOpenApi ?? false) || (documentation.EnableGrpcReflection ?? false);
+
+        var probes = diagnostics.Probes ?? new ProbesDiagnosticsConfiguration();
+        var enableProbeDiagnostics = probes.EnableDiagnosticsEndpoint ?? false;
+
+        var chaos = diagnostics.Chaos ?? new ChaosDiagnosticsConfiguration();
+        var enableChaosControl = chaos.EnableControlEndpoint ?? false;
+
+        var enableControlPlane = runtime.EnableControlPlane ?? (enableLogging || enableSampling || enableLeaseHealth || enablePeerDiagnostics || enableLeadershipDiagnostics || enableDocumentation || enableProbeDiagnostics || enableChaosControl);
         if (!enableControlPlane)
         {
             settings = default;
@@ -1477,7 +1490,10 @@ internal sealed partial class DispatcherBuilder
             enableSampling,
             enableLeaseHealth,
             enablePeerDiagnostics,
-            enableLeadershipDiagnostics);
+            enableLeadershipDiagnostics,
+            enableDocumentation,
+            enableProbeDiagnostics,
+            enableChaosControl);
         return true;
     }
 
@@ -1647,7 +1663,10 @@ internal sealed partial class DispatcherBuilder
         bool EnableSamplingToggle,
         bool EnableLeaseHealthDiagnostics,
         bool EnablePeerDiagnostics,
-        bool EnableLeadershipDiagnostics);
+        bool EnableLeadershipDiagnostics,
+        bool EnableDocumentation,
+        bool EnableProbeDiagnostics,
+        bool EnableChaosControl);
 
     private sealed record BootstrapControlPlaneSettings(
         HttpControlPlaneHostOptions HttpOptions,

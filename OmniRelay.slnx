@@ -28,6 +28,13 @@
     <File Path=".editorconfig" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/OmniRelay.Diagnostics.Abstractions/OmniRelay.Diagnostics.Abstractions.csproj" />
+    <Project Path="src/OmniRelay.Diagnostics.Alerting/OmniRelay.Diagnostics.Alerting.csproj" />
+    <Project Path="src/OmniRelay.Diagnostics.Runtime/OmniRelay.Diagnostics.Runtime.csproj" />
+    <Project Path="src/OmniRelay.Diagnostics.Telemetry/OmniRelay.Diagnostics.Telemetry.csproj" />
+    <Project Path="src/OmniRelay.Diagnostics.Logging/OmniRelay.Diagnostics.Logging.csproj" />
+    <Project Path="src/OmniRelay.Diagnostics.Documentation/OmniRelay.Diagnostics.Documentation.csproj" />
+    <Project Path="src/OmniRelay.Diagnostics.Probes/OmniRelay.Diagnostics.Probes.csproj" />
     <Project Path="src/OmniRelay.Cli/OmniRelay.Cli.csproj" />
     <Project Path="src/OmniRelay.Codegen.Protobuf.Core/OmniRelay.Codegen.Protobuf.Core.csproj" />
     <Project Path="src/OmniRelay.Codegen.Protobuf.Generator/OmniRelay.Codegen.Protobuf.Generator.csproj" />

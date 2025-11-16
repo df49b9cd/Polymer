@@ -17,12 +17,16 @@
 
   <ItemGroup>
     <PackageReference Include="JsonSchema.Net" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
-    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Abstractions\OmniRelay.Diagnostics.Abstractions.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Alerting\OmniRelay.Diagnostics.Alerting.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Runtime\OmniRelay.Diagnostics.Runtime.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Telemetry\OmniRelay.Diagnostics.Telemetry.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Logging\OmniRelay.Diagnostics.Logging.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Documentation\OmniRelay.Diagnostics.Documentation.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Probes\OmniRelay.Diagnostics.Probes.csproj" />
     <ProjectReference Include="..\OmniRelay\OmniRelay.csproj" />
   </ItemGroup>
 

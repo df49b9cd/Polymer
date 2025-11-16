@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace OmniRelay.Core.Peers;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>Diagnostic payload describing per-peer lease health and summary metrics.</summary>
 public sealed record PeerLeaseHealthDiagnostics(

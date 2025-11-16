@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OmniRelay.Diagnostics.Telemetry</AssemblyName>
+    <RootNamespace>OmniRelay.Diagnostics</RootNamespace>
+    <PackageId>OmniRelay.Diagnostics.Telemetry</PackageId>
+    <Description>Reusable OpenTelemetry registration helpers for OmniRelay hosts.</Description>
+    <PackageTags>omnirelay;diagnostics;telemetry</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Abstractions\OmniRelay.Diagnostics.Abstractions.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Runtime\OmniRelay.Diagnostics.Runtime.csproj" />
+  </ItemGroup>
+</Project>

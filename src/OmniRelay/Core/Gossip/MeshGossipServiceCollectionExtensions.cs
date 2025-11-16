@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OmniRelay.Core.Peers;
+using OmniRelay.Diagnostics;
 using OmniRelay.Security.Secrets;
 
 namespace OmniRelay.Core.Gossip;

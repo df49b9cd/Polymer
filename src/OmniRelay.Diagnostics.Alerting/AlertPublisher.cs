@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 namespace OmniRelay.Diagnostics.Alerting;
 
 /// <summary>Dispatches alerts to configured channels with throttling.</summary>
-internal sealed partial class AlertPublisher : IAlertPublisher
+public sealed partial class AlertPublisher : IAlertPublisher
 {
     private readonly IReadOnlyList<IAlertChannel> _channels;
     private readonly IReadOnlyDictionary<string, TimeSpan> _cooldowns;

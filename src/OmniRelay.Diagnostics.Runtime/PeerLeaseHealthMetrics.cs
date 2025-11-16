@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 
-namespace OmniRelay.Core.Peers;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>Exposes observable gauges for peer lease health snapshots.</summary>
 internal static class PeerLeaseHealthMetrics

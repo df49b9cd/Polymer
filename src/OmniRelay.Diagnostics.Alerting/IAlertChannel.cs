@@ -1,6 +1,6 @@
 namespace OmniRelay.Diagnostics.Alerting;
 
-internal interface IAlertChannel
+public interface IAlertChannel
 {
     string Name { get; }
 

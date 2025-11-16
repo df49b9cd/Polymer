@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OmniRelay.Configuration.Internal;
+using OmniRelay.Diagnostics;
 using Shouldly;
 using Xunit;
 

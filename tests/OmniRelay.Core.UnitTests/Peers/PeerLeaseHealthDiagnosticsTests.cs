@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using OmniRelay.Core.Peers;
+using OmniRelay.Diagnostics;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Peers;

@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace OmniRelay.Core.Peers;
+namespace OmniRelay.Diagnostics;
 
 /// <summary>
 /// Snapshot describing per-peer SafeTaskQueue lease health.

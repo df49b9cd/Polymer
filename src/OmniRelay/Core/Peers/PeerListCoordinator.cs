@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Threading;
 using Hugo;
+using OmniRelay.Diagnostics;
 using OmniRelay.Errors;
 using static Hugo.Go;
 using static Hugo.Functional;
