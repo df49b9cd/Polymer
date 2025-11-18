@@ -7,7 +7,7 @@ namespace OmniRelay.Tests.Transport;
 
 public class GrpcMetadataAdapterTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateRequestMetadata_ThrowsForInvalidHeaderCharacters()
     {
         var meta = new RequestMeta(
@@ -21,7 +21,7 @@ public class GrpcMetadataAdapterTests
         Should.Throw<ArgumentException>(() => GrpcMetadataAdapter.CreateRequestMetadata(meta));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ResolveDeadline_UsesSoonerOfDeadlineAndTtl()
     {
         var now = DateTime.UtcNow;
@@ -39,7 +39,7 @@ public class GrpcMetadataAdapterTests
         resolved.Value.ShouldBeInRange(deadline.AddSeconds(-1), deadline.AddSeconds(1));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ResolveDeadline_UsesTtlWhenDeadlineMissing()
     {
         var ttl = TimeSpan.FromMilliseconds(200);
@@ -54,7 +54,7 @@ public class GrpcMetadataAdapterTests
         resolved.Value.ShouldBeInRange(before.AddMilliseconds(50), before.AddMilliseconds(600));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ResolveDeadline_ReturnsNullWhenNoDeadlineOrTtl()
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo");
@@ -62,7 +62,7 @@ public class GrpcMetadataAdapterTests
         resolved.ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateResponseHeaders_PreservesRawEncoding()
     {
         var meta = new ResponseMeta(encoding: RawCodec.DefaultEncoding);

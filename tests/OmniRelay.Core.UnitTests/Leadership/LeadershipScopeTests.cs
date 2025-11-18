@@ -5,7 +5,7 @@ namespace OmniRelay.Core.UnitTests.Leadership;
 
 public sealed class LeadershipScopeTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GlobalControl_HasExpectedValues()
     {
         var scope = LeadershipScope.GlobalControl;
@@ -15,7 +15,7 @@ public sealed class LeadershipScopeTests
         scope.Labels.ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ForShard_GeneratesCorrectScopeId()
     {
         var scope = LeadershipScope.ForShard("test-ns", "5");
@@ -26,7 +26,7 @@ public sealed class LeadershipScopeTests
         scope.Labels["shardId"].ShouldBe("5");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Create_WithCustomKind_CreatesCustomScope()
     {
         var scope = LeadershipScope.Create("custom-scope-id", LeadershipScopeKinds.Custom);
@@ -35,7 +35,7 @@ public sealed class LeadershipScopeTests
         scope.ScopeKind.ShouldBe(LeadershipScopeKinds.Custom);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Create_WithLabels_PreservesLabels()
     {
         var labels = new Dictionary<string, string>
@@ -51,7 +51,7 @@ public sealed class LeadershipScopeTests
         scope.Labels["key2"].ShouldBe("value2");
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("global-control", "global-control")]
     [InlineData("shard/ns/1", "shard/ns/1")]
     [InlineData("custom-scope", "custom-scope")]
@@ -63,7 +63,7 @@ public sealed class LeadershipScopeTests
         scope.ScopeId.ShouldBe(expectedScopeId);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryParse_EmptyString_ReturnsFalse()
     {
         var result = LeadershipScope.TryParse("", out var scope);

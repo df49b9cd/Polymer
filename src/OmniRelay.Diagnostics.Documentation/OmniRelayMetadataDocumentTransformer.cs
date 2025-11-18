@@ -16,15 +16,22 @@ internal sealed class OmniRelayMetadataDocumentTransformer : IOpenApiDocumentTra
     public Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
-        var metadata = _options.Value.Metadata;
-        if (metadata.Count == 0)
+        var metadata = _options.Value?.Metadata;
+        if (metadata is null || metadata.Count == 0)
         {
             return Task.CompletedTask;
         }
 
+        var info = document.Info;
+        if (info is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        info.Extensions ??= new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal);
         foreach (var pair in metadata)
         {
-            document.Info.Extensions[pair.Key] = new MetadataStringExtension(pair.Value);
+            info.Extensions[pair.Key] = new MetadataStringExtension(pair.Value);
         }
 
         return Task.CompletedTask;

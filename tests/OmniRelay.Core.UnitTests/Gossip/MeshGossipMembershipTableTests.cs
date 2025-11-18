@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Gossip;
 
 public sealed class MeshGossipMembershipTableTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void MarkObserved_AddsPeerAndUpgradesMetadata()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -72,7 +72,7 @@ public sealed class MeshGossipMembershipTableTests
         peer.Metadata.Labels["mesh.zone"].ShouldBe("az-2");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Sweep_MarksPeersSuspectThenLeft()
     {
         var time = new TestTimeProvider(DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture));
@@ -127,7 +127,7 @@ public sealed class MeshGossipMembershipTableTests
         public void Advance(TimeSpan delta) => _current += delta;
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void PickFanout_ReturnsRandomSubset()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -168,7 +168,7 @@ public sealed class MeshGossipMembershipTableTests
         fanout.Count.ShouldBe(3);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Snapshot_IncludesLocalMember()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -191,7 +191,7 @@ public sealed class MeshGossipMembershipTableTests
         localMember!.Status.ShouldBe(MeshGossipMemberStatus.Alive);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void MarkSender_UpdatesHeartbeat()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -233,7 +233,7 @@ public sealed class MeshGossipMembershipTableTests
         sender!.Status.ShouldBe(MeshGossipMemberStatus.Alive);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RefreshLocalMetadata_IncrementsVersionAndKeepsLocalAlive()
     {
         var time = new TestTimeProvider(DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture));
@@ -267,7 +267,7 @@ public sealed class MeshGossipMembershipTableTests
         local.LastSeen.ShouldBe(time.GetUtcNow());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void MarkSender_PreservesNewerMetadataAndUpdatesRoundTrip()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -323,7 +323,7 @@ public sealed class MeshGossipMembershipTableTests
         peer.RoundTripTimeMs!.Value.ShouldBe(12.5, 0.01);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Sweep_MarksPeerLeftAfterLeaveInterval()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);

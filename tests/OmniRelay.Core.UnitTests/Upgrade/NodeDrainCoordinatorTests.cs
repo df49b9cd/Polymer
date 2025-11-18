@@ -5,7 +5,7 @@ namespace OmniRelay.Core.UnitTests.Upgrade;
 
 public sealed class NodeDrainCoordinatorTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task BeginDrainAndResumeTransitionsState()
     {
         var coordinator = new NodeDrainCoordinator();

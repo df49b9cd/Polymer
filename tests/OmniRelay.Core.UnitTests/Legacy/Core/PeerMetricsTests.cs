@@ -35,7 +35,7 @@ public sealed class PeerMetricsTests : IDisposable
 
     public void Dispose() => _listener.Dispose();
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task LeaseSuccess_RecordsInflightAndSuccessMetrics()
     {
         var peerId = CreatePeerId("peer-success");
@@ -60,7 +60,7 @@ public sealed class PeerMetricsTests : IDisposable
         GetMeasurements("omnirelay.peer.failures").ShouldNotContain(m => HasTag(m, "rpc.peer", peerId));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task LeaseFailure_RecordsFailureMetric()
     {
         var peerId = CreatePeerId("peer-fail");
@@ -79,7 +79,7 @@ public sealed class PeerMetricsTests : IDisposable
         failures.ShouldContain(m => m.Value == 1 && HasTag(m, "rpc.peer", peerId));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task BusyPeer_RecordsRejectionsAndPoolExhaustion()
     {
         var peerId = CreatePeerId("peer-busy");
@@ -94,7 +94,7 @@ public sealed class PeerMetricsTests : IDisposable
         GetMeasurements("omnirelay.peer.pool_exhausted").ShouldContain(m => HasTag(m, "rpc.transport", "grpc"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task RetryMiddleware_EmitsRetryMetrics()
     {
         var options = new RetryOptions

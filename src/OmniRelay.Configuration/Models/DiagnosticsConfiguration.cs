@@ -86,7 +86,6 @@ public sealed class ProbesDiagnosticsConfiguration
     public bool? EnableDiagnosticsEndpoint { get; set; }
 
     public string? AuthorizationPolicy { get; set; }
-        = null;
 }
 
 /// <summary>Chaos experiment coordination configuration.</summary>
@@ -97,5 +96,4 @@ public sealed class ChaosDiagnosticsConfiguration
     public bool? EnableControlEndpoint { get; set; }
 
     public string? AuthorizationPolicy { get; set; }
-        = null;
 }

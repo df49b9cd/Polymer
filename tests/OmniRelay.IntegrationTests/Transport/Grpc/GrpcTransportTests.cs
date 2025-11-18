@@ -43,7 +43,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     private const string ErrorMessageTrailerKey = "omnirelay-error-message";
     private const string ErrorCodeTrailerKey = "omnirelay-error-code";
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CompressionOptions_ValidateRequiresRegisteredAlgorithm()
     {
         var options = new GrpcCompressionOptions
@@ -55,7 +55,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         Assert.Throws<InvalidOperationException>(() => options.Validate());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GrpcOutbound_CreateCallOptionsAddsAcceptEncoding()
     {
         var provider = new DummyCompressionProvider("gzip");
@@ -78,7 +78,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         Assert.Equal(provider.EncodingName, acceptEncoding);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GrpcOutbound_CreateCallOptionsPreservesExistingAcceptEncoding()
     {
         var provider = new DummyCompressionProvider("gzip");
@@ -105,7 +105,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         Assert.Equal("identity", acceptEncoding);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task GrpcOutbound_CallBeforeStart_Throws()
     {
         var outbound = new GrpcOutbound(new Uri("http://127.0.0.1:5000"), "echo");
@@ -2246,7 +2246,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         yield return [StatusCode.Unknown, OmniRelayStatusCode.Unknown];
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [MemberData(nameof(FromStatusMappings))]
     public void GrpcStatusMapper_FromStatus_MapsExpected(StatusCode statusCode, OmniRelayStatusCode expected)
     {
@@ -2255,7 +2255,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         Assert.Equal(expected, result);
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [MemberData(nameof(ToStatusMappings))]
     public void GrpcStatusMapper_ToStatus_MapsExpected(StatusCode expectedStatusCode, OmniRelayStatusCode omnirelayStatus)
     {

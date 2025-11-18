@@ -12,7 +12,7 @@ namespace OmniRelay.Tests.Transport;
 
 public class HttpDuplexTransportTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task HttpDuplexOutbound_RawEncoding_SetsOctetStreamContentHeaders()
     {
         var handler = new RecordingHandler();
@@ -40,7 +40,7 @@ public class HttpDuplexTransportTests
         await outbound.StopAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task HttpInbound_RawEncoding_ReturnsOctetStreamContentType()
     {
         var port = TestPortAllocator.GetRandomPort();

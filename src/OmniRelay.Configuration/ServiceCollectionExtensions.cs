@@ -16,7 +16,6 @@ using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
-using OmniRelay.Core.Peers;
 using OmniRelay.Diagnostics;
 using OmniRelay.Diagnostics.Alerting;
 using OmniRelay.Security.Authorization;
@@ -158,7 +157,7 @@ public static class OmniRelayServiceCollectionExtensions
         telemetryOptions.Prometheus.ScrapeEndpointPath = otel.Prometheus.ScrapeEndpointPath;
         telemetryOptions.Otlp.Enabled = otlpEnabled;
         telemetryOptions.Otlp.Endpoint = otel.Otlp.Endpoint;
-        telemetryOptions.Otlp.Protocol = otel.Otlp.Protocol;
+        telemetryOptions.Otlp.Protocol = otel.Otlp.Protocol ?? "grpc";
 
         services.AddOmniRelayTelemetry(telemetryOptions);
 

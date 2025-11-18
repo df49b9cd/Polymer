@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using OmniRelay.ControlPlane.Throttling;
 using OmniRelay.Core.Gossip;
-using OmniRelay.Core.Peers;
 using OmniRelay.Diagnostics;
 
 namespace OmniRelay.Samples.ResourceLease.MeshDemo;

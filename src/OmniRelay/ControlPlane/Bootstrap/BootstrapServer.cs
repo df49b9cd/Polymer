@@ -38,12 +38,11 @@ public sealed partial class BootstrapServer
             return ProcessJoinAsync(request, cancellationToken);
         }
 
-        return new ValueTask<Result<BootstrapJoinResponse>>(
-            WithTimeoutValueTaskAsync(
+        return WithTimeoutValueTaskAsync(
                 token => ProcessJoinAsync(request, token),
                 _options.JoinTimeout,
                 _timeProvider,
-                cancellationToken));
+                cancellationToken);
     }
 
     private ValueTask<Result<BootstrapJoinResponse>> ProcessJoinAsync(BootstrapJoinRequest request, CancellationToken cancellationToken)

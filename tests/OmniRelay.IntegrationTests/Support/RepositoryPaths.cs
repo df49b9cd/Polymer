@@ -11,8 +11,7 @@ internal static class RepositoryPaths
         var directory = AppContext.BaseDirectory;
         while (!string.IsNullOrEmpty(directory))
         {
-            if (File.Exists(Path.Combine(directory, "OmniRelay.slnx")) ||
-                File.Exists(Path.Combine(directory, "OmniRelay.sln")))
+            if (File.Exists(Path.Combine(directory, "OmniRelay.slnx")))
             {
                 return directory;
             }

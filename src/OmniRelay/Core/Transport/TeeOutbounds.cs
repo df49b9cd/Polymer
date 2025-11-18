@@ -195,7 +195,7 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic, IDis
             {
                 ShadowUnaryExceptionLog(_logger, teeMeta.Service, teeMeta.Procedure ?? string.Empty, ex);
             }
-        }, _shadowCts.Token);
+        }, cancellationToken: _shadowCts.Token);
     }
 
     private RequestMeta PrepareShadowMeta(RequestMeta meta)
@@ -438,7 +438,7 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic, ID
             {
                 ShadowOnewayExceptionLog(_logger, teeMeta.Service, teeMeta.Procedure ?? string.Empty, ex);
             }
-        }, _shadowCts.Token);
+        }, cancellationToken: _shadowCts.Token);
     }
 
     private RequestMeta PrepareShadowMeta(RequestMeta meta)

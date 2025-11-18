@@ -1,10 +1,7 @@
 using System.Collections.Immutable;
-using System.Net;
 using System.Security.Authentication;
-using System.Security.Cryptography;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Transport.Security;
-using Shouldly;
 using Xunit;
 
 #pragma warning disable SYSLIB0058
@@ -12,7 +9,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 
 public sealed class TransportSecurityPolicyEvaluatorTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Evaluate_RejectsDisallowedProtocol()
     {
         var policy = new TransportSecurityPolicy(
@@ -35,7 +32,7 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         decision.IsAllowed.ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Evaluate_AllowsMatchingEndpointRule()
     {
         var rule = new TransportEndpointRule(true, "*.example.com", null);
@@ -60,7 +57,7 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         decision.IsAllowed.ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Evaluate_RequiresClientCertificate()
     {
         var policy = new TransportSecurityPolicy(

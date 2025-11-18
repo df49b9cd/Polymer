@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using OmniRelay.Core.Diagnostics;
 using OmniRelay.Diagnostics;
 using OpenTelemetry.Trace;
 using Xunit;

@@ -1423,6 +1423,8 @@ internal sealed partial class DispatcherBuilder
         coordinator?.RegisterParticipant(name, participant);
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Diagnostics control-plane host intentionally uses reflection for service wiring.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Diagnostics control-plane host intentionally uses reflection for service wiring.")]
     private bool TryCreateDiagnosticsControlPlaneSettings([NotNullWhen(true)] out DiagnosticsControlPlaneSettings? settings)
     {
         var diagnostics = _options.Diagnostics;

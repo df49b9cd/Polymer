@@ -308,7 +308,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var payload = request.Body.ToArray();
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, Task<Response<ReadOnlyMemory<byte>>>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Response<ReadOnlyMemory<byte>>>>(
                     async (invoker, options, innerToken) =>
                     {
                         var call = invoker.AsyncUnaryCall(method, null, options, payload);
@@ -356,7 +356,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var payload = request.Body.ToArray();
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, Task<OnewayAck>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<OnewayAck>>(
                     async (invoker, options, innerToken) =>
                     {
                         var call = invoker.AsyncUnaryCall(method, null, options, payload);
@@ -420,7 +420,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var payload = request.Body.ToArray();
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, Task<IStreamCall>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<IStreamCall>>(
                     async (invoker, options, innerToken) =>
                     {
                         var call = invoker.AsyncServerStreamingCall(method, null, options, payload);
@@ -490,12 +490,12 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var callCts = CancellationTokenSource.CreateLinkedTokenSource(token, cancellationToken);
                 var callOptions = CreateCallOptions(requestMeta, callCts.Token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, Task<IClientStreamTransportCall>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<IClientStreamTransportCall>>(
                     (invoker, options, innerToken) =>
                     {
                         var call = invoker.AsyncClientStreamingCall(method, null, options);
                         IClientStreamTransportCall transportCall = new GrpcClientStreamTransportCall(requestMeta, call, null, callCts);
-                        return Task.FromResult(transportCall);
+                        return ValueTask.FromResult(transportCall);
                     });
 
                 var clientResult = await ExecuteGrpcCallAsync(context, requestMeta, callOptions, operation, token).ConfigureAwait(false);
@@ -547,7 +547,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var method = _duplexMethods.GetOrAdd(procedure, CreateDuplexStreamingMethod);
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, Task<IDuplexStreamCall>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<IDuplexStreamCall>>(
                     async (invoker, options, innerToken) =>
                     {
                         var call = invoker.AsyncDuplexStreamingCall(method, null, options);
@@ -720,7 +720,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
     private readonly record struct PeerInvocationContext(PeerLease Lease, GrpcPeer Peer, bool UsedPreferred, Activity? Activity);
 
-    private ValueTask<Result<TResult>> WithPeerContextAsync<TResult>(
+    private async ValueTask<Result<TResult>> WithPeerContextAsync<TResult>(
         RequestMeta meta,
         string procedure,
         string callKind,
@@ -728,34 +728,35 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         Func<PeerInvocationContext, CancellationToken, ValueTask<Result<TResult>>> operation,
         CancellationToken cancellationToken)
     {
-        return AcquirePeerAsync(meta, cancellationToken)
-            .ThenValueTaskAsync(async (acquired, token) =>
+        var acquired = await AcquirePeerAsync(meta, cancellationToken).ConfigureAwait(false);
+
+        return await acquired.ThenValueTaskAsync(async (acquiredContext, token) =>
+        {
+            var (lease, peer, usedPreferred) = acquiredContext;
+            using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, callKind);
+            if (activity is not null)
             {
-                var (lease, peer, usedPreferred) = acquired;
-                using var activity = GrpcTransportDiagnostics.StartClientActivity(_remoteService, procedure, peer.Address, callKind);
-                if (activity is not null)
-                {
-                    activity.SetTag("omnirelay.discovery.preferred_protocol", _clientRuntimeOptions?.EnableHttp3 == true ? "h3" : "any");
-                    var supportsH3 = _endpointHttp3Support?.TryGetValue(peer.Address, out var supported) == true && supported;
-                    activity.SetTag("omnirelay.peer.supports_h3", supportsH3);
-                    activity.SetTag("omnirelay.discovery.selection", usedPreferred ? "preferred" : "fallback");
-                }
+                activity.SetTag("omnirelay.discovery.preferred_protocol", _clientRuntimeOptions?.EnableHttp3 == true ? "h3" : "any");
+                var supportsH3 = _endpointHttp3Support?.TryGetValue(peer.Address, out var supported) == true && supported;
+                activity.SetTag("omnirelay.peer.supports_h3", supportsH3);
+                activity.SetTag("omnirelay.discovery.selection", usedPreferred ? "preferred" : "fallback");
+            }
 
-                if (_clientRuntimeOptions?.EnableHttp3 == true && !usedPreferred)
-                {
-                    GrpcTransportMetrics.RecordClientFallback(meta, http3Desired: true);
-                }
+            if (_clientRuntimeOptions?.EnableHttp3 == true && !usedPreferred)
+            {
+                GrpcTransportMetrics.RecordClientFallback(meta, http3Desired: true);
+            }
 
-                var context = new PeerInvocationContext(lease, peer, usedPreferred, activity);
+            var context = new PeerInvocationContext(lease, peer, usedPreferred, activity);
 
-                if (!disposeLeaseOnCompletion)
-                {
-                    return await operation(context, token).ConfigureAwait(false);
-                }
-
-                await using var leaseScope = lease.ConfigureAwait(false);
+            if (!disposeLeaseOnCompletion)
+            {
                 return await operation(context, token).ConfigureAwait(false);
-            }, cancellationToken);
+            }
+
+            await using var leaseScope = lease.ConfigureAwait(false);
+            return await operation(context, token).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private static DateTime? ResolveDeadline(RequestMeta meta)
@@ -1385,7 +1386,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         PeerInvocationContext context,
         RequestMeta requestMeta,
         CallOptions callOptions,
-        Func<CallInvoker, CallOptions, CancellationToken, Task<T>> operation,
+        Func<CallInvoker, CallOptions, CancellationToken, ValueTask<T>> operation,
         CancellationToken cancellationToken)
     {
         var result = await Result.TryAsync(
@@ -1406,7 +1407,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         PeerInvocationContext context,
         RequestMeta requestMeta,
         CallOptions callOptions,
-        Func<CallInvoker, CallOptions, CancellationToken, Task<T>> operation,
+        Func<CallInvoker, CallOptions, CancellationToken, ValueTask<T>> operation,
         Error originalError,
         CancellationToken cancellationToken)
     {

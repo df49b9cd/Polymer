@@ -1,7 +1,7 @@
 <Project>
-  <Import Project="..\Directory.Build.props" Condition="Exists('..\Directory.Build.props')" />
-
   <PropertyGroup>
-    <GenerateDocumentationFile Condition="'$(GenerateDocumentationFile)' == ''">true</GenerateDocumentationFile>
+    <PublishAot>false</PublishAot>
+    <IsAotCompatible>false</IsAotCompatible>
+    <UseMicrosoftTestingPlatform>false</UseMicrosoftTestingPlatform>
   </PropertyGroup>
 </Project>

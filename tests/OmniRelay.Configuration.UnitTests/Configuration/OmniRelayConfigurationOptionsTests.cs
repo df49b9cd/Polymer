@@ -6,7 +6,7 @@ namespace OmniRelay.Configuration.UnitTests.Configuration;
 
 public sealed class OmniRelayConfigurationOptionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Defaults_InstantiateChildGraphs()
     {
         var options = new OmniRelayConfigurationOptions();
@@ -23,7 +23,7 @@ public sealed class OmniRelayConfigurationOptionsTests
         options.Diagnostics.Runtime.ShouldNotBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void OutboundsDictionary_IsCaseInsensitive()
     {
         var options = new OmniRelayConfigurationOptions();
@@ -33,7 +33,7 @@ public sealed class OmniRelayConfigurationOptionsTests
         options.Outbounds["primary"].ShouldBe(outbound);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void LoggingOverrides_IsCaseInsensitive()
     {
         var logging = new LoggingConfiguration();
@@ -42,7 +42,7 @@ public sealed class OmniRelayConfigurationOptionsTests
         logging.Overrides["omnirelay.configuration"].ShouldBe("Trace");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void PeerSpecSettings_IsCaseInsensitive()
     {
         var spec = new PeerSpecConfiguration();
@@ -51,7 +51,7 @@ public sealed class OmniRelayConfigurationOptionsTests
         spec.Settings["mode"].ShouldBe("sticky");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void JsonCodecRegistration_DefaultsToUnaryKind()
     {
         var codec = new JsonCodecRegistrationConfiguration();

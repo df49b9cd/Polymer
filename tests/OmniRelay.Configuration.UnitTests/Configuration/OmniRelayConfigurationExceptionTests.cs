@@ -5,7 +5,7 @@ namespace OmniRelay.Configuration.UnitTests.Configuration;
 
 public sealed class OmniRelayConfigurationExceptionTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Ctor_WithMessage_PopulatesMessage()
     {
         var exception = new OmniRelayConfigurationException("bad configuration");
@@ -13,7 +13,7 @@ public sealed class OmniRelayConfigurationExceptionTests
         exception.InnerException.ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Ctor_WithMessageAndInner_PopulatesProperties()
     {
         var inner = new InvalidOperationException("boom");
@@ -23,7 +23,7 @@ public sealed class OmniRelayConfigurationExceptionTests
         exception.InnerException.ShouldBe(inner);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Ctor_Default_UsesTypeName()
     {
         var exception = new OmniRelayConfigurationException();

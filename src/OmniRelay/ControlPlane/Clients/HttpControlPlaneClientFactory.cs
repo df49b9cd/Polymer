@@ -1,9 +1,6 @@
 #pragma warning disable IDE0005
 using System.Net;
-using System.Net.Http;
 using System.Net.Security;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 #pragma warning restore IDE0005
 using Hugo;

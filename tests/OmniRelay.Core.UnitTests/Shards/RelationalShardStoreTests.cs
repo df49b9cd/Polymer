@@ -1,14 +1,8 @@
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.Hashing;
 using OmniRelay.ShardStore.Relational;
-using OmniRelay.Tests;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Shards;
@@ -39,7 +33,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
         _keepAlive.Dispose();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Upsert_CreatesShardAndLists()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -60,7 +54,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
         list[0].Checksum.ShouldBe(result.Record.Checksum);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Upsert_UpdatesWithOptimisticConcurrency()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -92,7 +86,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
         filtered[0].Current.OwnerNodeId.ShouldBe("node-b");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamDiffs_ReplaysSnapshotsPerHistoryEntry()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -111,7 +105,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
         diffs[1].Current.Version.ShouldBe(2);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Upsert_WithStaleVersionThrows()
     {
         var ct = TestContext.Current.CancellationToken;

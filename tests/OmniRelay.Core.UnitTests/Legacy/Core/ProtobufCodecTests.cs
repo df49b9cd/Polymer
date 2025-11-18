@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Core;
 
 public class ProtobufCodecTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_Binary_SerializesMessage()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
@@ -22,7 +22,7 @@ public class ProtobufCodecTests
         decoded.Value.ShouldBe("hello");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_Binary_DeserializesMessage()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
@@ -35,7 +35,7 @@ public class ProtobufCodecTests
         result.Value.Value.ShouldBe("pong");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_Json_UsesJsonFormatter()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
@@ -49,7 +49,7 @@ public class ProtobufCodecTests
         json.ShouldBe("\"json\"");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_Json_ParsesPayload()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();
@@ -62,7 +62,7 @@ public class ProtobufCodecTests
         result.Value.Value.ShouldBe("decoded");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_UnsupportedEncoding_ReturnsError()
     {
         var codec = new ProtobufCodec<StringValue, StringValue>();

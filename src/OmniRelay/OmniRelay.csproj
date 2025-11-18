@@ -1,4 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>Soeren Magnus Olesen</Authors>
+    <Company>df49b9cd</Company>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
   <PropertyGroup>
     <AssemblyName>OmniRelay</AssemblyName>
     <RootNamespace>OmniRelay</RootNamespace>
@@ -21,10 +33,6 @@
     <PackageReference Include="JsonSchema.Net" />
     <PackageReference Include="OpenTelemetry" />
     <PackageReference Include="System.IO.Hashing" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

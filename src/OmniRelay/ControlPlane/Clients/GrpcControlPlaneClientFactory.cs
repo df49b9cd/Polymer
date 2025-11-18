@@ -1,16 +1,12 @@
 #pragma warning disable IDE0005
 using System.Net;
-using System.Net.Http;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Grpc.Net.Client;
 using Hugo;
 using Microsoft.Extensions.Options;
 using OmniRelay.ControlPlane.Security;
-using OmniRelay.Transport.Grpc;
 using static Hugo.Go;
 
 namespace OmniRelay.ControlPlane.Clients;

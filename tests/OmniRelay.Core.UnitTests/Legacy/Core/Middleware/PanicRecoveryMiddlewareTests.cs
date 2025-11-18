@@ -10,7 +10,7 @@ namespace OmniRelay.Tests.Core.Middleware;
 
 public sealed class PanicRecoveryMiddlewareTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryInbound_Exception_ConvertedToInternalError()
     {
         var logger = new TestLogger<PanicRecoveryMiddleware>();
@@ -34,7 +34,7 @@ public sealed class PanicRecoveryMiddlewareTests
         entry.Message.ShouldContain("Unhandled exception", Case.Insensitive);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryOutbound_Exception_ConvertedToInternalError()
     {
         var middleware = new PanicRecoveryMiddleware();

@@ -23,7 +23,7 @@ public class OmniRelayConfigurationTests
     private const string CustomOutboundSpecName = "test-outbound";
     private const string CustomPeerSpecName = "test-peer";
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_BuildsDispatcherFromConfiguration()
     {
         var configuration = new ConfigurationBuilder()
@@ -65,7 +65,7 @@ public class OmniRelayConfigurationTests
         hostedServices.ShouldContain(service => service is DispatcherHostedService);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_MissingServiceThrows()
     {
         var configuration = new ConfigurationBuilder()
@@ -78,7 +78,7 @@ public class OmniRelayConfigurationTests
             () => services.AddOmniRelayDispatcher(configuration.GetSection("omnirelay")));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_InvalidPeerChooserThrows()
     {
         var configuration = new ConfigurationBuilder()
@@ -98,7 +98,7 @@ public class OmniRelayConfigurationTests
         Should.Throw<OmniRelayConfigurationException>(() => provider.GetRequiredService<OmniRelayDispatcher>());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_HttpsInboundWithoutTls_Throws()
     {
         var configuration = new ConfigurationBuilder()
@@ -118,7 +118,7 @@ public class OmniRelayConfigurationTests
         ex.Message.ShouldContain("no TLS certificate was configured");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_InvalidGrpcTlsCertificatePath_Throws()
     {
         var configuration = new ConfigurationBuilder()
@@ -139,7 +139,7 @@ public class OmniRelayConfigurationTests
         ex.Message.ShouldContain("gRPC server TLS certificate");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_InvalidGrpcTlsCertificateData_Throws()
     {
         var configuration = new ConfigurationBuilder()
@@ -160,7 +160,7 @@ public class OmniRelayConfigurationTests
         ex.Message.ShouldContain("certificateData");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_UsesCustomTransportSpecs()
     {
         var configuration = new ConfigurationBuilder()
@@ -217,7 +217,7 @@ public class OmniRelayConfigurationTests
         capturedOutboundAddress.ShouldBe("http://search.internal:8080");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_UsesNamedHttpClientFactoryClients()
     {
         var configuration = new ConfigurationBuilder()
@@ -255,7 +255,7 @@ public class OmniRelayConfigurationTests
         createdNames.ShouldBe(new[] { "metrics" });
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_UsesCustomPeerSpec()
     {
         var configuration = new ConfigurationBuilder()
@@ -296,7 +296,7 @@ public class OmniRelayConfigurationTests
         capturedMode.ShouldBe("sticky");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddOmniRelayDispatcher_ConfiguresJsonCodecs()
     {
         var schemaPath = Path.Combine(Path.GetTempPath(), $"omnirelay-schema-{Guid.NewGuid():N}.json");

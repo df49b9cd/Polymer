@@ -5,7 +5,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public sealed class FileSystemDeterministicStateStoreTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Set_OverwritesExistingRecords()
     {
         using var temp = new TempDirectory();
@@ -21,7 +21,7 @@ public sealed class FileSystemDeterministicStateStoreTests
         Assert.Equal(2, fetched.Version);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryAdd_ReturnsFalseWhenFileExists()
     {
         using var temp = new TempDirectory();

@@ -1,14 +1,13 @@
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.ControlPlane.Bootstrap;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Bootstrap;
 
 public sealed class BootstrapTokenServiceTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateAndValidateToken_Succeeds()
     {
         var service = CreateService();
@@ -27,7 +26,7 @@ public sealed class BootstrapTokenServiceTests
         result.Role.ShouldBe("worker");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ValidateToken_FailsWhenReused()
     {
         var service = CreateService(maxUses: 1);

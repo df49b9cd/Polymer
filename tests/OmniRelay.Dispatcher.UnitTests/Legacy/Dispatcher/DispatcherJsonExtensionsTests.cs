@@ -12,7 +12,7 @@ namespace OmniRelay.Tests.Dispatcher;
 
 public class DispatcherJsonExtensionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task RegisterJsonUnary_RegistersCodecAndHandlesRequest()
     {
         var options = new DispatcherOptions("echo");
@@ -78,7 +78,7 @@ public class DispatcherJsonExtensionsTests
             out _));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CreateJsonClient_UsesCodecRegistryAndRoundTrips()
     {
         var options = new DispatcherOptions("gateway");
@@ -114,7 +114,7 @@ public class DispatcherJsonExtensionsTests
         Assert.Equal("application/json", outboundCodec.Encoding);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task RegisterJsonUnary_HandlerExceptionReturnsError()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
@@ -135,7 +135,7 @@ public class DispatcherJsonExtensionsTests
         Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CreateJsonClient_ReusesExistingCodecWhenUnconfigured()
     {
         var options = new DispatcherOptions("svc");
@@ -166,7 +166,7 @@ public class DispatcherJsonExtensionsTests
         Assert.Same(codec, resolved);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateJsonClient_RegistersCodecWithAliases()
     {
         var options = new DispatcherOptions("svc");

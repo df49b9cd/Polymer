@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using OmniRelay.Core.Peers;
 using OmniRelay.Diagnostics;
 using Xunit;
 

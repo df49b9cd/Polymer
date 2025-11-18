@@ -8,7 +8,7 @@ namespace OmniRelay.Configuration.UnitTests.Configuration;
 
 public sealed class DiagnosticsRuntimeStateTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void SetMinimumLogLevel_OverridesOptions()
     {
         var (monitor, cache) = CreateOptions();
@@ -23,7 +23,7 @@ public sealed class DiagnosticsRuntimeStateTests
         monitor.CurrentValue.MinLevel.ShouldBe(LogLevel.Information);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void SetTraceSamplingProbability_ValidatesRange()
     {
         var (monitor, cache) = CreateOptions();

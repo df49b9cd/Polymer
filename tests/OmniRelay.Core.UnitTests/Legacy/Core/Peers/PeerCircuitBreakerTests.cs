@@ -5,7 +5,7 @@ namespace OmniRelay.Tests.Core.Peers;
 
 public sealed class PeerCircuitBreakerTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Failure_TriggersSuspension()
     {
         var provider = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -26,7 +26,7 @@ public sealed class PeerCircuitBreakerTests
         breaker.TryEnter().ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Success_ResetsFailures()
     {
         var provider = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -44,7 +44,7 @@ public sealed class PeerCircuitBreakerTests
         breaker.TryEnter().ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void HalfOpen_AllowsLimitedProbes()
     {
         var provider = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -68,7 +68,7 @@ public sealed class PeerCircuitBreakerTests
         breaker.TryEnter().ShouldBeTrue(); // breaker resets after success
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void HalfOpen_RequiresMultipleSuccessesWhenConfigured()
     {
         var provider = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -93,7 +93,7 @@ public sealed class PeerCircuitBreakerTests
         breaker.TryEnter().ShouldBeTrue(); // closed path allows entry freely
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void HalfOpen_FailureReopensBreaker()
     {
         var provider = new TestTimeProvider(DateTimeOffset.UtcNow);

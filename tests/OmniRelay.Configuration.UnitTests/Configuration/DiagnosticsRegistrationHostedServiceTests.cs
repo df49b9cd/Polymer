@@ -6,7 +6,7 @@ namespace OmniRelay.Configuration.UnitTests.Configuration;
 
 public sealed class DiagnosticsRegistrationHostedServiceTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StartAsync_WithMeterFactory_CompletesSuccessfully()
     {
         var factory = new RecordingMeterFactory();
@@ -16,7 +16,7 @@ public sealed class DiagnosticsRegistrationHostedServiceTests
         await hostedService.StopAsync(CancellationToken.None);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StartAsync_WithoutMeterFactory_IsNoOp()
     {
         var hostedService = new DiagnosticsRegistrationHostedService();

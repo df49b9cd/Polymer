@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -8,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Gossip;
 using OmniRelay.FeatureTests.Fixtures;
 using OmniRelay.Tests;
-using OmniRelay.Tests.Support;
 using Xunit;
 
 namespace OmniRelay.FeatureTests.Features.DispatcherBootstrap;
@@ -19,7 +17,7 @@ public sealed class MeshGossipFeatureTests(FeatureTestApplication application) :
     private readonly FeatureTestApplication _application = application;
     private readonly List<MeshGossipHost> _extraHosts = new();
 
-    [Fact(DisplayName = "Gossip cluster surfaces consistent peers via CLI, diagnostics, and metrics")]
+    [Fact(DisplayName = "Gossip cluster surfaces consistent peers via CLI, diagnostics, and metrics", Timeout = TestTimeouts.Default)]
     public async Task GossipClusterHasConsistentDiagnosticsAsync()
     {
         var ct = TestContext.Current.CancellationToken;

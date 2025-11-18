@@ -94,10 +94,10 @@ public sealed class DeterministicResourceLeaseCoordinator : IResourceLeaseDeterm
         }
     }
 
-    private async Task<Result<long>> CaptureEffectAsync(string effectId, ResourceLeaseReplicationEvent evt, CancellationToken cancellationToken) =>
+    private async ValueTask<Result<long>> CaptureEffectAsync(string effectId, ResourceLeaseReplicationEvent evt, CancellationToken cancellationToken) =>
         await _effectStore.CaptureAsync<long>(
             effectId,
-            _ => Task.FromResult(Result.Ok(evt.SequenceNumber)),
+            _ => ValueTask.FromResult(Result.Ok(evt.SequenceNumber)),
             cancellationToken).ConfigureAwait(false);
 
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Deterministic effect payloads may require runtime metadata.")]

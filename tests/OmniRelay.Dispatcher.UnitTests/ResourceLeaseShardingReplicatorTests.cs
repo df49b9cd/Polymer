@@ -17,7 +17,7 @@ public sealed class ResourceLeaseShardingReplicatorTests
     private static bool HasShard(ResourceLeaseReplicationEvent replicationEvent, string shardId) =>
         replicationEvent.Metadata.TryGetValue("shard.id", out var value) && value == shardId;
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ShardedReplicator_AppendsShardMetadata()
     {
         var inner = Substitute.For<IResourceLeaseReplicator>();
@@ -31,7 +31,7 @@ public sealed class ResourceLeaseShardingReplicatorTests
             CancellationToken.None);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CompositeReplicator_FansOut()
     {
         var first = Substitute.For<IResourceLeaseReplicator>();

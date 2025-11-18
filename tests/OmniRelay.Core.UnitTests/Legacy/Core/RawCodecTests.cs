@@ -6,7 +6,7 @@ namespace OmniRelay.Tests.Core;
 
 public class RawCodecTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_AllowsNullEncodingAndPassesThroughBuffer()
     {
         var codec = new RawCodec();
@@ -19,7 +19,7 @@ public class RawCodecTests
         result.Value.ShouldBeSameAs(payload);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_MismatchedEncodingFails()
     {
         var codec = new RawCodec();
@@ -33,7 +33,7 @@ public class RawCodecTests
         status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_ReusesUnderlyingArray()
     {
         var codec = new RawCodec();
@@ -46,7 +46,7 @@ public class RawCodecTests
         result.Value.ShouldBeSameAs(payload);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeResponse_AllowsNullEncodingAndPassesThroughBuffer()
     {
         var codec = new RawCodec();
@@ -59,7 +59,7 @@ public class RawCodecTests
         result.Value.ShouldBeSameAs(payload);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeResponse_MismatchedEncodingFails()
     {
         var codec = new RawCodec();
@@ -73,7 +73,7 @@ public class RawCodecTests
         status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_WithOffsetCopiesPayload()
     {
         var codec = new RawCodec();
@@ -88,7 +88,7 @@ public class RawCodecTests
         result.Value.ShouldBe(new byte[] { 9, 10 });
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_MismatchedEncodingFails()
     {
         var codec = new RawCodec();

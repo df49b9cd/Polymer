@@ -1,18 +1,16 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Hugo;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.ControlPlane.Bootstrap;
 using OmniRelay.ControlPlane.Security;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Bootstrap;
 
 public sealed class BootstrapServerTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task JoinAsync_ReturnsBundleWithCertificate()
     {
         var signingOptions = new BootstrapTokenSigningOptions

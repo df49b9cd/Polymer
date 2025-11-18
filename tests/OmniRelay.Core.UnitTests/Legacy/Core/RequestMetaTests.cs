@@ -5,7 +5,7 @@ namespace OmniRelay.Tests.Core;
 
 public class RequestMetaTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void WithHeader_UsesCaseInsensitiveDictionary()
     {
         var meta = new RequestMeta(service: "keyvalue")
@@ -15,7 +15,7 @@ public class RequestMetaTests
         value.ShouldBe("abc123");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void WithHeaders_MergesValues()
     {
         var meta = new RequestMeta(service: "keyvalue")
@@ -31,7 +31,7 @@ public class RequestMetaTests
         b.ShouldBe("2");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_PopulatesProperties()
     {
         var deadline = DateTimeOffset.UtcNow;

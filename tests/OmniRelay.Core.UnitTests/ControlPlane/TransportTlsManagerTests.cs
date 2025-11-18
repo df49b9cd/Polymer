@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -8,14 +5,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using OmniRelay.ControlPlane.Security;
 using OmniRelay.Security.Secrets;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.ControlPlane;
 
 public sealed class TransportTlsManagerTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetCertificate_ThrowsWhenCertificatePathMissing()
     {
         var options = CreateOptions();
@@ -28,7 +24,7 @@ public sealed class TransportTlsManagerTests
             .Message.ShouldContain("certificate path");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetCertificate_ThrowsWhenInlineCertificateDataIsInvalid()
     {
         var options = CreateOptions();
@@ -41,7 +37,7 @@ public sealed class TransportTlsManagerTests
             .Message.ShouldContain("Base64");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetCertificate_ReloadsWhenFileTimestampChanges()
     {
         using var tempDir = new TempDirectory();
@@ -67,7 +63,7 @@ public sealed class TransportTlsManagerTests
         second.Thumbprint.ShouldNotBe(firstThumbprint);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetCertificate_ZeroesInlineDataAfterLoading()
     {
         var options = CreateOptions();
@@ -94,7 +90,7 @@ public sealed class TransportTlsManagerTests
         observed!.ShouldAllBe(b => b == 0);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetCertificate_UsesSecretProviderForPassword()
     {
         const string password = "secret-pass";
@@ -112,7 +108,7 @@ public sealed class TransportTlsManagerTests
         certificate.Subject.ShouldContain("password-secret");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetCertificate_UsesSecretProviderForInlineData()
     {
         const string password = "secret-pass";
@@ -129,7 +125,7 @@ public sealed class TransportTlsManagerTests
         certificate.Subject.ShouldContain("data-secret");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetCertificate_ReloadsWhenSecretChanges()
     {
         const string password = "secret-pass";

@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Core;
 
 public class DuplexStreamCallTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Create_WiresBidirectionalChannels()
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo");
@@ -29,7 +29,7 @@ public class DuplexStreamCallTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Context_TracksCountsAndCompletions()
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo", transport: "test");
@@ -55,7 +55,7 @@ public class DuplexStreamCallTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CompleteResponsesAsync_WithErrorPropagatesException()
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo", transport: "test");
@@ -75,7 +75,7 @@ public class DuplexStreamCallTests
         await call.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CompleteRequestsAsync_WithCancelledErrorSetsCancelledStatus()
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo", transport: "test");

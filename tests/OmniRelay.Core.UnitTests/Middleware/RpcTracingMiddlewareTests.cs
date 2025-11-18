@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Hugo;
 using NSubstitute;
-using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;

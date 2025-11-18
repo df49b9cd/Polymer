@@ -10,7 +10,7 @@ namespace OmniRelay.Configuration.UnitTests.Configuration;
 
 public sealed class ShardingConfigurationExtensionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ShardingSection_BindsAndComputesPlan()
     {
         const string json = """

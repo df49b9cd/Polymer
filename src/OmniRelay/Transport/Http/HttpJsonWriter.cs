@@ -1,7 +1,5 @@
 #pragma warning disable IDE0005
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 #pragma warning restore IDE0005
 using System.Text.Json.Serialization.Metadata;

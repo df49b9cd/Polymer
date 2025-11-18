@@ -8,7 +8,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class DispatcherHealthEvaluatorTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Evaluate_WhenDispatcherNotRunning_ReportsStatusIssue()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
@@ -19,7 +19,7 @@ public class DispatcherHealthEvaluatorTests
         Assert.Contains("dispatcher-status:Created", result.Issues);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Evaluate_WithGrpcOutboundReportsIssues()
     {
         var initial = await EvaluateAsync(CreateSnapshot(isStarted: false, peers: []));

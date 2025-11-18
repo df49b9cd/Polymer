@@ -10,7 +10,6 @@ public sealed class OmniRelayDocumentationOptions
     public string RoutePattern { get; set; } = "/openapi/omnirelay.json";
 
     public string? AuthorizationPolicy { get; set; }
-        = null;
 
     public IDictionary<string, string> Metadata { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }

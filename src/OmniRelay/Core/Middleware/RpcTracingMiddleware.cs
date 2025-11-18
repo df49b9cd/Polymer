@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Threading.Channels;
 using Hugo;
-using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
 using static Hugo.Go;

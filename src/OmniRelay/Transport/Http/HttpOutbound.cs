@@ -407,10 +407,10 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
                 return new ValueTask<Result<T>>(Go.Err<T>(BuildTimeoutError(request.Meta)));
             }
 
-            return new ValueTask<Result<T>>(Go.WithTimeoutValueTaskAsync(
+            return Go.WithTimeoutValueTaskAsync(
                 InvokeAsync,
                 remaining,
-                cancellationToken: cancellationToken));
+                cancellationToken: cancellationToken);
         }
 
         return InvokeAsync(cancellationToken);

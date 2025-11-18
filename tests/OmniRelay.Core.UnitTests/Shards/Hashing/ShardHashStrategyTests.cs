@@ -1,14 +1,12 @@
 using System.Globalization;
-using System.Linq;
 using OmniRelay.Core.Shards.Hashing;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Shards.Hashing;
 
 public sealed class ShardHashStrategyTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RingStrategy_AssignsDeterministically()
     {
         var strategy = new RingShardHashStrategy();
@@ -28,7 +26,7 @@ public sealed class ShardHashStrategyTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RendezvousStrategy_RespectsWeights()
     {
         var strategy = new RendezvousShardHashStrategy();
@@ -53,7 +51,7 @@ public sealed class ShardHashStrategyTests
         ((double)perNode["node-b"]).ShouldBeGreaterThan(plan.Assignments.Count * 0.65);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void LocalityStrategy_PrefersZoneThenRegion()
     {
         var strategy = new LocalityAwareShardHashStrategy();
@@ -86,7 +84,7 @@ public sealed class ShardHashStrategyTests
         map["global-0"].ShouldNotBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Registry_ProvidesBuiltInStrategies()
     {
         var registry = new ShardHashStrategyRegistry();

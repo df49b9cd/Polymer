@@ -11,7 +11,7 @@ namespace OmniRelay.Tests.Transport.Http;
 
 public sealed class HttpOutboundRequestBuilderTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_WithHttp3EnabledOnHttpScheme_Throws()
     {
         using var client = new HttpClient(new HttpClientHandler());

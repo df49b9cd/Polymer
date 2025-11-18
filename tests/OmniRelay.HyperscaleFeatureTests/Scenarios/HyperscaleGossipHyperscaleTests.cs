@@ -1,11 +1,8 @@
-using System.Linq;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Core.Gossip;
 using OmniRelay.HyperscaleFeatureTests.Infrastructure;
 using OmniRelay.Tests;
-using OmniRelay.Tests.Support;
 using Xunit;
 
 namespace OmniRelay.HyperscaleFeatureTests.Scenarios;
@@ -21,7 +18,7 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
         _nodes = CreateDescriptors(nodeCount: 32);
     }
 
-    [Fact(DisplayName = "Gossip cluster converges across dozens of nodes and recovers from churn")]
+    [Fact(DisplayName = "Gossip cluster converges across dozens of nodes and recovers from churn", Timeout = TestTimeouts.Default)]
     public async Task GossipCluster_CoversHyperscaleScenarioAsync()
     {
         var ct = TestContext.Current.CancellationToken;

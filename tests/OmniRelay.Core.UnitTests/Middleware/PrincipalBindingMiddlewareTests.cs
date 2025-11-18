@@ -8,7 +8,7 @@ namespace OmniRelay.Core.UnitTests.Middleware;
 
 public sealed class PrincipalBindingMiddlewareTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task PrincipalHeader_PromotesCallerAndMetadata()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
@@ -41,7 +41,7 @@ public sealed class PrincipalBindingMiddlewareTests
         principal.ShouldBe("subject-a");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task AuthorizationHeader_BindsBearerToken()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
@@ -73,7 +73,7 @@ public sealed class PrincipalBindingMiddlewareTests
         observed.Headers["rpc.principal"].ShouldBe("abc.def");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task MutualTlsAuthorizationHeader_BindsSubject()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
@@ -107,7 +107,7 @@ public sealed class PrincipalBindingMiddlewareTests
         observed.Headers["rpc.principal"].ShouldBe("CN=client-app");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientStreamContext_UpdatesMetadata()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
@@ -141,7 +141,7 @@ public sealed class PrincipalBindingMiddlewareTests
         updated.Meta.Caller.ShouldBe("streaming-user");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ThumbprintHeader_IsCapturedWhenEnabled()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
@@ -177,7 +177,7 @@ public sealed class PrincipalBindingMiddlewareTests
         thumbprint.ShouldBe("THUMBPRINT123");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task PromoteToCallerDisabled_DoesNotOverrideExistingCaller()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions

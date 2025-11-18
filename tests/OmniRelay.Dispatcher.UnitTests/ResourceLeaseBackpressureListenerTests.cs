@@ -15,7 +15,7 @@ public sealed class ResourceLeaseBackpressureListenerTests
     private static ResourceLeaseBackpressureSignal ClearedSignal(long pending = 2) =>
         new(false, pending, DateTimeOffset.UtcNow, HighWatermark: 8, LowWatermark: 4);
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task RateLimitingListener_TogglesGate()
     {
         await using var normal = new ConcurrencyLimiter(new ConcurrencyLimiterOptions
@@ -46,7 +46,7 @@ public sealed class ResourceLeaseBackpressureListenerTests
         Assert.Same(normal, gate.SelectLimiter(meta));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task DiagnosticsListener_StoresLatestAndStreams()
     {
         var listener = new ResourceLeaseBackpressureDiagnosticsListener(historyCapacity: 4);

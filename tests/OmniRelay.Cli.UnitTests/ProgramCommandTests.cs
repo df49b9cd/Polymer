@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -10,7 +9,7 @@ namespace OmniRelay.Cli.UnitTests;
 
 public sealed class ProgramCommandTests : CliTestBase
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ServeCommand_InvalidShutdownAfter_ShowsError()
     {
         var configPath = CreateConfigFile();
@@ -28,7 +27,7 @@ public sealed class ProgramCommandTests : CliTestBase
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ServeCommand_WritesReadyFile_AndStopsHost()
     {
         var configPath = CreateConfigFile();
@@ -63,7 +62,7 @@ public sealed class ProgramCommandTests : CliTestBase
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ConfigValidateCommand_MissingFile_ReturnsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -73,7 +72,7 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdErr.ShouldContain("does not exist");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ConfigScaffoldCommand_Defaults_EmitsGoldenBaseline()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -96,7 +95,7 @@ public sealed class ProgramCommandTests : CliTestBase
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ConfigScaffoldCommand_Http3AndOutboundSwitches_EmitsGoldenDocument()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -131,7 +130,7 @@ public sealed class ProgramCommandTests : CliTestBase
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ConfigScaffoldCommand_WhenWriteFails_ReturnsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -154,7 +153,7 @@ public sealed class ProgramCommandTests : CliTestBase
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task IntrospectCommand_PrintsJsonSnapshot()
     {
         var snapshot = new DispatcherIntrospection(
@@ -194,7 +193,7 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdOut.ShouldContain("demo-service");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task RequestCommand_MissingHttpUrl_FailsBeforeNetwork()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -211,7 +210,7 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdErr.ShouldContain("HTTP transport requires --url");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task BenchmarkCommand_MissingRequestsAndDuration_ShowsGuidance()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -232,7 +231,7 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdErr.ShouldContain("Specify a positive --requests value or a --duration");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task BenchmarkCommand_WithRequestsAndWarmup_PrintsSummary()
     {
         var fakeInvoker = new FakeBenchmarkInvoker(TimeSpan.FromMilliseconds(1));
@@ -264,7 +263,7 @@ public sealed class ProgramCommandTests : CliTestBase
         fakeInvoker.CallCount.ShouldBeGreaterThan(5);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ScriptRunCommand_ExecutesRequestAndIntrospect()
     {
         var scriptPath = GetAutomationFixture("automation-happy.json");
@@ -281,7 +280,7 @@ public sealed class ProgramCommandTests : CliTestBase
         handler.Requests.Count(message => message.RequestUri!.AbsoluteUri.Contains("/omnirelay/introspect", StringComparison.OrdinalIgnoreCase)).ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ScriptRunCommand_DryRun_SkipsExecution()
     {
         var scriptPath = GetAutomationFixture("automation-dryrun.json");
@@ -296,7 +295,7 @@ public sealed class ProgramCommandTests : CliTestBase
         handler.Requests.ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ScriptRunCommand_ContinueOnError_AllowsLaterSteps()
     {
         var scriptPath = GetAutomationFixture("automation-continue.json");
@@ -310,7 +309,7 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdOut.ShouldContain("[2/2] introspect");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ScriptCommand_MissingFile_ReturnsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -320,7 +319,7 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdErr.ShouldContain("does not exist");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task MeshStatusCommand_InvalidUrl_ShowsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
@@ -330,7 +329,7 @@ public sealed class ProgramCommandTests : CliTestBase
         result.StdErr.ShouldContain("Invalid control-plane URL 'invalid'.");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task MeshStatusCommand_Snapshot_PrintsLeaders()
     {
         var snapshotJson = """
@@ -369,7 +368,7 @@ public sealed class ProgramCommandTests : CliTestBase
         handler.Requests.Count.ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task MeshStatusCommand_Watch_StreamsEvents()
     {
         var ssePayload = string.Join('\n', new[]
@@ -408,7 +407,7 @@ public sealed class ProgramCommandTests : CliTestBase
         handler.Requests.Count.ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task MeshStatusCommand_WatchTimeout_ReturnsTwo()
     {
         var handler = new StubHttpMessageHandler(_ => throw new TaskCanceledException());

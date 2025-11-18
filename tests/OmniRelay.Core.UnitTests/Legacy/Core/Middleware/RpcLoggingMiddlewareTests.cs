@@ -12,7 +12,7 @@ namespace OmniRelay.Tests.Core.Middleware;
 
 public sealed class RpcLoggingMiddlewareTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryInbound_Success_LogsCompletion()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -36,7 +36,7 @@ public sealed class RpcLoggingMiddlewareTests
         entry.Scope.ShouldNotBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryOutbound_Failure_LogsError()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -58,7 +58,7 @@ public sealed class RpcLoggingMiddlewareTests
         entry.Message.ShouldContain("boom", Case.Insensitive);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ShouldLogRequestFalse_SkipsSuccessLog()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
@@ -80,7 +80,7 @@ public sealed class RpcLoggingMiddlewareTests
         logger.Entries.ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Enrichment_AddsScopeWithRequestAndPeerDetails()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();

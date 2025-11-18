@@ -5,7 +5,6 @@ using Hugo;
 using OmniRelay.ControlPlane.Throttling;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
-using OmniRelay.Core.Peers;
 using OmniRelay.Diagnostics;
 
 namespace OmniRelay.Dispatcher;

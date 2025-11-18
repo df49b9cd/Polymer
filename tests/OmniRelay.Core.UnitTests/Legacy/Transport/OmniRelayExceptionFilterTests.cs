@@ -11,7 +11,7 @@ namespace OmniRelay.Tests.Transport;
 
 public sealed class OmniRelayExceptionFilterTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task OnExceptionAsync_TransformsExceptionIntoOmniRelayPayload()
     {
         var filter = new OmniRelayExceptionFilter();

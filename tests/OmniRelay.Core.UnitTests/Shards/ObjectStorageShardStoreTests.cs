@@ -1,17 +1,13 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.Hashing;
 using OmniRelay.ShardStore.ObjectStorage;
-using OmniRelay.Tests;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Shards;
 
 public sealed class ObjectStorageShardStoreTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Upsert_PersistsInObjectStorage()
     {
         var store = new ObjectStorageShardStore(new InMemoryShardObjectStorage());
@@ -36,7 +32,7 @@ public sealed class ObjectStorageShardStoreTests
         fetched!.OwnerNodeId.ShouldBe("node-a");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Upsert_DetectsConcurrentWrites()
     {
         var store = new ObjectStorageShardStore(new InMemoryShardObjectStorage());
@@ -70,7 +66,7 @@ public sealed class ObjectStorageShardStoreTests
         await Should.ThrowAsync<ShardConcurrencyException>(async () => await store.UpsertAsync(stale, TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task StreamDiffs_ReturnsMutations()
     {
         var store = new ObjectStorageShardStore(new InMemoryShardObjectStorage());

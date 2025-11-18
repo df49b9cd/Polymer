@@ -326,7 +326,7 @@ public class CodegenWorkflowIntegrationTests
         Assert.Equal(EncodingName, duplexMeta.Encoding);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GeneratedRegistration_MatchesManualProcedureMetadata()
     {
         var serviceName = "codegen-manual";

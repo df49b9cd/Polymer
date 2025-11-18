@@ -10,7 +10,7 @@ namespace OmniRelay.Tests.Core.Transport;
 
 public class TeeOutboundTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Unary_ShadowInvokedWhenSampleRateSatisfied()
     {
         var primary = StubUnaryOutbound.Success();
@@ -42,7 +42,7 @@ public class TeeOutboundTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Unary_DoesNotShadowWhenPrimaryFailsAndShadowOnSuccessOnly()
     {
         var primary = StubUnaryOutbound.Failure();
@@ -60,7 +60,7 @@ public class TeeOutboundTests
         shadow.CallCount.ShouldBe(0);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Unary_RespectsSampleRate()
     {
         var primary = StubUnaryOutbound.Success();
@@ -78,7 +78,7 @@ public class TeeOutboundTests
         shadow.CallCount.ShouldBe(0);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task Oneway_ShadowInvoked()
     {
         var primary = StubOnewayOutbound.Success();
@@ -96,7 +96,7 @@ public class TeeOutboundTests
         SpinWait.SpinUntil(() => shadow.CallCount == 1, TimeSpan.FromSeconds(1)).ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DiagnosticsExposePrimaryAndShadow()
     {
         var primary = StubUnaryOutbound.Success();

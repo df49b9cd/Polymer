@@ -17,7 +17,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OmniRelay.ControlPlane.Events;
 using OmniRelay.ControlPlane.Security;
-using OmniRelay.Core.Peers;
 using OmniRelay.Diagnostics;
 using OmniRelay.Security.Secrets;
 

@@ -12,7 +12,6 @@ using OmniRelay.ControlPlane.Security;
 using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
-using OmniRelay.Core.Peers;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
 

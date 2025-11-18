@@ -5,7 +5,7 @@ namespace OmniRelay.Core.UnitTests.Gossip;
 
 public sealed class MeshGossipPeerEndpointTests
 {
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("localhost:17421", "localhost", 17421)]
     [InlineData("127.0.0.1:8080", "127.0.0.1", 8080)]
     [InlineData("peer.example.com:443", "peer.example.com", 443)]
@@ -19,7 +19,7 @@ public sealed class MeshGossipPeerEndpointTests
         endpoint.Port.ShouldBe(expectedPort);
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("https://localhost:17421", "localhost", 17421)]
     [InlineData("https://peer.example.com:8080/path", "peer.example.com", 8080)]
     public void TryParse_ValidUri_ReturnsTrue(string input, string expectedHost, int expectedPort)
@@ -31,7 +31,7 @@ public sealed class MeshGossipPeerEndpointTests
         endpoint.Port.ShouldBe(expectedPort);
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("noport")]
@@ -49,7 +49,7 @@ public sealed class MeshGossipPeerEndpointTests
         endpoint.ShouldBe(default(MeshGossipPeerEndpoint));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void BuildRequestUri_CreatesCorrectUri()
     {
         var endpoint = new MeshGossipPeerEndpoint("localhost", 17421);
@@ -61,7 +61,7 @@ public sealed class MeshGossipPeerEndpointTests
         uri.AbsolutePath.ShouldBe("/mesh/gossip/v1/messages");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ToString_ReturnsHostColonPort()
     {
         var endpoint = new MeshGossipPeerEndpoint("peer.example.com", 8080);
@@ -70,7 +70,7 @@ public sealed class MeshGossipPeerEndpointTests
         result.ShouldBe("peer.example.com:8080");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Equality_ComparesHostAndPort()
     {
         var endpoint1 = new MeshGossipPeerEndpoint("localhost", 17421);

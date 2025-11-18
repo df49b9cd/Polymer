@@ -7,7 +7,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class ProcedureSpecTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FullName_ComposesServiceAndName()
     {
         var spec = new UnaryProcedureSpec(
@@ -18,7 +18,7 @@ public class ProcedureSpecTests
         Assert.Equal("svc::proc", spec.FullName);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_WithWhitespaceAlias_Throws()
     {
         var middleware = Array.Empty<IUnaryInboundMiddleware>();

@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Immutable;
-using System.Threading;
 using Hugo;
 using OmniRelay.Diagnostics;
 using OmniRelay.Errors;
@@ -113,7 +111,7 @@ internal sealed class PeerListCoordinator : IPeerSubscriber, IDisposable
         return Result
             .Ok(context)
             .Ensure(_ => HasPeers(), ctx => CreateUnavailable(ctx.Meta, "No peers are registered for the requested service."))
-            .ThenValueTaskAsync((ctx, token) => AcquireLoopAsync(ctx, token), cancellationToken);
+            .ThenValueTaskAsync(AcquireLoopAsync, cancellationToken);
     }
 
     private async ValueTask<Result<PeerLease>> AcquireLoopAsync(AcquireContext context, CancellationToken cancellationToken)

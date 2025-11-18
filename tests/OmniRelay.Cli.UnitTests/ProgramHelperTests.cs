@@ -6,7 +6,7 @@ namespace OmniRelay.Cli.UnitTests;
 
 public sealed class ProgramHelperTests : CliTestBase
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildConfiguration_ReturnsFalse_WhenFileMissing()
     {
         var success = Program.TryBuildConfiguration(new[] { "missing.json" }, Array.Empty<string>(), out var configuration, out var error);
@@ -17,7 +17,7 @@ public sealed class ProgramHelperTests : CliTestBase
         error.ShouldContain("does not exist");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildConfiguration_LoadsOverrides()
     {
         var configPath = Path.Combine(Path.GetTempPath(), $"omnirelay-config-{Guid.NewGuid():N}.json");
@@ -37,7 +37,7 @@ public sealed class ProgramHelperTests : CliTestBase
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_DetectsConflictingPayloadSources()
     {
         var success = Program.TryBuildRequestInvocation(
@@ -72,7 +72,7 @@ public sealed class ProgramHelperTests : CliTestBase
         error.ShouldContain("Specify only one of --body, --body-file, or --body-base64.");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_ParsesTimeBudgetOptions()
     {
         var deadlineText = "2030-11-01T05:30:00Z";
@@ -111,7 +111,7 @@ public sealed class ProgramHelperTests : CliTestBase
         invocation.Timeout.ShouldBe(TimeSpan.FromSeconds(10));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_AppliesJsonPrettyProfile()
     {
         var success = Program.TryBuildRequestInvocation(
@@ -151,7 +151,7 @@ public sealed class ProgramHelperTests : CliTestBase
         invocation.Request.Meta.Headers["Accept"].ShouldBe("application/json");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_ProtobufProfileEncodesPayload()
     {
         var descriptorPath = GetSupportPath("Descriptors", "echo.pb");
@@ -189,7 +189,7 @@ public sealed class ProgramHelperTests : CliTestBase
         invocation.Request.Meta.Headers["Rpc-Encoding"].ShouldBe("application/x-protobuf");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_Http3RequiresHttpsUrl()
     {
         var success = Program.TryBuildRequestInvocation(
@@ -224,7 +224,7 @@ public sealed class ProgramHelperTests : CliTestBase
         error.ShouldContain("HTTP/3 requires an HTTPS --url.");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_Http3ConfiguresRuntimeWhenHttpsProvided()
     {
         var success = Program.TryBuildRequestInvocation(
@@ -259,7 +259,7 @@ public sealed class ProgramHelperTests : CliTestBase
         invocation.HttpClientRuntime!.EnableHttp3.ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_GrpcHttp3RequiresHttpsAddresses()
     {
         var success = Program.TryBuildRequestInvocation(
@@ -294,7 +294,7 @@ public sealed class ProgramHelperTests : CliTestBase
         error.ShouldContain("HTTP/3 requires HTTPS gRPC addresses");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildRequestInvocation_GrpcHttp3ConfiguresRuntimeWhenHttpsProvided()
     {
         var success = Program.TryBuildRequestInvocation(
@@ -329,7 +329,7 @@ public sealed class ProgramHelperTests : CliTestBase
         invocation.GrpcClientRuntime!.EnableHttp3.ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryParseDuration_ParsesSuffixValues()
     {
         Program.TryParseDuration("5s", out var seconds).ShouldBeTrue();
@@ -339,13 +339,13 @@ public sealed class ProgramHelperTests : CliTestBase
         minutes.ShouldBe(TimeSpan.FromMinutes(2));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryParseDuration_InvalidString_ReturnsFalse()
     {
         Program.TryParseDuration("not-a-duration", out _).ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryWriteReadyFile_LogsFailures()
     {
         var fileSystem = new FakeFileSystem

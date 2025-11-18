@@ -7,7 +7,7 @@ namespace OmniRelay.Tests.Transport;
 
 public sealed class GrpcExceptionAdapterInterceptorTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryServerHandler_ConvertsExceptionToRpcStatus()
     {
         var interceptor = new GrpcExceptionAdapterInterceptor();
@@ -24,7 +24,7 @@ public sealed class GrpcExceptionAdapterInterceptorTests
         rpcException.Trailers.GetValue(GrpcTransportConstants.TransportTrailer).ShouldBe("grpc");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ServerStreamingHandler_PassesThroughRpcException()
     {
         var interceptor = new GrpcExceptionAdapterInterceptor();

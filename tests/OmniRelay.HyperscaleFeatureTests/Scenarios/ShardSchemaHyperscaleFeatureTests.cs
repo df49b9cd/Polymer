@@ -1,15 +1,11 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
 using System.Globalization;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.Hashing;
 using OmniRelay.ShardStore.Relational;
 using OmniRelay.ShardStore.Sqlite;
-using OmniRelay.Tests;
 using Shouldly;
 using Xunit;
 
@@ -37,7 +33,7 @@ public sealed class ShardSchemaHyperscaleFeatureTests : IAsyncLifetime
         return ValueTask.CompletedTask;
     }
 
-    [Fact(DisplayName = "Shard hashing stays deterministic while nodes churn across thousands of shards")]
+    [Fact(DisplayName = "Shard hashing stays deterministic while nodes churn across thousands of shards", Timeout = TestTimeouts.Default)]
     public async Task ShardHashing_WithRollingUpdatesRemainsDeterministic()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -83,7 +79,7 @@ public sealed class ShardSchemaHyperscaleFeatureTests : IAsyncLifetime
         diffs.Any(diff => diff.Current.OwnerNodeId == "iad-zone-3").ShouldBeTrue();
     }
 
-    [Fact(DisplayName = "Concurrent governance edits surface optimistic concurrency violations with audits")]
+    [Fact(DisplayName = "Concurrent governance edits surface optimistic concurrency violations with audits", Timeout = TestTimeouts.Default)]
     public async Task ShardRepository_WithConcurrentGovernanceEnforcesOptimism()
     {
         var ct = TestContext.Current.CancellationToken;

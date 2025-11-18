@@ -9,7 +9,7 @@ namespace OmniRelay.Tests.Transport;
 
 public class HttpOutboundMiddlewareTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task UnaryPipeline_ExecutesInGlobalServiceProcedureOrder()
     {
         var callOrder = new List<string>();
@@ -80,7 +80,7 @@ public class HttpOutboundMiddlewareTests
         await outbound.StopAsync(ct);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task OnewayPipeline_InvokesMiddlewareAndReturnsAck()
     {
         var callOrder = new List<string>();

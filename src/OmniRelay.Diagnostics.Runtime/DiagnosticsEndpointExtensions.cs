@@ -22,7 +22,9 @@ public static class DiagnosticsEndpointExtensions
             builder.MapGet("/omnirelay/control/logging", (IDiagnosticsRuntime runtime) =>
             {
                 var level = runtime.MinimumLogLevel?.ToString();
-                return Results.Json(new { minimumLevel = level });
+                return TypedResults.Json(
+                    new LoggingStateResponse(level),
+                    DiagnosticsJsonContext.Default.LoggingStateResponse);
             });
 
             builder.MapPost("/omnirelay/control/logging", (DiagnosticsLogLevelRequest request, IDiagnosticsRuntime runtime) =>
@@ -52,7 +54,9 @@ public static class DiagnosticsEndpointExtensions
         {
             builder.MapGet("/omnirelay/control/tracing", (IDiagnosticsRuntime runtime) =>
             {
-                return Results.Json(new { samplingProbability = runtime.TraceSamplingProbability });
+                return TypedResults.Json(
+                    new TraceSamplingResponse(runtime.TraceSamplingProbability),
+                    DiagnosticsJsonContext.Default.TraceSamplingResponse);
             });
 
             builder.MapPost("/omnirelay/control/tracing", (DiagnosticsSamplingRequest request, IDiagnosticsRuntime runtime) =>
@@ -95,7 +99,7 @@ public static class DiagnosticsEndpointExtensions
                 }
 
                 var diagnostics = PeerLeaseHealthDiagnostics.FromSnapshots(builder.ToImmutable());
-                return Results.Json(diagnostics);
+                return TypedResults.Json(diagnostics, DiagnosticsJsonContext.Default.PeerLeaseHealthDiagnostics);
             });
         }
 
@@ -116,7 +120,7 @@ public static class DiagnosticsEndpointExtensions
         }
 
         var response = provider.CreateSnapshot();
-        return Results.Json(response);
+        return TypedResults.Json(response, DiagnosticsJsonContext.Default.PeerDiagnosticsResponse);
     }
 }
 

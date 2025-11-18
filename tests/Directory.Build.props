@@ -1,37 +1,11 @@
 <Project>
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <OmniRelayVersion>0.2.0</OmniRelayVersion>
-    <RepositoryUrl>https://github.com/df49b9cd/OmniRelay</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(IsPackable)' != 'false'">
-    <Version>$(OmniRelayVersion)</Version>
-    <VersionPrefix>$(OmniRelayVersion)</VersionPrefix>
-    <Authors>OmniRelay maintainers</Authors>
-    <Company>OmniRelay</Company>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/df49b9cd/OmniRelay</PackageProjectUrl>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <DebugType>embedded</DebugType>
-    <ContinuousIntegrationBuild Condition="'$(ContinuousIntegrationBuild)' == ''">$(CI)</ContinuousIntegrationBuild>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(IsPackable)' != 'false' and '$(OutputType)' == 'Library'">
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PublishAot>false</PublishAot>
+    <IsAotCompatible>false</IsAotCompatible>
+    <UseMicrosoftTestingPlatform>false</UseMicrosoftTestingPlatform>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)TestSupport/TestCertificateInfo.cs"
-             Link="Support/TestCertificateInfo.cs"
-             Condition="Exists('$(MSBuildThisFileDirectory)TestSupport/TestCertificateInfo.cs')" />
-    <Compile Include="$(MSBuildThisFileDirectory)TestSupport/TestCertificateConfiguration.cs"
-             Link="Support/TestCertificateConfiguration.cs"
-             Condition="Exists('$(MSBuildThisFileDirectory)TestSupport/TestCertificateConfiguration.cs')" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestSupport/*.cs" />
   </ItemGroup>
 </Project>

@@ -6,7 +6,6 @@ namespace OmniRelay.Diagnostics;
 public sealed class OmniRelayLoggingOptions
 {
     public LogLevel? MinimumLevel { get; set; }
-        = null;
 
     public IDictionary<string, LogLevel> CategoryLevels { get; }
         = new Dictionary<string, LogLevel>(StringComparer.OrdinalIgnoreCase);

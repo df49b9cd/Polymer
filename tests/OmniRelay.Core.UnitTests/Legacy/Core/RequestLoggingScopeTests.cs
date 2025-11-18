@@ -5,7 +5,7 @@ namespace OmniRelay.Tests.Core;
 
 public class RequestLoggingScopeTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Create_IncludesProtocolMetadata()
     {
         var meta = new RequestMeta(

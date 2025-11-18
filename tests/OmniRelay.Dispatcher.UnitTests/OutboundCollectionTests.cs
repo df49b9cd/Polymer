@@ -7,7 +7,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class OutboundRegistryTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Resolve_WithNullKey_ReturnsDefaultBinding()
     {
         var unary = Substitute.For<IUnaryOutbound>();
@@ -17,7 +17,7 @@ public class OutboundRegistryTests
         Assert.Same(unary, collection.ResolveUnary(" "));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Resolve_WithAlternateKey_IsCaseInsensitive()
     {
         var unary = Substitute.For<IUnaryOutbound>();
@@ -36,7 +36,7 @@ public class OutboundRegistryTests
         Assert.Same(unary, collection.ResolveUnary("PRIMARY"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryGet_ReturnsFalseWhenKeyMissing()
     {
         var collection = CreateCollection();

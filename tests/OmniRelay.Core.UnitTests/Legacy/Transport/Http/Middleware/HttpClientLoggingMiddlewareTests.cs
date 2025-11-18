@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Transport.Http.Middleware;
 
 public sealed class HttpClientLoggingMiddlewareTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task InvokeAsync_AttachesRequestScope()
     {
         var logger = new TestLogger<HttpClientLoggingMiddleware>();

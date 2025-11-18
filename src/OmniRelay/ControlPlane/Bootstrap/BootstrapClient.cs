@@ -32,12 +32,11 @@ public sealed class BootstrapClient
         var timeout = ResolveTimeout(joinTimeout);
         if (timeout.HasValue)
         {
-            return new ValueTask<Result<BootstrapJoinResponse>>(
-                WithTimeoutValueTaskAsync(
+            return WithTimeoutValueTaskAsync(
                     token => SendJoinAsync(baseUri, request, token),
                     timeout.Value,
                     _timeProvider,
-                    cancellationToken));
+                    cancellationToken);
         }
 
         return SendJoinAsync(baseUri, request, cancellationToken);

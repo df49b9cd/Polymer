@@ -8,6 +8,8 @@ internal sealed class ProbeSchedulerHostedService : BackgroundService
     private readonly IEnumerable<IHealthProbe> _probes;
     private readonly ILogger<ProbeSchedulerHostedService> _logger;
     private readonly ProbeSnapshotStore _snapshotStore;
+    private static readonly Action<ILogger, string, Exception?> LogProbeFailure =
+        LoggerMessage.Define<string>(LogLevel.Warning, new EventId(1, "ProbeFailed"), "Probe {Probe} failed.");
 
     public ProbeSchedulerHostedService(
         IEnumerable<IHealthProbe> probes,
@@ -58,7 +60,7 @@ internal sealed class ProbeSchedulerHostedService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Probe {Probe} failed.", probe.Name);
+                LogProbeFailure(_logger, probe.Name, ex);
                 var snapshot = new ProbeExecutionSnapshot(
                     probe.Name,
                     started,

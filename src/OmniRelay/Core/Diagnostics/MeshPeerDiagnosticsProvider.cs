@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Diagnostics;
 

@@ -22,8 +22,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core;
-using OmniRelay.Core.Gossip;
-using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
 using OmniRelay.Dispatcher;
@@ -1232,7 +1230,8 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         }
 
         var snapshot = provider.CreateSnapshot();
-        await Results.Json(snapshot).ExecuteAsync(context).ConfigureAwait(false);
+        var result = TypedResults.Json(snapshot, DiagnosticsJsonContext.Default.PeerDiagnosticsResponse);
+        await result.ExecuteAsync(context).ConfigureAwait(false);
     }
 
     private async Task HandleDuplexAsync(HttpContext context)
@@ -1426,7 +1425,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                     {
                         frameChannel.Writer.TryComplete(ex);
                     }
-                }, cancellationToken);
+                }, cancellationToken: cancellationToken);
 
                 try
                 {

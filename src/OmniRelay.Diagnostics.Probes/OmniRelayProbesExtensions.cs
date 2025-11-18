@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using System.Diagnostics.CodeAnalysis;
 
 namespace OmniRelay.Diagnostics;
 
@@ -44,7 +45,11 @@ public static class OmniRelayProbesExtensions
 
         if (options.EnableProbeResults)
         {
-            var probeEndpoint = builder.MapGet("/omnirelay/control/probes", (IProbeSnapshotProvider provider) => Results.Json(provider.Snapshot()));
+            var probeEndpoint = builder.MapGet("/omnirelay/control/probes", (IProbeSnapshotProvider provider) =>
+            {
+                var snapshot = provider.Snapshot();
+                return TypedResults.Json(snapshot, ProbeDiagnosticsJsonContext.Default.IReadOnlyCollectionProbeExecutionSnapshot);
+            });
             if (!string.IsNullOrWhiteSpace(options.ProbeAuthorizationPolicy))
             {
                 probeEndpoint.RequireAuthorization(options.ProbeAuthorizationPolicy);
@@ -81,13 +86,11 @@ public sealed class ProbeDiagnosticsOptions
 {
     public bool EnableProbeResults { get; set; } = true;
 
-    public bool EnableChaosControl { get; set; } = false;
+    public bool EnableChaosControl { get; set; }
 
     public string? ProbeAuthorizationPolicy { get; set; }
-        = null;
 
     public string? ChaosAuthorizationPolicy { get; set; }
-        = null;
 }
 
 /// <summary>Builder to register probes.</summary>
@@ -97,13 +100,15 @@ public sealed class ProbeRegistrationBuilder
 
     internal ProbeRegistrationBuilder(IServiceCollection services) => _services = services;
 
-    public ProbeRegistrationBuilder AddProbe<TProbe>() where TProbe : class, IHealthProbe
+    public ProbeRegistrationBuilder AddProbe<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProbe>()
+        where TProbe : class, IHealthProbe
     {
         _services.AddSingleton<IHealthProbe, TProbe>();
         return this;
     }
 
-    public ProbeRegistrationBuilder AddChaosExperiment<TExperiment>() where TExperiment : class, IChaosExperiment
+    public ProbeRegistrationBuilder AddChaosExperiment<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TExperiment>()
+        where TExperiment : class, IChaosExperiment
     {
         _services.AddSingleton<IChaosExperiment, TExperiment>();
         return this;

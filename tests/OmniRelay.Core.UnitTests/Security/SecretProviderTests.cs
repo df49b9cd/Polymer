@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
-using System.Threading;
-using Microsoft.Extensions.Primitives;
 using OmniRelay.Security.Secrets;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Security;
@@ -14,7 +8,7 @@ public sealed class SecretProviderTests
 {
     private readonly TestAuditor _auditor = new();
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task EnvironmentSecretProvider_ReturnsValue()
     {
         Environment.SetEnvironmentVariable("TEST_SECRET_VALUE", "env-secret");
@@ -35,7 +29,7 @@ public sealed class SecretProviderTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task FileSecretProvider_LoadsSecret()
     {
         using var tempFile = new TempFile("file-secret");
@@ -51,7 +45,7 @@ public sealed class SecretProviderTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task CompositeSecretProvider_RespectsOrder()
     {
         var inline = new InMemorySecretProvider(_auditor);
@@ -70,7 +64,7 @@ public sealed class SecretProviderTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FileSecretProvider_WatchDetectsChanges()
     {
         using var tempFile = new TempFile("first");

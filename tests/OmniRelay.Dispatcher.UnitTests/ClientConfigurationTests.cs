@@ -8,7 +8,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class ClientConfigurationTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Service_ReturnsOutboundService()
     {
         var config = CreateConfiguration(out var unaryOutbound);
@@ -17,7 +17,7 @@ public class ClientConfigurationTests
         Assert.Same(unaryOutbound, config.ResolveUnary());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Resolve_WithUnknownKey_ReturnsNull()
     {
         var config = CreateConfiguration(out _);
@@ -28,7 +28,7 @@ public class ClientConfigurationTests
         Assert.Null(config.ResolveDuplex("missing"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryGet_ReturnsFalseWhenOutboundNotFound()
     {
         var config = CreateConfiguration(out _);
@@ -40,7 +40,7 @@ public class ClientConfigurationTests
         Assert.False(config.TryGetDuplex("missing", out _));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Middleware_CollectionsExposeConfiguredInstances()
     {
         var unaryMiddleware = ImmutableArray.Create(Substitute.For<IUnaryOutboundMiddleware>());

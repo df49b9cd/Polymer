@@ -10,7 +10,7 @@ public class ProcedureRegistryTests
     private static readonly UnaryInboundHandler UnaryHandler =
         (_, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)));
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryGet_WithRegisteredAlias_ReturnsSpec()
     {
         var registry = new ProcedureRegistry();
@@ -22,7 +22,7 @@ public class ProcedureRegistryTests
         Assert.Same(spec, resolved);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Register_WithConflictingName_Throws()
     {
         var registry = new ProcedureRegistry();
@@ -34,7 +34,7 @@ public class ProcedureRegistryTests
         Assert.Throws<InvalidOperationException>(() => registry.Register(second));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Register_WithDuplicateAlias_Throws()
     {
         var registry = new ProcedureRegistry();
@@ -43,7 +43,7 @@ public class ProcedureRegistryTests
         Assert.Throws<InvalidOperationException>(() => registry.Register(spec));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryGet_WithWildcardAlias_PrefersMostSpecific()
     {
         var registry = new ProcedureRegistry();

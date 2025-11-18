@@ -10,10 +10,8 @@ public sealed class OmniRelayTelemetryOptions
     public bool EnableMetrics { get; set; } = true;
 
     public bool EnableTracing { get; set; }
-        = false;
 
     public bool EnableRuntimeTraceSampler { get; set; }
-        = false;
 
     public PrometheusExporterOptions Prometheus { get; } = new();
 
@@ -30,10 +28,9 @@ public sealed class PrometheusExporterOptions
 
 public sealed class OtlpExporterOptions
 {
-    public bool Enabled { get; set; } = false;
+    public bool Enabled { get; set; }
 
     public string? Endpoint { get; set; }
-        = null;
 
     public string Protocol { get; set; } = "grpc";
 }

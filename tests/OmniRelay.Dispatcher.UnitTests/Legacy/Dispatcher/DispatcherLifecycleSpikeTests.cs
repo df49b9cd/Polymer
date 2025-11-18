@@ -5,7 +5,7 @@ namespace OmniRelay.Tests.Dispatcher;
 
 public class DispatcherLifecycleSpikeTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task RunAsync_CoordinatesStartAndStopSequences()
     {
         var startSteps = new List<Func<CancellationToken, Task>>
@@ -33,7 +33,7 @@ public class DispatcherLifecycleSpikeTests
         Assert.Equal(["stop:0", "stop:1"], stopped);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task RunAsync_PropagatesCancellation()
     {
         var startSteps = new List<Func<CancellationToken, Task>>

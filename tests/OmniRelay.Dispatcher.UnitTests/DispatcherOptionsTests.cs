@@ -6,13 +6,13 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class DispatcherOptionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_WithBlankServiceName_Throws()
     {
         Assert.Throws<ArgumentException>(() => new DispatcherOptions("  "));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task AddLifecycle_WithDuplicateInstance_StartsOnce()
     {
         var options = new DispatcherOptions("test-service");
@@ -30,7 +30,7 @@ public class DispatcherOptionsTests
         Assert.Equal(1, lifecycle.StopCalls);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddTransport_AddsLifecycleComponent()
     {
         var options = new DispatcherOptions("svc");
@@ -44,7 +44,7 @@ public class DispatcherOptionsTests
         Assert.Contains(components, component => component.Name == "http");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddUnaryOutbound_RegistersLifecycle()
     {
         var options = new DispatcherOptions("svc");
@@ -57,7 +57,7 @@ public class DispatcherOptionsTests
         Assert.Single(outbounds.Unary);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddUnaryOutbound_TrimsKeys()
     {
         var options = new DispatcherOptions("svc");
@@ -71,7 +71,7 @@ public class DispatcherOptionsTests
         Assert.Same(outbound, resolved);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddUnaryOutbound_DuplicateTrimmedKey_Throws()
     {
         var options = new DispatcherOptions("svc");

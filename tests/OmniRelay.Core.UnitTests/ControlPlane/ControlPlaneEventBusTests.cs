@@ -2,14 +2,13 @@ using System.Collections.Immutable;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.ControlPlane.Events;
 using OmniRelay.Core.Gossip;
-using Shouldly;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.ControlPlane;
 
 public sealed class ControlPlaneEventBusTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task PublishAsync_DeliversEventsToSubscribers()
     {
         var bus = new ControlPlaneEventBus(NullLogger<ControlPlaneEventBus>.Instance);
@@ -23,7 +22,7 @@ public sealed class ControlPlaneEventBusTests
         delivered.ShouldBe(evt);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task PublishAsync_AppliesFilters()
     {
         var bus = new ControlPlaneEventBus(NullLogger<ControlPlaneEventBus>.Instance);

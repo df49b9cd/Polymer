@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Transport.Grpc;
 
 public sealed class GrpcTransportDiagnosticsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void StartClientActivity_NoListener_ReturnsNull()
     {
         var sourceField = typeof(GrpcTransportDiagnostics).GetField(
@@ -34,7 +34,7 @@ public sealed class GrpcTransportDiagnosticsTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void StartClientActivity_WithListener_PopulatesRpcAndNetworkTags()
     {
         var started = new List<Activity>();
@@ -64,7 +64,7 @@ public sealed class GrpcTransportDiagnosticsTests
         ((int)ipActivity.GetTagItem("net.peer.port")!).ShouldBe(9443);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void SetStatusAndRecordException_UpdateActivityState()
     {
         var started = new List<Activity>();
@@ -89,7 +89,7 @@ public sealed class GrpcTransportDiagnosticsTests
         exceptionEvent.Tags!.ShouldContain(tag => tag.Key == "exception.message" && Equals(tag.Value, "boom"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ParseHttpProtocol_HandlesHttpAndCustomValues()
     {
         var parseMethod = typeof(GrpcTransportDiagnostics).GetMethod(
@@ -110,7 +110,7 @@ public sealed class GrpcTransportDiagnosticsTests
         missing.ShouldBe(((string?)null, (string?)null));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ExtractParentContext_ReturnsNullForInvalidTraceParent()
     {
         var extract = typeof(GrpcTransportDiagnostics).GetMethod(
@@ -123,7 +123,7 @@ public sealed class GrpcTransportDiagnosticsTests
         context.HasValue.ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ExtractParentContext_ReturnsContextForValidTraceParent()
     {
         var extract = typeof(GrpcTransportDiagnostics).GetMethod(

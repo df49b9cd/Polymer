@@ -1,6 +1,5 @@
 using NSubstitute;
 using OmniRelay.Core.Peers;
-using OmniRelay.Diagnostics;
 using OmniRelay.Errors;
 using Xunit;
 

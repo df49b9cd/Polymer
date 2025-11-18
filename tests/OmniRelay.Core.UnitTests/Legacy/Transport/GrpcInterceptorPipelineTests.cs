@@ -7,7 +7,7 @@ namespace OmniRelay.Tests.Transport;
 
 public class GrpcInterceptorPipelineTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ClientIntercepts_InvokeGlobalServiceProcedureOrder()
     {
         var log = new List<string>();
@@ -34,7 +34,7 @@ public class GrpcInterceptorPipelineTests
         log.ShouldBe(new[] { "global", "service", "procedure", "terminal" });
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public async Task ServerIntercepts_InvokeGlobalProcedureOrder()
     {
         var log = new List<string>();
