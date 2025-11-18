@@ -1,4 +1,131 @@
 <Solution>
+  <Folder Name="/.github/" />
+  <Folder Name="/.github/workflows/">
+    <File Path=".github/workflows/ci.yml" />
+  </Folder>
+  <Folder Name="/docs/" />
+  <Folder Name="/docs/architecture/">
+    <File Path="docs/architecture/aot-guidelines.md" />
+    <File Path="docs/architecture/omnirelay-rpc-mesh.md" />
+    <File Path="docs/architecture/service-discovery.md" />
+  </Folder>
+  <Folder Name="/docs/nuget/">
+    <File Path="docs/nuget/OmniRelay.Codegen.Protobuf.Generator.md" />
+    <File Path="docs/nuget/OmniRelay.Codegen.Protobuf.md" />
+    <File Path="docs/nuget/OmniRelay.Cli.md" />
+    <File Path="docs/nuget/OmniRelay.Configuration.md" />
+    <File Path="docs/nuget/OmniRelay.md" />
+  </Folder>
+  <Folder Name="/docs/project-board/">
+    <File Path="docs/project-board/DISC-001.md" />
+    <File Path="docs/project-board/DISC-002.md" />
+    <File Path="docs/project-board/DISC-003.md" />
+    <File Path="docs/project-board/DISC-004.md" />
+    <File Path="docs/project-board/DISC-005.md" />
+    <File Path="docs/project-board/DISC-006.md" />
+    <File Path="docs/project-board/DISC-007.md" />
+    <File Path="docs/project-board/DISC-008.md" />
+    <File Path="docs/project-board/DISC-009.md" />
+    <File Path="docs/project-board/DISC-010.md" />
+    <File Path="docs/project-board/DISC-011.md" />
+    <File Path="docs/project-board/DISC-012.md" />
+    <File Path="docs/project-board/DISC-013.md" />
+    <File Path="docs/project-board/DISC-014.md" />
+    <File Path="docs/project-board/DISC-015.md" />
+    <File Path="docs/project-board/DISC-016.md" />
+    <File Path="docs/project-board/DISC-017.md" />
+    <File Path="docs/project-board/DISC-018.md" />
+    <File Path="docs/project-board/DISC-019.md" />
+    <File Path="docs/project-board/REFDISC-001.md" />
+    <File Path="docs/project-board/REFDISC-002.md" />
+    <File Path="docs/project-board/REFDISC-003.md" />
+    <File Path="docs/project-board/REFDISC-004.md" />
+    <File Path="docs/project-board/REFDISC-005.md" />
+    <File Path="docs/project-board/REFDISC-009.md" />
+    <File Path="docs/project-board/REFDISC-010.md" />
+    <File Path="docs/project-board/REFDISC-011.md" />
+    <File Path="docs/project-board/REFDISC-012.md" />
+    <File Path="docs/project-board/REFDISC-014.md" />
+    <File Path="docs/project-board/REFDISC-015.md" />
+    <File Path="docs/project-board/REFDISC-016.md" />
+    <File Path="docs/project-board/REFDISC-017.md" />
+    <File Path="docs/project-board/REFDISC-018.md" />
+    <File Path="docs/project-board/REFDISC-019.md" />
+    <File Path="docs/project-board/REFDISC-020.md" />
+    <File Path="docs/project-board/REFDISC-021.md" />
+    <File Path="docs/project-board/REFDISC-022.md" />
+    <File Path="docs/project-board/REFDISC-023.md" />
+    <File Path="docs/project-board/REFDISC-024.md" />
+    <File Path="docs/project-board/REFDISC-025.md" />
+    <File Path="docs/project-board/REFDISC-026.md" />
+    <File Path="docs/project-board/REFDISC-027.md" />
+    <File Path="docs/project-board/REFDISC-028.md" />
+    <File Path="docs/project-board/REFDISC-029.md" />
+    <File Path="docs/project-board/REFDISC-030.md" />
+    <File Path="docs/project-board/REFDISC-031.md" />
+    <File Path="docs/project-board/REFDISC-032.md" />
+    <File Path="docs/project-board/REFDISC-033.md" />
+    <File Path="docs/project-board/REFDISC-034.md" />
+    <File Path="docs/project-board/REFDISC-035.md" />
+    <File Path="docs/project-board/REFDISC-036.md" />
+    <File Path="docs/project-board/REFDISC-037.md" />
+    <File Path="docs/project-board/README.md" />
+  </Folder>
+  <Folder Name="/docs/reference/">
+    <File Path="docs/reference/cli-tool-readme.md" />
+    <File Path="docs/reference/cli.md" />
+    <File Path="docs/reference/diagnostics.md" />
+    <File Path="docs/reference/distributed-task-leasing.md" />
+    <File Path="docs/reference/errors.md" />
+    <File Path="docs/reference/foundation-compliance-governance-story.md" />
+    <File Path="docs/reference/foundation-config-feature-story.md" />
+    <File Path="docs/reference/foundation-data-lakehouse-story.md" />
+    <File Path="docs/reference/foundation-identity-security-story.md" />
+    <File Path="docs/reference/foundation-networking-traffic-story.md" />
+    <File Path="docs/reference/foundation-observability-story.md" />
+    <File Path="docs/reference/foundation-stateful-storage-story.md" />
+    <File Path="docs/reference/foundation-workflow-automation-story.md" />
+    <File Path="docs/reference/grpc-compatibility.md" />
+    <File Path="docs/reference/http-transport.md" />
+    <File Path="docs/reference/http3-developer-guide.md" />
+    <File Path="docs/reference/http3-faq.md" />
+    <File Path="docs/reference/hugo-concurrency-story.md" />
+    <File Path="docs/reference/hugo-taskqueue-enhancement-stories.md" />
+    <File Path="docs/reference/hugo-taskqueue-story-details.md" />
+    <File Path="docs/reference/index.md" />
+    <File Path="docs/reference/meshkit-control-plane-story.md" />
+    <File Path="docs/reference/middleware.md" />
+    <File Path="docs/reference/omnirelay-transport-story.md" />
+    <File Path="docs/reference/quic-observability.md" />
+    <File Path="docs/reference/quickstart.md" />
+    <File Path="docs/reference/samples.md" />
+    <File Path="docs/reference/shadowing.md" />
+    <File Path="docs/reference/streaming.md" />
+  </Folder>
+  <Folder Name="/docs/reference/cli-scripts/">
+    <File Path="docs/reference/cli-scripts/quic-downgrade-chaos.md" />
+    <File Path="docs/reference/cli-scripts/quic-soak.md" />
+  </Folder>
+  <Folder Name="/docs/reference/codegen/">
+    <File Path="docs/reference/codegen/protobuf.md" />
+  </Folder>
+  <Folder Name="/docs/reference/configuration/">
+    <File Path="docs/reference/configuration/README.md" />
+  </Folder>
+  <Folder Name="/docs/reference/hugo/">
+    <File Path="docs/reference/hugo/concurrency-primitives.md" />
+    <File Path="docs/reference/hugo/deterministic-coordination.md" />
+    <File Path="docs/reference/hugo/hugo-api-reference.md" />
+    <File Path="docs/reference/hugo/hugo-diagnostics.md" />
+    <File Path="docs/reference/hugo/result-pipelines.md" />
+    <File Path="docs/reference/hugo/taskqueue-replication.md" />
+  </Folder>
+  <Folder Name="/docs/reference/runbooks/">
+    <File Path="docs/reference/runbooks/http3-rollback.md" />
+  </Folder>
+  <Folder Name="/docs/runbooks/">
+    <File Path="docs/runbooks/peer-list-coordinator-load.md" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/ChaosFailover.Lab/ChaosFailover.Lab.csproj" />
     <Project Path="samples/CodegenTee.Rollout/CodegenTee.Rollout.csproj" />
@@ -10,20 +137,21 @@
     <Project Path="samples/Quickstart.Server/Quickstart.Server.csproj" />
     <Project Path="samples/ResourceLease.MeshDemo/ResourceLease.MeshDemo.csproj" />
     <Project Path="samples/StreamingAnalytics.Lab/StreamingAnalytics.Lab.csproj" />
-    <Project Path="samples\Configuration.Server\Configuration.Server.csproj" Type="C#" />
-    <Project Path="samples\Shadowing.Server\Shadowing.Server.csproj" Type="C#" />
+    <Project Path="samples\Configuration.Server\Configuration.Server.csproj" />
+    <Project Path="samples\Shadowing.Server\Shadowing.Server.csproj" />
   </Folder>
   <Folder Name="/samples/DistributedDemo/">
-    <Project Path="samples\DistributedDemo\Audit\Audit.Service.csproj" Type="C#" />
-    <Project Path="samples\DistributedDemo\Gateway\Gateway.csproj" Type="C#" />
-    <Project Path="samples\DistributedDemo\Inventory\Inventory.Service.csproj" Type="C#" />
-    <Project Path="samples\DistributedDemo\Shared\DistributedDemo.Shared.csproj" Type="C#" />
+    <Project Path="samples\DistributedDemo\Audit\Audit.Service.csproj" />
+    <Project Path="samples\DistributedDemo\Gateway\Gateway.csproj" />
+    <Project Path="samples\DistributedDemo\Inventory\Inventory.Service.csproj" />
+    <Project Path="samples\DistributedDemo\Shared\DistributedDemo.Shared.csproj" />
   </Folder>
   <Folder Name="/SolutionFolder/">
     <File Path="LICENSE" />
     <File Path="README.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="Dockerfile.ci" />
     <File Path="global.json" />
     <File Path=".editorconfig" />
   </Folder>
@@ -43,6 +171,10 @@
     <Project Path="src/OmniRelay.ResourceLeaseReplicator.Grpc/OmniRelay.ResourceLeaseReplicator.Grpc.csproj" />
     <Project Path="src/OmniRelay.ResourceLeaseReplicator.ObjectStorage/OmniRelay.ResourceLeaseReplicator.ObjectStorage.csproj" />
     <Project Path="src/OmniRelay.ResourceLeaseReplicator.Sqlite/OmniRelay.ResourceLeaseReplicator.Sqlite.csproj" />
+    <Project Path="src/OmniRelay.ShardStore.ObjectStorage/OmniRelay.ShardStore.ObjectStorage.csproj" />
+    <Project Path="src/OmniRelay.ShardStore.Postgres/OmniRelay.ShardStore.Postgres.csproj" />
+    <Project Path="src/OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
+    <Project Path="src/OmniRelay.ShardStore.Sqlite/OmniRelay.ShardStore.Sqlite.csproj" />
     <Project Path="src/OmniRelay/OmniRelay.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -59,4 +191,23 @@
     <Project Path="tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj" />
     <File Path="tests\Directory.Build.props" />
   </Folder>
+  <Folder Name="/tests/TestSupport/">
+    <File Path="tests/TestSupport/Http3FactAttribute.cs" />
+    <File Path="tests/TestSupport/Http3TestHelper.cs" />
+    <File Path="tests/TestSupport/TestPortAllocator.cs" />
+    <File Path="tests/TestSupport/TestCertificateConfiguration.cs" />
+    <File Path="tests/TestSupport/TestCertificateFactory.cs" />
+    <File Path="tests/TestSupport/TestCertificateInfo.cs" />
+    <File Path="tests/TestSupport/devcert.pfx" />
+  </Folder>
+  <Folder Name="/tests/TestSupport/Descriptors/">
+    <File Path="tests/TestSupport/Descriptors/echo.pb" />
+  </Folder>
+    <Folder Name="/tests/TestSupport/Serialization/">
+      <File Path="tests/TestSupport/Serialization/OmniRelayTestsJsonContext.cs" />
+    </Folder>
+    <Folder Name="/tests/TestSupport/Support/">
+      <File Path="tests/TestSupport/Support/TestLogger.cs" />
+      <File Path="tests/TestSupport/Support/TestRuntimeConfigurator.cs" />
+    </Folder>
 </Solution>
