@@ -13,8 +13,8 @@ public sealed class TransportPolicyConfiguration
     public IList<TransportPolicyExceptionConfiguration> Exceptions { get; } =
         new List<TransportPolicyExceptionConfiguration>();
 
-    private static IDictionary<string, TransportPolicyCategoryConfiguration> CreateDefaultCategories() =>
-        new Dictionary<string, TransportPolicyCategoryConfiguration>(StringComparer.OrdinalIgnoreCase)
+    private static Dictionary<string, TransportPolicyCategoryConfiguration> CreateDefaultCategories() =>
+        new(StringComparer.OrdinalIgnoreCase)
         {
             [TransportPolicyCategories.ControlPlane] = TransportPolicyCategoryConfiguration.CreateControlPlaneDefaults(),
             [TransportPolicyCategories.Diagnostics] = TransportPolicyCategoryConfiguration.CreateDiagnosticsDefaults()

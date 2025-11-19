@@ -56,7 +56,9 @@ public sealed class TransportPolicyEvaluatorTests
 
         var httpFinding = evaluation.Findings.First(finding => finding.Endpoint == TransportPolicyEndpoints.DiagnosticsHttp);
         httpFinding.Http3Enabled.ShouldBeFalse();
-        httpFinding.Hint.ShouldContain("enableHttp3", Case.Insensitive);
+        var hint = httpFinding.Hint;
+        hint.ShouldNotBeNull();
+        hint!.ShouldContain("enableHttp3", Case.Insensitive);
     }
 
     private static OmniRelayConfigurationOptions CreateBaseOptions()

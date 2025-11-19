@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using OmniRelay.Configuration.Models;
 
 namespace OmniRelay.Configuration.Internal.TransportPolicy;

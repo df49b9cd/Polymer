@@ -24,8 +24,6 @@ using OmniRelay.ControlPlane.Bootstrap;
 using OmniRelay.ControlPlane.Clients;
 using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core;
-using OmniRelay.Core.Shards;
-using OmniRelay.Core.Shards.ControlPlane;
 using OmniRelay.Core.Transport;
 using ShardControl = OmniRelay.Core.Shards.ControlPlane;
 using DomainShardStatus = OmniRelay.Core.Shards.ShardStatus;
@@ -3766,7 +3764,7 @@ public static class Program
         string relativePath,
         string? namespaceId,
         string? ownerNodeId,
-        IReadOnlyList<string> statuses,
+        List<string> statuses,
         string? search,
         string? cursor,
         int? pageSize,

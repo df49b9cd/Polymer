@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using System.Linq;
 using OmniRelay.Core.Shards;
 
 namespace OmniRelay.ShardStore.ObjectStorage;
@@ -175,14 +174,14 @@ public sealed class ObjectStorageShardStore : IShardRepository
         return true;
     }
 
-    private static int GetStartIndex(IReadOnlyList<ShardRecord> records, ShardQueryCursor? cursor)
+    private static int GetStartIndex(ShardRecord[] records, ShardQueryCursor? cursor)
     {
-        if (records.Count == 0 || cursor is null)
+        if (records.Length == 0 || cursor is null)
         {
             return 0;
         }
 
-        for (var i = 0; i < records.Count; i++)
+        for (var i = 0; i < records.Length; i++)
         {
             if (string.Equals(records[i].Namespace, cursor.Namespace, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(records[i].ShardId, cursor.ShardId, StringComparison.OrdinalIgnoreCase))
