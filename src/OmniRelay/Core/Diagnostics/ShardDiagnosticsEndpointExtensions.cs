@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.ControlPlane;
 
@@ -15,6 +15,8 @@ internal static class ShardDiagnosticsEndpointExtensions
     private const string MeshOperateScope = "mesh.operate";
     private static readonly char[] ScopeSeparators = [' ', ',', ';'];
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Endpoints are diagnostic-only; AOT deployments may disable diagnostics.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Endpoints are diagnostic-only; AOT deployments may disable diagnostics.")]
     public static void MapShardDiagnosticsEndpoints(this WebApplication app)
     {
         app.MapGet("/control/shards", ListShardsAsync);
@@ -205,7 +207,6 @@ internal static class ShardDiagnosticsEndpointExtensions
                 .ConfigureAwait(false);
         }
     }
-
 
     private static bool TryParseLongQuery(HttpRequest request, string key, out long? value, out IResult? error)
     {

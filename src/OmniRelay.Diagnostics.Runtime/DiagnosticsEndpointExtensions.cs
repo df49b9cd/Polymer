@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 
@@ -46,7 +47,7 @@ public static class DiagnosticsEndpointExtensions
         return builder;
     }
 
-    private static IResult GetLoggingState(IDiagnosticsRuntime runtime)
+    private static JsonHttpResult<LoggingStateResponse> GetLoggingState(IDiagnosticsRuntime runtime)
     {
         var level = runtime.MinimumLogLevel?.ToString();
         return TypedResults.Json(
@@ -76,7 +77,7 @@ public static class DiagnosticsEndpointExtensions
         return Results.NoContent();
     }
 
-    private static IResult GetTraceSampling(IDiagnosticsRuntime runtime)
+    private static JsonHttpResult<TraceSamplingResponse> GetTraceSampling(IDiagnosticsRuntime runtime)
     {
         return TypedResults.Json(
             new TraceSamplingResponse(runtime.TraceSamplingProbability),
@@ -102,7 +103,7 @@ public static class DiagnosticsEndpointExtensions
         return Results.NoContent();
     }
 
-    private static IResult GetLeaseHealth(IEnumerable<IPeerHealthSnapshotProvider> providers)
+    private static JsonHttpResult<PeerLeaseHealthDiagnostics> GetLeaseHealth(IEnumerable<IPeerHealthSnapshotProvider> providers)
     {
         var snapshots = ImmutableArray.CreateBuilder<PeerLeaseHealthSnapshot>();
         foreach (var provider in providers)

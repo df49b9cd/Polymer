@@ -32,3 +32,12 @@ Ensure OmniRelay transport/runtime assemblies (dispatcher, transport builders, m
 ## References
 - `docs/architecture/transport-layer-vision.md`
 - `docs/project-board/transport-layer-plan.md`
+
+## Status & Validation
+- Completed on November 19, 2025. Native AOT publish runs with trimming-safe routing/serialization for diagnostics, shard controls, bootstrap, and gossip wiring; reflection binding removed or suppressed for non-AOT-only surfaces.
+- Validation commands:
+  - `dotnet build OmniRelay.slnx`
+  - `bash ./eng/run-aot-publish.sh` (linux-x64 Release)
+
+## Notes
+- Diagnostics, probe, and gossip endpoints are marked optional for AOT; suppressions document their exclusion from native images. Symbol stripping step requires `llvm-objcopy/objcopy` availability on host; set `StripSymbols=false` if toolchain is absent.

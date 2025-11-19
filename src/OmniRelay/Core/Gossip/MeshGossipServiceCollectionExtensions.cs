@@ -14,6 +14,7 @@ namespace OmniRelay.Core.Gossip;
 public static class MeshGossipServiceCollectionExtensions
 {
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "DataAnnotations validation is opt-in and options types are preserved by manual binding.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Mesh gossip agent runs only on dynamic CLR; excluded from native AOT bundles.")]
     public static IServiceCollection AddMeshGossipAgent(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);

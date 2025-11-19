@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +19,8 @@ using OmniRelay.Diagnostics;
 namespace OmniRelay.Core.Diagnostics;
 
 /// <summary>Dedicated HTTP host that surfaces diagnostics + leadership control-plane endpoints.</summary>
+[UnconditionalSuppressMessage("TrimAnalysis", "IL2026", Justification = "Diagnostics control plane is optional and excluded from native AOT images; endpoints are explicitly annotated.")]
+[UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Diagnostics control plane is optional and excluded from native AOT images.")]
 internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
 {
     private readonly IServiceProvider _services;

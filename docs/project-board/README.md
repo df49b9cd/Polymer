@@ -23,7 +23,7 @@ Lanes still respect the transport-layer plan: L0 must stay green before advancin
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
 | WORK-001 | OmniRelay Transport & Encoding Policy Engine | Complete | HTTP/3-first policy engine enforced at startup + CLI with downgrade summaries/telemetry. |
-| WORK-002 | OmniRelay AOT Compliance Baseline | Open | Finish trimming annotations/source generators so transport binaries publish native AOT artifacts. |
+| WORK-002 | OmniRelay AOT Compliance Baseline | Complete | Native AOT surfacing trimmed/sourced diagnostics, shard controls, bootstrap paths; publish gated by symbol-strip tool availability. |
 | WORK-003 | MeshKit Library AOT Readiness | Open | Ensure all MeshKit modules (shards, rebalancer, registry, cluster) are trimming-safe/native-publishable. |
 | WORK-004 | Native AOT Tooling & Packaging | In design | Deliver native AOT CLI/tooling for Linux/macOS/Windows plus slim containers. |
 | WORK-005 | AOT CI Gating & Runtime Validation | Open | CI blocks merges unless OmniRelay, MeshKit, and CLI native builds + smoke tests succeed. |

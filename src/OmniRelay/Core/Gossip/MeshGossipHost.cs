@@ -7,6 +7,7 @@ using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -25,7 +26,9 @@ namespace OmniRelay.Core.Gossip;
 /// <summary>
 /// Hosts the gossip listener (HTTP/3 + mTLS) and drives outbound gossip rounds.
 /// </summary>
-public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Gossip listener targets dynamic deployments; not emitted in native AOT bundles.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Gossip listener targets dynamic deployments; options and endpoints preserved by explicit source-gen contexts.")]
+    public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 {
     private readonly MeshGossipOptions _options;
     private readonly ILogger<MeshGossipHost> _logger;

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
