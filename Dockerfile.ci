@@ -36,7 +36,7 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
 
 WORKDIR /repo
 
-COPY global.json Directory.Build.props Directory.Build.targets Directory.Packages.props OmniRelay.slnx ./
+COPY global.json Directory.Build.props Directory.Packages.props OmniRelay.slnx ./
 COPY src ./src
 COPY tests ./tests
 COPY samples ./samples

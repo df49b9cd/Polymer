@@ -44,3 +44,6 @@ Follow working_protocol.md for plan → implement → validate → wrap-up.
 Use repo commands from suggested_commands; adhere to style_conventions.
 Respond with file:line refs for changes; note tests/commands run.
 ```
+
+## Desktop Commander Workflow
+- Prefer Desktop Commander tooling over ad-hoc `bash` even though the sandbox allows it. Whenever you need to read a file, call `mcp__desktop-commander__read_file` (or `read_multiple_files`). For edits, rely on `mcp__desktop-commander__apply_patch` / `edit_block` / chunked `write_file` rather than shell redirection. Launch long-running commands or REPLs through `mcp__desktop-commander__start_process`, then drive them via `interact_with_process` / `read_process_output`. This keeps all filesystem/process access observable and consistent with the repo’s working protocol.
