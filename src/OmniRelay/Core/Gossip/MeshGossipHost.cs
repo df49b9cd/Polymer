@@ -7,7 +7,6 @@ using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -26,9 +25,7 @@ namespace OmniRelay.Core.Gossip;
 /// <summary>
 /// Hosts the gossip listener (HTTP/3 + mTLS) and drives outbound gossip rounds.
 /// </summary>
-    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Gossip listener targets dynamic deployments; not emitted in native AOT bundles.")]
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Gossip listener targets dynamic deployments; options and endpoints preserved by explicit source-gen contexts.")]
-    public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
+public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 {
     private readonly MeshGossipOptions _options;
     private readonly ILogger<MeshGossipHost> _logger;
@@ -231,15 +228,39 @@ namespace OmniRelay.Core.Gossip;
         });
 
         var app = builder.Build();
-        app.MapPost("/mesh/gossip/v1/messages", HandleGossipEnvelopeAsync);
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path == "/mesh/gossip/v1/messages" && HttpMethods.IsPost(context.Request.Method))
+            {
+                var envelope = await context.Request.ReadFromJsonAsync(
+                        MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope,
+                        context.RequestAborted)
+                    .ConfigureAwait(false);
+
+                if (envelope is null)
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await context.Response.WriteAsync("{\"error\":\"Request body required.\"}", context.RequestAborted)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
+                var result = await ProcessEnvelopeAsync(envelope, context.RequestAborted).ConfigureAwait(false);
+
+                context.Response.ContentType = "application/json";
+                await JsonSerializer.SerializeAsync(
+                        context.Response.Body,
+                        result,
+                        MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope,
+                        context.RequestAborted)
+                    .ConfigureAwait(false);
+                return;
+            }
+
+            await next().ConfigureAwait(false);
+        });
 
         return app;
-    }
-
-    private static async Task<IResult> HandleGossipEnvelopeAsync(HttpContext context, MeshGossipEnvelope envelope, MeshGossipHost host)
-    {
-        var result = await host.ProcessEnvelopeAsync(envelope, context.RequestAborted).ConfigureAwait(false);
-        return Results.Json(result, MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope);
     }
 
     private HttpsConnectionAdapterOptions CreateHttpsOptions()

@@ -1,14 +1,14 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 namespace OmniRelay.Diagnostics;
 
-/// <summary>DI helpers for registering probes and chaos experiments.</summary>
+/// <summary>DI helpers for registering probes and chaos experiments without Minimal APIs (AOT-safe).</summary>
 public static class OmniRelayProbesExtensions
 {
     public static IServiceCollection AddOmniRelayProbes(
@@ -35,51 +35,61 @@ public static class OmniRelayProbesExtensions
         return services;
     }
 
-    [RequiresUnreferencedCode("Minimal API endpoints use reflection for binding diagnostic delegates.")]
-    [RequiresDynamicCode("Minimal API endpoint mapping relies on runtime code generation and is not AOT-safe.")]
-    public static IEndpointRouteBuilder MapOmniRelayProbeDiagnostics(
-        this IEndpointRouteBuilder builder,
+    public static void MapOmniRelayProbeDiagnostics(
+        this WebApplication app,
         Action<ProbeDiagnosticsOptions>? configure = null)
     {
-        ArgumentNullException.ThrowIfNull(builder);
-        var options = builder.ServiceProvider.GetRequiredService<IOptions<ProbeDiagnosticsOptions>>().Value;
+        var options = app.Services.GetRequiredService<IOptions<ProbeDiagnosticsOptions>>().Value;
         configure?.Invoke(options);
 
-        if (options.EnableProbeResults)
+        app.Use(async (context, next) =>
         {
-            var probeEndpoint = builder.MapGet("/omnirelay/control/probes", (IProbeSnapshotProvider provider) =>
+            var path = context.Request.Path.Value;
+            var method = context.Request.Method;
+
+            if (path is "/omnirelay/control/probes" && HttpMethods.IsGet(method) && options.EnableProbeResults)
             {
-                var snapshot = provider.Snapshot();
-                return TypedResults.Json(snapshot, ProbeDiagnosticsJsonContext.Default.IReadOnlyCollectionProbeExecutionSnapshot);
-            });
-            if (!string.IsNullOrWhiteSpace(options.ProbeAuthorizationPolicy))
-            {
-                probeEndpoint.RequireAuthorization(options.ProbeAuthorizationPolicy);
+                await WriteProbeResultsAsync(context).ConfigureAwait(false);
+                return;
             }
-        }
 
-        if (options.EnableChaosControl)
-        {
-            var startEndpoint = builder.MapPost("/omnirelay/control/chaos/{name}:start", async (string name, ChaosCoordinator coordinator, CancellationToken cancellationToken) =>
+            if (path is not null && path.StartsWith("/omnirelay/control/chaos/", StringComparison.OrdinalIgnoreCase) && options.EnableChaosControl)
             {
-                var result = await coordinator.StartAsync(name, cancellationToken).ConfigureAwait(false);
-                return result.ToHttpResult();
-            });
+                var name = path.Substring("/omnirelay/control/chaos/".Length);
+                var coordinator = context.RequestServices.GetRequiredService<ChaosCoordinator>();
 
-            var stopEndpoint = builder.MapPost("/omnirelay/control/chaos/{name}:stop", async (string name, ChaosCoordinator coordinator, CancellationToken cancellationToken) =>
-            {
-                var result = await coordinator.StopAsync(name, cancellationToken).ConfigureAwait(false);
-                return result.ToHttpResult();
-            });
+                if (name.EndsWith(":start", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method))
+                {
+                    var target = name[..^":start".Length];
+                    var result = await coordinator.StartAsync(target, context.RequestAborted).ConfigureAwait(false);
+                    await result.ToHttpResult().ExecuteAsync(context).ConfigureAwait(false);
+                    return;
+                }
 
-            if (!string.IsNullOrWhiteSpace(options.ChaosAuthorizationPolicy))
-            {
-                startEndpoint.RequireAuthorization(options.ChaosAuthorizationPolicy);
-                stopEndpoint.RequireAuthorization(options.ChaosAuthorizationPolicy);
+                if (name.EndsWith(":stop", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method))
+                {
+                    var target = name[..^":stop".Length];
+                    var result = await coordinator.StopAsync(target, context.RequestAborted).ConfigureAwait(false);
+                    await result.ToHttpResult().ExecuteAsync(context).ConfigureAwait(false);
+                    return;
+                }
             }
-        }
 
-        return builder;
+            await next().ConfigureAwait(false);
+        });
+    }
+
+    private static async Task WriteProbeResultsAsync(HttpContext context)
+    {
+        var provider = context.RequestServices.GetRequiredService<IProbeSnapshotProvider>();
+        var snapshot = provider.Snapshot();
+        context.Response.ContentType = "application/json";
+        await JsonSerializer.SerializeAsync(
+                context.Response.Body,
+                snapshot,
+                ProbeDiagnosticsJsonContext.Default.IReadOnlyCollectionProbeExecutionSnapshot,
+                context.RequestAborted)
+            .ConfigureAwait(false);
     }
 }
 

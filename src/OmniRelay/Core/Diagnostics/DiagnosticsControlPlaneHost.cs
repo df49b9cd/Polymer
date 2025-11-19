@@ -1,7 +1,5 @@
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,8 +17,6 @@ using OmniRelay.Diagnostics;
 namespace OmniRelay.Core.Diagnostics;
 
 /// <summary>Dedicated HTTP host that surfaces diagnostics + leadership control-plane endpoints.</summary>
-[UnconditionalSuppressMessage("TrimAnalysis", "IL2026", Justification = "Diagnostics control plane is optional and excluded from native AOT images; endpoints are explicitly annotated.")]
-[UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Diagnostics control plane is optional and excluded from native AOT images.")]
 internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
 {
     private readonly IServiceProvider _services;
@@ -28,10 +24,6 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
     private readonly DiagnosticsControlPlaneFeatures _features;
     private readonly ILogger<DiagnosticsControlPlaneHost> _logger;
     private readonly TransportTlsManager? _tlsManager;
-    private static readonly JsonSerializerOptions LeadershipEventJsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter<LeadershipEventKind>(JsonNamingPolicy.CamelCase) }
-    };
     private WebApplication? _app;
     private Task? _hostTask;
     private CancellationTokenSource? _cts;
@@ -161,7 +153,7 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
 
     private void ConfigureAppCore(WebApplication app)
     {
-        app.MapOmniRelayDiagnosticsControlPlane(options =>
+        app.UseOmniRelayDiagnosticsControlPlane(options =>
         {
             options.EnableLoggingToggle = _features.EnableLoggingToggle;
             options.EnableTraceSamplingToggle = _features.EnableSamplingToggle;
@@ -185,8 +177,22 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
 
         if (_features.EnableLeadershipDiagnostics)
         {
-            app.MapGet("/control/leaders", GetLeadershipSnapshot);
-            app.MapGet("/control/events/leadership", StreamLeadershipEvents);
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path == "/control/leaders" && HttpMethods.IsGet(context.Request.Method))
+                {
+                    await GetLeadershipSnapshot(context).ConfigureAwait(false);
+                    return;
+                }
+
+                if (context.Request.Path == "/control/events/leadership" && HttpMethods.IsGet(context.Request.Method))
+                {
+                    await StreamLeadershipEvents(context).ConfigureAwait(false);
+                    return;
+                }
+
+                await next().ConfigureAwait(false);
+            });
         }
 
         if (_features.EnableShardDiagnostics)
@@ -210,7 +216,13 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
             snapshot = new LeadershipSnapshot(snapshot.GeneratedAt, filtered);
         }
 
-        await Results.Json(snapshot).ExecuteAsync(context).ConfigureAwait(false);
+        context.Response.ContentType = "application/json";
+        await JsonSerializer.SerializeAsync(
+                context.Response.Body,
+                snapshot,
+                DiagnosticsControlPlaneJsonContext.Default.LeadershipSnapshot,
+                context.RequestAborted)
+            .ConfigureAwait(false);
     }
 
     private static Task StreamLeadershipEvents(HttpContext context) =>
@@ -234,7 +246,9 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
         {
             await foreach (var leadershipEvent in observer.SubscribeAsync(scopeFilter, context.RequestAborted).ConfigureAwait(false))
             {
-                var payload = JsonSerializer.Serialize(leadershipEvent, LeadershipEventJsonOptions);
+                var payload = JsonSerializer.Serialize(
+                    leadershipEvent,
+                    DiagnosticsControlPlaneJsonContext.Default.LeadershipEvent);
                 await context.Response.WriteAsync($"data: {payload}\n\n", context.RequestAborted).ConfigureAwait(false);
                 await context.Response.Body.FlushAsync(context.RequestAborted).ConfigureAwait(false);
             }
@@ -250,17 +264,42 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
 
     private static void MapUpgradeEndpoints(WebApplication app)
     {
-        app.MapGet("/control/upgrade", GetUpgradeSnapshot);
-        app.MapPost("/control/upgrade/drain", BeginDrainAsync);
-        app.MapPost("/control/upgrade/resume", ResumeDrainAsync);
+        app.Use(async (context, next) =>
+        {
+            var path = context.Request.Path.Value;
+            var method = context.Request.Method;
+            if (path is "/control/upgrade" && HttpMethods.IsGet(method))
+            {
+                await GetUpgradeSnapshot(context).ConfigureAwait(false);
+                return;
+            }
+
+            if (path is "/control/upgrade/drain" && HttpMethods.IsPost(method))
+            {
+                await BeginDrainAsync(context).ConfigureAwait(false);
+                return;
+            }
+
+            if (path is "/control/upgrade/resume" && HttpMethods.IsPost(method))
+            {
+                await ResumeDrainAsync(context).ConfigureAwait(false);
+                return;
+            }
+
+            await next().ConfigureAwait(false);
+        });
     }
 
     private static async Task GetUpgradeSnapshot(HttpContext context)
     {
         var coordinator = context.RequestServices.GetRequiredService<NodeDrainCoordinator>();
         var snapshot = coordinator.Snapshot();
-        await Results.Json(snapshot, ShardDiagnosticsJsonContext.Default.NodeDrainSnapshot)
-            .ExecuteAsync(context)
+        context.Response.ContentType = "application/json";
+        await JsonSerializer.SerializeAsync(
+                context.Response.Body,
+                snapshot,
+                ShardDiagnosticsJsonContext.Default.NodeDrainSnapshot,
+                context.RequestAborted)
             .ConfigureAwait(false);
     }
 
@@ -273,8 +312,12 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
         try
         {
             var snapshot = await coordinator.BeginDrainAsync(request?.Reason, context.RequestAborted).ConfigureAwait(false);
-            await Results.Json(snapshot, ShardDiagnosticsJsonContext.Default.NodeDrainSnapshot)
-                .ExecuteAsync(context)
+            context.Response.ContentType = "application/json";
+            await JsonSerializer.SerializeAsync(
+                    context.Response.Body,
+                    snapshot,
+                    ShardDiagnosticsJsonContext.Default.NodeDrainSnapshot,
+                    context.RequestAborted)
                 .ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)
@@ -291,8 +334,12 @@ internal sealed class DiagnosticsControlPlaneHost : ILifecycle, IDisposable
         try
         {
             var snapshot = await coordinator.ResumeAsync(context.RequestAborted).ConfigureAwait(false);
-            await Results.Json(snapshot, ShardDiagnosticsJsonContext.Default.NodeDrainSnapshot)
-                .ExecuteAsync(context)
+            context.Response.ContentType = "application/json";
+            await JsonSerializer.SerializeAsync(
+                    context.Response.Body,
+                    snapshot,
+                    ShardDiagnosticsJsonContext.Default.NodeDrainSnapshot,
+                    context.RequestAborted)
                 .ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)

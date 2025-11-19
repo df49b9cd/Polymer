@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Globalization;
-using System.Diagnostics.CodeAnalysis;
 using OmniRelay.Diagnostics;
 using OmniRelay.Security.Secrets;
 
@@ -13,14 +12,11 @@ namespace OmniRelay.Core.Gossip;
 /// <summary>DI helpers to register the mesh gossip agent.</summary>
 public static class MeshGossipServiceCollectionExtensions
 {
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "DataAnnotations validation is opt-in and options types are preserved by manual binding.")]
-    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Mesh gossip agent runs only on dynamic CLR; excluded from native AOT bundles.")]
     public static IServiceCollection AddMeshGossipAgent(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         services.AddOptions<MeshGossipOptions>()
-            .Configure(options => BindMeshGossipOptions(configuration, options))
-            .ValidateDataAnnotations();
+            .Configure(options => BindMeshGossipOptions(configuration, options));
         return services.AddMeshGossipAgent();
     }
 

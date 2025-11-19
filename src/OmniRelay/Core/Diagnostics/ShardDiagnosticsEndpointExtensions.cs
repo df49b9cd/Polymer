@@ -3,7 +3,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using System.Diagnostics.CodeAnalysis;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.ControlPlane;
 
@@ -15,14 +14,39 @@ internal static class ShardDiagnosticsEndpointExtensions
     private const string MeshOperateScope = "mesh.operate";
     private static readonly char[] ScopeSeparators = [' ', ',', ';'];
 
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Endpoints are diagnostic-only; AOT deployments may disable diagnostics.")]
-    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Endpoints are diagnostic-only; AOT deployments may disable diagnostics.")]
     public static void MapShardDiagnosticsEndpoints(this WebApplication app)
     {
-        app.MapGet("/control/shards", ListShardsAsync);
-        app.MapGet("/control/shards/diff", DiffShardsAsync);
-        app.MapGet("/control/shards/watch", WatchShardsAsync);
-        app.MapPost("/control/shards/simulate", SimulateShardsAsync);
+        app.Use(async (context, next) =>
+        {
+            var path = context.Request.Path.Value;
+            var method = context.Request.Method;
+
+            if (path is "/control/shards" && HttpMethods.IsGet(method))
+            {
+                await ListShardsAsync(context).ConfigureAwait(false);
+                return;
+            }
+
+            if (path is "/control/shards/diff" && HttpMethods.IsGet(method))
+            {
+                await DiffShardsAsync(context).ConfigureAwait(false);
+                return;
+            }
+
+            if (path is "/control/shards/watch" && HttpMethods.IsGet(method))
+            {
+                await WatchShardsAsync(context).ConfigureAwait(false);
+                return;
+            }
+
+            if (path is "/control/shards/simulate" && HttpMethods.IsPost(method))
+            {
+                await SimulateShardsAsync(context).ConfigureAwait(false);
+                return;
+            }
+
+            await next().ConfigureAwait(false);
+        });
     }
 
     private static async Task ListShardsAsync(HttpContext context)
@@ -30,7 +54,7 @@ internal static class ShardDiagnosticsEndpointExtensions
         var service = context.RequestServices.GetRequiredService<ShardControlPlaneService>();
         if (!HasRequiredScope(context, MeshReadScope, MeshOperateScope))
         {
-            await Results.StatusCode(StatusCodes.Status403Forbidden).ExecuteAsync(context).ConfigureAwait(false);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
 
@@ -65,8 +89,12 @@ internal static class ShardDiagnosticsEndpointExtensions
             var response = await service.ListAsync(filter, cursor, pageSize, context.RequestAborted).ConfigureAwait(false);
             context.Response.Headers.ETag = $@"W/""shards-{response.Version}""";
             context.Response.Headers["x-omnirelay-shards-version"] = response.Version.ToString(CultureInfo.InvariantCulture);
-            await Results.Json(response, ShardDiagnosticsJsonContext.Default.ShardListResponse)
-                .ExecuteAsync(context)
+            context.Response.ContentType = "application/json";
+            await JsonSerializer.SerializeAsync(
+                    context.Response.Body,
+                    response,
+                    ShardDiagnosticsJsonContext.Default.ShardListResponse,
+                    context.RequestAborted)
                 .ConfigureAwait(false);
         }
         catch (ArgumentException ex)
@@ -82,7 +110,7 @@ internal static class ShardDiagnosticsEndpointExtensions
         var service = context.RequestServices.GetRequiredService<ShardControlPlaneService>();
         if (!HasRequiredScope(context, MeshOperateScope))
         {
-            await Results.StatusCode(StatusCodes.Status403Forbidden).ExecuteAsync(context).ConfigureAwait(false);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
 
@@ -111,8 +139,12 @@ internal static class ShardDiagnosticsEndpointExtensions
         }
 
         var response = await service.DiffAsync(fromVersion, toVersion, filter, context.RequestAborted).ConfigureAwait(false);
-        await Results.Json(response, ShardDiagnosticsJsonContext.Default.ShardDiffResponse)
-            .ExecuteAsync(context)
+        context.Response.ContentType = "application/json";
+        await JsonSerializer.SerializeAsync(
+                context.Response.Body,
+                response,
+                ShardDiagnosticsJsonContext.Default.ShardDiffResponse,
+                context.RequestAborted)
             .ConfigureAwait(false);
     }
 
@@ -179,7 +211,7 @@ internal static class ShardDiagnosticsEndpointExtensions
 
         if (!HasRequiredScope(context, MeshOperateScope))
         {
-            await Results.StatusCode(StatusCodes.Status403Forbidden).ExecuteAsync(context).ConfigureAwait(false);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
 
@@ -192,8 +224,12 @@ internal static class ShardDiagnosticsEndpointExtensions
         try
         {
             var response = await service.SimulateAsync(request, context.RequestAborted).ConfigureAwait(false);
-            await Results.Json(response, ShardDiagnosticsJsonContext.Default.ShardSimulationResponse)
-                .ExecuteAsync(context)
+            context.Response.ContentType = "application/json";
+            await JsonSerializer.SerializeAsync(
+                    context.Response.Body,
+                    response,
+                    ShardDiagnosticsJsonContext.Default.ShardSimulationResponse,
+                    context.RequestAborted)
                 .ConfigureAwait(false);
         }
         catch (ArgumentException ex)

@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace OmniRelay.Core.Leadership;
@@ -10,15 +9,12 @@ namespace OmniRelay.Core.Leadership;
 /// <summary>DI helpers for wiring the leadership coordinator.</summary>
 public static class LeadershipServiceCollectionExtensions
 {
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "DataAnnotations validation is opt-in and options types are preserved by manual binding.")]
-    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Leadership coordinator configuration binding executes in dynamic hosting; AOT images exclude this component.")]
     public static IServiceCollection AddLeadershipCoordinator(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddOptions<LeadershipOptions>()
-            .Configure(options => BindLeadershipOptions(configuration, options))
-            .ValidateDataAnnotations();
+            .Configure(options => BindLeadershipOptions(configuration, options));
 
         return services.AddLeadershipCoordinator();
     }
