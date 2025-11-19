@@ -294,22 +294,25 @@ Grafana/Prometheus rules from DISC-001 now have concrete signals to target, and 
 
 ## 6. Secure peer bootstrap
 
-- **Feature**: TLS mutual auth + ACLs for gossip and control-plane endpoints. Provide bootstrap tokens or signed certificates so only authorized nodes participate. Optionally integrate with SPIFFE/SPIRE or cloud identity.
-- **Reasoning**: Infrastructure security should be uniform regardless of which service uses OmniRelay. Hardening the mesh frees application code from embedding bespoke ACL logic.
+- **Feature**: A dedicated bootstrap service plus CLI/API flow attests nodes, mints SPIFFE/SPIRE-compatible workload certificates, and wires the issued identity into gossip and control-plane transports. Policies/CRDs govern which roles, clusters, and environments are eligible.
+- **Reasoning**: With a single attestation + PKI workflow, transport security, auditing, and revocation become infrastructure-level concerns instead of bespoke logic for every product team.
 - **Capabilities**:
-  - PKI automation issues short-lived workload certs with embedded mesh roles and cluster ids.
-  - Bootstrap workflow validates environment posture (image signature, config) before granting mesh credentials.
-  - Gossip/control channels enforce TLS 1.3, preferred cipher suites, and certificate pinning.
+  - Pluggable workload identity providers (SPIFFE/SPIRE today, cloud-managed identity next) implement a shared identity-provider interface so operators can swap CA backends without touching dispatchers.
+  - A bootstrap policy evaluator loads JSON/CRD policy documents (role allow-lists, environment tags, attestation providers, per-role lifetimes) and rejects join attempts that fail policy with actionable metadata.
+  - Bootstrap responses include the workload certificate, trust bundle, SPIFFE ID, renewal hint, and seed peers. Auto-renewal maintains overlapping validity windows and emits alerts if renewals fail.
+  - Revocation APIs/CLI yank individual identities or whole token batches; gossip/control planes evict revoked peers immediately and emit audit events.
 - **Interfaces & data contracts**:
-  - `omnirelay cert issue` CLI command and API for automated enrollment; returns cert bundle + metadata.
-  - Policy CRDs describing which roles or namespaces may join specific clusters.
+  - The omnirelay bootstrap join endpoint (wrapped by the omnirelay mesh bootstrap join/issue commands) exchanges tokens plus attestation evidence for identity bundles.
+  - Policy documents live under security.bootstrap.policies (inline or watched directory) and reload with validation plus structured logs for change control.
+  - Threat model and hardening guide documents the bootstrap attack surface, mitigations, and operator runbooks.
 - **Operational considerations**:
-  - Rotate certs automatically with overlap windows; alert if rotation falls behind.
-  - Provide emergency revocation procedure and documented recovery for lost-root scenarios.
+  - Policy reloads are hot, so CI/CD can push new role definitions without dispatcher restarts; invalid policies fail fast with diagnostics.
+  - Renewal background service introduces jitter/backoff, exports bootstrap.renewal.success and bootstrap.renewal.failure counters, and raises alerts when certificates approach expiry.
+  - Enrollment/renewal/revocation paths log audit IDs (token GUIDs) that can be correlated in SIEM pipelines and surfaced via CLI diagnostics.
 - **Success criteria**:
-  - Peers without valid certs or tokens fail to join; audit logs capture the attempt.
-  - Certificate rotation happens without dropping more than 1 gossip RTT.
-  - Security posture documented (threat model + hardening guide) and validated via automated tests.
+  - Nodes without valid tokens/certs fail to join, and the attempt is visible through audit logs, metrics, and CLI tooling.
+  - Certificate rotation completes without disrupting mesh traffic (validated via unit/integration/feature/hyperscale tests that rotate large batches).
+  - Operators can revoke compromised identities and observe immediate eviction from gossip/control-plane endpoints.
 
 ## 7. State convergence + conflict resolution
 
