@@ -1,9 +1,10 @@
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.ControlPlane.Bootstrap;
-using OmniRelay.ControlPlane.Security;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Bootstrap;
@@ -21,23 +22,20 @@ public sealed class BootstrapServerTests
         };
         var tokenService = new BootstrapTokenService(signingOptions, new InMemoryBootstrapReplayProtector(), NullLogger<BootstrapTokenService>.Instance);
 
-        var certificateBytes = CreateCertificateBytes("CN=bootstrap-test", "bundle-pass");
         var serverOptions = new BootstrapServerOptions
         {
             ClusterId = "cluster-1",
             DefaultRole = "worker",
-            BundlePassword = "bundle-pass",
-            Certificate = new TransportTlsOptions
-            {
-                CertificateData = Convert.ToBase64String(certificateBytes),
-                CertificatePassword = "bundle-pass"
-            }
+            BundlePassword = "bundle-pass"
         };
         serverOptions.SeedPeers.Add("https://seed-a:8080");
         serverOptions.SeedPeers.Add("https://seed-b:8080");
 
-        using var tlsManager = new TransportTlsManager(serverOptions.Certificate, NullLogger<TransportTlsManager>.Instance);
-        var server = new BootstrapServer(serverOptions, tokenService, tlsManager, NullLogger<BootstrapServer>.Instance);
+        var certificateBytes = CreateCertificateBytes("CN=bootstrap-test", "bundle-pass");
+        var identityProvider = new TestWorkloadIdentityProvider(certificateBytes, "bundle-pass");
+        var policyDocument = new BootstrapPolicyDocument("allow-all", true, Array.Empty<BootstrapPolicyRule>());
+        var policyEvaluator = new BootstrapPolicyEvaluator(new[] { policyDocument }, requireAttestation: false, TimeSpan.FromMinutes(5), NullLogger<BootstrapPolicyEvaluator>.Instance);
+        var server = new BootstrapServer(serverOptions, tokenService, identityProvider, policyEvaluator, NullLogger<BootstrapServer>.Instance);
 
         var token = tokenService.CreateToken(new BootstrapTokenDescriptor { ClusterId = "cluster-1", Role = "worker" });
         var result = await server.JoinAsync(new BootstrapJoinRequest { Token = token }, CancellationToken.None);
@@ -56,5 +54,38 @@ public sealed class BootstrapServerTests
         var request = new CertificateRequest(subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
         return certificate.Export(X509ContentType.Pfx, password);
+    }
+
+    private sealed class TestWorkloadIdentityProvider : IWorkloadIdentityProvider
+    {
+        private readonly byte[] _data;
+        private readonly string? _password;
+
+        public TestWorkloadIdentityProvider(byte[] data, string? password)
+        {
+            _data = data;
+            _password = password;
+        }
+
+        public ValueTask<WorkloadCertificateBundle> IssueAsync(WorkloadIdentityRequest request, CancellationToken cancellationToken = default)
+        {
+            var now = DateTimeOffset.UtcNow;
+            return ValueTask.FromResult(new WorkloadCertificateBundle
+            {
+                Identity = request.IdentityHint ?? $"test:{request.NodeId}",
+                Provider = "test",
+                CertificateData = (byte[])_data.Clone(),
+                CertificatePassword = _password,
+                TrustBundleData = null,
+                Metadata = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)),
+                IssuedAt = now,
+                RenewAfter = now,
+                ExpiresAt = now.AddMinutes(5)
+            });
+        }
+
+        public ValueTask<WorkloadCertificateBundle> RenewAsync(WorkloadIdentityRequest request, CancellationToken cancellationToken = default) => IssueAsync(request, cancellationToken);
+
+        public ValueTask RevokeAsync(string identity, string? reason = null, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 }

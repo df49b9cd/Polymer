@@ -56,13 +56,14 @@ internal sealed partial class BootstrapControlPlaneHost : ILifecycle, IDisposabl
         var builder = new HttpControlPlaneHostBuilder(_options);
 
         var tokenService = _services.GetRequiredService<BootstrapTokenService>();
+        var identityProvider = _services.GetRequiredService<IWorkloadIdentityProvider>();
+        var policyEvaluator = _services.GetRequiredService<BootstrapPolicyEvaluator>();
         var loggerFactory = _services.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
-        var secretProvider = _services.GetService<ISecretProvider>();
-        var tlsManager = _tlsManager ?? new TransportTlsManager(_serverOptions.Certificate, loggerFactory.CreateLogger<TransportTlsManager>(), secretProvider);
         var bootstrapServer = new BootstrapServer(
             _serverOptions,
             tokenService,
-            tlsManager,
+            identityProvider,
+            policyEvaluator,
             loggerFactory.CreateLogger<BootstrapServer>());
 
         builder.ConfigureServices(services =>

@@ -149,6 +149,14 @@ public sealed class BootstrapConfiguration
     public IList<BootstrapTokenConfiguration> Tokens { get; } = new List<BootstrapTokenConfiguration>();
 
     public string? SeedDirectory { get; set; }
+
+    public BootstrapIdentityProviderConfiguration Identity { get; init; } = new();
+
+    public BootstrapPolicyCollectionConfiguration Policies { get; init; } = new();
+
+    public BootstrapLifecycleConfiguration Lifecycle { get; init; } = new();
+
+    public bool? RequireAttestation { get; set; }
 }
 
 /// <summary>Signing options for bootstrap tokens.</summary>
@@ -179,4 +187,112 @@ public sealed class BootstrapTokenConfiguration
     public int? MaxUses { get; set; }
 
     public string? Secret { get; set; }
+}
+
+/// <summary>Workload identity provider wiring (SPIFFE/SPIRE, file-based, cloud).</summary>
+public sealed class BootstrapIdentityProviderConfiguration
+{
+    public string? Type { get; set; }
+
+    public SpiffeIdentityProviderConfiguration Spiffe { get; init; } = new();
+
+    public FileIdentityProviderConfiguration File { get; init; } = new();
+}
+
+/// <summary>SPIFFE/SPIRE identity provider configuration.</summary>
+public sealed class SpiffeIdentityProviderConfiguration
+{
+    public string? TrustDomain { get; set; }
+
+    public string? SigningCertificatePath { get; set; }
+
+    public string? SigningCertificateData { get; set; }
+
+    public string? SigningCertificateDataSecret { get; set; }
+
+    public string? SigningCertificatePassword { get; set; }
+
+    public string? IdentityTemplate { get; set; }
+
+    public TimeSpan? CertificateLifetime { get; set; }
+
+    public IDictionary<string, string> DefaultMetadata { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public string? TrustBundleData { get; set; }
+
+    public string? TrustBundleSecret { get; set; }
+}
+
+/// <summary>Development/file-based identity provider fallbacks.</summary>
+public sealed class FileIdentityProviderConfiguration
+{
+    public string? CertificatePath { get; set; }
+
+    public string? CertificateData { get; set; }
+
+    public string? CertificatePassword { get; set; }
+
+    public bool? AllowExport { get; set; }
+}
+
+/// <summary>Policy CRDs controlling which workloads may join.</summary>
+public sealed class BootstrapPolicyCollectionConfiguration
+{
+    public IList<BootstrapPolicyDocumentConfiguration> Documents { get; } = new List<BootstrapPolicyDocumentConfiguration>();
+
+    public string? Directory { get; set; }
+
+    public bool? Watch { get; set; }
+}
+
+/// <summary>Individual policy document definition.</summary>
+public sealed class BootstrapPolicyDocumentConfiguration
+{
+    public string? Name { get; set; }
+
+    public string? Version { get; set; }
+
+    public bool? DefaultAllow { get; set; }
+
+    public IList<BootstrapPolicyRuleConfiguration> Rules { get; } = new List<BootstrapPolicyRuleConfiguration>();
+}
+
+/// <summary>Policy rule describing a set of constraints.</summary>
+public sealed class BootstrapPolicyRuleConfiguration
+{
+    public string? Description { get; set; }
+
+    public IList<string> Roles { get; } = new List<string>();
+
+    public IList<string> Clusters { get; } = new List<string>();
+
+    public IList<string> Environments { get; } = new List<string>();
+
+    public IDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public IDictionary<string, string> Claims { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public IList<string> AttestationProviders { get; } = new List<string>();
+
+    public bool Allow { get; set; } = true;
+
+    public string? IdentityTemplate { get; set; }
+
+    public TimeSpan? Lifetime { get; set; }
+
+    public IDictionary<string, string> Metadata { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>Certificate lifecycle controls for issuance, renewal, and alerts.</summary>
+public sealed class BootstrapLifecycleConfiguration
+{
+    public bool? EnableAutoRenewal { get; set; }
+
+    public TimeSpan? RenewalLeadTime { get; set; }
+
+    public TimeSpan? RenewalJitter { get; set; }
+
+    public TimeSpan? FailureBackoff { get; set; }
+
+    public bool? EnableAlerts { get; set; }
 }

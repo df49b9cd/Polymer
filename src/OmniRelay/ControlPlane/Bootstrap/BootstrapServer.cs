@@ -1,7 +1,10 @@
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 using Hugo;
 using Microsoft.Extensions.Logging;
-using OmniRelay.ControlPlane.Security;
 using static Hugo.Go;
 
 namespace OmniRelay.ControlPlane.Bootstrap;
@@ -11,20 +14,23 @@ public sealed partial class BootstrapServer
 {
     private readonly BootstrapServerOptions _options;
     private readonly BootstrapTokenService _tokenService;
-    private readonly TransportTlsManager _tlsManager;
+    private readonly IWorkloadIdentityProvider _identityProvider;
+    private readonly BootstrapPolicyEvaluator _policyEvaluator;
     private readonly ILogger<BootstrapServer> _logger;
     private readonly TimeProvider _timeProvider;
 
     public BootstrapServer(
         BootstrapServerOptions options,
         BootstrapTokenService tokenService,
-        TransportTlsManager tlsManager,
+        IWorkloadIdentityProvider identityProvider,
+        BootstrapPolicyEvaluator policyEvaluator,
         ILogger<BootstrapServer> logger,
         TimeProvider? timeProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
-        _tlsManager = tlsManager ?? throw new ArgumentNullException(nameof(tlsManager));
+        _identityProvider = identityProvider ?? throw new ArgumentNullException(nameof(identityProvider));
+        _policyEvaluator = policyEvaluator ?? throw new ArgumentNullException(nameof(policyEvaluator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
@@ -45,47 +51,88 @@ public sealed partial class BootstrapServer
                 cancellationToken);
     }
 
-    private ValueTask<Result<BootstrapJoinResponse>> ProcessJoinAsync(BootstrapJoinRequest request, CancellationToken cancellationToken)
+    private async ValueTask<Result<BootstrapJoinResponse>> ProcessJoinAsync(BootstrapJoinRequest request, CancellationToken cancellationToken)
     {
-        var envelope = Ok(request)
-            .Ensure(HasToken, BuildMissingTokenError)
-            .Map(req => (Request: req, Validation: _tokenService.ValidateToken(req.Token!, _options.ClusterId)))
-            .Ensure(tuple => tuple.Validation.IsValid, tuple => BuildValidationError(tuple.Request, tuple.Validation))
-            .Tap(tuple => LogRoleOverride(tuple.Request, tuple.Validation.Role))
-            .Then(tuple => BuildJoinResponse(tuple, cancellationToken)
-                .Map(response => (Response: response, tuple.Validation)));
-
-        if (envelope.TryGetValue(out var success))
+        if (!HasToken(request))
         {
-            Log.BootstrapBundleIssued(_logger, success.Response.ClusterId, success.Response.Role, success.Validation.TokenId);
-        }
-        else if (envelope.TryGetError(out var error))
-        {
-            Log.BootstrapJoinFailed(_logger, error.Message ?? "unknown", error.Code ?? "unknown");
+            return Result.Fail<BootstrapJoinResponse>(BuildMissingTokenError(request));
         }
 
-        return ValueTask.FromResult(envelope.Map(tuple => tuple.Response));
-    }
+        var validation = _tokenService.ValidateToken(request.Token!, _options.ClusterId);
+        if (!validation.IsValid)
+        {
+            return Result.Fail<BootstrapJoinResponse>(BuildValidationError(request, validation));
+        }
 
-    private Result<BootstrapJoinResponse> BuildJoinResponse(
-        (BootstrapJoinRequest Request, BootstrapTokenValidationResult Validation) context,
-        CancellationToken cancellationToken) =>
-        Result.Try(() =>
+        LogRoleOverride(request, validation.Role);
+        var decision = _policyEvaluator.Evaluate(request, validation);
+        if (!decision.IsAllowed)
+        {
+            return Result.Fail<BootstrapJoinResponse>(BuildPolicyError(request, decision));
+        }
+
+        try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var certificate = _tlsManager.GetCertificate();
-            var exported = ExportCertificate(certificate, _options.BundlePassword);
-            return new BootstrapJoinResponse
-            {
-                ClusterId = context.Validation.ClusterId,
-                Role = context.Validation.Role,
-                CertificateData = exported,
-                CertificatePassword = _options.BundlePassword,
-                SeedPeers = _options.SeedPeers.ToArray(),
-                ExpiresAt = context.Validation.ExpiresAt
-            };
-        },
-        ex => BuildBundleError(ex, context.Request));
+            var identityRequest = BuildIdentityRequest(request, validation, decision);
+            var bundle = await _identityProvider.IssueAsync(identityRequest, cancellationToken).ConfigureAwait(false);
+            var response = BuildJoinResponse(validation, bundle);
+            Log.BootstrapBundleIssued(_logger, response.ClusterId, response.Role, bundle.Identity);
+            return Result.Ok(response);
+        }
+        catch (Exception ex)
+        {
+            var error = BuildBundleError(ex, request);
+            Log.BootstrapJoinFailed(_logger, error.Message ?? "unknown", error.Code ?? "unknown");
+            return Result.Fail<BootstrapJoinResponse>(error);
+        }
+    }
+
+    private BootstrapJoinResponse BuildJoinResponse(BootstrapTokenValidationResult validation, WorkloadCertificateBundle bundle)
+    {
+        return new BootstrapJoinResponse
+        {
+            ClusterId = validation.ClusterId,
+            Role = validation.Role,
+            Identity = bundle.Identity,
+            IdentityProvider = bundle.Provider,
+            CertificateData = Convert.ToBase64String(bundle.CertificateData),
+            CertificatePassword = bundle.CertificatePassword,
+            TrustBundleData = bundle.TrustBundleData,
+            SeedPeers = _options.SeedPeers.ToArray(),
+            Metadata = bundle.Metadata,
+            IssuedAt = bundle.IssuedAt,
+            RenewAfter = bundle.RenewAfter,
+            ExpiresAt = bundle.ExpiresAt,
+            AuditId = validation.TokenId.ToString("N")
+        };
+    }
+
+    private WorkloadIdentityRequest BuildIdentityRequest(BootstrapJoinRequest request, BootstrapTokenValidationResult validation, BootstrapPolicyDecision decision)
+    {
+        var labels = new Dictionary<string, string>(request.Labels, StringComparer.OrdinalIgnoreCase);
+        var metadata = decision.Metadata ?? new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+        var lifetime = decision.Lifetime > TimeSpan.Zero
+            ? decision.Lifetime
+            : validation.ExpiresAt - _timeProvider.GetUtcNow();
+        if (lifetime <= TimeSpan.Zero)
+        {
+            lifetime = TimeSpan.FromMinutes(30);
+        }
+
+        return new WorkloadIdentityRequest
+        {
+            ClusterId = validation.ClusterId,
+            Role = validation.Role,
+            NodeId = request.NodeId ?? string.Empty,
+            Environment = request.Environment,
+            Labels = new ReadOnlyDictionary<string, string>(labels),
+            Attestation = request.Attestation,
+            IdentityHint = decision.IdentityHint,
+            DesiredLifetime = lifetime,
+            Metadata = metadata
+        };
+    }
 
     private static bool HasToken(BootstrapJoinRequest request) =>
         !string.IsNullOrWhiteSpace(request.Token);
@@ -98,6 +145,10 @@ public sealed partial class BootstrapServer
         Error.From(validation.FailureReason ?? "Token validation failed.", ErrorCodes.Validation)
             .WithMetadata("nodeId", request.NodeId ?? string.Empty)
             .WithMetadata("clusterId", _options.ClusterId);
+
+    private static Error BuildPolicyError(BootstrapJoinRequest request, BootstrapPolicyDecision decision) =>
+        Error.From(decision.Reason ?? "Bootstrap policy denied the request.", ErrorCodes.Validation)
+            .WithMetadata("nodeId", request.NodeId ?? string.Empty);
 
     private Error BuildBundleError(Exception exception, BootstrapJoinRequest request) =>
         Error.From("Unable to create bootstrap bundle.", "bootstrap.join.bundle_failed")
@@ -127,8 +178,8 @@ public sealed partial class BootstrapServer
 
     private static partial class Log
     {
-        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Issued bootstrap bundle for cluster {ClusterId} role {Role} (token {TokenId}).")]
-        public static partial void BootstrapBundleIssued(ILogger logger, string clusterId, string role, Guid tokenId);
+        [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Issued bootstrap bundle for cluster {ClusterId} role {Role} (identity {Identity}).")]
+        public static partial void BootstrapBundleIssued(ILogger logger, string clusterId, string role, string identity);
 
         [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Bootstrap join failed: {Message} (code: {Code}).")]
         public static partial void BootstrapJoinFailed(ILogger logger, string message, string code);

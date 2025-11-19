@@ -1,5 +1,10 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -313,6 +318,21 @@ public static class OmniRelayServiceCollectionExtensions
         });
 
         services.TryAddSingleton(_ => CreateBootstrapServerOptions(configuration, serviceName));
+
+        services.TryAddSingleton(sp =>
+        {
+            var documents = LoadPolicyDocuments(configuration);
+            var loggerFactory = sp.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+            var timeProvider = sp.GetService<TimeProvider>();
+            var defaultLifetime = configuration.Signing.DefaultLifetime ?? TimeSpan.FromHours(1);
+            var requireAttestation = configuration.RequireAttestation ?? false;
+            return new BootstrapPolicyEvaluator(documents, requireAttestation, defaultLifetime, loggerFactory.CreateLogger<BootstrapPolicyEvaluator>(), timeProvider);
+        });
+
+        services.TryAddSingleton<IWorkloadIdentityProvider>(sp =>
+        {
+            return CreateWorkloadIdentityProvider(sp, configuration, serviceName);
+        });
     }
 
     private static byte[] ResolveBootstrapSigningKey(BootstrapSigningConfiguration signing, ISecretProvider? secretProvider)
@@ -362,6 +382,80 @@ public static class OmniRelayServiceCollectionExtensions
         return options;
     }
 
+    private static IWorkloadIdentityProvider CreateWorkloadIdentityProvider(IServiceProvider services, BootstrapConfiguration configuration, string? serviceName)
+    {
+        var identity = configuration.Identity ?? new BootstrapIdentityProviderConfiguration();
+        var type = (identity.Type ?? "spiffe").Trim().ToLowerInvariant();
+        return type switch
+        {
+            "file" => CreateFileIdentityProvider(identity.File, services),
+            _ => CreateSpiffeIdentityProvider(identity.Spiffe, services, serviceName)
+        };
+    }
+
+    private static IWorkloadIdentityProvider CreateSpiffeIdentityProvider(SpiffeIdentityProviderConfiguration configuration, IServiceProvider services, string? serviceName)
+    {
+        if (configuration is null)
+        {
+            throw new OmniRelayConfigurationException("security.bootstrap.identity.spiffe must be configured.");
+        }
+
+        var secretProvider = services.GetService<ISecretProvider>();
+        var certificate = LoadSpiffeSigningCertificate(configuration, secretProvider);
+        var trustBundle = ResolveTrustBundle(configuration, certificate, secretProvider);
+        var trustDomain = string.IsNullOrWhiteSpace(configuration.TrustDomain)
+            ? serviceName ?? "omnirelay.mesh"
+            : configuration.TrustDomain!;
+        var identityTemplate = string.IsNullOrWhiteSpace(configuration.IdentityTemplate)
+            ? $"spiffe://{trustDomain}/mesh/{{cluster}}/{{role}}/{{nodeId}}"
+            : configuration.IdentityTemplate!;
+        var metadata = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(configuration.DefaultMetadata, StringComparer.OrdinalIgnoreCase));
+        var options = new SpiffeIdentityProviderOptions
+        {
+            SigningCertificate = certificate,
+            TrustDomain = trustDomain,
+            IdentityTemplate = identityTemplate,
+            DefaultLifetime = configuration.CertificateLifetime ?? TimeSpan.FromMinutes(30),
+            MaximumLifetime = TimeSpan.FromHours(6),
+            RenewalWindow = 0.8,
+            CertificatePassword = configuration.SigningCertificatePassword,
+            TrustBundle = trustBundle,
+            DefaultMetadata = metadata
+        };
+        var timeProvider = services.GetService<TimeProvider>();
+        var loggerFactory = services.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+        return new SpiffeWorkloadIdentityProvider(options, loggerFactory.CreateLogger<SpiffeWorkloadIdentityProvider>(), timeProvider);
+    }
+
+    private static IWorkloadIdentityProvider CreateFileIdentityProvider(FileIdentityProviderConfiguration configuration, IServiceProvider services)
+    {
+        if (configuration is null)
+        {
+            throw new OmniRelayConfigurationException("security.bootstrap.identity.file must be configured when the file provider is selected.");
+        }
+
+        if (string.IsNullOrWhiteSpace(configuration.CertificatePath) && string.IsNullOrWhiteSpace(configuration.CertificateData))
+        {
+            throw new OmniRelayConfigurationException("security.bootstrap.identity.file must specify certificatePath or certificateData.");
+        }
+
+        byte[] data;
+        if (!string.IsNullOrWhiteSpace(configuration.CertificateData))
+        {
+            data = Convert.FromBase64String(configuration.CertificateData);
+        }
+        else
+        {
+            data = File.ReadAllBytes(configuration.CertificatePath!);
+        }
+
+        var trustBundle = configuration.AllowExport == true
+            ? Convert.ToBase64String(data)
+            : null;
+        var timeProvider = services.GetService<TimeProvider>();
+        return new FileBootstrapIdentityProvider(data, configuration.CertificatePassword, trustBundle, timeProvider);
+    }
+
     private static TransportTlsOptions BuildTransportTlsOptions(TransportTlsConfiguration? configuration)
     {
         configuration ??= new TransportTlsConfiguration();
@@ -393,6 +487,116 @@ public static class OmniRelayServiceCollectionExtensions
         }
 
         return options;
+    }
+
+    private static X509Certificate2 LoadSpiffeSigningCertificate(SpiffeIdentityProviderConfiguration configuration, ISecretProvider? secretProvider)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration.SigningCertificateData))
+        {
+            var bytes = Convert.FromBase64String(configuration.SigningCertificateData);
+            return new X509Certificate2(bytes, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuration.SigningCertificateDataSecret) && secretProvider is not null)
+        {
+            using var secret = secretProvider.GetSecretSync(configuration.SigningCertificateDataSecret);
+            var value = secret?.AsString();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                var bytes = Convert.FromBase64String(value);
+                return new X509Certificate2(bytes, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuration.SigningCertificatePath))
+        {
+            if (!File.Exists(configuration.SigningCertificatePath))
+            {
+                throw new OmniRelayConfigurationException($"SPIFFE signing certificate {configuration.SigningCertificatePath} was not found.");
+            }
+
+            return new X509Certificate2(configuration.SigningCertificatePath, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
+        }
+
+        throw new OmniRelayConfigurationException("security.bootstrap.identity.spiffe must provide signingCertificatePath, signingCertificateData, or signingCertificateDataSecret.");
+    }
+
+    private static string ResolveTrustBundle(SpiffeIdentityProviderConfiguration configuration, X509Certificate2 signingCertificate, ISecretProvider? secretProvider)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration.TrustBundleData))
+        {
+            return configuration.TrustBundleData!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuration.TrustBundleSecret) && secretProvider is not null)
+        {
+            using var secret = secretProvider.GetSecretSync(configuration.TrustBundleSecret);
+            var value = secret?.AsString();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value!;
+            }
+        }
+
+        return Convert.ToBase64String(signingCertificate.Export(X509ContentType.Cert));
+    }
+
+    private static IReadOnlyList<BootstrapPolicyDocument> LoadPolicyDocuments(BootstrapConfiguration configuration)
+    {
+        var configs = new List<BootstrapPolicyDocumentConfiguration>();
+        configs.AddRange(configuration.Policies.Documents);
+
+        var directory = configuration.Policies.Directory;
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            var fullPath = Path.IsPathRooted(directory)
+                ? directory
+                : Path.Combine(AppContext.BaseDirectory, directory!);
+            if (Directory.Exists(fullPath))
+            {
+                foreach (var file in Directory.EnumerateFiles(fullPath, "*.json", SearchOption.TopDirectoryOnly))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(file);
+                        var document = JsonSerializer.Deserialize<BootstrapPolicyDocumentConfiguration>(json, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+                        if (document is not null)
+                        {
+                            configs.Add(document);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new OmniRelayConfigurationException($"Failed to parse bootstrap policy {file}.", ex);
+                    }
+                }
+            }
+        }
+
+        var documents = new List<BootstrapPolicyDocument>();
+        foreach (var source in configs)
+        {
+            var rules = source.Rules.Select(rule => new BootstrapPolicyRule(
+                rule.Description ?? string.Empty,
+                new ReadOnlyCollection<string>(rule.Roles.ToList()),
+                new ReadOnlyCollection<string>(rule.Clusters.ToList()),
+                new ReadOnlyCollection<string>(rule.Environments.ToList()),
+                new ReadOnlyCollection<string>(rule.AttestationProviders.ToList()),
+                new ReadOnlyDictionary<string, string>(rule.Labels),
+                new ReadOnlyDictionary<string, string>(rule.Claims),
+                rule.Allow,
+                rule.IdentityTemplate,
+                rule.Lifetime,
+                new ReadOnlyDictionary<string, string>(rule.Metadata)))
+                .ToArray();
+
+            documents.Add(new BootstrapPolicyDocument(source.Name ?? "default", source.DefaultAllow ?? false, rules));
+        }
+
+        return documents;
     }
 
     private static (LogLevel? Level, List<(string Category, LogLevel Level)> Overrides) ParseLoggingConfiguration(LoggingConfiguration logging)
