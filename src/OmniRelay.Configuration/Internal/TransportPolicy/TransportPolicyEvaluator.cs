@@ -96,13 +96,14 @@ internal static class TransportPolicyEvaluator
                 "Endpoint is compliant with configured transport policy.",
                 null,
                 null,
-                null);
+                null,
+                endpoint.Hint);
         }
 
         var exception = FindException(configuration, endpoint, now);
         if (exception is not null)
         {
-            var message = BuildExceptionMessage(exception, endpoint);
+            var exceptionMessage = BuildExceptionMessage(exception, endpoint);
             return new TransportPolicyFinding(
                 endpoint.Name,
                 endpoint.Category,
@@ -110,10 +111,11 @@ internal static class TransportPolicyEvaluator
                 endpoint.Encoding,
                 endpoint.Http3Enabled,
                 TransportPolicyFindingStatus.Excepted,
-                message,
+                exceptionMessage,
                 exception.Name,
                 exception.Reason,
-                exception.ExpiresAfter);
+                exception.ExpiresAfter,
+                endpoint.Hint);
         }
 
         var details = new List<string>(3);
@@ -162,7 +164,8 @@ internal static class TransportPolicyEvaluator
             message,
             null,
             null,
-            null);
+            null,
+            endpoint.Hint);
     }
 
     private static TransportPolicyCategoryConfiguration ResolveCategoryRules(
@@ -265,6 +268,8 @@ internal sealed record TransportPolicyEvaluationResult(IReadOnlyList<TransportPo
     public bool HasViolations => Findings.Any(static finding => finding.Status == TransportPolicyFindingStatus.ViolatesPolicy);
 
     public bool HasExceptions => Findings.Any(static finding => finding.Status == TransportPolicyFindingStatus.Excepted);
+
+    public TransportPolicyEvaluationSummary Summary => TransportPolicyEvaluationSummary.From(Findings);
 }
 
 internal enum TransportPolicyFindingStatus
@@ -284,7 +289,8 @@ internal sealed record TransportPolicyFinding(
     string Message,
     string? ExceptionName,
     string? ExceptionReason,
-    DateTimeOffset? ExceptionExpiresAfter);
+    DateTimeOffset? ExceptionExpiresAfter,
+    string? Hint);
 
 internal sealed record TransportPolicyEndpointDescriptor(
     string Name,
@@ -293,3 +299,19 @@ internal sealed record TransportPolicyEndpointDescriptor(
     string Encoding,
     bool Http3Enabled,
     string? Hint);
+
+internal sealed record TransportPolicyEvaluationSummary(int Total, int Compliant, int Excepted, int Violations)
+{
+    public static TransportPolicyEvaluationSummary From(IReadOnlyList<TransportPolicyFinding> findings)
+    {
+        if (findings is null || findings.Count == 0)
+        {
+            return new TransportPolicyEvaluationSummary(0, 0, 0, 0);
+        }
+
+        var compliant = findings.Count(static finding => finding.Status == TransportPolicyFindingStatus.Compliant);
+        var excepted = findings.Count(static finding => finding.Status == TransportPolicyFindingStatus.Excepted);
+        var violations = findings.Count(static finding => finding.Status == TransportPolicyFindingStatus.ViolatesPolicy);
+        return new TransportPolicyEvaluationSummary(findings.Count, compliant, excepted, violations);
+    }
+}

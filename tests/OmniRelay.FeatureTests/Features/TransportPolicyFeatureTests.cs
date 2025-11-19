@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 using OmniRelay.FeatureTests.Fixtures;
 using OmniRelay.Tests.Support;
@@ -37,8 +38,17 @@ public sealed class TransportPolicyFeatureTests : IAsyncLifetime
         result.Stdout.ShouldNotBeNullOrWhiteSpace();
         using var document = JsonDocument.Parse(result.Stdout);
         document.RootElement.GetProperty("hasViolations").GetBoolean().ShouldBeTrue();
+        var summary = document.RootElement.GetProperty("summary");
+        summary.GetProperty("total").GetInt32().ShouldBeGreaterThan(0);
+        summary.GetProperty("violations").GetInt32().ShouldBeGreaterThan(0);
+        summary.GetProperty("violationRatio").GetDouble().ShouldBeGreaterThan(0);
         document.RootElement.GetProperty("findings").EnumerateArray()
             .ShouldContain(element => element.GetProperty("status").GetString() == "violatespolicy");
+        var firstFinding = document.RootElement.GetProperty("findings").EnumerateArray().First();
+        firstFinding.GetProperty("http3Enabled").GetBoolean().ShouldBeFalse();
+        var hint = firstFinding.GetProperty("hint").GetString();
+        hint.ShouldNotBeNull();
+        hint!.ShouldContain("enableHttp3", Case.Insensitive);
     }
 
     [Fact(Timeout = 120_000)]
@@ -55,7 +65,9 @@ public sealed class TransportPolicyFeatureTests : IAsyncLifetime
 
         var result = await CliCommandRunner.RunAsync(command, TestContext.Current.CancellationToken);
         result.ExitCode.ShouldBe(0);
-        result.Stdout.ShouldContain("Transport policy satisfied", StringComparison.OrdinalIgnoreCase);
+        result.Stdout.ShouldContain("Transport policy satisfied", Case.Insensitive);
+        result.Stdout.ShouldContain("Summary:", Case.Insensitive);
+        result.Stdout.ShouldContain("Downgrade ratio:", Case.Insensitive);
     }
 
     private const string BaseConfig = """

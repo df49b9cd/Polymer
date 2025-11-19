@@ -41,6 +41,24 @@ public sealed class TransportPolicyEvaluatorTests
         Should.NotThrow(() => TransportPolicyEvaluator.Enforce(options));
     }
 
+    [Fact(Timeout = TestTimeouts.Default)]
+    public void Evaluate_WithDowngrade_ComputesSummaryAndHints()
+    {
+        var options = CreateBaseOptions();
+        options.Diagnostics.ControlPlane.HttpRuntime.EnableHttp3 = false;
+
+        var evaluation = TransportPolicyEvaluator.Evaluate(options);
+
+        evaluation.Summary.Total.ShouldBe(2);
+        evaluation.Summary.Violations.ShouldBe(1);
+        evaluation.Summary.Compliant.ShouldBe(1);
+        evaluation.Summary.Excepted.ShouldBe(0);
+
+        var httpFinding = evaluation.Findings.First(finding => finding.Endpoint == TransportPolicyEndpoints.DiagnosticsHttp);
+        httpFinding.Http3Enabled.ShouldBeFalse();
+        httpFinding.Hint.ShouldContain("enableHttp3", Case.Insensitive);
+    }
+
     private static OmniRelayConfigurationOptions CreateBaseOptions()
     {
         var options = new OmniRelayConfigurationOptions

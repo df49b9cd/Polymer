@@ -67,6 +67,54 @@ omnirelay mesh config validate \
 
 `omnirelay config validate` still performs full dispatcher binding; use the mesh command when you need fast policy feedback without TLS certificates or inbounds present.
 
+### Text Output
+
+`omnirelay mesh config validate` now emits remediation hints and negotiated protocol state for every endpoint plus a roll-up so operators can react quickly:
+
+```
+Transport policy evaluation for section 'omnirelay':
+  [VIOLATION] diagnostics:http (diagnostics) -> http2/json
+      transport 'http2' downgrades preferred 'http3'
+      Negotiated protocol: http2-fallback
+      Hint: Set diagnostics.controlPlane.httpRuntime.enableHttp3 = true to satisfy HTTP/3-first policy.
+Summary: total=2, compliant=1, exceptions=0, violations=1
+Downgrade ratio: 50.0 %
+Policy violations detected. See details above.
+```
+
+### JSON Output
+
+Automation can use the JSON payload to gate CI. Alongside the original findings array you now receive a `summary` block and richer per-endpoint metadata:
+
+```json
+{
+  "section": "omnirelay",
+  "hasViolations": true,
+  "hasExceptions": false,
+  "summary": {
+    "total": 2,
+    "compliant": 1,
+    "excepted": 0,
+    "violations": 1,
+    "violationRatio": 0.5
+  },
+  "findings": [
+    {
+      "endpoint": "diagnostics:http",
+      "category": "diagnostics",
+      "transport": "http2",
+      "encoding": "json",
+      "http3Enabled": false,
+      "status": "violatespolicy",
+      "message": "transport 'http2' downgrades preferred 'http3'",
+      "hint": "Set diagnostics.controlPlane.httpRuntime.enableHttp3 = true to satisfy HTTP/3-first policy."
+    }
+  ]
+}
+```
+
+`violationRatio` is a normalized downgrade metric (0.0–1.0) that feeds dashboards and CI alerts.
+
 ## Telemetry
 
 The engine records metrics via the `OmniRelay.Transport.Policy` meter:

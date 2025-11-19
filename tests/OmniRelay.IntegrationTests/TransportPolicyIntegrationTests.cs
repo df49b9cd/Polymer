@@ -39,8 +39,11 @@ public sealed class TransportPolicyIntegrationTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Contains("diagnostics:http", result.StandardError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("diagnostics:http", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("policy violations", result.StandardError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Downgrade ratio", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Summary:", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Negotiated protocol", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact(Timeout = 120_000)]
@@ -67,5 +70,7 @@ public sealed class TransportPolicyIntegrationTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Transport policy satisfied", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Summary:", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Downgrade ratio", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
     }
 }
