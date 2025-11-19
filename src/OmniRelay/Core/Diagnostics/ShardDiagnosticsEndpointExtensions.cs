@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -13,6 +14,8 @@ internal static class ShardDiagnosticsEndpointExtensions
     private const string MeshOperateScope = "mesh.operate";
     private static readonly char[] ScopeSeparators = [' ', ',', ';'];
 
+    [RequiresDynamicCode("Minimal API handlers use reflection during binding.")]
+    [RequiresUnreferencedCode("Minimal API handlers use reflection during binding.")]
     public static void MapShardDiagnosticsEndpoints(this WebApplication app)
     {
         app.MapGet("/control/shards", async Task<IResult> (HttpContext context, ShardControlPlaneService service) =>
@@ -24,7 +27,7 @@ internal static class ShardDiagnosticsEndpointExtensions
 
             if (!TryCreateShardFilter(context.Request, out var filter, out var errorResult))
             {
-                return errorResult;
+                return errorResult ?? Results.BadRequest(new { error = "Invalid shard filter parameters." });
             }
 
             int? pageSize = null;
@@ -64,17 +67,17 @@ internal static class ShardDiagnosticsEndpointExtensions
 
             if (!TryCreateShardFilter(context.Request, out var filter, out var errorResult))
             {
-                return errorResult;
+                return errorResult ?? Results.BadRequest(new { error = "Invalid shard filter parameters." });
             }
 
             if (!TryParseLongQuery(context.Request, "fromVersion", out var fromVersion, out var parseError))
             {
-                return parseError;
+                return parseError ?? Results.BadRequest(new { error = "Invalid fromVersion value." });
             }
 
             if (!TryParseLongQuery(context.Request, "toVersion", out var toVersion, out parseError))
             {
-                return parseError;
+                return parseError ?? Results.BadRequest(new { error = "Invalid toVersion value." });
             }
 
             var response = await service.DiffAsync(fromVersion, toVersion, filter, context.RequestAborted).ConfigureAwait(false);
@@ -91,13 +94,17 @@ internal static class ShardDiagnosticsEndpointExtensions
 
             if (!TryCreateShardFilter(context.Request, out var filter, out var errorResult))
             {
-                await errorResult!.ExecuteAsync(context).ConfigureAwait(false);
+                await (errorResult ?? Results.BadRequest(new { error = "Invalid shard filter parameters." }))
+                    .ExecuteAsync(context)
+                    .ConfigureAwait(false);
                 return;
             }
 
             if (!TryParseLongQuery(context.Request, "resumeToken", out var resumeToken, out var parseError))
             {
-                await parseError!.ExecuteAsync(context).ConfigureAwait(false);
+                await (parseError ?? Results.BadRequest(new { error = "Invalid resumeToken value." }))
+                    .ExecuteAsync(context)
+                    .ConfigureAwait(false);
                 return;
             }
 
@@ -109,11 +116,14 @@ internal static class ShardDiagnosticsEndpointExtensions
             {
                 await foreach (var diff in service.WatchAsync(resumeToken, filter, context.RequestAborted).ConfigureAwait(false))
                 {
-                    var entry = new ShardDiffEntry(
-                        diff.Position,
-                        ShardControlPlaneMapper.ToSummary(diff.Current),
-                        diff.Previous is null ? null : ShardControlPlaneMapper.ToSummary(diff.Previous),
-                        diff.History);
+                    if (diff.Current is null)
+                    {
+                        continue;
+                    }
+
+                    var current = ShardControlPlaneMapper.ToSummary(diff.Current);
+                    var previous = diff.Previous is null ? null : ShardControlPlaneMapper.ToSummary(diff.Previous);
+                    var entry = new ShardDiffEntry(diff.Position, current, previous, diff.History);
 
                     var payload = JsonSerializer.Serialize(entry, ShardDiagnosticsJsonContext.Default.ShardDiffEntry);
                     await context.Response.WriteAsync($"id: {diff.Position}\n", context.RequestAborted).ConfigureAwait(false);
@@ -185,7 +195,9 @@ internal static class ShardDiagnosticsEndpointExtensions
         if (request.Query.TryGetValue("status", out var statusValues))
         {
             var parsed = new List<ShardStatus>();
-            foreach (var raw in statusValues.SelectMany(value => value.Split(ScopeSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+            foreach (var raw in statusValues
+                         .Where(static value => !string.IsNullOrWhiteSpace(value))
+                         .SelectMany(value => value!.Split(ScopeSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
             {
                 if (!Enum.TryParse(raw, true, out ShardStatus status))
                 {
@@ -213,6 +225,11 @@ internal static class ShardDiagnosticsEndpointExtensions
 
         foreach (var header in scopeValues)
         {
+            if (string.IsNullOrWhiteSpace(header))
+            {
+                continue;
+            }
+
             var tokens = header.Split(ScopeSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (tokens.Any(token => requiredScopes.Any(scope => string.Equals(scope, token, StringComparison.OrdinalIgnoreCase))))
             {

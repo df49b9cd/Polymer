@@ -1,4 +1,3 @@
-using System.Linq;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;

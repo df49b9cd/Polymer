@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace OmniRelay.ControlPlane.Bootstrap;
@@ -16,6 +12,17 @@ public sealed class SpiffeWorkloadIdentityProvider : IWorkloadIdentityProvider, 
     private readonly TimeProvider _timeProvider;
     private readonly RandomNumberGenerator _rng = RandomNumberGenerator.Create();
     private bool _disposed;
+    private static readonly Action<ILogger, string, string, Exception?> RevokedIdentityLog =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Warning,
+            new EventId(1, nameof(SpiffeWorkloadIdentityProvider) + "_Revoked"),
+            "Revoked SPIFFE identity {Identity}. Reason: {Reason}.");
+
+    private static readonly Action<ILogger, string, string, string, TimeSpan, Exception?> IssuedIdentityLog =
+        LoggerMessage.Define<string, string, string, TimeSpan>(
+            LogLevel.Information,
+            new EventId(2, nameof(SpiffeWorkloadIdentityProvider) + "_Issued"),
+            "Issued SPIFFE identity {Identity} for cluster {ClusterId} role {Role} (lifetime {Lifetime}).");
 
     public SpiffeWorkloadIdentityProvider(
         SpiffeIdentityProviderOptions options,
@@ -44,7 +51,7 @@ public sealed class SpiffeWorkloadIdentityProvider : IWorkloadIdentityProvider, 
     public ValueTask RevokeAsync(string identity, string? reason = null, CancellationToken cancellationToken = default)
     {
         EnsureNotDisposed();
-        _logger.LogWarning("Revoked SPIFFE identity {Identity}. Reason: {Reason}.", identity ?? string.Empty, reason ?? string.Empty);
+        RevokedIdentityLog(_logger, identity ?? string.Empty, reason ?? string.Empty, null);
         return ValueTask.CompletedTask;
     }
 
@@ -89,10 +96,14 @@ public sealed class SpiffeWorkloadIdentityProvider : IWorkloadIdentityProvider, 
             : _options.CertificatePassword!;
 
         var exported = collection.Export(X509ContentType.Pkcs12, password);
+        if (exported is null || exported.Length == 0)
+        {
+            throw new InvalidOperationException("Failed to export SPIFFE identity certificate bundle.");
+        }
         var metadata = MergeMetadata(request.Metadata);
         var renewAfter = now + TimeSpan.FromTicks((long)(lifetime.Ticks * _options.RenewalWindow));
 
-        _logger.LogInformation("Issued SPIFFE identity {Identity} for cluster {ClusterId} role {Role} (lifetime {Lifetime}).", identity, request.ClusterId, request.Role, lifetime);
+        IssuedIdentityLog(_logger, identity, request.ClusterId, request.Role, lifetime, null);
 
         return new WorkloadCertificateBundle
         {
@@ -110,7 +121,7 @@ public sealed class SpiffeWorkloadIdentityProvider : IWorkloadIdentityProvider, 
 
     private string ResolveIdentity(WorkloadIdentityRequest request)
     {
-        var template = request.IdentityHint ?? _options.IdentityTemplate;
+        string template = request.IdentityHint ?? _options.IdentityTemplate ?? string.Empty;
         return template
             .Replace("{trustDomain}", _options.TrustDomain, StringComparison.OrdinalIgnoreCase)
             .Replace("{cluster}", request.ClusterId, StringComparison.OrdinalIgnoreCase)
@@ -142,7 +153,7 @@ public sealed class SpiffeWorkloadIdentityProvider : IWorkloadIdentityProvider, 
         return Convert.ToBase64String(bytes);
     }
 
-    private IReadOnlyDictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string> requestMetadata)
+    private ReadOnlyDictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string>? requestMetadata)
     {
         var merged = new Dictionary<string, string>(_options.MetadataComparer);
         foreach (var pair in _options.DefaultMetadata)
@@ -150,21 +161,18 @@ public sealed class SpiffeWorkloadIdentityProvider : IWorkloadIdentityProvider, 
             merged[pair.Key] = pair.Value;
         }
 
-        foreach (var pair in requestMetadata)
+        if (requestMetadata is not null)
         {
-            merged[pair.Key] = pair.Value;
+            foreach (var pair in requestMetadata)
+            {
+                merged[pair.Key] = pair.Value;
+            }
         }
 
         return new ReadOnlyDictionary<string, string>(merged);
     }
 
-    private void EnsureNotDisposed()
-    {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(SpiffeWorkloadIdentityProvider));
-        }
-    }
+    private void EnsureNotDisposed() => ObjectDisposedException.ThrowIf(_disposed, nameof(SpiffeWorkloadIdentityProvider));
 
     public void Dispose()
     {

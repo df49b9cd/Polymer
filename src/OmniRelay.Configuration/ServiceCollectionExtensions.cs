@@ -417,7 +417,7 @@ public static class OmniRelayServiceCollectionExtensions
         };
     }
 
-    private static IWorkloadIdentityProvider CreateSpiffeIdentityProvider(SpiffeIdentityProviderConfiguration configuration, IServiceProvider services, string? serviceName)
+    private static SpiffeWorkloadIdentityProvider CreateSpiffeIdentityProvider(SpiffeIdentityProviderConfiguration configuration, IServiceProvider services, string? serviceName)
     {
         if (configuration is null)
         {
@@ -451,7 +451,7 @@ public static class OmniRelayServiceCollectionExtensions
         return new SpiffeWorkloadIdentityProvider(options, loggerFactory.CreateLogger<SpiffeWorkloadIdentityProvider>(), timeProvider);
     }
 
-    private static IWorkloadIdentityProvider CreateFileIdentityProvider(FileIdentityProviderConfiguration configuration, IServiceProvider services)
+    private static FileBootstrapIdentityProvider CreateFileIdentityProvider(FileIdentityProviderConfiguration configuration, IServiceProvider services)
     {
         if (configuration is null)
         {
@@ -518,7 +518,7 @@ public static class OmniRelayServiceCollectionExtensions
         if (!string.IsNullOrWhiteSpace(configuration.SigningCertificateData))
         {
             var bytes = Convert.FromBase64String(configuration.SigningCertificateData);
-            return new X509Certificate2(bytes, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
+            return X509CertificateLoader.LoadPkcs12(bytes, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
         }
 
         if (!string.IsNullOrWhiteSpace(configuration.SigningCertificateDataSecret) && secretProvider is not null)
@@ -528,7 +528,7 @@ public static class OmniRelayServiceCollectionExtensions
             if (!string.IsNullOrWhiteSpace(value))
             {
                 var bytes = Convert.FromBase64String(value);
-                return new X509Certificate2(bytes, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
+                return X509CertificateLoader.LoadPkcs12(bytes, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
             }
         }
 
@@ -539,7 +539,8 @@ public static class OmniRelayServiceCollectionExtensions
                 throw new OmniRelayConfigurationException($"SPIFFE signing certificate {configuration.SigningCertificatePath} was not found.");
             }
 
-            return new X509Certificate2(configuration.SigningCertificatePath, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
+            var bytes = File.ReadAllBytes(configuration.SigningCertificatePath);
+            return X509CertificateLoader.LoadPkcs12(bytes, configuration.SigningCertificatePassword, X509KeyStorageFlags.Exportable);
         }
 
         throw new OmniRelayConfigurationException("security.bootstrap.identity.spiffe must provide signingCertificatePath, signingCertificateData, or signingCertificateDataSecret.");
@@ -565,7 +566,7 @@ public static class OmniRelayServiceCollectionExtensions
         return Convert.ToBase64String(signingCertificate.Export(X509ContentType.Cert));
     }
 
-    private static IReadOnlyList<BootstrapPolicyDocument> LoadPolicyDocuments(BootstrapConfiguration configuration)
+    private static List<BootstrapPolicyDocument> LoadPolicyDocuments(BootstrapConfiguration configuration)
     {
         var configs = new List<BootstrapPolicyDocumentConfiguration>();
         configs.AddRange(configuration.Policies.Documents);
@@ -583,10 +584,9 @@ public static class OmniRelayServiceCollectionExtensions
                     try
                     {
                         var json = File.ReadAllText(file);
-                        var document = JsonSerializer.Deserialize<BootstrapPolicyDocumentConfiguration>(json, new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
+                        var document = JsonSerializer.Deserialize(
+                            json,
+                            ConfigurationJsonContext.Default.BootstrapPolicyDocumentConfiguration);
                         if (document is not null)
                         {
                             configs.Add(document);

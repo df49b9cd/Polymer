@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace OmniRelay.ControlPlane.Bootstrap;
 
 /// <summary>Request payload for bootstrap join operations.</summary>

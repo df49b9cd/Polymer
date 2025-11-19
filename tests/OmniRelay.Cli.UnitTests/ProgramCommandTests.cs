@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -43,7 +44,7 @@ public sealed class ProgramCommandTests : CliTestBase
             ShardStatus.Active,
             7,
             "abcd",
-            DateTimeOffset.Parse("2024-10-01T00:00:00Z"),
+            DateTimeOffset.Parse("2024-10-01T00:00:00Z", CultureInfo.InvariantCulture),
             "chg-1");
         var response = new ShardListResponse(new[] { shard }, "cursor-123", 42);
         var json = JsonSerializer.Serialize(response, OmniRelayCliJsonContext.Default.ShardListResponse);
@@ -132,7 +133,7 @@ public sealed class ProgramCommandTests : CliTestBase
             ShardStatus.Draining,
             9,
             "ffff",
-            DateTimeOffset.Parse("2024-10-02T00:00:00Z"),
+            DateTimeOffset.Parse("2024-10-02T00:00:00Z", CultureInfo.InvariantCulture),
             "chg-2");
         var diff = new ShardDiffEntry(12, shard, shard with { OwnerNodeId = "node-a" }, new ShardHistoryRecord
         {
@@ -649,7 +650,7 @@ public sealed class ProgramCommandTests : CliTestBase
             var harness = new CommandTestHarness(Program.BuildRootCommand());
             var result = await harness.InvokeAsync("mesh", "config", "validate", "--config", configPath);
             result.ExitCode.ShouldBe(1);
-            result.StdErr.ShouldContain("policy violations", StringComparison.OrdinalIgnoreCase);
+            result.StdErr.ShouldContain("policy violations", Case.Insensitive);
         }
         finally
         {
@@ -676,7 +677,7 @@ public sealed class ProgramCommandTests : CliTestBase
                 "omnirelay:diagnostics:controlPlane:grpcRuntime:enableHttp3=true");
 
             result.ExitCode.ShouldBe(0);
-            result.StdOut.ShouldContain("Transport policy satisfied", StringComparison.OrdinalIgnoreCase);
+            result.StdOut.ShouldContain("Transport policy satisfied", Case.Insensitive);
         }
         finally
         {
@@ -694,25 +695,25 @@ public sealed class ProgramCommandTests : CliTestBase
     private static string CreateDiagnosticsConfigFile(bool enableHttp3)
     {
         var path = Path.Combine(Path.GetTempPath(), $"omnirelay-cli-policy-{Guid.NewGuid():N}.json");
-        var json = $"""
-        {{
-          "omnirelay": {{
-            "service": "cli-policy",
-            "diagnostics": {{
-              "controlPlane": {{
-                "httpUrls": [ "https://127.0.0.1:9443" ],
-                "grpcUrls": [ "https://127.0.0.1:9444" ],
-                "httpRuntime": {{
-                  "enableHttp3": {enableHttp3.ToString().ToLowerInvariant()}
-                }},
-                "grpcRuntime": {{
-                  "enableHttp3": {enableHttp3.ToString().ToLowerInvariant()}
-                }}
-              }}
-            }}
-          }}
-        }}
-        """;
+        var payload = new
+        {
+            omnirelay = new
+            {
+                service = "cli-policy",
+                diagnostics = new
+                {
+                    controlPlane = new
+                    {
+                        httpUrls = new[] { "https://127.0.0.1:9443" },
+                        grpcUrls = new[] { "https://127.0.0.1:9444" },
+                        httpRuntime = new { enableHttp3 },
+                        grpcRuntime = new { enableHttp3 }
+                    }
+                }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(path, json);
         return path;
     }

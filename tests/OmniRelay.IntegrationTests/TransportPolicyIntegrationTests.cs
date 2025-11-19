@@ -32,7 +32,7 @@ public sealed class TransportPolicyIntegrationTests
     {
         using var tempDir = new TempDirectory();
         var configPath = TempDirectory.Resolve("policy.appsettings.json");
-        await File.WriteAllTextAsync(configPath, BaseConfig);
+        await File.WriteAllTextAsync(configPath, BaseConfig, TestContext.Current.CancellationToken);
 
         var result = await OmniRelayCliTestHelper.RunAsync(
             ["mesh", "config", "validate", "--config", configPath],
@@ -51,7 +51,7 @@ public sealed class TransportPolicyIntegrationTests
     {
         using var tempDir = new TempDirectory();
         var configPath = TempDirectory.Resolve("policy.appsettings.json");
-        await File.WriteAllTextAsync(configPath, BaseConfig);
+        await File.WriteAllTextAsync(configPath, BaseConfig, TestContext.Current.CancellationToken);
 
         var args = new List<string>
         {

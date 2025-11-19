@@ -41,7 +41,6 @@
     <File Path="docs/project-board/WORK-020.md" />
     <File Path="docs/project-board/WORK-021.md" />
     <File Path="docs/project-board/WORK-022.md" />
-    <File Path="docs/project-board/README.md" />
   </Folder>
   <Folder Name="/docs/reference/">
     <File Path="docs/reference/cli-tool-readme.md" />

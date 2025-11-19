@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace OmniRelay.Core.Shards.ControlPlane;
 
 internal sealed class ShardFilter
@@ -7,7 +5,7 @@ internal sealed class ShardFilter
     private readonly string? _namespace;
     private readonly string? _owner;
     private readonly string? _search;
-    private readonly IReadOnlyList<ShardStatus> _statuses;
+    private readonly ShardStatus[] _statuses;
 
     public ShardFilter(
         string? namespaceId,
@@ -50,7 +48,7 @@ internal sealed class ShardFilter
             return false;
         }
 
-        if (_statuses.Count > 0 && !_statuses.Contains(record.Status))
+        if (_statuses.Length > 0 && Array.IndexOf(_statuses, record.Status) < 0)
         {
             return false;
         }

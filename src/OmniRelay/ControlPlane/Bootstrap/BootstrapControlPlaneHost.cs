@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.ControlPlane.Hosting;
 using OmniRelay.ControlPlane.Security;
 using OmniRelay.Core.Transport;
-using OmniRelay.Security.Secrets;
 
 namespace OmniRelay.ControlPlane.Bootstrap;
 

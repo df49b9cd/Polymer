@@ -3,7 +3,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Linq;
 using OmniRelay.Core.Shards;
 
 #pragma warning disable CA2007 // awaited disposals cannot use ConfigureAwait

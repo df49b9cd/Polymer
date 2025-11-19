@@ -1,8 +1,4 @@
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 using Hugo;
 using Microsoft.Extensions.Logging;
 using static Hugo.Go;
@@ -169,12 +165,6 @@ public sealed partial class BootstrapServer
 
     private static bool ShouldEnforceTimeout(TimeSpan timeout) =>
         timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan;
-
-    private static string ExportCertificate(X509Certificate2 certificate, string? password)
-    {
-        var bytes = certificate.Export(X509ContentType.Pfx, password);
-        return Convert.ToBase64String(bytes);
-    }
 
     private static partial class Log
     {
