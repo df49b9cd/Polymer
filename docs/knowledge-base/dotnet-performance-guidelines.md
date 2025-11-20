@@ -37,6 +37,7 @@
   - Keep pinning rare/short-lived; prefer `Memory<T>`/`Span<T>`/`GCHandleType.Pinned` scoped.
   - Monitor LOH/UOH (pinned/large) usage; prevent fragmentation with pooling/slicing.
   - For services, pick GC flavor & latency mode based on workload (Server + SustainedLowLatency for steady high-throughput; Workstation + Interactive for UI).
+  - For very large files, prefer memory-mapped I/O and parse with spans to avoid copies. citeturn2search0
 - **Should**
   - Prefer structs for tiny, immutable, copy-cheap types used densely; otherwise stay with classes.
   - Use pooling: `ArrayPool<T>`, `ObjectPool<T>`, reusable buffers/streams (RecyclableMemoryStream) for bursts.
@@ -55,14 +56,46 @@
 - **Allocation**: eliminate boxing (generics, `in` params), cache delegates, reuse closures, avoid LINQ on hot paths, prefer `ValueTuple`, use `MemoryPool`/`ArrayPool`, guard against implicit string/array copies, consolidate small allocations.
 - **Data layout**: pack structs (beware of padding), align for cache, group hot fields together, prefer sequential traversal; move cold fields to separate types.
 - **Strings**: use `string.Create`, interpolated-string handlers, pooled `StringBuilder`; avoid `string.Format` and `+` in loops; encode once, reuse bytes.
-- **Collections**: preset capacities; use `Span<T>`/`Memory<T>` to slice; prefer arrays for fixed-size, `ValueListBuilder<T>` for transient builds; avoid `ToArray()`/`ToList()` in hot paths.
+- **Strings**: use `string.Create`, interpolated-string handlers, pooled `StringBuilder`; avoid `string.Format` and `+` in loops; encode once, reuse bytes; for large text parsing prefer UTF-8 spans and delay UTF-16 decoding until output. citeturn2search0
+- **Collections**: preset capacities; use `Span<T>`/`Memory<T>` to slice; prefer arrays for fixed-size, `ValueListBuilder<T>` for transient builds; avoid `ToArray()`/`ToList()` in hot paths; tune hash table load factor (<25%) and copy keys into a contiguous buffer for cache-friendly lookups. citeturn2search0
 - **Async/Tasks**: cache completed tasks, use `ValueTask`, avoid `async void`, configure awaits to reduce continuations when safe, prefer synchronous fast paths.
+- **Data access (ASP.NET)**: call data APIs asynchronously; fetch only needed columns; favor no-tracking queries for read-only paths; cache hot data (MemoryCache/Distributed cache) with sensible TTLs; minimize round-trips and avoid N+1 queries; pool DbContexts when scaling. citeturn0search7
 - **LOH/POH**: keep objects < 85K when possible, reuse large buffers, slice via `Memory<T>`/`Span<T>`, avoid pinning LOH blocks.
 - **Pinning**: pin short and batch unmanaged calls; copy to stack-buffer for tiny payloads; prefer `MemoryHandle`/`fixed` inside minimal scope.
 - **GC tuning**: pick workstation/server & concurrency mode; set latency mode per operation (Interactive, LowLatency, SustainedLowLatency, Batch, NoGCRegion); adjust hard limits/heap count only with traces.
 - **Lifetime**: dispose on all control paths (including exceptions); use `using`/`await using`; weak references for caches; unsubscribe events; prefer safe handles over finalizers.
 - **Diagnostics**: capture traces under load; compare snapshots (gcdump/dotnet-dump) across time to find growth; use allocation flame graphs; inspect roots for leaks (events, static caches, pinned handles).
+- **File/IO hot paths**: memory-map very large inputs to avoid buffer copies; when vectorizing parsers, pad the tail copy so reads past the end are safe. citeturn2search0
 
+## Case Study: 1BRC (.NET on Linux) Takeaways
+- Memory-map big inputs to avoid copying; favor `MemoryMappedFile` on .NET or `mmap` via interop; copy tail padding to allow vector reads past end safely. citeturn2search0
+- Represent keys as UTF-8 spans (no UTF-16 or allocations); keep structs like `Utf8Span { byte* ptr; int len; }` and delay decoding until final output. citeturn2search0
+- Store keys contiguously (copy slices into a dedicated buffer) to improve cache locality of dictionary lookups; keep load factor low (~25%) to cut collisions. citeturn2search0
+- Parse temperatures as scaled integers (-999..999) instead of doubles; branchless min/max updates reduce mispredictions in hot loops. citeturn2search0
+- Use lightweight hash tuned to data (length + first 4 bytes, FNV-style tweaks); shave collisions without heavy compute. citeturn2search0
+- Split each thread’s chunk into 2–3 subchunks to keep a single core’s pipeline busy (single-core “parallelism”); helps on non-HT CPUs. citeturn2search0
+- Inline tiny helpers and keep rare paths out of line; prefer vectorized `IndexOf`/`Equals` for short keys; branchless first-vector compare. citeturn2search0
+- Fast modulo: let JIT handle const divisors or use proven FastMod; avoid widening int→long in tight loops. citeturn2search0
+- Example patterns:
+  ```csharp
+  // UTF8 key without allocations
+  unsafe readonly struct Utf8Span
+  {
+      public readonly byte* Ptr;
+      public readonly int Length;
+      public bool Equals(Utf8Span other)
+          => Length == other.Length && Vector128.Equals(Ptr, other.Ptr, Length);
+      public int GetHashCode()
+          => Length > 3 ? (Length * 820243) ^ *(int*)Ptr : *(byte*)Ptr;
+  }
+
+  // Branchless min/max with scaled int temperature
+  static void Update(ref int min, ref int max, int t)
+  {
+      min = Math.Min(min, t);
+      max = Math.Max(max, t);
+  }
+  ```
 ## Diagnostic Playbooks (Scenarios)
 - Memory footprint & growth: Overall size; Native memory growth; Virtual memory growth; Assembly/plugin unload problems; Usage too big.
 - Generation/segment health: Generation sizes over time; nopCommerce leak; LOH waste.
@@ -93,7 +126,9 @@
 
 ## Patterns & Anti-Patterns
 - Prefer: pooling, spans, value types for tiny data, streaming large payloads, deterministic disposal, weak-event patterns.
-- Avoid: explicit `GC.Collect()`, long-lived pins, unbounded caches/statics, per-call `new` in hot paths, `string.Format` in loops, LINQ in tight loops, finalizers without SafeHandle, large temporary arrays, frequent `ToArray()`.
+- Prefer: pooling, spans, value types for tiny data, streaming large payloads, deterministic disposal, weak-event patterns.
+- Prefer (ASP.NET Core): async end-to-end pipelines, streaming bodies, pagination for large sets, HttpClient reuse via IHttpClientFactory, small fast middleware. citeturn0search7
+- Avoid: explicit `GC.Collect()`, long-lived pins, unbounded caches/statics, per-call `new` in hot paths, `string.Format` in loops, LINQ in tight loops, finalizers without SafeHandle, large temporary arrays, frequent `ToArray()`, high load-factor hash tables on hot paths, eager UTF-16 decoding of UTF-8 input streams, sync-over-async on `HttpRequest`/`HttpResponse`, per-request `HttpClient`, reading entire request bodies into memory, storing/using `HttpContext` across threads or after completion, exceptions for normal flow. citeturn0search7
 
 ## Use-Case Presets
 - **High-throughput services**: Server GC + SustainedLowLatency; warm buffers via pools; minimize pins; monitor allocation rate & gen2/LOH sizes.
@@ -102,6 +137,21 @@
 - **Plugins/add-ins**: Load via `AssemblyLoadContext` collectible; isolate static caches; track assembly unloadability; prevent event leaks.
 - **Azure Functions / serverless**: Cold-start focus—avoid heavy JIT/alloc at first hit; pool buffers; prefer ValueTask; keep LOH minimal.
 - **Interop-heavy**: Use SafeHandle; pin narrowly; marshal spans; avoid double buffering; consider `fixed`/stack buffers for tiny structs.
+
+- **ASP.NET Core hot paths**: make request pipeline async end-to-end; avoid sync over async and blocking calls in middleware/controllers; prefer `ReadFormAsync`/async body reads; offload long-running work to background services/queues; paginate large responses and stream results; reuse HTTP connections via `IHttpClientFactory`; keep middleware light and early exits fast; minimize exceptions in normal flow; keep common responses compressed/minified; upgrade to latest ASP.NET Core for GC/runtime perf. citeturn0search7
+  ```csharp
+  // IHttpClientFactory registration
+  builder.Services.AddHttpClient("api", c => c.BaseAddress = new Uri("https://api"));
+
+  // Streaming response example
+  [HttpGet("/data")]
+  public async Task Stream(CancellationToken ct)
+  {
+      Response.ContentType = "application/json";
+      await foreach (var batch in _svc.GetBatches(ct))
+          await JsonSerializer.SerializeAsync(Response.Body, batch, cancellationToken: ct);
+  }
+  ```
 
 ## Metrics to Watch (alert thresholds are workload-specific)
 - Allocation rate (MB/s), GC per second, % time in GC.
