@@ -35,6 +35,7 @@ public sealed class Dispatcher
     private readonly ImmutableArray<IDuplexOutboundMiddleware> _outboundDuplexMiddleware;
     private readonly Lock _stateLock = new();
     private DispatcherStatus _status = DispatcherStatus.Created;
+    private readonly OutboundRegistry _loopbackOutbounds;
     private readonly HttpOutboundMiddlewareRegistry? _httpOutboundMiddlewareRegistry;
     private readonly GrpcClientInterceptorRegistry? _grpcClientInterceptorRegistry;
     private readonly GrpcServerInterceptorRegistry? _grpcServerInterceptorRegistry;
@@ -56,6 +57,13 @@ public sealed class Dispatcher
         ServiceName = options.ServiceName;
         _lifecycleDescriptors = [.. options.ComponentDescriptors];
         _outbounds = BuildOutboundRegistrys(options.OutboundBuilders);
+        _loopbackOutbounds = new OutboundRegistry(
+            ServiceName,
+            ImmutableDictionary<string, IUnaryOutbound>.Empty,
+            ImmutableDictionary<string, IOnewayOutbound>.Empty,
+            ImmutableDictionary<string, IStreamOutbound>.Empty,
+            ImmutableDictionary<string, IClientStreamOutbound>.Empty,
+            ImmutableDictionary<string, IDuplexOutbound>.Empty);
 
         _inboundUnaryMiddleware = [.. options.UnaryInboundMiddleware];
         _inboundOnewayMiddleware = [.. options.OnewayInboundMiddleware];
@@ -319,13 +327,7 @@ public sealed class Dispatcher
         {
             if (string.Equals(service, ServiceName, StringComparison.OrdinalIgnoreCase))
             {
-                collection = new OutboundRegistry(
-                    service,
-                    [],
-                    [],
-                    [],
-                    [],
-                    []);
+                collection = _loopbackOutbounds;
             }
             else
             {

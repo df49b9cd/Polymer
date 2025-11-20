@@ -66,6 +66,7 @@
 - **Lifetime**: dispose on all control paths (including exceptions); use `using`/`await using`; weak references for caches; unsubscribe events; prefer safe handles over finalizers.
 - **Diagnostics**: capture traces under load; compare snapshots (gcdump/dotnet-dump) across time to find growth; use allocation flame graphs; inspect roots for leaks (events, static caches, pinned handles).
 - **File/IO hot paths**: memory-map very large inputs to avoid buffer copies; when vectorizing parsers, pad the tail copy so reads past the end are safe. citeturn2search0
+- **File/IO hot paths**: when streaming JSON or newline-delimited payloads, write/read directly to `FileStream` with source-generated `JsonSerializerContext` and reuse transient buffers via `ArrayPool<T>` to avoid intermediate strings and keep Gen0 churn low.
 
 ## Case Study: 1BRC (.NET on Linux) Takeaways
 - Memory-map big inputs to avoid copying; favor `MemoryMappedFile` on .NET or `mmap` via interop; copy tail padding to allow vector reads past end safely. citeturn2search0

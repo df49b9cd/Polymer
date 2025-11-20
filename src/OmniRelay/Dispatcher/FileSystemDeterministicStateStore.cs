@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,6 +13,7 @@ namespace OmniRelay.Dispatcher;
 /// </summary>
 public sealed partial class FileSystemDeterministicStateStore : IDeterministicStateStore, IDisposable
 {
+    private const int MaxStackUtf8Bytes = 1024;
     private readonly string _root;
     private readonly ReaderWriterLockSlim _lock = new();
     private static readonly FileSystemDeterministicStateStoreJsonContext JsonContext = FileSystemDeterministicStateStoreJsonContext.Default;
@@ -31,6 +33,7 @@ public sealed partial class FileSystemDeterministicStateStore : IDeterministicSt
     {
         var path = GetPath(key);
         _lock.EnterReadLock();
+        FileStream? stream = null;
         try
         {
             if (!File.Exists(path))
@@ -39,48 +42,82 @@ public sealed partial class FileSystemDeterministicStateStore : IDeterministicSt
                 return false;
             }
 
-            var json = File.ReadAllText(path, Encoding.UTF8);
-            var model = JsonSerializer.Deserialize(json, JsonContext.RecordModel)!;
+            stream = new FileStream(
+                path,
+                new FileStreamOptions
+                {
+                    Access = FileAccess.Read,
+                    Mode = FileMode.Open,
+                    Share = FileShare.Read,
+                    Options = FileOptions.SequentialScan
+                });
+
+            var model = JsonSerializer.Deserialize(stream, JsonContext.RecordModel)!;
             record = model.ToRecord();
             return true;
         }
         finally
         {
+            stream?.Dispose();
             _lock.ExitReadLock();
         }
     }
 
     public void Set(string key, DeterministicRecord record)
     {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(record);
+
         var path = GetPath(key);
         var model = RecordModel.FromRecord(record);
-        var json = JsonSerializer.Serialize(model, JsonContext.RecordModel);
-
         _lock.EnterWriteLock();
+        FileStream? stream = null;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, json, Encoding.UTF8);
+            stream = new FileStream(
+                path,
+                new FileStreamOptions
+                {
+                    Access = FileAccess.Write,
+                    Mode = FileMode.Create,
+                    Share = FileShare.None,
+                    Options = FileOptions.None
+                });
+
+            JsonSerializer.Serialize(stream, model, JsonContext.RecordModel);
         }
         finally
         {
+            stream?.Dispose();
             _lock.ExitWriteLock();
         }
     }
 
     public bool TryAdd(string key, DeterministicRecord record)
     {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(record);
+
         var path = GetPath(key);
         var model = RecordModel.FromRecord(record);
-        var json = JsonSerializer.Serialize(model, JsonContext.RecordModel);
 
         _lock.EnterWriteLock();
+        FileStream? stream = null;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            using var writer = new StreamWriter(stream, Encoding.UTF8);
-            writer.Write(json);
+            stream = new FileStream(
+                path,
+                new FileStreamOptions
+                {
+                    Access = FileAccess.Write,
+                    Mode = FileMode.CreateNew,
+                    Share = FileShare.None,
+                    Options = FileOptions.None
+                });
+
+            JsonSerializer.Serialize(stream, model, JsonContext.RecordModel);
             return true;
         }
         catch (IOException) when (File.Exists(path))
@@ -89,13 +126,16 @@ public sealed partial class FileSystemDeterministicStateStore : IDeterministicSt
         }
         finally
         {
+            stream?.Dispose();
             _lock.ExitWriteLock();
         }
     }
 
     private string GetPath(string key)
     {
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+        ArgumentNullException.ThrowIfNull(key);
+
+        var hash = HashKey(key);
         var directory = Path.Combine(_root, hash[..2]);
         return Path.Combine(directory, $"{hash}.json");
     }
@@ -122,6 +162,33 @@ public sealed partial class FileSystemDeterministicStateStore : IDeterministicSt
             }
 
             return new RecordModel(record.Kind, record.Version, record.RecordedAt, payload.ToArray());
+        }
+    }
+
+    private static string HashKey(string key)
+    {
+        // Avoid heap allocations for common key sizes by using stackalloc where possible,
+        // and fall back to a pooled buffer for very large keys.
+        var maxByteCount = Encoding.UTF8.GetMaxByteCount(key.Length);
+
+        byte[]? rented = null;
+        Span<byte> utf8 = maxByteCount <= MaxStackUtf8Bytes
+            ? stackalloc byte[MaxStackUtf8Bytes]
+            : rented = ArrayPool<byte>.Shared.Rent(maxByteCount);
+
+        try
+        {
+            var written = Encoding.UTF8.GetBytes(key.AsSpan(), utf8);
+            Span<byte> hash = stackalloc byte[32];
+            _ = SHA256.HashData(utf8[..written], hash);
+            return Convert.ToHexString(hash);
+        }
+        finally
+        {
+            if (rented is not null)
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
         }
     }
 

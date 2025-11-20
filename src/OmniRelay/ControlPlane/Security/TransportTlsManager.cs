@@ -69,6 +69,8 @@ public sealed class TransportTlsManager : IDisposable
 
     public Result<X509Certificate2> GetCertificateResult()
     {
+        X509Certificate2? snapshot;
+
         lock (_lock)
         {
             if (_certificate is null || ShouldReloadLocked())
@@ -80,8 +82,11 @@ public sealed class TransportTlsManager : IDisposable
                 }
             }
 
-            return Result.Try(() => new X509Certificate2(_certificate!));
+            snapshot = _certificate;
         }
+
+        return Result.Try(() =>
+            new X509Certificate2(snapshot ?? throw new InvalidOperationException("Transport TLS certificate could not be loaded.")));
     }
 
     private bool ShouldReloadLocked()
