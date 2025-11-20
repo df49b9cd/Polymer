@@ -56,31 +56,31 @@ public sealed class MeshGossipOptions
     public int Fanout { get; set; } = 3;
 
     /// <summary>Optional ceiling on fanout after adaptive scaling.</summary>
-    public int FanoutCeiling { get; set; } = 24;
+    public int FanoutCeiling { get; set; } = 32;
 
     /// <summary>Optional floor on computed fanout.</summary>
     public int FanoutFloor { get; set; } = 3;
 
     /// <summary>Coefficient applied to log2(clusterSize) when computing adaptive fanout.</summary>
-    public double FanoutCoefficient { get; set; } = 1.3;
+    public double FanoutCoefficient { get; set; } = 1.5;
 
     /// <summary>When true, fanout scales with observed failure rate; otherwise fixed Fanout is used.</summary>
     public bool AdaptiveFanout { get; set; } = true;
 
     /// <summary>Maximum outbound gossip requests per round (backpressure guard).</summary>
-    public int MaxOutboundPerRound { get; set; } = 12;
+    public int MaxOutboundPerRound { get; set; } = 20;
 
     /// <summary>Active partial view size (neighbors with open connections).</summary>
-    public int ActiveViewSize { get; set; } = 12;
+    public int ActiveViewSize { get; set; } = 16;
 
     /// <summary>Passive partial view size (standby neighbors used for healing).</summary>
-    public int PassiveViewSize { get; set; } = 48;
+    public int PassiveViewSize { get; set; } = 64;
 
     /// <summary>How often to perform passive-view shuffles.</summary>
-    public TimeSpan ShuffleInterval { get; set; } = TimeSpan.FromSeconds(10);
+    public TimeSpan ShuffleInterval { get; set; } = TimeSpan.FromSeconds(2);
 
     /// <summary>Number of peers exchanged during a shuffle.</summary>
-    public int ShuffleSampleSize { get; set; } = 6;
+    public int ShuffleSampleSize { get; set; } = 10;
 
     /// <summary>Duration without heartbeats before a peer becomes suspect.</summary>
     public TimeSpan SuspicionInterval { get; set; } = TimeSpan.FromSeconds(5);
