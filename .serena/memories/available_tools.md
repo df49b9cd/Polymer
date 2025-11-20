@@ -1,5 +1,0 @@
-- Serena MPC tools available: project activation, memories (list/read/write), task adherence checks, code search/edit helpers (find_symbol, search_for_pattern, list_dir, etc.).
-- Sequential-thinking MCP tool is available and responsive (tested).
-- Server-memory (modelcontextprotocol) is available (read_graph succeeded); use it as a knowledge graph for structured entities/relations.
-- Environment: macOS (Darwin), shell zsh; danger-full-access, network enabled, approval policy never.
-- Additional context: project OmniRelay (.NET 10, C#) with CI via Dockerfile.ci and GitHub Actions.

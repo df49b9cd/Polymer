@@ -1,4 +1,0 @@
-- C#: file-scoped namespaces; System usings sorted first; braces required even for single statements; newline before braces; indent_size=4 spaces; prefer `var` for locals; UTF-8 with final newline; trim trailing whitespace.
-- Naming: namespaces/packages `OmniRelay.*`; public types/members PascalCase; locals/fields camelCase; async methods end with `Async`.
-- Testing: xUnit; test files named *Tests.cs (unit) or *FeatureTests; deterministic/no external network.
-- Code sample/config placement: keep examples under docs/ or samples/; no real secrets or env-specific endpoints.

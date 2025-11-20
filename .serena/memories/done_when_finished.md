@@ -1,5 +1,0 @@
-- Run `dotnet build OmniRelay.slnx`.
-- Run targeted tests you touched (e.g., `dotnet test tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj` or relevant filters); for transports/interop changes also run `tests/OmniRelay.YabInterop` and hyperscale Docker recipe when applicable.
-- Optionally run `./eng/run-ci.sh` for CI parity on larger changes.
-- Ensure analyzers/dotnet format are clean per .editorconfig.
-- Update docs/samples when behavior changes; attach logs/screenshots for CLI/output shape changes.
