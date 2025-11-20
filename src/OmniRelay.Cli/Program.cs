@@ -1,17 +1,10 @@
-using System.Buffers;
-using System.Collections.Concurrent;
 using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using Google.Protobuf.WellKnownTypes;
-using Grpc.Core;
 using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,27 +37,14 @@ namespace OmniRelay.Cli;
 [RequiresDynamicCode("OmniRelay CLI uses reflection-heavy utilities and is not AOT safe.")]
 public static partial class Program
 {
+    static Program() => ProtobufPayloadRegistration.RegisterGenerated();
+
     internal const string DefaultConfigSection = "omnirelay";
     internal const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
     private static readonly JsonSerializerOptions PrettyJsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
-    private static readonly IReadOnlyDictionary<string, FileDescriptor> WellKnownFileDescriptors = new Dictionary<string, FileDescriptor>(StringComparer.Ordinal)
-    {
-        ["google/protobuf/any.proto"] = AnyReflection.Descriptor,
-        ["google/protobuf/api.proto"] = ApiReflection.Descriptor,
-        ["google/protobuf/duration.proto"] = DurationReflection.Descriptor,
-        ["google/protobuf/empty.proto"] = EmptyReflection.Descriptor,
-        ["google/protobuf/field_mask.proto"] = FieldMaskReflection.Descriptor,
-        ["google/protobuf/source_context.proto"] = SourceContextReflection.Descriptor,
-        ["google/protobuf/struct.proto"] = StructReflection.Descriptor,
-        ["google/protobuf/timestamp.proto"] = TimestampReflection.Descriptor,
-        ["google/protobuf/type.proto"] = TypeReflection.Descriptor,
-        ["google/protobuf/wrappers.proto"] = WrappersReflection.Descriptor
-    };
-    private static MethodInfo? _fileDescriptorBuildFrom;
-    private static readonly ConcurrentDictionary<string, DescriptorCacheEntry> DescriptorCache = new(StringComparer.Ordinal);
 
     public static async Task<int> Main(string[] args)
     {
@@ -1363,6 +1343,20 @@ public static partial class Program
         return true;
     }
 
+    private static void EnsureHeader(List<KeyValuePair<string, string>> headers, string key, string value)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (headers.Any(h => string.Equals(h.Key, key, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        headers.Add(new KeyValuePair<string, string>(key, value));
+    }
+
     private static bool TryPrepareProfiles(
         string transport,
         string[] profiles,
@@ -1402,7 +1396,7 @@ public static partial class Program
 
                 case "protobuf":
                 case "proto":
-                    if (state.Proto is not null)
+                    if (state.ProtoMessageName is not null)
                     {
                         error = "Multiple protobuf profiles specified. Provide a single protobuf profile per request.";
                         return false;
@@ -1415,13 +1409,9 @@ public static partial class Program
                         return false;
                     }
 
-                    if (protoFiles.Length == 0)
-                    {
-                        error = "Protobuf profiles require at least one --proto-file pointing to a FileDescriptorSet.";
-                        return false;
-                    }
-
-                    state.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
+                    // In AOT mode we rely on compiled encoders; descriptor files are only accepted when the payload is already binary.
+                    state.ProtoMessageName = messageName.Trim();
+                    state.ProvidedDescriptorFiles = protoFiles;
                     encoding ??= transport == "grpc" ? "application/grpc" : "application/x-protobuf";
 
                     if (transport == "http")
@@ -1455,9 +1445,36 @@ public static partial class Program
     {
         error = null;
 
-        if (state.Proto is not null && !TryEncodeProtobufPayload(state.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
+        if (state.ProtoMessageName is not null)
         {
-            return false;
+            // If caller supplied raw binary (base64 or file), accept as-is.
+            if (payloadSource is PayloadSource.Base64 || (payloadSource is PayloadSource.File && !payload.IsEmpty))
+            {
+                // Nothing to do.
+            }
+            else
+            {
+                var jsonText = inlineBody;
+                if (string.IsNullOrEmpty(jsonText) && payloadSource == PayloadSource.File && !string.IsNullOrEmpty(bodyFile))
+                {
+                    try
+                    {
+                        jsonText = File.ReadAllText(bodyFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = $"Failed to read payload file '{bodyFile}': {ex.Message}";
+                        return false;
+                    }
+                }
+
+                jsonText ??= "{}";
+
+                if (!ProtobufPayloadRegistry.Instance.TryEncode(state.ProtoMessageName, jsonText, out payload, out error))
+                {
+                    return false;
+                }
+            }
         }
 
         if (state.PrettyPrintJson)
@@ -1549,826 +1566,17 @@ public static partial class Program
         }
     }
 
-    private static bool TryEncodeProtobufPayload(
-        ProtoProcessingState protoState,
+    private static bool TryResolvePayload(
         string? inlineBody,
         string? bodyFile,
-        PayloadSource payloadSource,
-        ref ReadOnlyMemory<byte> payload,
+        string? bodyBase64,
+        out ReadOnlyMemory<byte> payload,
+        out PayloadSource source,
         out string? error)
     {
         error = null;
-
-        if (payloadSource == PayloadSource.Base64)
-        {
-            // Caller supplied the binary payload directly.
-            return true;
-        }
-
-        if (!TryLoadMessageDescriptor(protoState.DescriptorPaths, protoState.MessageName, out var descriptor, out error))
-        {
-            return false;
-        }
-
-        var json = inlineBody;
-
-        if (string.IsNullOrEmpty(json) && payloadSource == PayloadSource.File && !string.IsNullOrEmpty(bodyFile))
-        {
-            try
-            {
-                json = File.ReadAllText(bodyFile);
-            }
-            catch (Exception ex)
-            {
-                error = $"Failed to read payload file '{bodyFile}' as JSON: {ex.Message}";
-                return false;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            json = "{}";
-        }
-
-        try
-        {
-            var parserSettings = JsonParser.Settings.Default
-                .WithIgnoreUnknownFields(true)
-                .WithTypeRegistry(TypeRegistry.FromFiles(descriptor.File));
-            var parser = new JsonParser(parserSettings);
-            var message = parser.Parse(json, descriptor);
-            payload = message.ToByteArray();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            // Fall back to a manual serializer if the runtime lacks dynamic parsing support.
-            if (TrySerializeMessage(descriptor, json, out var manualPayload, out var manualError))
-            {
-                payload = manualPayload;
-                return true;
-            }
-
-            error = manualError ?? $"Failed to encode protobuf payload: {ex.Message}";
-            return false;
-        }
-    }
-
-    private static bool TrySerializeMessage(MessageDescriptor descriptor, string json, out ReadOnlyMemory<byte> payload, out string? error)
-    {
         payload = ReadOnlyMemory<byte>.Empty;
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
-        }
-        catch (Exception ex)
-        {
-            error = $"JSON payload could not be parsed: {ex.Message}";
-            return false;
-        }
-
-        if (!TrySerializeMessage(descriptor, document.RootElement, out var buffer, out error))
-        {
-            return false;
-        }
-
-        payload = buffer;
-        return true;
-    }
-
-    private static bool TrySerializeMessage(MessageDescriptor descriptor, JsonElement element, out ReadOnlyMemory<byte> payload, out string? error)
-    {
-        payload = ReadOnlyMemory<byte>.Empty;
-        error = null;
-
-        if (element.ValueKind == JsonValueKind.Null)
-        {
-            return true;
-        }
-
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            error = $"Expected JSON object for message '{descriptor.FullName}'.";
-            return false;
-        }
-
-        using var stream = new MemoryStream();
-        var output = new CodedOutputStream(stream);
-
-        foreach (var property in element.EnumerateObject())
-        {
-            var field = FindField(descriptor, property.Name);
-            if (field is null)
-            {
-                continue;
-            }
-
-            if (!TryWriteField(field, property.Value, output, out error))
-            {
-                return false;
-            }
-        }
-
-        output.Flush();
-        payload = stream.ToArray();
-        return true;
-    }
-
-    private static FieldDescriptor? FindField(MessageDescriptor descriptor, string name)
-    {
-        var field = descriptor.FindFieldByName(name);
-        return field ?? descriptor.Fields.InDeclarationOrder().FirstOrDefault(candidate => string.Equals(candidate.JsonName, name, StringComparison.Ordinal) || string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool TryWriteField(FieldDescriptor field, JsonElement element, CodedOutputStream output, out string? error)
-    {
-        error = null;
-
-        if (element.ValueKind == JsonValueKind.Null)
-        {
-            return true;
-        }
-
-        if (field.IsMap)
-        {
-            if (element.ValueKind != JsonValueKind.Object)
-            {
-                error = $"Map field '{field.FullName}' expects a JSON object.";
-                return false;
-            }
-
-            foreach (var property in element.EnumerateObject())
-            {
-                if (!TrySerializeMapEntry(field, property.Name, property.Value, out var entryBytes, out error))
-                {
-                    return false;
-                }
-
-                output.WriteTag(field.FieldNumber, WireFormat.WireType.LengthDelimited);
-                output.WriteBytes(ByteString.CopyFrom(entryBytes));
-            }
-
-            return true;
-        }
-
-        if (field.IsRepeated)
-        {
-            if (element.ValueKind != JsonValueKind.Array)
-            {
-                error = $"Repeated field '{field.FullName}' expects a JSON array.";
-                return false;
-            }
-
-            if (field.IsPacked && IsPackable(field.FieldType))
-            {
-                using var packedStream = new MemoryStream();
-                var packedOutput = new CodedOutputStream(packedStream);
-
-                foreach (var item in element.EnumerateArray())
-                {
-                    if (!TryWriteValue(field, item, packedOutput, writeTag: false, out error))
-                    {
-                        return false;
-                    }
-                }
-
-                packedOutput.Flush();
-                output.WriteTag(field.FieldNumber, WireFormat.WireType.LengthDelimited);
-                var packedBytes = packedStream.ToArray();
-                output.WriteBytes(ByteString.CopyFrom(packedBytes));
-                return true;
-            }
-
-            foreach (var item in element.EnumerateArray())
-            {
-                if (!TryWriteValue(field, item, output, writeTag: true, out error))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        return TryWriteValue(field, element, output, writeTag: true, out error);
-    }
-
-    private static bool TryWriteValue(FieldDescriptor field, JsonElement element, CodedOutputStream output, bool writeTag, out string? error)
-    {
-        error = null;
-
-        if (element.ValueKind == JsonValueKind.Null)
-        {
-            return true;
-        }
-
-        if (writeTag)
-        {
-            output.WriteTag(field.FieldNumber, GetWireType(field));
-        }
-
-        switch (field.FieldType)
-        {
-            case FieldType.String:
-                output.WriteString(element.GetString() ?? string.Empty);
-                return true;
-            case FieldType.Bool:
-                output.WriteBool(ReadBoolean(element));
-                return true;
-            case FieldType.Int32:
-                output.WriteInt32(ReadInt32(element, field.FullName));
-                return true;
-            case FieldType.Int64:
-                output.WriteInt64(ReadInt64(element, field.FullName));
-                return true;
-            case FieldType.SInt32:
-                output.WriteSInt32(ReadInt32(element, field.FullName));
-                return true;
-            case FieldType.SInt64:
-                output.WriteSInt64(ReadInt64(element, field.FullName));
-                return true;
-            case FieldType.UInt32:
-                output.WriteUInt32(ReadUInt32(element, field.FullName));
-                return true;
-            case FieldType.UInt64:
-                output.WriteUInt64(ReadUInt64(element, field.FullName));
-                return true;
-            case FieldType.Fixed32:
-                output.WriteFixed32(ReadUInt32(element, field.FullName));
-                return true;
-            case FieldType.Fixed64:
-                output.WriteFixed64(ReadUInt64(element, field.FullName));
-                return true;
-            case FieldType.SFixed32:
-                output.WriteSFixed32(ReadInt32(element, field.FullName));
-                return true;
-            case FieldType.SFixed64:
-                output.WriteSFixed64(ReadInt64(element, field.FullName));
-                return true;
-            case FieldType.Float:
-                output.WriteFloat((float)ReadDouble(element, field.FullName));
-                return true;
-            case FieldType.Double:
-                output.WriteDouble(ReadDouble(element, field.FullName));
-                return true;
-            case FieldType.Bytes:
-                output.WriteBytes(ByteString.CopyFrom(ReadBytes(element, field.FullName)));
-                return true;
-            case FieldType.Enum:
-                var enumValue = ReadEnum(field.EnumType, element, field.FullName);
-                output.WriteEnum(enumValue.Number);
-                return true;
-            case FieldType.Message:
-                if (!TrySerializeMessage(field.MessageType, element, out var nestedPayload, out error))
-                {
-                    return false;
-                }
-
-                output.WriteBytes(ByteString.CopyFrom(nestedPayload.ToArray()));
-                return true;
-            default:
-                error = $"Unsupported protobuf field type '{field.FieldType}' for '{field.FullName}'.";
-                return false;
-        }
-    }
-
-    private static bool TrySerializeMapEntry(FieldDescriptor mapField, string keyText, JsonElement valueElement, out byte[] payload, out string? error)
-    {
-        payload = [];
-        error = null;
-
-        var entryDescriptor = mapField.MessageType;
-        var keyDescriptor = entryDescriptor.Fields.InDeclarationOrder()[0];
-        var valueDescriptor = entryDescriptor.Fields.InDeclarationOrder()[1];
-
-        using var stream = new MemoryStream();
-        var output = new CodedOutputStream(stream);
-
-        if (!TryWriteMapKey(keyDescriptor, keyText, output, out error))
-        {
-            return false;
-        }
-
-        if (!TryWriteValue(valueDescriptor, valueElement, output, writeTag: true, out error))
-        {
-            return false;
-        }
-
-        output.Flush();
-        payload = stream.ToArray();
-        return true;
-    }
-
-    private static bool TryWriteMapKey(FieldDescriptor keyDescriptor, string keyText, CodedOutputStream output, out string? error)
-    {
-        error = null;
-
-        output.WriteTag(keyDescriptor.FieldNumber, GetWireType(keyDescriptor));
-
-        try
-        {
-            switch (keyDescriptor.FieldType)
-            {
-                case FieldType.String:
-                    output.WriteString(keyText);
-                    return true;
-                case FieldType.Bool:
-                    output.WriteBool(bool.Parse(keyText));
-                    return true;
-                case FieldType.Int32:
-                case FieldType.SInt32:
-                case FieldType.SFixed32:
-                    output.WriteInt32(int.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                case FieldType.Int64:
-                case FieldType.SInt64:
-                case FieldType.SFixed64:
-                    output.WriteInt64(long.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                case FieldType.UInt32:
-                case FieldType.Fixed32:
-                    output.WriteUInt32(uint.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                case FieldType.UInt64:
-                case FieldType.Fixed64:
-                    output.WriteUInt64(ulong.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                default:
-                    error = $"Unsupported map key type '{keyDescriptor.FieldType}'.";
-                    return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            error = $"Could not parse map key '{keyText}' for '{keyDescriptor.FullName}': {ex.Message}";
-            return false;
-        }
-    }
-
-    private static WireFormat.WireType GetWireType(FieldDescriptor field) => field.FieldType switch
-    {
-        FieldType.Double => WireFormat.WireType.Fixed64,
-        FieldType.Float => WireFormat.WireType.Fixed32,
-        FieldType.Int64 or FieldType.UInt64 or FieldType.Int32 => WireFormat.WireType.Varint,
-        FieldType.Fixed64 => WireFormat.WireType.Fixed64,
-        FieldType.Fixed32 => WireFormat.WireType.Fixed32,
-        FieldType.Bool => WireFormat.WireType.Varint,
-        FieldType.String => WireFormat.WireType.LengthDelimited,
-        FieldType.Group => WireFormat.WireType.StartGroup,
-        FieldType.Message or FieldType.Bytes => WireFormat.WireType.LengthDelimited,
-        FieldType.UInt32 => WireFormat.WireType.Varint,
-        FieldType.SFixed32 => WireFormat.WireType.Fixed32,
-        FieldType.SFixed64 => WireFormat.WireType.Fixed64,
-        _ => WireFormat.WireType.Varint
-    };
-
-    private static bool IsPackable(FieldType fieldType) => fieldType switch
-    {
-        FieldType.String or FieldType.Bytes or FieldType.Message or FieldType.Group => false,
-        _ => true
-    };
-
-    private static bool ReadBoolean(JsonElement element) => element.ValueKind switch
-    {
-        JsonValueKind.True => true,
-        JsonValueKind.False => false,
-        JsonValueKind.String => bool.Parse(element.GetString() ?? "false"),
-        _ => throw new InvalidOperationException("Expected boolean value."),
-    };
-
-    private static int ReadInt32(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var value) ||
-        element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse int32 value for '{fieldName}'.");
-
-    private static long ReadInt64(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var value) ||
-        element.ValueKind == JsonValueKind.String && long.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse int64 value for '{fieldName}'.");
-
-    private static uint ReadUInt32(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetUInt32(out var value) ||
-        element.ValueKind == JsonValueKind.String && uint.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse uint32 value for '{fieldName}'.");
-
-    private static ulong ReadUInt64(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetUInt64(out var value) ||
-        element.ValueKind == JsonValueKind.String && ulong.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse uint64 value for '{fieldName}'.");
-
-    private static double ReadDouble(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out var value) ||
-        element.ValueKind == JsonValueKind.String && double.TryParse(element.GetString(),
-            NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse floating point value for '{fieldName}'.");
-
-    private static byte[] ReadBytes(JsonElement element, string fieldName)
-    {
-        var text = element.GetString();
-        if (string.IsNullOrEmpty(text))
-        {
-            return [];
-        }
-
-        try
-        {
-            return Convert.FromBase64String(text);
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidOperationException($"Could not parse base64 payload for '{fieldName}': {ex.Message}");
-        }
-    }
-
-    private static EnumValueDescriptor ReadEnum(EnumDescriptor enumDescriptor, JsonElement element, string fieldName)
-    {
-        if (element.ValueKind != JsonValueKind.String)
-        {
-            return element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var numericValue) ||
-                   element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer,
-                       CultureInfo.InvariantCulture, out numericValue)
-                ? enumDescriptor.FindValueByNumber(numericValue) ??
-                  throw new InvalidOperationException(
-                      $"Enum numeric value '{numericValue}' is not defined for '{fieldName}'.")
-                : throw new InvalidOperationException($"Could not parse enum value for '{fieldName}'.");
-        }
-
-        var name = element.GetString() ?? string.Empty;
-        var match = enumDescriptor.FindValueByName(name) ?? enumDescriptor.Values.FirstOrDefault(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
-        return match ?? throw new InvalidOperationException($"Enum value '{name}' is not defined for '{fieldName}'.");
-
-    }
-
-    private static bool TryLoadMessageDescriptor(
-        string[] descriptorInputs,
-        string messageName,
-        out MessageDescriptor descriptor,
-        out string? error)
-    {
-        descriptor = null!;
-        error = null;
-
-        if (descriptorInputs.Length == 0)
-        {
-            error = "No protobuf descriptor files supplied.";
-            return false;
-        }
-
-        var resolvedFiles = ResolveDescriptorFiles(descriptorInputs);
-        if (resolvedFiles.Count == 0)
-        {
-            error = "No descriptor files found at the supplied --proto-file paths.";
-            return false;
-        }
-
-        var normalizedMessage = NormalizeProtoMessageName(messageName);
-        var cacheKey = BuildDescriptorCacheKey(resolvedFiles);
-
-        if (DescriptorCache.TryGetValue(cacheKey, out var cachedEntry) &&
-            cachedEntry.Messages.TryGetValue(normalizedMessage, out var cachedDescriptor))
-        {
-            descriptor = cachedDescriptor;
-            return true;
-        }
-
-        DescriptorCacheEntry entry;
-        try
-        {
-            entry = BuildDescriptorCacheEntry(resolvedFiles);
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-            return false;
-        }
-
-        DescriptorCache[cacheKey] = entry;
-
-        if (entry.Messages.TryGetValue(normalizedMessage, out var resolvedDescriptor))
-        {
-            descriptor = resolvedDescriptor;
-            return true;
-        }
-
-        error = $"Could not find protobuf message '{messageName}' in provided descriptors.";
-        descriptor = null!;
-        return false;
-    }
-
-    private static DescriptorCacheEntry BuildDescriptorCacheEntry(IReadOnlyList<string> descriptorFiles)
-    {
-        var descriptorProtos = new List<FileDescriptorProto>();
-
-        foreach (var path in descriptorFiles)
-        {
-            try
-            {
-                using var stream = File.OpenRead(path);
-                var set = FileDescriptorSet.Parser.ParseFrom(stream);
-                descriptorProtos.AddRange(set.File);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to read descriptor '{path}': {ex.Message}");
-            }
-        }
-
-        if (!TryBuildFileDescriptors(descriptorProtos, out var descriptorMap, out var buildError))
-        {
-            throw new InvalidOperationException(buildError ?? "Failed to build protobuf descriptors.");
-        }
-
-        var messageMap = new Dictionary<string, MessageDescriptor>(StringComparer.Ordinal);
-        foreach (var message in descriptorMap.Values.SelectMany(descriptor => EnumerateMessages(descriptor.MessageTypes)))
-        {
-            messageMap[message.FullName] = message;
-        }
-
-        return new DescriptorCacheEntry(descriptorMap, messageMap);
-    }
-
-    private static bool TryBuildFileDescriptors(
-        IEnumerable<FileDescriptorProto> protos,
-        out Dictionary<string, FileDescriptor> descriptors,
-        out string? error)
-    {
-        descriptors = new Dictionary<string, FileDescriptor>(StringComparer.Ordinal);
-        error = null;
-
-        foreach (var kvp in WellKnownFileDescriptors)
-        {
-            descriptors[kvp.Key] = kvp.Value;
-        }
-
-        var pending = new Dictionary<string, FileDescriptorProto>(StringComparer.Ordinal);
-        foreach (var proto in protos)
-        {
-            // Avoid rebuilding well-known descriptors if they are embedded in the set.
-            if (!descriptors.ContainsKey(proto.Name))
-            {
-                pending[proto.Name] = proto;
-            }
-        }
-
-        var progress = true;
-        while (pending.Count > 0 && progress)
-        {
-            progress = false;
-            foreach (var (name, proto) in pending.ToList())
-            {
-                var dependencies = new List<FileDescriptor>(proto.Dependency.Count);
-                var unresolved = false;
-
-                foreach (var dependencyName in proto.Dependency)
-                {
-                    if (descriptors.TryGetValue(dependencyName, out var dependencyDescriptor))
-                    {
-                        dependencies.Add(dependencyDescriptor);
-                    }
-                    else if (!pending.ContainsKey(dependencyName))
-                    {
-                        error = $"Descriptor dependency '{dependencyName}' not found for '{name}'.";
-                        return false;
-                    }
-                    else
-                    {
-                        unresolved = true;
-                        break;
-                    }
-                }
-
-                if (unresolved)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var descriptor = BuildFileDescriptor(proto, [.. dependencies]);
-                    descriptors[name] = descriptor;
-                    pending.Remove(name);
-                    progress = true;
-                }
-                catch (Exception ex)
-                {
-                    error = $"Failed to materialize descriptor for '{name}': {ex.Message}";
-                    return false;
-                }
-            }
-        }
-
-        if (pending.Count <= 0)
-        {
-            return true;
-        }
-
-        error = $"Could not resolve descriptor dependencies for: {string.Join(", ", pending.Keys)}.";
-        return false;
-
-    }
-
-    private static IEnumerable<MessageDescriptor> EnumerateMessages(IEnumerable<MessageDescriptor> rootMessages)
-    {
-        foreach (var message in rootMessages)
-        {
-            yield return message;
-
-            foreach (var nested in EnumerateMessages(message.NestedTypes))
-            {
-                yield return nested;
-            }
-        }
-    }
-
-    private static string NormalizeProtoMessageName(string messageName)
-    {
-        var trimmed = messageName.Trim();
-        return trimmed.StartsWith('.') ? trimmed[1..] : trimmed;
-    }
-
-    private static List<string> ResolveDescriptorFiles(IEnumerable<string> inputs)
-    {
-        var files = new List<string>();
-        foreach (var input in inputs)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                continue;
-            }
-
-            if (Directory.Exists(input))
-            {
-                files.AddRange(Directory.EnumerateFiles(input, "*.pb", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.desc", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.protoset", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.fds", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.bin", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                continue;
-            }
-
-            if (File.Exists(input))
-            {
-                files.Add(Path.GetFullPath(input));
-            }
-        }
-
-        return files;
-    }
-
-    private static string BuildDescriptorCacheKey(List<string> descriptorFiles)
-    {
-        if (descriptorFiles.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var fragments = new string[descriptorFiles.Count];
-        for (var index = 0; index < descriptorFiles.Count; index++)
-        {
-            var fullPath = descriptorFiles[index];
-            var timestamp = File.GetLastWriteTimeUtc(fullPath).Ticks;
-            fragments[index] = $"{fullPath}:{timestamp}";
-        }
-
-        Array.Sort(fragments, StringComparer.Ordinal);
-        return string.Join('|', fragments);
-    }
-
-    private static FileDescriptor BuildFileDescriptor(FileDescriptorProto proto, FileDescriptor[] dependencies)
-    {
-        if (_fileDescriptorBuildFrom is not null)
-        {
-            return InvokeBuildFrom(_fileDescriptorBuildFrom, proto, dependencies);
-        }
-
-        var candidates = typeof(FileDescriptor)
-            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-            .Where(static method => string.Equals(method.Name, "BuildFrom", StringComparison.Ordinal))
-            .ToArray();
-
-        foreach (var candidate in candidates)
-        {
-            var arguments = TryCreateBuildFromArguments(candidate.GetParameters(), proto, dependencies);
-            if (arguments is null)
-            {
-                continue;
-            }
-
-            try
-            {
-                var result = candidate.Invoke(null, arguments);
-                if (result is not FileDescriptor descriptor)
-                {
-                    continue;
-                }
-
-                _fileDescriptorBuildFrom = candidate;
-                return descriptor;
-            }
-            catch
-            {
-                // try the next candidate
-            }
-        }
-
-        throw new InvalidOperationException("Google.Protobuf internal API 'FileDescriptor.BuildFrom' is not available in this runtime.");
-    }
-
-    private static FileDescriptor InvokeBuildFrom(MethodInfo method, FileDescriptorProto proto, FileDescriptor[] dependencies)
-    {
-        var arguments = TryCreateBuildFromArguments(method.GetParameters(), proto, dependencies)
-            ?? throw new InvalidOperationException("Cached FileDescriptor.BuildFrom signature is no longer supported.");
-
-        var result = method.Invoke(null, arguments)
-            ?? throw new InvalidOperationException("Failed to build descriptor.");
-
-        return (FileDescriptor)result;
-    }
-
-    private static object[]? TryCreateBuildFromArguments(ParameterInfo[] parameters, FileDescriptorProto proto, FileDescriptor[] dependencies)
-    {
-        if (parameters.Length == 0)
-        {
-            return null;
-        }
-
-        var arguments = new object[parameters.Length];
-
-        for (var index = 0; index < parameters.Length; index++)
-        {
-            var parameterType = parameters[index].ParameterType;
-            if (parameterType == typeof(FileDescriptorProto))
-            {
-                arguments[index] = proto;
-            }
-            else if (parameterType == typeof(FileDescriptor[]) || typeof(IEnumerable<FileDescriptor>).IsAssignableFrom(parameterType))
-            {
-                arguments[index] = dependencies;
-            }
-            else if (parameterType == typeof(bool))
-            {
-                arguments[index] = true;
-            }
-            else if (parameterType == typeof(string))
-            {
-                arguments[index] = string.Empty;
-            }
-            else
-            {
-                arguments[index] = parameterType.IsValueType
-                    ? Activator.CreateInstance(parameterType)!
-                    : null!;
-            }
-        }
-
-        return arguments;
-    }
-
-    private static void EnsureHeader(List<KeyValuePair<string, string>> headers, string key, string value)
-    {
-        for (var index = 0; index < headers.Count; index++)
-        {
-            if (!string.Equals(headers[index].Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            headers[index] = new KeyValuePair<string, string>(key, value);
-            return;
-        }
-
-        headers.Add(new KeyValuePair<string, string>(key, value));
-    }
-
-    private static bool TryResolvePayload(string? body, string? bodyFile, string? bodyBase64, out ReadOnlyMemory<byte> payload, out PayloadSource source, out string? error)
-    {
-        payload = ReadOnlyMemory<byte>.Empty;
-        source = PayloadSource.None;
-        error = null;
-
-        var sources = new[]
-        {
-            (Name: "--body", HasValue: !string.IsNullOrEmpty(body)),
-            (Name: "--body-file", HasValue: !string.IsNullOrEmpty(bodyFile)),
-            (Name: "--body-base64", HasValue: !string.IsNullOrEmpty(bodyBase64))
-        };
-
-        var active = sources.Count(static s => s.HasValue);
-        if (active > 1)
-        {
-            error = "Specify only one of --body, --body-file, or --body-base64.";
-            return false;
-        }
+        source = PayloadSource.Inline;
 
         if (!string.IsNullOrEmpty(bodyBase64))
         {
@@ -2378,9 +1586,9 @@ public static partial class Program
                 source = PayloadSource.Base64;
                 return true;
             }
-            catch (FormatException ex)
+            catch (Exception ex)
             {
-                error = $"Failed to decode base64 payload: {ex.Message}";
+                error = $"Failed to parse --body-base64: {ex.Message}";
                 return false;
             }
         }
@@ -2389,47 +1597,35 @@ public static partial class Program
         {
             if (!File.Exists(bodyFile))
             {
-                error = $"Payload file '{bodyFile}' does not exist.";
+                error = $"Body file '{bodyFile}' does not exist.";
                 return false;
             }
 
-            payload = File.ReadAllBytes(bodyFile);
-            source = PayloadSource.File;
-            return true;
+            try
+            {
+                payload = File.ReadAllBytes(bodyFile);
+                source = PayloadSource.File;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = $"Failed to read body file '{bodyFile}': {ex.Message}";
+                return false;
+            }
         }
 
-        if (!string.IsNullOrEmpty(body))
+        if (inlineBody is not null)
         {
-            payload = Encoding.UTF8.GetBytes(body);
+            payload = Encoding.UTF8.GetBytes(inlineBody);
             source = PayloadSource.Inline;
             return true;
         }
 
+        // Empty payload is OK for some requests.
         payload = ReadOnlyMemory<byte>.Empty;
-        source = PayloadSource.None;
+        source = PayloadSource.Inline;
         return true;
     }
-
-    private sealed class ProfileProcessingState
-    {
-        public bool PrettyPrintJson { get; set; }
-
-        public ProtoProcessingState? Proto { get; set; }
-    }
-
-    private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName);
-
-    private enum PayloadSource
-    {
-        None,
-        Inline,
-        File,
-        Base64
-    }
-
-    private sealed record DescriptorCacheEntry(
-        Dictionary<string, FileDescriptor> Files,
-        Dictionary<string, MessageDescriptor> Messages);
 
     private static bool TryDecodeUtf8(ReadOnlySpan<byte> data, out string text)
     {
@@ -2443,6 +1639,20 @@ public static partial class Program
             text = string.Empty;
             return false;
         }
+    }
+
+    private sealed class ProfileProcessingState
+    {
+        public bool PrettyPrintJson { get; set; }
+        public string? ProtoMessageName { get; set; }
+        public string[] ProvidedDescriptorFiles { get; set; } = Array.Empty<string>();
+    }
+
+    private enum PayloadSource
+    {
+        Inline,
+        File,
+        Base64
     }
 
     internal static bool TryParseDuration(string value, out TimeSpan duration)

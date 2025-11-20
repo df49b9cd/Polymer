@@ -9,7 +9,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Hugo;
 using Google.Protobuf;
 using Grpc.Core;
 using Microsoft.Extensions.Configuration;
@@ -1205,7 +1204,7 @@ internal static partial class ProgramMeshModule
         {
             var error = result.Error!;
             await Console.Error.WriteLineAsync($"Bootstrap join failed: {error.Message} ({error.Code ?? "error"})").ConfigureAwait(false);
-            return error.Code == ErrorCodes.Timeout ? 2 : 1;
+            return string.Equals(error.Code, "timeout", StringComparison.OrdinalIgnoreCase) ? 2 : 1;
         }
 
         var response = result.ValueOrThrow();
