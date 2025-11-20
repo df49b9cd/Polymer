@@ -22,6 +22,8 @@ public static partial class Program
 
     internal const string DefaultConfigSection = "omnirelay";
     internal const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
+    internal const int PrettyPrintLimitBytes = 512 * 1024; // avoid large buffering/LOH during pretty-print
+    private const int MaxPayloadBytes = 1 * 1024 * 1024;   // cap payload materialization to avoid LOH
 
     public static async Task<int> Main(string[] args)
     {
@@ -1414,6 +1416,13 @@ public static partial class Program
         PayloadSource payloadSource,
         ref ReadOnlyMemory<byte> payload)
     {
+        // Guard against reformatting large payloads that would allocate on LOH.
+        if (payload.Length > PrettyPrintLimitBytes)
+        {
+            Console.Error.WriteLine($"Warning: payload size {payload.Length:N0} bytes exceeds pretty-print limit ({PrettyPrintLimitBytes:N0}); skipping formatting.");
+            return;
+        }
+
         if (payloadSource == PayloadSource.Base64)
         {
             Console.Error.WriteLine("Warning: cannot pretty-print JSON when payload is provided via --body-base64.");
@@ -1485,6 +1494,12 @@ public static partial class Program
             try
             {
                 payload = Convert.FromBase64String(bodyBase64);
+                if (payload.Length > MaxPayloadBytes)
+                {
+                    error = $"Decoded base64 payload is too large ({payload.Length:N0} bytes). Limit is {MaxPayloadBytes:N0} bytes.";
+                    payload = ReadOnlyMemory<byte>.Empty;
+                    return false;
+                }
                 source = PayloadSource.Base64;
                 return true;
             }
@@ -1505,6 +1520,13 @@ public static partial class Program
 
             try
             {
+                var info = new FileInfo(bodyFile);
+                if (info.Length > MaxPayloadBytes)
+                {
+                    error = $"Body file is too large ({info.Length:N0} bytes). Limit is {MaxPayloadBytes:N0} bytes.";
+                    return false;
+                }
+
                 payload = File.ReadAllBytes(bodyFile);
                 source = PayloadSource.File;
                 return true;
@@ -1518,6 +1540,12 @@ public static partial class Program
 
         if (inlineBody is not null)
         {
+            if (Encoding.UTF8.GetByteCount(inlineBody) > MaxPayloadBytes)
+            {
+                error = $"Inline body is too large. Limit is {MaxPayloadBytes:N0} bytes.";
+                return false;
+            }
+
             payload = Encoding.UTF8.GetBytes(inlineBody);
             source = PayloadSource.Inline;
             return true;
@@ -1564,35 +1592,19 @@ public static partial class Program
             return true;
         }
 
-        var trimmed = value.Trim();
+        var trimmed = value.AsSpan().Trim();
         if (trimmed.Length < 2)
         {
             duration = TimeSpan.Zero;
             return false;
         }
 
-        var suffixes = new Dictionary<string, Func<double, TimeSpan>>(StringComparer.OrdinalIgnoreCase)
+        if (TryParseWithSuffix(trimmed, "ms", TimeSpan.FromMilliseconds, out duration) ||
+            TryParseWithSuffix(trimmed, "s", TimeSpan.FromSeconds, out duration) ||
+            TryParseWithSuffix(trimmed, "m", TimeSpan.FromMinutes, out duration) ||
+            TryParseWithSuffix(trimmed, "h", TimeSpan.FromHours, out duration))
         {
-            ["ms"] = TimeSpan.FromMilliseconds,
-            ["s"] = TimeSpan.FromSeconds,
-            ["m"] = TimeSpan.FromMinutes,
-            ["h"] = TimeSpan.FromHours
-        };
-
-        foreach (var (suffix, factory) in suffixes)
-        {
-            if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                var numberPart = trimmed[..^suffix.Length];
-                if (double.TryParse(numberPart, NumberStyles.Float, CultureInfo.InvariantCulture, out var scalar))
-                {
-                    duration = factory(scalar);
-                    return true;
-                }
-
-                duration = TimeSpan.Zero;
-                return false;
-            }
+            return true;
         }
 
         duration = TimeSpan.Zero;
@@ -1614,4 +1626,22 @@ public static partial class Program
         return true;
     }
 
+    private static bool TryParseWithSuffix(ReadOnlySpan<char> value, ReadOnlySpan<char> suffix, Func<double, TimeSpan> factory, out TimeSpan duration)
+    {
+        if (!value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            duration = default;
+            return false;
+        }
+
+        var numberPart = value[..^suffix.Length];
+        if (double.TryParse(numberPart, NumberStyles.Float, CultureInfo.InvariantCulture, out var scalar))
+        {
+            duration = factory(scalar);
+            return true;
+        }
+
+        duration = default;
+        return false;
+    }
 }

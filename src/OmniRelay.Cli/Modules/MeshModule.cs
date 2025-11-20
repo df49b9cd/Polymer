@@ -4,6 +4,7 @@ using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Google.Protobuf;
@@ -778,12 +779,10 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            var payload = JsonSerializer.SerializeToUtf8Bytes(new NodeDrainCommandDto(reason), OmniRelayCliJsonContext.Default.NodeDrainCommandDto);
             using var request = new HttpRequestMessage(HttpMethod.Post, target)
             {
-                Content = new ByteArrayContent(payload)
+                Content = JsonContent.Create(new NodeDrainCommandDto(reason), options: OmniRelayCliJsonContext.Default.Options)
             };
-            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
             using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -1080,12 +1079,10 @@ internal static partial class ProgramMeshModule
             Nodes = nodes
         };
 
-        var body = JsonSerializer.SerializeToUtf8Bytes(requestPayload, OmniRelayCliJsonContext.Default.ShardSimulationRequest);
         using var request = new HttpRequestMessage(HttpMethod.Post, target)
         {
-            Content = new ByteArrayContent(body)
+            Content = JsonContent.Create(requestPayload, options: OmniRelayCliJsonContext.Default.Options)
         };
-        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
         ApplyMeshScope(request, MeshOperateScope);
 
         try
@@ -1176,13 +1173,15 @@ internal static partial class ProgramMeshModule
             throw new InvalidOperationException($"Timeout '{timeoutOption}' is not a valid duration.");
         }
 
-        using var httpClient = new HttpClient { Timeout = timeout };
+        using var cts = new CancellationTokenSource(timeout);
+        var httpClient = CliRuntime.HttpClientFactory.CreateClient();
+        httpClient.Timeout = Timeout.InfiniteTimeSpan;
         var client = new BootstrapClient(httpClient);
         var result = await client.JoinAsync(
             new Uri(baseUrl),
             new BootstrapJoinRequest { Token = token },
             timeout,
-            CancellationToken.None).ConfigureAwait(false);
+            cts.Token).ConfigureAwait(false);
         if (result.IsFailure)
         {
             var error = result.Error!;
@@ -1208,6 +1207,12 @@ internal static partial class ProgramMeshModule
 
     private static string FormatJson(string json)
     {
+        // Avoid large reformatting that would allocate on LOH; fall back to compact JSON.
+        if (Encoding.UTF8.GetByteCount(json) > Program.PrettyPrintLimitBytes)
+        {
+            return json;
+        }
+
         using var document = JsonDocument.Parse(json);
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer, PrettyWriterOptions))
