@@ -1,7 +1,5 @@
 using System.CommandLine;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using OmniRelay.Cli;
 
 namespace OmniRelay.Cli.Modules;
 

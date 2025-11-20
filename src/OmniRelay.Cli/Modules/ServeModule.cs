@@ -1,5 +1,4 @@
 using System.CommandLine;
-using OmniRelay.Cli;
 
 namespace OmniRelay.Cli.Modules;
 
