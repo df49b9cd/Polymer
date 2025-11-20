@@ -57,6 +57,13 @@
       <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.FileName) == 'OmniRelay.Codegen.Protobuf.Core') and (%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb')">
         <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
       </_AnalyzerDependency>
+      <!-- Ensure project output for Core is available even if not in ReferenceCopyLocalPaths (CI restore/layout differences) -->
+      <_AnalyzerDependency Include="..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.dll" Condition="Exists('..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.dll')">
+        <TargetPath>analyzers/dotnet/cs/OmniRelay.Codegen.Protobuf.Core.dll</TargetPath>
+      </_AnalyzerDependency>
+      <_AnalyzerDependency Include="..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.pdb" Condition="Exists('..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.pdb')">
+        <TargetPath>analyzers/dotnet/cs/OmniRelay.Codegen.Protobuf.Core.pdb</TargetPath>
+      </_AnalyzerDependency>
     </ItemGroup>
 
     <MakeDir Directories="$(AnalyzerOutputDirectory)" />
