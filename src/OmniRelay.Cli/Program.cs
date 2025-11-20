@@ -18,12 +18,17 @@ namespace OmniRelay.Cli;
 
 public static partial class Program
 {
-    static Program() => ProtobufPayloadRegistration.RegisterGenerated();
+    static Program()
+    {
+        ProtobufPayloadRegistration.RegisterGenerated();
+        ProtobufPayloadRegistration.RegisterManualEncoders();
+    }
 
     internal const string DefaultConfigSection = "omnirelay";
     internal const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
     internal const int PrettyPrintLimitBytes = 512 * 1024; // avoid large buffering/LOH during pretty-print
     private const int MaxPayloadBytes = 1 * 1024 * 1024;   // cap payload materialization to avoid LOH
+    private const int Base64ChunkBytes = 12 * 1024;        // multiple-of-3 chunk to stream base64 without LOH
 
     public static async Task<int> Main(string[] args)
     {
@@ -320,9 +325,9 @@ public static partial class Program
             Description = "Routing delegate metadata."
         };
 
-        var protoFileOption = new Option<string[]>("--proto-file (deprecated; binary-only when provided)")
+        var protoFileOption = new Option<string[]>("--proto-file")
         {
-            Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding.",
+            Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding. (Deprecated; binary-only when provided.)",
             AllowMultipleArgumentsPerToken = true,
             DefaultValueFactory = _ => []
         };
@@ -726,6 +731,16 @@ public static partial class Program
             }
 
             timeout = parsedTimeout;
+        }
+
+        var payloadSourcesSpecified = (string.IsNullOrEmpty(body) ? 0 : 1)
+                                      + (string.IsNullOrEmpty(bodyFile) ? 0 : 1)
+                                      + (string.IsNullOrEmpty(bodyBase64) ? 0 : 1);
+
+        if (payloadSourcesSpecified > 1)
+        {
+            error = "Specify only one of --body, --body-file, or --body-base64.";
+            return false;
         }
 
         if (!TryParseHeaders(headers, out var headerPairs, out var headerError))
@@ -1165,7 +1180,7 @@ public static partial class Program
         else
         {
             Console.WriteLine($"Body ({response.Body.Length} bytes, base64):");
-            Console.WriteLine(Convert.ToBase64String(response.Body.Span));
+            WriteBase64Body(response.Body.Span);
         }
     }
 
@@ -1341,18 +1356,10 @@ public static partial class Program
 
         if (state.ProtoMessageName is not null)
         {
-            if (state.HasExternalDescriptors && payloadSource is not PayloadSource.Base64 and not PayloadSource.File)
-            {
-                error = "Runtime .proto descriptor loading isn't supported in NativeAOT. Provide a binary payload via --body-base64/--body-file or rely on generated encoders.";
-                return false;
-            }
+            var binaryPayloadProvided = payloadSource is PayloadSource.Base64 || (payloadSource is PayloadSource.File && !payload.IsEmpty);
 
             // If caller supplied raw binary (base64 or file), accept as-is.
-            if (payloadSource is PayloadSource.Base64 || (payloadSource is PayloadSource.File && !payload.IsEmpty))
-            {
-                // Nothing to do.
-            }
-            else
+            if (!binaryPayloadProvided)
             {
                 var jsonText = inlineBody;
                 if (string.IsNullOrEmpty(jsonText) && payloadSource == PayloadSource.File && !string.IsNullOrEmpty(bodyFile))
@@ -1372,6 +1379,11 @@ public static partial class Program
 
                 if (!ProtobufPayloadRegistry.Instance.TryEncode(state.ProtoMessageName, jsonText, out payload, out error))
                 {
+                    if (state.HasExternalDescriptors)
+                    {
+                        error ??= "Runtime .proto descriptor loading isn't supported in NativeAOT. Provide a binary payload via --body-base64/--body-file or ensure a generated encoder is registered for the message.";
+                    }
+
                     return false;
                 }
             }
@@ -1644,4 +1656,41 @@ public static partial class Program
         duration = default;
         return false;
     }
+
+    private static void WriteBase64Body(ReadOnlySpan<byte> payload)
+    {
+        if (payload.IsEmpty)
+        {
+            Console.WriteLine("<empty>");
+            return;
+        }
+
+        var buffer = ArrayPool<char>.Shared.Rent(CalculateBase64CharLength(Base64ChunkBytes));
+
+        try
+        {
+            var remaining = payload;
+            while (!remaining.IsEmpty)
+            {
+                var chunkLength = Math.Min(Base64ChunkBytes, remaining.Length);
+                var chunk = remaining[..chunkLength];
+
+                if (!Convert.TryToBase64Chars(chunk, buffer, out var written))
+                {
+                    throw new InvalidOperationException("Failed to encode payload as base64.");
+                }
+
+                Console.Write(buffer.AsSpan(0, written));
+                remaining = remaining[chunkLength..];
+            }
+
+            Console.WriteLine();
+        }
+        finally
+        {
+            ArrayPool<char>.Shared.Return(buffer);
+        }
+    }
+
+    private static int CalculateBase64CharLength(int byteLength) => ((byteLength + 2) / 3) * 4;
 }

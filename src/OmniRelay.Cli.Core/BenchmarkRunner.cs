@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using Hugo;
 using OmniRelay.Core;
@@ -190,25 +189,41 @@ public static class BenchmarkRunner
             throw new ArgumentOutOfRangeException(nameof(parameters), parameters.Concurrency, "Concurrency must be greater than zero.");
         }
 
-        var latencies = collectMetrics ? new ConcurrentBag<double>() : null;
-        var errors = collectMetrics ? new ConcurrentDictionary<string, int>(StringComparer.Ordinal) : null;
+        var latencies = collectMetrics ? new List<double>[parameters.Concurrency] : null;
+        var errors = collectMetrics ? new Dictionary<string, int>[parameters.Concurrency] : null;
 
         var scheduled = 0L;
         var completed = 0L;
         var successes = 0L;
         var failures = 0L;
 
-        var stopwatch = Stopwatch.StartNew();
         var originTimestamp = Stopwatch.GetTimestamp();
+        var stopwatch = Stopwatch.StartNew();
+        long? durationDeadline = parameters.Duration is { TotalMilliseconds: > 0 }
+            ? originTimestamp + (long)(parameters.Duration.Value.TotalSeconds * Stopwatch.Frequency)
+            : null;
+        var rateLimitTicksPerRequest = parameters.RateLimitPerSecond is { } limit and > 0
+            ? Stopwatch.Frequency / limit
+            : null as double?;
 
         var tasks = new Task[parameters.Concurrency];
         for (var index = 0; index < tasks.Length; index++)
         {
+            var workerIndex = index;
+            var workerLatencies = collectMetrics ? new List<double>(256) : null;
+            var workerErrors = collectMetrics ? new Dictionary<string, int>(StringComparer.Ordinal) : null;
+
+            if (collectMetrics)
+            {
+                latencies![workerIndex] = workerLatencies!;
+                errors![workerIndex] = workerErrors!;
+            }
+
             tasks[index] = Task.Run(async () =>
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    if (parameters.Duration is { } duration && stopwatch.Elapsed >= duration)
+                    if (durationDeadline.HasValue && Stopwatch.GetTimestamp() >= durationDeadline.Value)
                     {
                         break;
                     }
@@ -221,7 +236,7 @@ public static class BenchmarkRunner
 
                     try
                     {
-                        await WaitForRateLimitAsync(parameters.RateLimitPerSecond, issued - 1, originTimestamp, cancellationToken)
+                        await WaitForRateLimitAsync(rateLimitTicksPerRequest, issued - 1, originTimestamp, cancellationToken)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -271,21 +286,24 @@ public static class BenchmarkRunner
                     if (callResult.Success)
                     {
                         Interlocked.Increment(ref successes);
-                        latencies?.Add(sw.Elapsed.TotalMilliseconds);
+                        workerLatencies?.Add(sw.Elapsed.TotalMilliseconds);
                     }
                     else
                     {
                         Interlocked.Increment(ref failures);
-                        if (collectMetrics)
+                        if (collectMetrics && workerErrors is not null)
                         {
                             var label = string.IsNullOrWhiteSpace(callResult.Error)
                                 ? "error"
                                 : callResult.Error!;
-                            errors!.AddOrUpdate(label, 1, static (_, current) => current + 1);
+                            if (!workerErrors.TryAdd(label, 1))
+                            {
+                                workerErrors[label] = workerErrors[label] + 1;
+                            }
                         }
                     }
 
-                    if (parameters.Duration is { } remaining && stopwatch.Elapsed >= remaining)
+                    if (durationDeadline.HasValue && Stopwatch.GetTimestamp() >= durationDeadline.Value)
                     {
                         break;
                     }
@@ -301,12 +319,12 @@ public static class BenchmarkRunner
         await Task.WhenAll(tasks).ConfigureAwait(false);
         stopwatch.Stop();
 
-        var latencySamples = collectMetrics
-            ? latencies!.ToList()
+        var latencySamples = collectMetrics && latencies is not null
+            ? CombineLatencySamples(latencies)
             : [];
 
-        var errorSummary = collectMetrics
-            ? new Dictionary<string, int>(errors!, StringComparer.Ordinal)
+        var errorSummary = collectMetrics && errors is not null
+            ? CombineErrors(errors)
             : new Dictionary<string, int>(StringComparer.Ordinal);
 
         return new StageResult(
@@ -318,15 +336,53 @@ public static class BenchmarkRunner
             stopwatch.Elapsed);
     }
 
-    private static async ValueTask WaitForRateLimitAsync(double? rateLimit, long requestIndex, long originTimestamp, CancellationToken cancellationToken)
+    private static List<double> CombineLatencySamples(List<double>[] perWorker)
     {
-        if (!rateLimit.HasValue || rateLimit.Value <= 0 || requestIndex <= 0)
+        var total = 0;
+        for (var i = 0; i < perWorker.Length; i++)
+        {
+            total += perWorker[i].Count;
+        }
+
+        var combined = new List<double>(total);
+        for (var i = 0; i < perWorker.Length; i++)
+        {
+            combined.AddRange(perWorker[i]);
+        }
+
+        return combined;
+    }
+
+    private static Dictionary<string, int> CombineErrors(Dictionary<string, int>[] perWorker)
+    {
+        var combined = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        for (var i = 0; i < perWorker.Length; i++)
+        {
+            foreach (var kvp in perWorker[i])
+            {
+                if (combined.TryGetValue(kvp.Key, out var current))
+                {
+                    combined[kvp.Key] = current + kvp.Value;
+                }
+                else
+                {
+                    combined[kvp.Key] = kvp.Value;
+                }
+            }
+        }
+
+        return combined;
+    }
+
+    private static async ValueTask WaitForRateLimitAsync(double? rateLimitTicksPerRequest, long requestIndex, long originTimestamp, CancellationToken cancellationToken)
+    {
+        if (!rateLimitTicksPerRequest.HasValue || requestIndex <= 0)
         {
             return;
         }
 
-        var targetSeconds = requestIndex / rateLimit.Value;
-        var targetTicks = originTimestamp + (long)(targetSeconds * Stopwatch.Frequency);
+        var targetTicks = originTimestamp + (long)(requestIndex * rateLimitTicksPerRequest.Value);
 
         while (true)
         {
