@@ -26,6 +26,7 @@
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +47,14 @@
         <TargetPath>analyzers/dotnet/cs/$(TargetName).pdb</TargetPath>
       </_AnalyzerDependency>
       <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb') and (%(ReferenceCopyLocalPaths.FileName) == 'OmniRelay')">
+        <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
+      </_AnalyzerDependency>
+      <!-- Always embed Google.Protobuf so downstream consumers don't need the package when running the generator -->
+      <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.FileName) == 'Google.Protobuf') and (%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb')">
+        <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
+      </_AnalyzerDependency>
+      <!-- Embed core generator support library -->
+      <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.FileName) == 'OmniRelay.Codegen.Protobuf.Core') and (%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb')">
         <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
       </_AnalyzerDependency>
     </ItemGroup>
