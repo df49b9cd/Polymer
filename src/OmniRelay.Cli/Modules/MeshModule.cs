@@ -781,7 +781,7 @@ internal static partial class ProgramMeshModule
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, target)
             {
-                Content = JsonContent.Create(new NodeDrainCommandDto(reason), options: OmniRelayCliJsonContext.Default.Options)
+                Content = JsonContent.Create(new NodeDrainCommandDto(reason), mediaType: null, jsonTypeInfo: OmniRelayCliJsonContext.Default.NodeDrainCommandDto)
             };
 
             using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
@@ -1081,7 +1081,7 @@ internal static partial class ProgramMeshModule
 
         using var request = new HttpRequestMessage(HttpMethod.Post, target)
         {
-            Content = JsonContent.Create(requestPayload, options: OmniRelayCliJsonContext.Default.Options)
+            Content = JsonContent.Create(requestPayload, mediaType: null, jsonTypeInfo: OmniRelayCliJsonContext.Default.ShardSimulationRequest)
         };
         ApplyMeshScope(request, MeshOperateScope);
 

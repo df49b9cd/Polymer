@@ -221,97 +221,99 @@ public static class BenchmarkRunner
 
             tasks[index] = Task.Run(async () =>
             {
-                while (!cancellationToken.IsCancellationRequested)
+                var timeoutScope = parameters.PerRequestTimeout > TimeSpan.Zero
+                    ? new PerRequestTimeoutScope(parameters.PerRequestTimeout, cancellationToken)
+                    : null;
+
+                try
                 {
-                    if (durationDeadline.HasValue && Stopwatch.GetTimestamp() >= durationDeadline.Value)
+                    while (!cancellationToken.IsCancellationRequested)
                     {
-                        break;
-                    }
-
-                    var issued = Interlocked.Increment(ref scheduled);
-                    if (parameters.MaxRequests.HasValue && issued > parameters.MaxRequests.Value)
-                    {
-                        break;
-                    }
-
-                    try
-                    {
-                        await WaitForRateLimitAsync(rateLimitTicksPerRequest, issued - 1, originTimestamp, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var sw = Stopwatch.StartNew();
-                    CancellationTokenSource? callSource = null;
-                    var callToken = cancellationToken;
-
-                    if (parameters.PerRequestTimeout > TimeSpan.Zero)
-                    {
-                        callSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                        callSource.CancelAfter(parameters.PerRequestTimeout);
-                        callToken = callSource.Token;
-                    }
-
-                    RequestCallResult callResult;
-
-                    try
-                    {
-                        callResult = await invoker.InvokeAsync(request, callToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        callSource?.Dispose();
-                        break;
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        callResult = RequestCallResult.FromFailure("request timed out");
-                    }
-                    catch (Exception ex)
-                    {
-                        callResult = RequestCallResult.FromFailure(ex.Message);
-                    }
-                    finally
-                    {
-                        callSource?.Dispose();
-                    }
-
-                    sw.Stop();
-
-                    Interlocked.Increment(ref completed);
-
-                    if (callResult.Success)
-                    {
-                        Interlocked.Increment(ref successes);
-                        workerLatencies?.Add(sw.Elapsed.TotalMilliseconds);
-                    }
-                    else
-                    {
-                        Interlocked.Increment(ref failures);
-                        if (collectMetrics && workerErrors is not null)
+                        if (durationDeadline.HasValue && Stopwatch.GetTimestamp() >= durationDeadline.Value)
                         {
-                            var label = string.IsNullOrWhiteSpace(callResult.Error)
-                                ? "error"
-                                : callResult.Error!;
-                            if (!workerErrors.TryAdd(label, 1))
+                            break;
+                        }
+
+                        var issued = Interlocked.Increment(ref scheduled);
+                        if (parameters.MaxRequests.HasValue && issued > parameters.MaxRequests.Value)
+                        {
+                            break;
+                        }
+
+                        try
+                        {
+                            await WaitForRateLimitAsync(rateLimitTicksPerRequest, issued - 1, originTimestamp, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        var sw = Stopwatch.StartNew();
+                        var callToken = timeoutScope?.Rent(cancellationToken) ?? cancellationToken;
+
+                        RequestCallResult callResult;
+
+                        try
+                        {
+                            callResult = await invoker.InvokeAsync(request, callToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            break;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            callResult = RequestCallResult.FromFailure("request timed out");
+                        }
+                        catch (Exception ex)
+                        {
+                            callResult = RequestCallResult.FromFailure(ex.Message);
+                        }
+                        finally
+                        {
+                            timeoutScope?.ResetTimer();
+                        }
+
+                        sw.Stop();
+
+                        Interlocked.Increment(ref completed);
+
+                        if (callResult.Success)
+                        {
+                            Interlocked.Increment(ref successes);
+                            workerLatencies?.Add(sw.Elapsed.TotalMilliseconds);
+                        }
+                        else
+                        {
+                            Interlocked.Increment(ref failures);
+                            if (collectMetrics && workerErrors is not null)
                             {
-                                workerErrors[label] = workerErrors[label] + 1;
+                                var label = string.IsNullOrWhiteSpace(callResult.Error)
+                                    ? "error"
+                                    : callResult.Error!;
+                                if (!workerErrors.TryAdd(label, 1))
+                                {
+                                    workerErrors[label] = workerErrors[label] + 1;
+                                }
                             }
                         }
-                    }
 
-                    if (durationDeadline.HasValue && Stopwatch.GetTimestamp() >= durationDeadline.Value)
-                    {
-                        break;
-                    }
+                        if (durationDeadline.HasValue && Stopwatch.GetTimestamp() >= durationDeadline.Value)
+                        {
+                            break;
+                        }
 
-                    if (parameters.MaxRequests.HasValue && Interlocked.Read(ref completed) >= parameters.MaxRequests.Value)
-                    {
-                        break;
+                        if (parameters.MaxRequests.HasValue && Interlocked.Read(ref completed) >= parameters.MaxRequests.Value)
+                        {
+                            break;
+                        }
                     }
+                }
+                finally
+                {
+                    timeoutScope?.Dispose();
                 }
             }, CancellationToken.None);
         }
@@ -453,6 +455,56 @@ public static class BenchmarkRunner
     {
         var omnirelayException = OmniRelayErrors.FromError(error, transport);
         return $"{omnirelayException.StatusCode}: {omnirelayException.Message}";
+    }
+
+    private sealed class PerRequestTimeoutScope : IDisposable
+    {
+        private readonly TimeSpan _timeout;
+        private readonly CancellationToken _outerToken;
+        private CancellationTokenSource? _timeoutCts;
+        private CancellationTokenRegistration _outerRegistration;
+
+        public PerRequestTimeoutScope(TimeSpan timeout, CancellationToken outerToken)
+        {
+            _timeout = timeout;
+            _outerToken = outerToken;
+
+            _timeoutCts = new CancellationTokenSource();
+            _outerRegistration = outerToken.Register(static state => ((CancellationTokenSource)state!).Cancel(), _timeoutCts);
+        }
+
+        public CancellationToken Rent(CancellationToken fallback)
+        {
+            if (_timeoutCts is null)
+            {
+                return fallback;
+            }
+
+            if (_timeoutCts.IsCancellationRequested && !_timeoutCts.TryReset())
+            {
+                Recreate();
+            }
+
+            _timeoutCts.CancelAfter(_timeout);
+            return _timeoutCts.Token;
+        }
+
+        public void ResetTimer() => _timeoutCts?.CancelAfter(Timeout.InfiniteTimeSpan);
+
+        public void Dispose()
+        {
+            _outerRegistration.Dispose();
+            _timeoutCts?.Dispose();
+        }
+
+        private void Recreate()
+        {
+            _outerRegistration.Dispose();
+            _timeoutCts?.Dispose();
+
+            _timeoutCts = new CancellationTokenSource();
+            _outerRegistration = _outerToken.Register(static state => ((CancellationTokenSource)state!).Cancel(), _timeoutCts);
+        }
     }
 
     public interface IRequestInvoker : IAsyncDisposable

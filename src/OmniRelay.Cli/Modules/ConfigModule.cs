@@ -11,8 +11,8 @@ internal sealed class ConfigCommandsModule : ICliModule
     public Command Build()
     {
         var command = new System.CommandLine.Command("config", "Configuration utilities.");
-        command.AddCommand(CreateValidateCommand());
-        command.AddCommand(CreateScaffoldCommand());
+        command.Subcommands.Add(CreateValidateCommand());
+        command.Subcommands.Add(CreateScaffoldCommand());
         return command;
     }
 

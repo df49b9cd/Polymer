@@ -1441,47 +1441,67 @@ public static partial class Program
             return;
         }
 
-        var jsonText = inlineBody;
+        ReadOnlyMemory<byte> sourcePayload = payload;
 
-        if (string.IsNullOrEmpty(jsonText) && !string.IsNullOrEmpty(bodyFile) && File.Exists(bodyFile))
+        if (sourcePayload.IsEmpty)
         {
-            try
+            if (!string.IsNullOrEmpty(inlineBody))
             {
-                jsonText = File.ReadAllText(bodyFile);
+                var inlineBytes = Encoding.UTF8.GetBytes(inlineBody);
+                if (inlineBytes.Length > PrettyPrintLimitBytes)
+                {
+                    Console.Error.WriteLine($"Warning: payload size {inlineBytes.Length:N0} bytes exceeds pretty-print limit ({PrettyPrintLimitBytes:N0}); skipping formatting.");
+                    return;
+                }
+
+                sourcePayload = inlineBytes;
             }
-            catch (Exception ex)
+            else if (!string.IsNullOrEmpty(bodyFile) && File.Exists(bodyFile))
             {
-                Console.Error.WriteLine($"Warning: failed to read JSON payload file '{bodyFile}': {ex.Message}");
-                return;
+                try
+                {
+                    var info = new FileInfo(bodyFile);
+                    if (info.Length > PrettyPrintLimitBytes)
+                    {
+                        Console.Error.WriteLine($"Warning: payload size {info.Length:N0} bytes exceeds pretty-print limit ({PrettyPrintLimitBytes:N0}); skipping formatting.");
+                        return;
+                    }
+
+                    sourcePayload = File.ReadAllBytes(bodyFile);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Warning: failed to read JSON payload file '{bodyFile}': {ex.Message}");
+                    return;
+                }
             }
         }
 
-        if (string.IsNullOrEmpty(jsonText))
+        if (sourcePayload.IsEmpty)
         {
-            if (payload.IsEmpty)
-            {
-                return;
-            }
-
-            if (!TryDecodeUtf8(payload.Span, out var decoded))
-            {
-                Console.Error.WriteLine("Warning: payload is not UTF-8; skipping JSON formatting.");
-                return;
-            }
-
-            jsonText = decoded;
+            return;
         }
 
         try
         {
-            using var document = JsonDocument.Parse(jsonText);
-            var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
+            var initialCapacity = Math.Max(Math.Min(PrettyPrintLimitBytes, sourcePayload.Length + 256), 1024);
+            var buffer = new ArrayBufferWriter<byte>(initialCapacity);
+
+            using (var document = JsonDocument.Parse(sourcePayload, new JsonDocumentOptions
+                   {
+                       AllowTrailingCommas = true,
+                       CommentHandling = JsonCommentHandling.Skip
+                   }))
             {
+                using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true });
                 document.RootElement.WriteTo(writer);
             }
 
             payload = buffer.WrittenMemory;
+        }
+        catch (JsonException ex)
+        {
+            Console.Error.WriteLine($"Warning: could not format JSON payload: {ex.Message}");
         }
         catch (Exception ex)
         {
