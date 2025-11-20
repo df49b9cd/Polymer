@@ -27,6 +27,18 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
     private long _responseCount;
     private int _metricsRecorded;
 
+    private void CancelCallSilently()
+    {
+        try
+        {
+            _call.Dispose();
+        }
+        catch
+        {
+            // Best-effort cancellation.
+        }
+    }
+
     private GrpcDuplexStreamTransportCall(
         RequestMeta requestMeta,
         AsyncDuplexStreamingCall<byte[], byte[]> call,
@@ -211,11 +223,13 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
             if (OmniRelayErrorAdapter.ToStatus(error) == OmniRelayStatusCode.Cancelled)
             {
                 await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
+                CancelCallSilently();
                 return;
             }
 
             await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
             RecordCompletion(requestStatus);
+            CancelCallSilently();
         }
     }
 
@@ -248,6 +262,7 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         {
             await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
             RecordCompletion(responseStatus);
+            CancelCallSilently();
         }
     }
 
