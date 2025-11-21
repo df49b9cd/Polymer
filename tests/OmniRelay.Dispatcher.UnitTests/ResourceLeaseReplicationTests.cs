@@ -6,7 +6,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 public sealed class ResourceLeaseReplicationTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InMemoryReplicator_SequencesAndDeliversEvents()
+    public async ValueTask InMemoryReplicator_SequencesAndDeliversEvents()
     {
         var sink = new RecordingSink();
         var replicator = new InMemoryResourceLeaseReplicator([sink]);
@@ -18,7 +18,7 @@ public sealed class ResourceLeaseReplicationTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InMemoryReplicator_IgnoresProvidedSequenceAndUsesStartingOffset()
+    public async ValueTask InMemoryReplicator_IgnoresProvidedSequenceAndUsesStartingOffset()
     {
         var sink = new RecordingSink();
         var replicator = new InMemoryResourceLeaseReplicator([sink], startingSequence: 10);
@@ -30,7 +30,7 @@ public sealed class ResourceLeaseReplicationTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CheckpointingSink_DeduplicatesSequences()
+    public async ValueTask CheckpointingSink_DeduplicatesSequences()
     {
         var sink = new CountingCheckpointSink();
 
@@ -42,7 +42,7 @@ public sealed class ResourceLeaseReplicationTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DeterministicCoordinator_IgnoresDuplicateEffects()
+    public async ValueTask DeterministicCoordinator_IgnoresDuplicateEffects()
     {
         var coordinator = new DeterministicResourceLeaseCoordinator(new ResourceLeaseDeterministicOptions
         {

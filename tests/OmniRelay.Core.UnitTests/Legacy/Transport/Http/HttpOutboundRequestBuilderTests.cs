@@ -24,7 +24,7 @@ public sealed class HttpOutboundRequestBuilderTests
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task CallAsync_MapsRequestMetadataToHttpRequest()
+    public async ValueTask CallAsync_MapsRequestMetadataToHttpRequest()
     {
         var captured = new CapturedRequest();
         using var handler = new RecordingHandler(async (request, token) =>

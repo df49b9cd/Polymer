@@ -106,7 +106,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task GrpcOutbound_CallBeforeStart_Throws()
+    public async ValueTask GrpcOutbound_CallBeforeStart_Throws()
     {
         var outbound = new GrpcOutbound(new Uri("http://127.0.0.1:5000"), "echo");
         var requestMeta = new RequestMeta(service: "echo", procedure: "echo::ping", transport: TransportName);
@@ -116,7 +116,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ServerStreaming_OverGrpcTransport()
+    public async ValueTask ServerStreaming_OverGrpcTransport()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -196,7 +196,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcInbound_BindsConfiguredHttp2EndpointsOnly()
+    public async ValueTask GrpcInbound_BindsConfiguredHttp2EndpointsOnly()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -250,7 +250,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task StopAsync_WaitsForActiveGrpcCallsAndRejectsNewOnes()
+    public async ValueTask StopAsync_WaitsForActiveGrpcCallsAndRejectsNewOnes()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -303,7 +303,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task StopAsyncCancellation_CompletesWithoutDrainingGrpcCalls()
+    public async ValueTask StopAsyncCancellation_CompletesWithoutDrainingGrpcCalls()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -358,7 +358,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcInbound_WithTlsCertificate_BindsAndServes()
+    public async ValueTask GrpcInbound_WithTlsCertificate_BindsAndServes()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"https://127.0.0.1:{port}");
@@ -406,7 +406,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcHealthService_ReflectsReadiness()
+    public async ValueTask GrpcHealthService_ReflectsReadiness()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -457,7 +457,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ServerStreaming_ErrorMidStream_PropagatesToClient()
+    public async ValueTask ServerStreaming_ErrorMidStream_PropagatesToClient()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -553,7 +553,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcOutbound_RoundRobinPeers_RecordSuccessAcrossEndpoints()
+    public async ValueTask GrpcOutbound_RoundRobinPeers_RecordSuccessAcrossEndpoints()
     {
         var port1 = TestPortAllocator.GetRandomPort();
         var port2 = TestPortAllocator.GetRandomPort();
@@ -632,7 +632,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcOutbound_FailingPeerTriggersCircuitBreaker()
+    public async ValueTask GrpcOutbound_FailingPeerTriggersCircuitBreaker()
     {
         var healthyPort = TestPortAllocator.GetRandomPort();
         var failingPort = TestPortAllocator.GetRandomPort();
@@ -743,7 +743,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ServerStreaming_PayloadAboveLimit_FaultsStream()
+    public async ValueTask ServerStreaming_PayloadAboveLimit_FaultsStream()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -804,7 +804,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ClientStreaming_OverGrpcTransport()
+    public async ValueTask ClientStreaming_OverGrpcTransport()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -882,7 +882,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ClientStreaming_CancellationFromClient()
+    public async ValueTask ClientStreaming_CancellationFromClient()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -931,7 +931,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ClientStreaming_DeadlineExceededMapsStatus()
+    public async ValueTask ClientStreaming_DeadlineExceededMapsStatus()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -983,7 +983,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ClientStreaming_LargePayloadChunks()
+    public async ValueTask ClientStreaming_LargePayloadChunks()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1051,7 +1051,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ClientStreaming_ServerErrorPropagatesToClient()
+    public async ValueTask ClientStreaming_ServerErrorPropagatesToClient()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1121,7 +1121,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task Unary_ClientInterceptorExecutes()
+    public async ValueTask Unary_ClientInterceptorExecutes()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1190,7 +1190,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task Unary_ServerInterceptorExecutes()
+    public async ValueTask Unary_ServerInterceptorExecutes()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1250,7 +1250,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task UnaryRoundtrip_OverGrpcTransport()
+    public async ValueTask UnaryRoundtrip_OverGrpcTransport()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1307,7 +1307,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task OnewayRoundtrip_OverGrpcTransport()
+    public async ValueTask OnewayRoundtrip_OverGrpcTransport()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1357,7 +1357,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task DuplexStreaming_OverGrpcTransport()
+    public async ValueTask DuplexStreaming_OverGrpcTransport()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1461,7 +1461,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task DuplexStreaming_ResponseAboveLimit_FaultsStream()
+    public async ValueTask DuplexStreaming_ResponseAboveLimit_FaultsStream()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1522,7 +1522,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task DuplexStreaming_ServerCancellationPropagatesToClient()
+    public async ValueTask DuplexStreaming_ServerCancellationPropagatesToClient()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1623,7 +1623,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task DuplexStreaming_ClientCancellationPropagatesToServer()
+    public async ValueTask DuplexStreaming_ClientCancellationPropagatesToServer()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1750,7 +1750,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task DuplexStreaming_FlowControl_ServerSlow()
+    public async ValueTask DuplexStreaming_FlowControl_ServerSlow()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1867,7 +1867,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task Unary_PropagatesMetadataBetweenClientAndServer()
+    public async ValueTask Unary_PropagatesMetadataBetweenClientAndServer()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -1958,7 +1958,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ServerStreaming_PropagatesMetadataAndHeaders()
+    public async ValueTask ServerStreaming_PropagatesMetadataAndHeaders()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -2071,7 +2071,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcTransport_ResponseTrailers_SurfaceEncodingAndStatus()
+    public async ValueTask GrpcTransport_ResponseTrailers_SurfaceEncodingAndStatus()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -2156,7 +2156,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcTransport_ResponseTrailers_SurfaceErrorMetadata()
+    public async ValueTask GrpcTransport_ResponseTrailers_SurfaceErrorMetadata()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -2275,7 +2275,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcOutbound_TelemetryOptions_EnableClientLoggingInterceptor()
+    public async ValueTask GrpcOutbound_TelemetryOptions_EnableClientLoggingInterceptor()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -2352,7 +2352,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcInbound_ServerLoggingInterceptor_WritesLogs()
+    public async ValueTask GrpcInbound_ServerLoggingInterceptor_WritesLogs()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -2427,7 +2427,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcInbound_TelemetryOptions_RegistersServerLoggingInterceptor()
+    public async ValueTask GrpcInbound_TelemetryOptions_RegistersServerLoggingInterceptor()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");

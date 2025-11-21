@@ -16,7 +16,7 @@ namespace OmniRelay.Tests.Transport.Http;
 public class HttpOutboundVersionPolicyTests
 {
     [Http3Fact(Timeout = 45_000)]
-    public async Task HttpOutbound_WithHttp3Enabled_UsesHttp3()
+    public async ValueTask HttpOutbound_WithHttp3Enabled_UsesHttp3()
     {
         if (!QuicListener.IsSupported)
         {
@@ -73,7 +73,7 @@ public class HttpOutboundVersionPolicyTests
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task HttpOutbound_WithOrHigher_ToHttp2Server_DowngradesToHttp2()
+    public async ValueTask HttpOutbound_WithOrHigher_ToHttp2Server_DowngradesToHttp2()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-http2-outbound");
 
@@ -125,7 +125,7 @@ public class HttpOutboundVersionPolicyTests
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task HttpOutbound_WithExactHttp3_ToHttp2Server_Fails()
+    public async ValueTask HttpOutbound_WithExactHttp3_ToHttp2Server_Fails()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-http3-exact-outbound");
 

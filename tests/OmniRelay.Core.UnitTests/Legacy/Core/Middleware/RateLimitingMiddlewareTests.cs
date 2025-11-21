@@ -11,7 +11,7 @@ namespace OmniRelay.Tests.Core.Middleware;
 public sealed class RateLimitingMiddlewareTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryOutbound_ExceedsLimit_ReturnsResourceExhausted()
+    public async ValueTask UnaryOutbound_ExceedsLimit_ReturnsResourceExhausted()
     {
         var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions
         {
@@ -37,7 +37,7 @@ public sealed class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryOutbound_ReleasesPermitAfterSuccess()
+    public async ValueTask UnaryOutbound_ReleasesPermitAfterSuccess()
     {
         var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions
         {

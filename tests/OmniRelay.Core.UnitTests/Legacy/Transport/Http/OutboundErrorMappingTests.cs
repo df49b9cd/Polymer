@@ -16,7 +16,7 @@ public class OutboundErrorMappingTests
     }
 
     [Fact(Timeout = 30000)]
-    public async Task JsonErrorBody_IsMappedToOmniRelayError()
+    public async ValueTask JsonErrorBody_IsMappedToOmniRelayError()
     {
         var ct = TestContext.Current.CancellationToken;
         var json = "{\"message\":\"bad request\",\"status\":\"InvalidArgument\",\"code\":\"E_BAD\"}";
@@ -39,7 +39,7 @@ public class OutboundErrorMappingTests
     }
 
     [Fact(Timeout = 30000)]
-    public async Task NonJsonError_FallsBackToStatusMapping()
+    public async ValueTask NonJsonError_FallsBackToStatusMapping()
     {
         var ct = TestContext.Current.CancellationToken;
         var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)

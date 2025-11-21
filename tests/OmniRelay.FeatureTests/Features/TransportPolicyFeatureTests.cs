@@ -27,7 +27,7 @@ public sealed class TransportPolicyFeatureTests : IAsyncLifetime
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task MeshConfigValidate_WithJsonFormat_AllowsHttp2Diagnostics()
+    public async ValueTask MeshConfigValidate_WithJsonFormat_AllowsHttp2Diagnostics()
     {
         var result = await CliCommandRunner.RunAsync(
             $"mesh config validate --config {_configPath} --format json",
@@ -46,7 +46,7 @@ public sealed class TransportPolicyFeatureTests : IAsyncLifetime
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task MeshConfigValidate_WithOverrides_Passes()
+    public async ValueTask MeshConfigValidate_WithOverrides_Passes()
     {
         var command = string.Join(" ",
             "mesh config validate",

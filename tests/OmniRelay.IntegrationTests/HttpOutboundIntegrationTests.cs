@@ -21,7 +21,7 @@ namespace OmniRelay.IntegrationTests;
 public sealed class HttpOutboundIntegrationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
     [Http3Fact(Timeout = 45_000)]
-    public async Task HttpOutbound_WithHttp3Preferred_FallsBackToHttp2()
+    public async ValueTask HttpOutbound_WithHttp3Preferred_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)
         {
@@ -88,7 +88,7 @@ public sealed class HttpOutboundIntegrationTests(ITestOutputHelper output) : Int
     }
 
     [Fact(Timeout = 45_000)]
-    public async Task HttpOutbound_FailoverAcrossPeers_RetriesUntilSuccess()
+    public async ValueTask HttpOutbound_FailoverAcrossPeers_RetriesUntilSuccess()
     {
         var peer1Port = TestPortAllocator.GetRandomPort();
         var peer1Address = new Uri($"http://127.0.0.1:{peer1Port}/");

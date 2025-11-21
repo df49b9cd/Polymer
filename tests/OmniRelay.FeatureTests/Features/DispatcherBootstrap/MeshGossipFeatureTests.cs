@@ -18,7 +18,7 @@ public sealed class MeshGossipFeatureTests(FeatureTestApplication application) :
     private readonly List<MeshGossipHost> _extraHosts = new();
 
     [Fact(DisplayName = "Gossip cluster surfaces consistent peers via CLI, diagnostics, and metrics", Timeout = TestTimeouts.Default)]
-    public async Task GossipClusterHasConsistentDiagnosticsAsync()
+    public async ValueTask GossipClusterHasConsistentDiagnosticsAsync()
     {
         var ct = TestContext.Current.CancellationToken;
         using var metrics = new GossipMetricsListener();

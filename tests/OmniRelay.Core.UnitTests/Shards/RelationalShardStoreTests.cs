@@ -34,7 +34,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Upsert_CreatesShardAndLists()
+    public async ValueTask Upsert_CreatesShardAndLists()
     {
         var ct = TestContext.Current.CancellationToken;
         var request = CreateMutation("mesh.control", "shard-01", "node-a", strategy: ShardHashStrategyIds.ConsistentRing);
@@ -55,7 +55,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Upsert_UpdatesWithOptimisticConcurrency()
+    public async ValueTask Upsert_UpdatesWithOptimisticConcurrency()
     {
         var ct = TestContext.Current.CancellationToken;
         var insert = CreateMutation("mesh.telemetry", "shard-05", "node-a");
@@ -87,7 +87,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamDiffs_ReplaysSnapshotsPerHistoryEntry()
+    public async ValueTask StreamDiffs_ReplaysSnapshotsPerHistoryEntry()
     {
         var ct = TestContext.Current.CancellationToken;
         var create = CreateMutation("mesh.analytics", "shard-09", "node-a");
@@ -106,7 +106,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Upsert_WithStaleVersionThrows()
+    public async ValueTask Upsert_WithStaleVersionThrows()
     {
         var ct = TestContext.Current.CancellationToken;
         var insert = CreateMutation("mesh.payments", "shard-07", "node-a");
@@ -118,7 +118,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task QueryAsync_FiltersByNamespaceOwnerStatusAndSearch()
+    public async ValueTask QueryAsync_FiltersByNamespaceOwnerStatusAndSearch()
     {
         var ct = TestContext.Current.CancellationToken;
         for (var i = 0; i < 6; i++)
@@ -150,7 +150,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task QueryAsync_PaginatesWithCursor()
+    public async ValueTask QueryAsync_PaginatesWithCursor()
     {
         var ct = TestContext.Current.CancellationToken;
         for (var i = 0; i < 5; i++)

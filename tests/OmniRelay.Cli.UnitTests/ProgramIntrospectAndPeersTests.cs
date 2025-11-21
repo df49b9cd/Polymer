@@ -10,7 +10,7 @@ namespace OmniRelay.Cli.UnitTests;
 public sealed class ProgramIntrospectAndPeersTests : CliTestBase
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task IntrospectCommand_WithUnknownFormat_ReturnsError()
+    public async ValueTask IntrospectCommand_WithUnknownFormat_ReturnsError()
     {
         var snapshot = new DispatcherIntrospection(
             Service: "demo",
@@ -43,7 +43,7 @@ public sealed class ProgramIntrospectAndPeersTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task IntrospectCommand_InvalidTimeout_ExitsEarly()
+    public async ValueTask IntrospectCommand_InvalidTimeout_ExitsEarly()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync("introspect", "--timeout", "not-a-timespan");
@@ -53,7 +53,7 @@ public sealed class ProgramIntrospectAndPeersTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshPeersCommand_JsonFormat_PrintsJson()
+    public async ValueTask MeshPeersCommand_JsonFormat_PrintsJson()
     {
         var payload = new
         {
@@ -118,7 +118,7 @@ public sealed class ProgramIntrospectAndPeersTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshPeersCommand_InvalidTimeout_ReturnsError()
+    public async ValueTask MeshPeersCommand_InvalidTimeout_ReturnsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync("mesh", "peers", "list", "--timeout", "not-a-duration");

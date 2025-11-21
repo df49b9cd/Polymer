@@ -50,7 +50,7 @@ public sealed class LeadershipHyperscaleFeatureTests : IAsyncLifetime
     }
 
     [Fact(DisplayName = "Leadership cluster maintains exclusive leaders per scope and fails over inside SLA", Timeout = TestTimeouts.Default)]
-    public async Task LeadershipCluster_MeetsElectionSlaUnderChurnAsync()
+    public async ValueTask LeadershipCluster_MeetsElectionSlaUnderChurnAsync()
     {
         var ct = TestContext.Current.CancellationToken;
         await _cluster.WaitForStableLeadershipAsync(TimeSpan.FromSeconds(10), ct);
@@ -85,7 +85,7 @@ public sealed class LeadershipHyperscaleFeatureTests : IAsyncLifetime
     }
 
     [Fact(DisplayName = "Leadership event streams stay consistent during watcher churn and registry lag", Timeout = TestTimeouts.Default)]
-    public async Task LeadershipStreams_WithWatcherChurnRemainConsistentAsync()
+    public async ValueTask LeadershipStreams_WithWatcherChurnRemainConsistentAsync()
     {
         var ct = TestContext.Current.CancellationToken;
         await _cluster.WaitForStableLeadershipAsync(TimeSpan.FromSeconds(10), ct);

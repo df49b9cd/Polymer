@@ -10,7 +10,7 @@ public class TwoRandomPeerChooserTests
     private static RequestMeta Meta() => new RequestMeta(service: "svc", transport: "http");
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task SinglePeer_Path()
+    public async ValueTask SinglePeer_Path()
     {
         var p = Substitute.For<IPeer>(); p.Identifier.Returns("p"); p.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
         var chooser = new TwoRandomPeerChooser(System.Collections.Immutable.ImmutableArray.Create(p));
@@ -21,7 +21,7 @@ public class TwoRandomPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PicksLowerInflightOfTwo()
+    public async ValueTask PicksLowerInflightOfTwo()
     {
         var a = Substitute.For<IPeer>(); a.Identifier.Returns("a"); a.Status.Returns(new PeerStatus(PeerState.Available, 5, null, null)); a.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
         var b = Substitute.For<IPeer>(); b.Identifier.Returns("b"); b.Status.Returns(new PeerStatus(PeerState.Available, 1, null, null)); b.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
@@ -33,7 +33,7 @@ public class TwoRandomPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Reject_ReturnsExhausted()
+    public async ValueTask Reject_ReturnsExhausted()
     {
         var a = Substitute.For<IPeer>(); a.Identifier.Returns("a"); a.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); a.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
         var chooser = new TwoRandomPeerChooser([a], new Random(1));

@@ -8,7 +8,7 @@ namespace OmniRelay.Core.UnitTests.Leadership;
 public sealed class LeadershipCoordinatorTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Coordinator_ElectsSingleLeaderAndFailsOver()
+    public async ValueTask Coordinator_ElectsSingleLeaderAndFailsOver()
     {
         var store = new InMemoryLeadershipStore();
         var hubA = new LeadershipEventHub(NullLogger<LeadershipEventHub>.Instance);
@@ -118,7 +118,7 @@ public sealed class LeadershipCoordinatorTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Coordinator_CanBeStartedAndStopped()
+    public async ValueTask Coordinator_CanBeStartedAndStopped()
     {
         var store = new InMemoryLeadershipStore();
         var hub = new LeadershipEventHub(NullLogger<LeadershipEventHub>.Instance);
@@ -145,7 +145,7 @@ public sealed class LeadershipCoordinatorTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MultipleCoordinators_CompeteForLeadership()
+    public async ValueTask MultipleCoordinators_CompeteForLeadership()
     {
         var store = new InMemoryLeadershipStore();
         var hubA = new LeadershipEventHub(NullLogger<LeadershipEventHub>.Instance);

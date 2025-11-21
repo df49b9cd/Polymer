@@ -13,7 +13,7 @@ namespace OmniRelay.Cli.UnitTests;
 public sealed class MeshAdditionalCommandTests : CliTestBase
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshPeersListCommand_JsonFormat_WritesSerializedSnapshot()
+    public async ValueTask MeshPeersListCommand_JsonFormat_WritesSerializedSnapshot()
     {
         var peerResponse = new
         {
@@ -82,7 +82,7 @@ public sealed class MeshAdditionalCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshUpgradeStatusCommand_AsJson_PrintsSnapshot()
+    public async ValueTask MeshUpgradeStatusCommand_AsJson_PrintsSnapshot()
     {
         var snapshot = new NodeDrainSnapshot(
             NodeDrainState.Draining,
@@ -111,7 +111,7 @@ public sealed class MeshAdditionalCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshUpgradeDrainCommand_ForwardsReasonPayload()
+    public async ValueTask MeshUpgradeDrainCommand_ForwardsReasonPayload()
     {
         var handler = new StubHttpMessageHandler(request =>
         {
@@ -143,7 +143,7 @@ public sealed class MeshAdditionalCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshUpgradeResumeCommand_Timeout_ReturnsTwo()
+    public async ValueTask MeshUpgradeResumeCommand_Timeout_ReturnsTwo()
     {
         var handler = new StubHttpMessageHandler(_ => throw new TaskCanceledException("simulated timeout"));
         CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
@@ -156,7 +156,7 @@ public sealed class MeshAdditionalCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshBootstrapJoinCommand_WritesBundleToFile()
+    public async ValueTask MeshBootstrapJoinCommand_WritesBundleToFile()
     {
         var joinResponse = new BootstrapJoinResponse
         {
@@ -209,7 +209,7 @@ public sealed class MeshAdditionalCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshBootstrapIssueCommand_GeneratesToken()
+    public async ValueTask MeshBootstrapIssueCommand_GeneratesToken()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync("mesh", "bootstrap", "issue-token", "--signing-key", "secret-key", "--cluster", "alpha", "--role", "worker", "--lifetime", "30m", "--max-uses", "5", "--issuer", "tests");

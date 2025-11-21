@@ -16,7 +16,7 @@ public class FewestPendingPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ChoosesPeerWithLowestInflight()
+    public async ValueTask ChoosesPeerWithLowestInflight()
     {
         var high = Substitute.For<IPeer>(); high.Identifier.Returns("high"); high.Status.Returns(new PeerStatus(PeerState.Available, 10, null, null)); high.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
         var low = Substitute.For<IPeer>(); low.Identifier.Returns("low"); low.Status.Returns(new PeerStatus(PeerState.Available, 1, null, null)); low.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
@@ -29,7 +29,7 @@ public class FewestPendingPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task WhenTie_PicksOneOfBest()
+    public async ValueTask WhenTie_PicksOneOfBest()
     {
         var a = Substitute.For<IPeer>(); a.Identifier.Returns("a"); a.Status.Returns(new PeerStatus(PeerState.Available, 2, null, null)); a.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
         var b = Substitute.For<IPeer>(); b.Identifier.Returns("b"); b.Status.Returns(new PeerStatus(PeerState.Available, 2, null, null)); b.TryAcquire(Arg.Any<CancellationToken>()).Returns(true);
@@ -43,7 +43,7 @@ public class FewestPendingPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AllUnavailable_ReturnsExhausted()
+    public async ValueTask AllUnavailable_ReturnsExhausted()
     {
         var ua = Substitute.For<IPeer>(); ua.Identifier.Returns("ua"); ua.Status.Returns(new PeerStatus(PeerState.Unavailable, 0, null, null));
         var ub = Substitute.For<IPeer>(); ub.Identifier.Returns("ub"); ub.Status.Returns(new PeerStatus(PeerState.Unavailable, 0, null, null));
@@ -54,7 +54,7 @@ public class FewestPendingPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task SelectedPeerRejects_ReturnsExhausted()
+    public async ValueTask SelectedPeerRejects_ReturnsExhausted()
     {
         var p = Substitute.For<IPeer>(); p.Identifier.Returns("p"); p.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
         var chooser = new FewestPendingPeerChooser(p);

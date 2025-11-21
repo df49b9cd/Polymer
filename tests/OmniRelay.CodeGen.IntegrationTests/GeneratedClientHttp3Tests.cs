@@ -18,7 +18,7 @@ namespace OmniRelay.CodeGen.IntegrationTests;
 public class GeneratedClientHttp3Tests
 {
     [Http3Fact(Timeout = 45_000)]
-    public async Task GeneratedClient_Unary_UsesHttp3_WhenEnabled()
+    public async ValueTask GeneratedClient_Unary_UsesHttp3_WhenEnabled()
     {
         if (!QuicListener.IsSupported)
         {
@@ -103,7 +103,7 @@ public class GeneratedClientHttp3Tests
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GeneratedClient_Unary_FallsBack_ToHttp2_WhenServerDisablesHttp3()
+    public async ValueTask GeneratedClient_Unary_FallsBack_ToHttp2_WhenServerDisablesHttp3()
     {
         if (!QuicListener.IsSupported)
         {

@@ -15,7 +15,7 @@ public class RateLimitingMiddlewareTests
         new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Unary_WhenNoPermits_ReturnsResourceExhausted()
+    public async ValueTask Unary_WhenNoPermits_ReturnsResourceExhausted()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var preLease = await limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
@@ -33,7 +33,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamOutbound_Success_ReleasesPermitOnDispose()
+    public async ValueTask StreamOutbound_Success_ReleasesPermitOnDispose()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -58,7 +58,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamOutbound_Failure_ReleasesPermitImmediately()
+    public async ValueTask StreamOutbound_Failure_ReleasesPermitImmediately()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -77,7 +77,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamOutbound_CompletionWithError_ReleasesPermit()
+    public async ValueTask StreamOutbound_CompletionWithError_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -103,7 +103,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamOutbound_Success_ReleasesPermitOnDispose()
+    public async ValueTask ClientStreamOutbound_Success_ReleasesPermitOnDispose()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -133,7 +133,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamOutbound_ResponseFailure_ReleasesPermit()
+    public async ValueTask ClientStreamOutbound_ResponseFailure_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -160,7 +160,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamOutbound_Failure_ReleasesPermit()
+    public async ValueTask ClientStreamOutbound_Failure_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -178,7 +178,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DuplexOutbound_Success_ReleasesPermitOnDispose()
+    public async ValueTask DuplexOutbound_Success_ReleasesPermitOnDispose()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -202,7 +202,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DuplexOutbound_CompletionFailure_ReleasesPermit()
+    public async ValueTask DuplexOutbound_CompletionFailure_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });
@@ -223,7 +223,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task LimiterSelectorReturningNull_SkipsRateLimiting()
+    public async ValueTask LimiterSelectorReturningNull_SkipsRateLimiting()
     {
         var options = new RateLimitingOptions
         {
@@ -248,7 +248,7 @@ public class RateLimitingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamOutbound_DisposeThrows_ReleasesPermit()
+    public async ValueTask StreamOutbound_DisposeThrows_ReleasesPermit()
     {
         using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
         var middleware = new RateLimitingMiddleware(new RateLimitingOptions { Limiter = limiter });

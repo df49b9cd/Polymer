@@ -53,7 +53,7 @@ public class ClientStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Start_Write_Complete_Response_Decode_Succeeds()
+    public async ValueTask Start_Write_Complete_Response_Decode_Succeeds()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -85,7 +85,7 @@ public class ClientStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_PipelineFailure_Throws()
+    public async ValueTask StartAsync_PipelineFailure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -99,7 +99,7 @@ public class ClientStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task WriteAsync_EncodeFailure_Throws()
+    public async ValueTask WriteAsync_EncodeFailure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -121,7 +121,7 @@ public class ClientStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Response_Failure_Throws()
+    public async ValueTask Response_Failure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -145,7 +145,7 @@ public class ClientStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Response_DecodeFailure_Throws()
+    public async ValueTask Response_DecodeFailure_Throws()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -170,7 +170,7 @@ public class ClientStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_SetsEncodingWhenMissing()
+    public async ValueTask StartAsync_SetsEncodingWhenMissing()
     {
         var outbound = Substitute.For<IClientStreamOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();

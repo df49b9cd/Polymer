@@ -73,7 +73,7 @@ public sealed class ShardControlPlaneTestHost : IAsyncDisposable
         await _connection.DisposeAsync().ConfigureAwait(false);
     }
 
-    public async Task SeedAsync(IEnumerable<ShardMutationRequest> mutations, CancellationToken cancellationToken = default)
+    public async ValueTask SeedAsync(IEnumerable<ShardMutationRequest> mutations, CancellationToken cancellationToken = default)
     {
         foreach (var mutation in mutations)
         {

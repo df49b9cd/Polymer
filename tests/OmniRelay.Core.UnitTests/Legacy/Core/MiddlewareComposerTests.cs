@@ -10,7 +10,7 @@ namespace OmniRelay.Tests.Core;
 public class MiddlewareComposerTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeUnaryOutbound_ExecutesInRegistrationOrder()
+    public async ValueTask ComposeUnaryOutbound_ExecutesInRegistrationOrder()
     {
         var transcript = new List<string>();
         var middleware = new IUnaryOutboundMiddleware[]
@@ -53,7 +53,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeClientStreamOutbound_ExecutesInRegistrationOrder()
+    public async ValueTask ComposeClientStreamOutbound_ExecutesInRegistrationOrder()
     {
         var transcript = new List<string>();
         var middleware = new IClientStreamOutboundMiddleware[]

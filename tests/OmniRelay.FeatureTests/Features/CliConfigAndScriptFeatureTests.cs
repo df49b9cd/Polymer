@@ -15,7 +15,7 @@ public sealed class CliConfigAndScriptFeatureTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ConfigScaffoldThenValidate_Succeeds()
+    public async ValueTask ConfigScaffoldThenValidate_Succeeds()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"omnirelay-config-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
@@ -47,7 +47,7 @@ public sealed class CliConfigAndScriptFeatureTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ScriptRun_DryRun_CoversRequestAndIntrospect()
+    public async ValueTask ScriptRun_DryRun_CoversRequestAndIntrospect()
     {
         var scriptPath = Path.Combine(Path.GetTempPath(), $"omnirelay-script-{Guid.NewGuid():N}.json");
         var script = """

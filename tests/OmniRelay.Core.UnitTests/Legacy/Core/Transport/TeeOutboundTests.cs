@@ -11,7 +11,7 @@ namespace OmniRelay.Tests.Core.Transport;
 public class TeeOutboundTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Unary_ShadowInvokedWhenSampleRateSatisfied()
+    public async ValueTask Unary_ShadowInvokedWhenSampleRateSatisfied()
     {
         var primary = StubUnaryOutbound.Success();
         var shadow = StubUnaryOutbound.Success();
@@ -43,7 +43,7 @@ public class TeeOutboundTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Unary_DoesNotShadowWhenPrimaryFailsAndShadowOnSuccessOnly()
+    public async ValueTask Unary_DoesNotShadowWhenPrimaryFailsAndShadowOnSuccessOnly()
     {
         var primary = StubUnaryOutbound.Failure();
         var shadow = StubUnaryOutbound.Success();
@@ -61,7 +61,7 @@ public class TeeOutboundTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Unary_RespectsSampleRate()
+    public async ValueTask Unary_RespectsSampleRate()
     {
         var primary = StubUnaryOutbound.Success();
         var shadow = StubUnaryOutbound.Success();
@@ -79,7 +79,7 @@ public class TeeOutboundTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Oneway_ShadowInvoked()
+    public async ValueTask Oneway_ShadowInvoked()
     {
         var primary = StubOnewayOutbound.Success();
         var shadow = StubOnewayOutbound.Success();

@@ -36,7 +36,7 @@ public sealed class PeerMetricsTests : IDisposable
     public void Dispose() => _listener.Dispose();
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task LeaseSuccess_RecordsInflightAndSuccessMetrics()
+    public async ValueTask LeaseSuccess_RecordsInflightAndSuccessMetrics()
     {
         var peerId = CreatePeerId("peer-success");
         var peer = new CapturingPeer(peerId);
@@ -61,7 +61,7 @@ public sealed class PeerMetricsTests : IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task LeaseFailure_RecordsFailureMetric()
+    public async ValueTask LeaseFailure_RecordsFailureMetric()
     {
         var peerId = CreatePeerId("peer-fail");
         var peer = new CapturingPeer(peerId);
@@ -80,7 +80,7 @@ public sealed class PeerMetricsTests : IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task BusyPeer_RecordsRejectionsAndPoolExhaustion()
+    public async ValueTask BusyPeer_RecordsRejectionsAndPoolExhaustion()
     {
         var peerId = CreatePeerId("peer-busy");
         var peer = new BusyPeer(peerId);
@@ -95,7 +95,7 @@ public sealed class PeerMetricsTests : IDisposable
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RetryMiddleware_EmitsRetryMetrics()
+    public async ValueTask RetryMiddleware_EmitsRetryMetrics()
     {
         var options = new RetryOptions
         {

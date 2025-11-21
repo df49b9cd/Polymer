@@ -18,7 +18,7 @@ public sealed class ResourceLeaseShardingReplicatorTests
         replicationEvent.Metadata.TryGetValue("shard.id", out var value) && value == shardId;
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ShardedReplicator_AppendsShardMetadata()
+    public async ValueTask ShardedReplicator_AppendsShardMetadata()
     {
         var inner = Substitute.For<IResourceLeaseReplicator>();
         var replicator = new ShardedResourceLeaseReplicator(inner, "users");
@@ -32,7 +32,7 @@ public sealed class ResourceLeaseShardingReplicatorTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CompositeReplicator_FansOut()
+    public async ValueTask CompositeReplicator_FansOut()
     {
         var first = Substitute.For<IResourceLeaseReplicator>();
         var second = Substitute.For<IResourceLeaseReplicator>();

@@ -9,7 +9,7 @@ namespace OmniRelay.Tests.Transport;
 public class HttpStreamCallTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Context_TracksMessagesAndSuccessCompletion()
+    public async ValueTask Context_TracksMessagesAndSuccessCompletion()
     {
         var meta = new RequestMeta(service: "svc", procedure: "stream", transport: "http");
         var call = HttpStreamCall.CreateServerStream(meta);
@@ -29,7 +29,7 @@ public class HttpStreamCallTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Context_TracksCancelledCompletion()
+    public async ValueTask Context_TracksCancelledCompletion()
     {
         var meta = new RequestMeta(service: "svc", procedure: "stream", transport: "http");
         var call = HttpStreamCall.CreateServerStream(meta);
@@ -44,7 +44,7 @@ public class HttpStreamCallTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DisposeWithoutCompletion_MarksCancelled()
+    public async ValueTask DisposeWithoutCompletion_MarksCancelled()
     {
         var meta = new RequestMeta(service: "svc", procedure: "stream", transport: "http");
         var call = HttpStreamCall.CreateServerStream(meta);

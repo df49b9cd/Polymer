@@ -5,7 +5,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 public class DispatcherLifecycleSpikeTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RunAsync_ReportsStartAndStopOrder()
+    public async ValueTask RunAsync_ReportsStartAndStopOrder()
     {
         var startSteps = new List<Func<CancellationToken, Task>>
         {

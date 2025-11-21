@@ -18,7 +18,7 @@ public class HttpTransportHeaderIntegrationTests
     private const string ProtobufNormalizedEncoding = "protobuf";
 
     [Fact(Timeout = 30_000)]
-    public async Task UnaryRequests_SurfaceRpcHeadersForJsonAndProtobuf()
+    public async ValueTask UnaryRequests_SurfaceRpcHeadersForJsonAndProtobuf()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -147,7 +147,7 @@ public class HttpTransportHeaderIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task UnaryFailures_WriteRpcStatusHeaders()
+    public async ValueTask UnaryFailures_WriteRpcStatusHeaders()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

@@ -17,7 +17,7 @@ namespace OmniRelay.IntegrationTests;
 public sealed class HttpTransportNegotiationTests(ITestOutputHelper output) : IntegrationTest(output)
 {
     [Fact(Timeout = 30_000)]
-    public async Task HttpInbound_WithHttps_AcceptsHttp11()
+    public async ValueTask HttpInbound_WithHttps_AcceptsHttp11()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"https://127.0.0.1:{port}/");
@@ -52,7 +52,7 @@ public sealed class HttpTransportNegotiationTests(ITestOutputHelper output) : In
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task HttpInbound_WithHttps_NegotiatesHttp2()
+    public async ValueTask HttpInbound_WithHttps_NegotiatesHttp2()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"https://127.0.0.1:{port}/");
@@ -85,7 +85,7 @@ public sealed class HttpTransportNegotiationTests(ITestOutputHelper output) : In
     }
 
     [Http3Fact(Timeout = 30_000)]
-    public async Task HttpInbound_WithHttp3_AdvertisesAltSvc()
+    public async ValueTask HttpInbound_WithHttp3_AdvertisesAltSvc()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"https://127.0.0.1:{port}/");
@@ -127,7 +127,7 @@ public sealed class HttpTransportNegotiationTests(ITestOutputHelper output) : In
     }
 
     [Http3Fact(Timeout = 30_000)]
-    public async Task HttpInbound_WithHttp3Disabled_FallsBackToHttp2()
+    public async ValueTask HttpInbound_WithHttp3Disabled_FallsBackToHttp2()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"https://127.0.0.1:{port}/");

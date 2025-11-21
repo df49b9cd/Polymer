@@ -12,7 +12,7 @@ namespace OmniRelay.Core.UnitTests.Middleware;
 public class PanicRecoveryMiddlewareTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ConvertsExceptionToError_UnaryOutbound()
+    public async ValueTask ConvertsExceptionToError_UnaryOutbound()
     {
         var logger = Substitute.For<ILogger<PanicRecoveryMiddleware>>();
         var mw = new PanicRecoveryMiddleware(logger);
@@ -25,7 +25,7 @@ public class PanicRecoveryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ConvertsExceptionToError_AllShapes()
+    public async ValueTask ConvertsExceptionToError_AllShapes()
     {
         var middleware = new PanicRecoveryMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", transport: "test");

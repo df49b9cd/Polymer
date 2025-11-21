@@ -21,7 +21,7 @@ namespace OmniRelay.IntegrationTests;
 public sealed class CliToolingIntegrationTests
 {
     [Fact(Timeout = 240_000)]
-    public async Task CliConfigValidateAndServe_StartsDispatcherFromScaffold()
+    public async ValueTask CliConfigValidateAndServe_StartsDispatcherFromScaffold()
     {
         using var tempDir = new TempDirectory();
         var configPath = TempDirectory.Resolve("appsettings.cli.json");
@@ -83,7 +83,7 @@ public sealed class CliToolingIntegrationTests
     }
 
     [Fact(Timeout = 240_000)]
-    public async Task CliCommands_CanIntrospectRequestAndBenchmark_HttpHost()
+    public async ValueTask CliCommands_CanIntrospectRequestAndBenchmark_HttpHost()
     {
         var serviceName = $"cli-introspect-{Guid.NewGuid():N}";
         var httpPort = TestPortAllocator.GetRandomPort();
@@ -175,7 +175,7 @@ public sealed class CliToolingIntegrationTests
     }
 
     [Http3Fact(Timeout = 150_000)]
-    public async Task CliHttp3Flags_EnableQuicListeners()
+    public async ValueTask CliHttp3Flags_EnableQuicListeners()
     {
         if (!QuicListener.IsSupported)
         {

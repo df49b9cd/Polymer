@@ -8,7 +8,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 public class HttpDuplexProtocolTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task SendFrameAsync_UsesPooledBuffer_AndFramesPayload()
+    public async ValueTask SendFrameAsync_UsesPooledBuffer_AndFramesPayload()
     {
         var payload = new byte[] { 0xAA, 0xBB, 0xCC };
         var trackingPool = new TrackingArrayPool<byte>();
@@ -41,7 +41,7 @@ public class HttpDuplexProtocolTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task SendFrameAsync_LargePayload_SkipsPool()
+    public async ValueTask SendFrameAsync_LargePayload_SkipsPool()
     {
         var payload = GC.AllocateUninitializedArray<byte>(HttpDuplexProtocol.MaxPooledSendBytes + 8);
         for (var i = 0; i < 8; i++)

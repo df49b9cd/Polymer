@@ -6,7 +6,7 @@ namespace OmniRelay.Cli.UnitTests;
 public sealed class BenchmarkRunnerTests : CliTestBase
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RunAsync_PerformsWarmup_AndHonorsMaxRequests()
+    public async ValueTask RunAsync_PerformsWarmup_AndHonorsMaxRequests()
     {
         var invocation = CreateInvocation();
         var fakeInvoker = new FakeBenchmarkInvoker(TimeSpan.FromMilliseconds(2));
@@ -29,7 +29,7 @@ public sealed class BenchmarkRunnerTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RunAsync_StopsAfterDuration_WhenUnlimited()
+    public async ValueTask RunAsync_StopsAfterDuration_WhenUnlimited()
     {
         var invocation = CreateInvocation();
         var fakeInvoker = new FakeBenchmarkInvoker(TimeSpan.FromMilliseconds(5));
@@ -54,7 +54,7 @@ public sealed class BenchmarkRunnerTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RunAsync_RespectsRateLimit()
+    public async ValueTask RunAsync_RespectsRateLimit()
     {
         var invocation = CreateInvocation();
         var fakeInvoker = new FakeBenchmarkInvoker();

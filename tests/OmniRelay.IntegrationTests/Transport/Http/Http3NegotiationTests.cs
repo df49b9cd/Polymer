@@ -18,7 +18,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class Http3NegotiationTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Http3Fact(Timeout = 45000)]
-    public async Task HttpInbound_WithHttp3Enabled_AllowsHttp3Requests()
+    public async ValueTask HttpInbound_WithHttp3Enabled_AllowsHttp3Requests()
     {
         if (!QuicListener.IsSupported)
         {
@@ -60,7 +60,7 @@ public sealed class Http3NegotiationTests(ITestOutputHelper output) : TransportI
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task HttpInbound_WithHttp3_ServerStreamHandlesLargePayload()
+    public async ValueTask HttpInbound_WithHttp3_ServerStreamHandlesLargePayload()
     {
         if (!QuicListener.IsSupported)
         {
@@ -146,7 +146,7 @@ public sealed class Http3NegotiationTests(ITestOutputHelper output) : TransportI
     }
 
     [Http3Fact(Timeout = 45000)]
-    public async Task HttpInbound_WithHttp3Enabled_AllowsHttp1Requests()
+    public async ValueTask HttpInbound_WithHttp3Enabled_AllowsHttp1Requests()
     {
         if (!QuicListener.IsSupported)
         {
@@ -188,7 +188,7 @@ public sealed class Http3NegotiationTests(ITestOutputHelper output) : TransportI
     }
 
     [Http3Fact(Timeout = 45000)]
-    public async Task HttpInbound_WithHttp3Disabled_FallsBackToHttp2()
+    public async ValueTask HttpInbound_WithHttp3Disabled_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)
         {

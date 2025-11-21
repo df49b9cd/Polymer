@@ -33,7 +33,7 @@ public sealed class CliControlPlaneFeatureTests : IAsyncLifetime
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task MeshPeersList_RunsAgainstStubControlPlane()
+    public async ValueTask MeshPeersList_RunsAgainstStubControlPlane()
     {
         var command = $"mesh peers list --url {_host!.BaseAddress} --format table";
         var result = await CliCommandRunner.RunAsync(command, TestContext.Current.CancellationToken);
@@ -44,7 +44,7 @@ public sealed class CliControlPlaneFeatureTests : IAsyncLifetime
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task MeshUpgradeLifecycle_DrainStatusResume()
+    public async ValueTask MeshUpgradeLifecycle_DrainStatusResume()
     {
         var baseUrl = _host!.BaseAddress;
         var ct = TestContext.Current.CancellationToken;
@@ -67,7 +67,7 @@ public sealed class CliControlPlaneFeatureTests : IAsyncLifetime
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task MeshBootstrapJoin_WritesBundle()
+    public async ValueTask MeshBootstrapJoin_WritesBundle()
     {
         var outputPath = Path.Combine(Path.GetTempPath(), $"feature-bootstrap-{Guid.NewGuid():N}.json");
         try

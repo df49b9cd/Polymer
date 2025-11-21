@@ -8,7 +8,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 public class DuplexStreamCallTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CompleteRequestsAndResponses_SetStatuses()
+    public async ValueTask CompleteRequestsAndResponses_SetStatuses()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");
         var call = DuplexStreamCall.Create(meta);
@@ -26,7 +26,7 @@ public class DuplexStreamCallTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CompleteResponsesAsync_WithCancelledToken_PropagatesCancellation()
+    public async ValueTask CompleteResponsesAsync_WithCancelledToken_PropagatesCancellation()
     {
         var meta = new RequestMeta(service: "svc", transport: "grpc");
         var call = DuplexStreamCall.Create(meta);
@@ -46,7 +46,7 @@ public class DuplexStreamCallTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CompleteRequestsAsync_WithCancelledToken_PropagatesCancellation()
+    public async ValueTask CompleteRequestsAsync_WithCancelledToken_PropagatesCancellation()
     {
         var meta = new RequestMeta(service: "svc", transport: "grpc");
         var call = DuplexStreamCall.Create(meta);

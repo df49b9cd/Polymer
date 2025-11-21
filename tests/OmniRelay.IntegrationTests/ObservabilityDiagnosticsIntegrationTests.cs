@@ -25,7 +25,7 @@ public class ObservabilityDiagnosticsIntegrationTests
     private const string GrpcActivitySourceName = "OmniRelay.Transport.Grpc";
 
     [Fact(Timeout = 60_000)]
-    public async Task IntrospectionAndHealthChecks_ReportHealthyAndDegradedStatus()
+    public async ValueTask IntrospectionAndHealthChecks_ReportHealthyAndDegradedStatus()
     {
         var healthyPort = TestPortAllocator.GetRandomPort();
         var healthyBase = new Uri($"http://127.0.0.1:{healthyPort}/");
@@ -117,7 +117,7 @@ public class ObservabilityDiagnosticsIntegrationTests
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task StructuredLoggingAndMetrics_IncludeProtocolAndPeerContext()
+    public async ValueTask StructuredLoggingAndMetrics_IncludeProtocolAndPeerContext()
     {
         var serviceName = "observability-http";
         var port = TestPortAllocator.GetRandomPort();
@@ -241,7 +241,7 @@ public class ObservabilityDiagnosticsIntegrationTests
     }
 
     [Fact(Timeout = 90_000)]
-    public async Task OpenTelemetrySpans_RecordTransportAttributesForStreaming()
+    public async ValueTask OpenTelemetrySpans_RecordTransportAttributesForStreaming()
     {
         var activities = new ConcurrentBag<Activity>();
         using var listener = CreateGrpcActivityListener(activities);

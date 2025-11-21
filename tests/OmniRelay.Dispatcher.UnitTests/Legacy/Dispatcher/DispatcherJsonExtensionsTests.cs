@@ -13,7 +13,7 @@ namespace OmniRelay.Tests.Dispatcher;
 public class DispatcherJsonExtensionsTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RegisterJsonUnary_RegistersCodecAndHandlesRequest()
+    public async ValueTask RegisterJsonUnary_RegistersCodecAndHandlesRequest()
     {
         var options = new DispatcherOptions("echo");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -79,7 +79,7 @@ public class DispatcherJsonExtensionsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CreateJsonClient_UsesCodecRegistryAndRoundTrips()
+    public async ValueTask CreateJsonClient_UsesCodecRegistryAndRoundTrips()
     {
         var options = new DispatcherOptions("gateway");
         var outbound = new RecordingUnaryOutbound();
@@ -115,7 +115,7 @@ public class DispatcherJsonExtensionsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RegisterJsonUnary_HandlerExceptionReturnsError()
+    public async ValueTask RegisterJsonUnary_HandlerExceptionReturnsError()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
 
@@ -136,7 +136,7 @@ public class DispatcherJsonExtensionsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CreateJsonClient_ReusesExistingCodecWhenUnconfigured()
+    public async ValueTask CreateJsonClient_ReusesExistingCodecWhenUnconfigured()
     {
         var options = new DispatcherOptions("svc");
         var outbound = new RecordingUnaryOutbound();

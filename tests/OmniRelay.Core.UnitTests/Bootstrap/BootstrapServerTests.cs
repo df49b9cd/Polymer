@@ -12,7 +12,7 @@ namespace OmniRelay.Core.UnitTests.Bootstrap;
 public sealed class BootstrapServerTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task JoinAsync_ReturnsBundleWithCertificate()
+    public async ValueTask JoinAsync_ReturnsBundleWithCertificate()
     {
         var signingOptions = new BootstrapTokenSigningOptions
         {

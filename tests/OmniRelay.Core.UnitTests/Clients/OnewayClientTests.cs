@@ -15,7 +15,7 @@ public class OnewayClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CallAsync_Success_Encodes_InvokesOutbound()
+    public async ValueTask CallAsync_Success_Encodes_InvokesOutbound()
     {
         var outbound = Substitute.For<IOnewayOutbound>();
         var codec = Substitute.For<ICodec<Req, object>>();
@@ -36,7 +36,7 @@ public class OnewayClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CallAsync_Encode_Failure_Propagates()
+    public async ValueTask CallAsync_Encode_Failure_Propagates()
     {
         var outbound = Substitute.For<IOnewayOutbound>();
         var codec = Substitute.For<ICodec<Req, object>>();

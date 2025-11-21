@@ -40,7 +40,7 @@ public sealed class MeshGossipHostTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ProcessEnvelopeAsync_ReturnsLocalEnvelopeWhenSchemaMismatch()
+    public async ValueTask ProcessEnvelopeAsync_ReturnsLocalEnvelopeWhenSchemaMismatch()
     {
         var (host, _) = CreateHost();
 
@@ -61,7 +61,7 @@ public sealed class MeshGossipHostTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ProcessEnvelopeAsync_MergesSenderAndMembersIntoSnapshot()
+    public async ValueTask ProcessEnvelopeAsync_MergesSenderAndMembersIntoSnapshot()
     {
         var (host, _) = CreateHost();
 
@@ -120,7 +120,7 @@ public sealed class MeshGossipHostTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ExecuteRoundAsync_GossipsWithKnownPeersAndUpdatesMembership()
+    public async ValueTask ExecuteRoundAsync_GossipsWithKnownPeersAndUpdatesMembership()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
         var (host, _) = CreateHost(timeProvider: time);
@@ -215,7 +215,7 @@ public sealed class MeshGossipHostTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RunSweepLoopAsync_TransitionsPeersBasedOnTimers()
+    public async ValueTask RunSweepLoopAsync_TransitionsPeersBasedOnTimers()
     {
         var start = DateTimeOffset.UtcNow;
         var time = new TestTimeProvider(start);

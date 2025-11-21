@@ -13,7 +13,7 @@ namespace OmniRelay.Tests.Core.Middleware;
 public sealed class RpcLoggingMiddlewareTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryInbound_Success_LogsCompletion()
+    public async ValueTask UnaryInbound_Success_LogsCompletion()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var middleware = new RpcLoggingMiddleware(logger);
@@ -37,7 +37,7 @@ public sealed class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryOutbound_Failure_LogsError()
+    public async ValueTask UnaryOutbound_Failure_LogsError()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var middleware = new RpcLoggingMiddleware(logger);
@@ -59,7 +59,7 @@ public sealed class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ShouldLogRequestFalse_SkipsSuccessLog()
+    public async ValueTask ShouldLogRequestFalse_SkipsSuccessLog()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var options = new RpcLoggingOptions
@@ -81,7 +81,7 @@ public sealed class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Enrichment_AddsScopeWithRequestAndPeerDetails()
+    public async ValueTask Enrichment_AddsScopeWithRequestAndPeerDetails()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var options = new RpcLoggingOptions

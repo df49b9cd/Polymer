@@ -21,7 +21,7 @@ public class GrpcDispatcherHostIntegrationTests
         deserializer: static payload => payload ?? []);
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
+    public async ValueTask GrpcInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");

@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Transport;
 public sealed class GrpcExceptionAdapterInterceptorTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryServerHandler_ConvertsExceptionToRpcStatus()
+    public async ValueTask UnaryServerHandler_ConvertsExceptionToRpcStatus()
     {
         var interceptor = new GrpcExceptionAdapterInterceptor();
         var context = new TestServerCallContext("svc/method");
@@ -25,7 +25,7 @@ public sealed class GrpcExceptionAdapterInterceptorTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ServerStreamingHandler_PassesThroughRpcException()
+    public async ValueTask ServerStreamingHandler_PassesThroughRpcException()
     {
         var interceptor = new GrpcExceptionAdapterInterceptor();
         var context = new TestServerCallContext("svc/method");

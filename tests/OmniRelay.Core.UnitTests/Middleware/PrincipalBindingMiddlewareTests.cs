@@ -9,7 +9,7 @@ namespace OmniRelay.Core.UnitTests.Middleware;
 public sealed class PrincipalBindingMiddlewareTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PrincipalHeader_PromotesCallerAndMetadata()
+    public async ValueTask PrincipalHeader_PromotesCallerAndMetadata()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -42,7 +42,7 @@ public sealed class PrincipalBindingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AuthorizationHeader_BindsBearerToken()
+    public async ValueTask AuthorizationHeader_BindsBearerToken()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -74,7 +74,7 @@ public sealed class PrincipalBindingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MutualTlsAuthorizationHeader_BindsSubject()
+    public async ValueTask MutualTlsAuthorizationHeader_BindsSubject()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -108,7 +108,7 @@ public sealed class PrincipalBindingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamContext_UpdatesMetadata()
+    public async ValueTask ClientStreamContext_UpdatesMetadata()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -142,7 +142,7 @@ public sealed class PrincipalBindingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ThumbprintHeader_IsCapturedWhenEnabled()
+    public async ValueTask ThumbprintHeader_IsCapturedWhenEnabled()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -178,7 +178,7 @@ public sealed class PrincipalBindingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PromoteToCallerDisabled_DoesNotOverrideExistingCaller()
+    public async ValueTask PromoteToCallerDisabled_DoesNotOverrideExistingCaller()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {

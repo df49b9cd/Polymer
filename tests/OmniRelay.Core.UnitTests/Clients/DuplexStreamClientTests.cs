@@ -15,7 +15,7 @@ public class DuplexStreamClientTests
     public sealed class Res { public int B { get; init; } }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_Writes_Encodes_And_Reads_Decoded_Responses()
+    public async ValueTask StartAsync_Writes_Encodes_And_Reads_Decoded_Responses()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -52,7 +52,7 @@ public class DuplexStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_PipelineFailure_Throws()
+    public async ValueTask StartAsync_PipelineFailure_Throws()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -66,7 +66,7 @@ public class DuplexStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task WriteAsync_EncodeFailure_Throws()
+    public async ValueTask WriteAsync_EncodeFailure_Throws()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -87,7 +87,7 @@ public class DuplexStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ReadResponsesAsync_DecodeFailure_CompletesStreamAndThrows()
+    public async ValueTask ReadResponsesAsync_DecodeFailure_CompletesStreamAndThrows()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -121,7 +121,7 @@ public class DuplexStreamClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_SetsEncodingWhenMissing()
+    public async ValueTask StartAsync_SetsEncodingWhenMissing()
     {
         var outbound = Substitute.For<IDuplexOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();

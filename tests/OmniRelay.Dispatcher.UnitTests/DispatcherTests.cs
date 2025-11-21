@@ -27,7 +27,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InvokeUnaryAsync_ComposesGlobalAndLocalMiddleware()
+    public async ValueTask InvokeUnaryAsync_ComposesGlobalAndLocalMiddleware()
     {
         var options = new DispatcherOptions("svc");
         var invocations = new List<string>();
@@ -89,7 +89,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_BindsDispatcherAwareComponents()
+    public async ValueTask StartAsync_BindsDispatcherAwareComponents()
     {
         var options = new DispatcherOptions("svc");
         var lifecycle = new TestHelpers.RecordingLifecycle();
@@ -129,7 +129,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InvokeUnaryAsync_WhenMissing_ReturnsUnimplementedError()
+    public async ValueTask InvokeUnaryAsync_WhenMissing_ReturnsUnimplementedError()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
         var ct = TestContext.Current.CancellationToken;
@@ -140,7 +140,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InvokeClientStreamAsync_ReturnsCallHandle()
+    public async ValueTask InvokeClientStreamAsync_ReturnsCallHandle()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
 
@@ -164,7 +164,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_WhenLifecycleFails_StopsPreviouslyStartedComponents()
+    public async ValueTask StartAsync_WhenLifecycleFails_StopsPreviouslyStartedComponents()
     {
         var options = new DispatcherOptions("svc");
         var first = new TestHelpers.RecordingLifecycle();
@@ -180,7 +180,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StopAsync_WhenLifecycleFails_DoesNotReportStopped()
+    public async ValueTask StopAsync_WhenLifecycleFails_DoesNotReportStopped()
     {
         var options = new DispatcherOptions("svc");
         options.AddLifecycle("only", new ThrowingLifecycle(stopThrows: true));
@@ -195,7 +195,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StopAsync_WhileStartIsInProgress_ReturnsFailure()
+    public async ValueTask StopAsync_WhileStartIsInProgress_ReturnsFailure()
     {
         var options = new DispatcherOptions("svc");
         var lifecycle = new BlockingLifecycle();

@@ -58,7 +58,7 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         return new LeadershipSnapshot(DateTimeOffset.UtcNow, aggregate.Values.ToImmutableArray());
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public async ValueTask StartAsync(CancellationToken cancellationToken)
     {
         if (_started)
         {
@@ -73,7 +73,7 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         _started = true;
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public async ValueTask StopAsync(CancellationToken cancellationToken)
     {
         if (!_started)
         {
@@ -88,7 +88,7 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         _started = false;
     }
 
-    public async Task WaitForStableLeadershipAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    public async ValueTask WaitForStableLeadershipAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {
         var success = await WaitForConditionAsync(() =>
         {

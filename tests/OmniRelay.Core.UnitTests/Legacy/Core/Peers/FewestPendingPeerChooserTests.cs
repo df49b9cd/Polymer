@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Core.Peers;
 public sealed class FewestPendingPeerChooserTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AcquireAsync_PicksPeerWithFewestInflight()
+    public async ValueTask AcquireAsync_PicksPeerWithFewestInflight()
     {
         var busyPeer = new TestPeer("busy", inflight: 5);
         var idlePeer = new TestPeer("idle", inflight: 1);
@@ -22,7 +22,7 @@ public sealed class FewestPendingPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AcquireAsync_WhenAllBusy_ReturnsResourceExhausted()
+    public async ValueTask AcquireAsync_WhenAllBusy_ReturnsResourceExhausted()
     {
         var peer1 = new TestPeer("p1", inflight: 3, maxConcurrency: 3);
         var peer2 = new TestPeer("p2", inflight: 2, maxConcurrency: 2);

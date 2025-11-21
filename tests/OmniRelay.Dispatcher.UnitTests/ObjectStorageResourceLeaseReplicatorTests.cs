@@ -6,7 +6,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 public sealed class ObjectStorageResourceLeaseReplicatorTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PublishAsync_WritesBlobAndNotifiesSinks()
+    public async ValueTask PublishAsync_WritesBlobAndNotifiesSinks()
     {
         using var temp = new TempDirectory();
         var store = new FileSystemResourceLeaseObjectStore(temp.Path);

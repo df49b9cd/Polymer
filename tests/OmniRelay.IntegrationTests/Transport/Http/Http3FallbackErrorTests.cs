@@ -17,7 +17,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class Http3FallbackErrorTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Http3Fact(Timeout = 45_000)]
-    public async Task MissingProcedure_Http3AndHttp2ResponsesMatch()
+    public async ValueTask MissingProcedure_Http3AndHttp2ResponsesMatch()
     {
         if (!QuicListener.IsSupported)
         {
@@ -60,7 +60,7 @@ public sealed class Http3FallbackErrorTests(ITestOutputHelper output) : Transpor
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task MissingProcedure_Http3FallbackToHttp2MatchesPayload()
+    public async ValueTask MissingProcedure_Http3FallbackToHttp2MatchesPayload()
     {
         if (!QuicListener.IsSupported)
         {

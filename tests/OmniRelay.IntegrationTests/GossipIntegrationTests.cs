@@ -21,7 +21,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     private readonly TestCertificateInfo _certificate = TestCertificateFactory.EnsureDeveloperCertificateInfo("CN=integration-gossip");
 
     [Fact(Timeout = 60_000)]
-    public async Task GossipMesh_MutualSeeds_ConvergesClusterView()
+    public async ValueTask GossipMesh_MutualSeeds_ConvergesClusterView()
     {
         var ct = TestContext.Current.CancellationToken;
         var nodeA = new GossipNodeDescriptor("mesh-node-a", "rack-a", TestPortAllocator.GetRandomPort());
@@ -69,7 +69,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task GossipMesh_PeerDeparture_MarkedLeft()
+    public async ValueTask GossipMesh_PeerDeparture_MarkedLeft()
     {
         var ct = TestContext.Current.CancellationToken;
         var nodeA = new GossipNodeDescriptor("mesh-node-a", "rack-a", TestPortAllocator.GetRandomPort());
@@ -105,7 +105,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     }
 
     [Fact(Timeout = 90_000)]
-    public async Task GossipMesh_DiagnosticsEndpoint_ReflectsCluster()
+    public async ValueTask GossipMesh_DiagnosticsEndpoint_ReflectsCluster()
     {
         var ct = TestContext.Current.CancellationToken;
         var dispatcherNode = new GossipNodeDescriptor("mesh-node-dispatcher", "rack-control", TestPortAllocator.GetRandomPort());

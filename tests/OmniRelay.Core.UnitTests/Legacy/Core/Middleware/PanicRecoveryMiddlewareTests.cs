@@ -11,7 +11,7 @@ namespace OmniRelay.Tests.Core.Middleware;
 public sealed class PanicRecoveryMiddlewareTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryInbound_Exception_ConvertedToInternalError()
+    public async ValueTask UnaryInbound_Exception_ConvertedToInternalError()
     {
         var logger = new TestLogger<PanicRecoveryMiddleware>();
         var middleware = new PanicRecoveryMiddleware(logger);
@@ -35,7 +35,7 @@ public sealed class PanicRecoveryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryOutbound_Exception_ConvertedToInternalError()
+    public async ValueTask UnaryOutbound_Exception_ConvertedToInternalError()
     {
         var middleware = new PanicRecoveryMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");

@@ -16,7 +16,7 @@ public sealed class ResourceLeaseBackpressureListenerTests
         new(false, pending, DateTimeOffset.UtcNow, HighWatermark: 8, LowWatermark: 4);
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RateLimitingListener_TogglesGate()
+    public async ValueTask RateLimitingListener_TogglesGate()
     {
         await using var normal = new ConcurrencyLimiter(new ConcurrencyLimiterOptions
         {
@@ -47,7 +47,7 @@ public sealed class ResourceLeaseBackpressureListenerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DiagnosticsListener_StoresLatestAndStreams()
+    public async ValueTask DiagnosticsListener_StoresLatestAndStreams()
     {
         var listener = new ResourceLeaseBackpressureDiagnosticsListener(historyCapacity: 4);
         Assert.Null(listener.Latest);

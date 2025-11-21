@@ -28,7 +28,7 @@ public sealed class TransportPolicyIntegrationTests
 """;
 
     [Fact(Timeout = 120_000)]
-    public async Task MeshConfigValidate_AllowsHttp2DiagnosticsByDefault()
+    public async ValueTask MeshConfigValidate_AllowsHttp2DiagnosticsByDefault()
     {
         using var tempDir = new TempDirectory();
         var configPath = TempDirectory.Resolve("policy.appsettings.json");
@@ -45,7 +45,7 @@ public sealed class TransportPolicyIntegrationTests
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task MeshConfigValidate_AllowsHttp3ViaOverrides()
+    public async ValueTask MeshConfigValidate_AllowsHttp3ViaOverrides()
     {
         using var tempDir = new TempDirectory();
         var configPath = TempDirectory.Resolve("policy.appsettings.json");

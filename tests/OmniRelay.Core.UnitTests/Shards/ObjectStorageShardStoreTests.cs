@@ -8,7 +8,7 @@ namespace OmniRelay.Core.UnitTests.Shards;
 public sealed class ObjectStorageShardStoreTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Upsert_PersistsInObjectStorage()
+    public async ValueTask Upsert_PersistsInObjectStorage()
     {
         var store = new ObjectStorageShardStore(new InMemoryShardObjectStorage());
         var request = new ShardMutationRequest
@@ -33,7 +33,7 @@ public sealed class ObjectStorageShardStoreTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Upsert_DetectsConcurrentWrites()
+    public async ValueTask Upsert_DetectsConcurrentWrites()
     {
         var store = new ObjectStorageShardStore(new InMemoryShardObjectStorage());
         var request = new ShardMutationRequest
@@ -67,7 +67,7 @@ public sealed class ObjectStorageShardStoreTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamDiffs_ReturnsMutations()
+    public async ValueTask StreamDiffs_ReturnsMutations()
     {
         var store = new ObjectStorageShardStore(new InMemoryShardObjectStorage());
         for (var i = 0; i < 3; i++)

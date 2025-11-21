@@ -13,7 +13,7 @@ public class DispatcherOptionsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AddLifecycle_WithDuplicateInstance_StartsOnce()
+    public async ValueTask AddLifecycle_WithDuplicateInstance_StartsOnce()
     {
         var options = new DispatcherOptions("test-service");
         var lifecycle = new CountingLifecycle();

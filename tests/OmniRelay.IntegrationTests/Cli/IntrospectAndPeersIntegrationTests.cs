@@ -15,7 +15,7 @@ namespace OmniRelay.IntegrationTests.Cli;
 public class IntrospectAndPeersIntegrationTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task IntrospectCommand_PrintsTextSnapshot()
+    public async ValueTask IntrospectCommand_PrintsTextSnapshot()
     {
         var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
@@ -55,7 +55,7 @@ public class IntrospectAndPeersIntegrationTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshPeersList_CommandJsonFormat_Succeeds()
+    public async ValueTask MeshPeersList_CommandJsonFormat_Succeeds()
     {
         var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {

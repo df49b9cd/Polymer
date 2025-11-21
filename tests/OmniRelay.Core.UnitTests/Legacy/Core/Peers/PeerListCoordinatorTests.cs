@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Core.Peers;
 public sealed class PeerListCoordinatorTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AcquireAsync_AllPeersBusyWithoutDeadline_ReturnsResourceExhausted()
+    public async ValueTask AcquireAsync_AllPeersBusyWithoutDeadline_ReturnsResourceExhausted()
     {
         using var coordinator = new PeerListCoordinator([
             new TestPeer("peer-1", PeerState.Available, maxConcurrency: 0),
@@ -24,7 +24,7 @@ public sealed class PeerListCoordinatorTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AcquireAsync_NoAvailabilityBeforeDeadline_ReturnsDeadlineExceeded()
+    public async ValueTask AcquireAsync_NoAvailabilityBeforeDeadline_ReturnsDeadlineExceeded()
     {
         using var coordinator = new PeerListCoordinator([
             new TestPeer("peer-1", PeerState.Unavailable)

@@ -14,7 +14,7 @@ namespace OmniRelay.Cli.UnitTests;
 public sealed class ProgramCommandTests : CliTestBase
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ServeCommand_InvalidShutdownAfter_ShowsError()
+    public async ValueTask ServeCommand_InvalidShutdownAfter_ShowsError()
     {
         var configPath = CreateConfigFile();
         try
@@ -32,7 +32,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshShardsListCommand_WithFilters_PrintsTable()
+    public async ValueTask MeshShardsListCommand_WithFilters_PrintsTable()
     {
         var shard = new ShardSummary(
             "mesh.control",
@@ -96,7 +96,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshShardsListCommand_WithInvalidStatus_ExitsEarly()
+    public async ValueTask MeshShardsListCommand_WithInvalidStatus_ExitsEarly()
     {
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
         CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
@@ -121,7 +121,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshShardsDiffCommand_PrintsChanges()
+    public async ValueTask MeshShardsDiffCommand_PrintsChanges()
     {
         var shard = new ShardSummary(
             "mesh.control",
@@ -182,7 +182,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshShardsSimulateCommand_SendsNodePayload()
+    public async ValueTask MeshShardsSimulateCommand_SendsNodePayload()
     {
         var simulation = new ShardSimulationResponse(
             "mesh.control",
@@ -241,7 +241,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ServeCommand_WritesReadyFile_AndStopsHost()
+    public async ValueTask ServeCommand_WritesReadyFile_AndStopsHost()
     {
         var configPath = CreateConfigFile();
         var readyFile = Path.Combine(Path.GetTempPath(), $"ready-{Guid.NewGuid():N}.txt");
@@ -276,7 +276,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ConfigValidateCommand_MissingFile_ReturnsError()
+    public async ValueTask ConfigValidateCommand_MissingFile_ReturnsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync("config", "validate", "--config", "missing.json");
@@ -286,7 +286,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ConfigScaffoldCommand_Defaults_EmitsGoldenBaseline()
+    public async ValueTask ConfigScaffoldCommand_Defaults_EmitsGoldenBaseline()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var outputPath = Path.Combine(Path.GetTempPath(), $"omnirelay-scaffold-{Guid.NewGuid():N}.json");
@@ -309,7 +309,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ConfigScaffoldCommand_Http3AndOutboundSwitches_EmitsGoldenDocument()
+    public async ValueTask ConfigScaffoldCommand_Http3AndOutboundSwitches_EmitsGoldenDocument()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var outputPath = Path.Combine(Path.GetTempPath(), $"omnirelay-scaffold-{Guid.NewGuid():N}.json");
@@ -344,7 +344,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ConfigScaffoldCommand_WhenWriteFails_ReturnsError()
+    public async ValueTask ConfigScaffoldCommand_WhenWriteFails_ReturnsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"omnirelay-scaffold-dir-{Guid.NewGuid():N}");
@@ -367,7 +367,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task IntrospectCommand_PrintsJsonSnapshot()
+    public async ValueTask IntrospectCommand_PrintsJsonSnapshot()
     {
         var snapshot = new DispatcherIntrospection(
             Service: "demo-service",
@@ -407,7 +407,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RequestCommand_MissingHttpUrl_FailsBeforeNetwork()
+    public async ValueTask RequestCommand_MissingHttpUrl_FailsBeforeNetwork()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync(
@@ -424,7 +424,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task BenchmarkCommand_MissingRequestsAndDuration_ShowsGuidance()
+    public async ValueTask BenchmarkCommand_MissingRequestsAndDuration_ShowsGuidance()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync(
@@ -445,7 +445,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task BenchmarkCommand_WithRequestsAndWarmup_PrintsSummary()
+    public async ValueTask BenchmarkCommand_WithRequestsAndWarmup_PrintsSummary()
     {
         var fakeInvoker = new FakeBenchmarkInvoker(TimeSpan.FromMilliseconds(1));
         BenchmarkRunner.InvokerFactoryOverride = (_, _) => Task.FromResult<BenchmarkRunner.IRequestInvoker>(fakeInvoker);
@@ -477,7 +477,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ScriptRunCommand_ExecutesRequestAndIntrospect()
+    public async ValueTask ScriptRunCommand_ExecutesRequestAndIntrospect()
     {
         var scriptPath = GetAutomationFixture("automation-happy.json");
         var handler = CreateAutomationHandler();
@@ -494,7 +494,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ScriptRunCommand_DryRun_SkipsExecution()
+    public async ValueTask ScriptRunCommand_DryRun_SkipsExecution()
     {
         var scriptPath = GetAutomationFixture("automation-dryrun.json");
         var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("dry-run should not invoke network"));
@@ -509,7 +509,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ScriptRunCommand_ContinueOnError_AllowsLaterSteps()
+    public async ValueTask ScriptRunCommand_ContinueOnError_AllowsLaterSteps()
     {
         var scriptPath = GetAutomationFixture("automation-continue.json");
         CliRuntime.HttpClientFactory = new FakeHttpClientFactory(CreateAutomationHandler());
@@ -523,7 +523,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ScriptCommand_MissingFile_ReturnsError()
+    public async ValueTask ScriptCommand_MissingFile_ReturnsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync("script", "run", "--file", "missing.json");
@@ -533,7 +533,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshStatusCommand_InvalidUrl_ShowsError()
+    public async ValueTask MeshStatusCommand_InvalidUrl_ShowsError()
     {
         var harness = new CommandTestHarness(Program.BuildRootCommand());
         var result = await harness.InvokeAsync("mesh", "leaders", "status", "--url", "invalid");
@@ -543,7 +543,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshStatusCommand_Snapshot_PrintsLeaders()
+    public async ValueTask MeshStatusCommand_Snapshot_PrintsLeaders()
     {
         var snapshotJson = """
         {
@@ -582,7 +582,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshStatusCommand_Watch_StreamsEvents()
+    public async ValueTask MeshStatusCommand_Watch_StreamsEvents()
     {
         var ssePayload = string.Join('\n', new[]
         {
@@ -621,7 +621,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshStatusCommand_WatchTimeout_ReturnsTwo()
+    public async ValueTask MeshStatusCommand_WatchTimeout_ReturnsTwo()
     {
         var handler = new StubHttpMessageHandler(_ => throw new TaskCanceledException());
         CliRuntime.HttpClientFactory = new FakeHttpClientFactory(handler);
@@ -642,7 +642,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshConfigValidateCommand_WithDowngrade_PrintsError()
+    public async ValueTask MeshConfigValidateCommand_WithDowngrade_PrintsError()
     {
         var configPath = CreateDiagnosticsConfigFile(enableHttp3: false);
         try
@@ -660,7 +660,7 @@ public sealed class ProgramCommandTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task MeshConfigValidateCommand_WithOverrides_Succeeds()
+    public async ValueTask MeshConfigValidateCommand_WithOverrides_Succeeds()
     {
         var configPath = CreateDiagnosticsConfigFile(enableHttp3: false);
         try

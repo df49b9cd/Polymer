@@ -13,7 +13,7 @@ namespace OmniRelay.IntegrationTests;
 public sealed class ShardControlPlaneIntegrationTests
 {
     [Fact(Timeout = 30_000)]
-    public async Task ListShards_WithScopeReturnsResults()
+    public async ValueTask ListShards_WithScopeReturnsResults()
     {
         await using var host = await ShardControlPlaneTestHost.StartAsync(TestContext.Current.CancellationToken);
         await SeedAsync(host);
@@ -32,7 +32,7 @@ public sealed class ShardControlPlaneIntegrationTests
     }
 
     [Fact(Timeout = 20_000)]
-    public async Task ListShards_WithoutScopeIsForbidden()
+    public async ValueTask ListShards_WithoutScopeIsForbidden()
     {
         await using var host = await ShardControlPlaneTestHost.StartAsync(TestContext.Current.CancellationToken);
         await SeedAsync(host);
@@ -43,7 +43,7 @@ public sealed class ShardControlPlaneIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task SimulateShards_ReturnsPlan()
+    public async ValueTask SimulateShards_ReturnsPlan()
     {
         await using var host = await ShardControlPlaneTestHost.StartAsync(TestContext.Current.CancellationToken);
         await SeedAsync(host);

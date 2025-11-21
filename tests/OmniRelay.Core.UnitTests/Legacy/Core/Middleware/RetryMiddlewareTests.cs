@@ -11,7 +11,7 @@ namespace OmniRelay.Tests.Core.Middleware;
 public sealed class RetryMiddlewareTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryOutbound_RetriesUntilSuccess()
+    public async ValueTask UnaryOutbound_RetriesUntilSuccess()
     {
         var options = new RetryOptions
         {
@@ -43,7 +43,7 @@ public sealed class RetryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryOutbound_NonRetryableError_ReturnsImmediately()
+    public async ValueTask UnaryOutbound_NonRetryableError_ReturnsImmediately()
     {
         var options = new RetryOptions
         {
@@ -70,7 +70,7 @@ public sealed class RetryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ShouldRetryRequestFalse_SkipsRetries()
+    public async ValueTask ShouldRetryRequestFalse_SkipsRetries()
     {
         var options = new RetryOptions
         {

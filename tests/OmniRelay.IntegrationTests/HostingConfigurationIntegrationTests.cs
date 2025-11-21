@@ -19,7 +19,7 @@ namespace OmniRelay.IntegrationTests;
 public class HostingConfigurationIntegrationTests
 {
     [Fact(Timeout = 30_000)]
-    public async Task AddOmniRelayDispatcher_ComposesConfigurationFromJsonAndEnvironment()
+    public async ValueTask AddOmniRelayDispatcher_ComposesConfigurationFromJsonAndEnvironment()
     {
         var port = TestPortAllocator.GetRandomPort();
         var json = $$"""
@@ -213,7 +213,7 @@ public class HostingConfigurationIntegrationTests
     }
 
     [Http3Fact(Timeout = 30_000)]
-    public async Task AddOmniRelayDispatcher_EnableHttp3WithoutHttps_Throws()
+    public async ValueTask AddOmniRelayDispatcher_EnableHttp3WithoutHttps_Throws()
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -240,7 +240,7 @@ public class HostingConfigurationIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task AddOmniRelayDispatcher_ConfiguresHttpAndGrpcOutboundsWithMiddleware()
+    public async ValueTask AddOmniRelayDispatcher_ConfiguresHttpAndGrpcOutboundsWithMiddleware()
     {
         var inboundPort = TestPortAllocator.GetRandomPort();
         var httpOutboundUrl = $"http://127.0.0.1:{TestPortAllocator.GetRandomPort()}/yarpc";
@@ -318,7 +318,7 @@ public class HostingConfigurationIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task AddOmniRelayDispatcher_RegistersJsonCodecProfileAndMiddleware()
+    public async ValueTask AddOmniRelayDispatcher_RegistersJsonCodecProfileAndMiddleware()
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -365,7 +365,7 @@ public class HostingConfigurationIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task AddOmniRelayDispatcher_StartsMultipleInboundsAndExposesMetadata()
+    public async ValueTask AddOmniRelayDispatcher_StartsMultipleInboundsAndExposesMetadata()
     {
         var httpPort = TestPortAllocator.GetRandomPort();
         var grpcPort = TestPortAllocator.GetRandomPort();

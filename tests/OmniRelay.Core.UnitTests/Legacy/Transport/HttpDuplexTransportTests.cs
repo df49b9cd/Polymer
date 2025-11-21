@@ -13,7 +13,7 @@ namespace OmniRelay.Tests.Transport;
 public class HttpDuplexTransportTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task HttpDuplexOutbound_RawEncoding_SetsOctetStreamContentHeaders()
+    public async ValueTask HttpDuplexOutbound_RawEncoding_SetsOctetStreamContentHeaders()
     {
         var handler = new RecordingHandler();
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
@@ -42,7 +42,7 @@ public class HttpDuplexTransportTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task HttpInbound_RawEncoding_ReturnsOctetStreamContentType()
+    public async ValueTask HttpInbound_RawEncoding_ReturnsOctetStreamContentType()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

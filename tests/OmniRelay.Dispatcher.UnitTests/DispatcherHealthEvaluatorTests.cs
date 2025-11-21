@@ -20,7 +20,7 @@ public class DispatcherHealthEvaluatorTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Evaluate_WithGrpcOutboundReportsIssues()
+    public async ValueTask Evaluate_WithGrpcOutboundReportsIssues()
     {
         var initial = await EvaluateAsync(CreateSnapshot(isStarted: false, peers: []));
         Assert.Contains("grpc:remote:unary:default:not-started", initial.Issues);

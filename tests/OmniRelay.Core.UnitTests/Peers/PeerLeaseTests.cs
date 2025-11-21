@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Peers;
 public class PeerLeaseTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Dispose_ReleasesPeer_WithSuccessFlag()
+    public async ValueTask Dispose_ReleasesPeer_WithSuccessFlag()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");
         var peer = Substitute.For<IPeer, IPeerTelemetry>();
@@ -23,7 +23,7 @@ public class PeerLeaseTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DefaultFailureFlag_Propagates()
+    public async ValueTask DefaultFailureFlag_Propagates()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");
         var peer = Substitute.For<IPeer, IPeerTelemetry>();

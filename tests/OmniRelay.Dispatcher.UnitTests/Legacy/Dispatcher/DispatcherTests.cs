@@ -12,7 +12,7 @@ namespace OmniRelay.Tests.Dispatcher;
 public class DispatcherTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_StartsAndStopsLifecycleComponents()
+    public async ValueTask StartAsync_StartsAndStopsLifecycleComponents()
     {
         var lifecycle = new StubLifecycle();
         var options = new DispatcherOptions("keyvalue");
@@ -67,7 +67,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InvokeUnaryAsync_ResolvesProcedureAliases()
+    public async ValueTask InvokeUnaryAsync_ResolvesProcedureAliases()
     {
         var options = new DispatcherOptions("keyvalue");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -110,7 +110,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RegisterUnary_BuilderConfiguresPipelineAndMetadata()
+    public async ValueTask RegisterUnary_BuilderConfiguresPipelineAndMetadata()
     {
         var order = new List<string>();
         var options = new DispatcherOptions("keyvalue");
@@ -152,7 +152,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RegisterUnary_WildcardAliasRoutesRequests()
+    public async ValueTask RegisterUnary_WildcardAliasRoutesRequests()
     {
         var options = new DispatcherOptions("catalog");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -196,7 +196,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RegisterUnary_WildcardSpecificityPrefersMostSpecificAlias()
+    public async ValueTask RegisterUnary_WildcardSpecificityPrefersMostSpecificAlias()
     {
         var options = new DispatcherOptions("inventory");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -349,7 +349,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InvokeClientStreamAsync_ProcessesRequestAndCompletesResponse()
+    public async ValueTask InvokeClientStreamAsync_ProcessesRequestAndCompletesResponse()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("keyvalue"));
 
@@ -390,7 +390,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InvokeClientStreamAsync_WhenProcedureMissingReturnsError()
+    public async ValueTask InvokeClientStreamAsync_WhenProcedureMissingReturnsError()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("keyvalue"));
         var requestMeta = new RequestMeta(service: "keyvalue", procedure: "missing", transport: "test");
@@ -403,7 +403,7 @@ public class DispatcherTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Introspect_ReportsCurrentState()
+    public async ValueTask Introspect_ReportsCurrentState()
     {
         var lifecycle = new StubLifecycle();
         var unaryInbound = new PassthroughUnaryInboundMiddleware();

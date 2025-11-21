@@ -19,7 +19,7 @@ namespace OmniRelay.IntegrationTests.Transport.Grpc;
 public class GrpcHttp3DeadlineParityTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Http3Fact(Timeout = 30_000)]
-    public async Task Grpc_Http3_DeadlineExceeded_Matches_Http2()
+    public async ValueTask Grpc_Http3_DeadlineExceeded_Matches_Http2()
     {
         if (!QuicListener.IsSupported)
         {

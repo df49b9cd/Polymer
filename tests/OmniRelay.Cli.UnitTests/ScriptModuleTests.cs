@@ -5,7 +5,7 @@ namespace OmniRelay.Cli.UnitTests;
 public sealed class ScriptModuleTests : CliTestBase
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ScriptRunCommand_InvalidJson_ReturnsError()
+    public async ValueTask ScriptRunCommand_InvalidJson_ReturnsError()
     {
         var scriptPath = Path.Combine(Path.GetTempPath(), $"omnirelay-script-{Guid.NewGuid():N}.json");
         var ct = TestContext.Current.CancellationToken;
@@ -29,7 +29,7 @@ public sealed class ScriptModuleTests : CliTestBase
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ScriptRunCommand_EmptySteps_ReturnsError()
+    public async ValueTask ScriptRunCommand_EmptySteps_ReturnsError()
     {
         var scriptPath = Path.Combine(Path.GetTempPath(), $"omnirelay-script-{Guid.NewGuid():N}.json");
         var ct = TestContext.Current.CancellationToken;

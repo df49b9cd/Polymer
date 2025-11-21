@@ -9,7 +9,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 public class DispatcherJsonExtensionsTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RegisterJsonUnary_RegistersProcedureAndCodec()
+    public async ValueTask RegisterJsonUnary_RegistersProcedureAndCodec()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
 

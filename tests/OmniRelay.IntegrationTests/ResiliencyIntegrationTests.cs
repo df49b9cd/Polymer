@@ -28,7 +28,7 @@ namespace OmniRelay.IntegrationTests;
 public class ResiliencyIntegrationTests
 {
     [Fact(Timeout = 60_000)]
-    public async Task HttpInbound_StopAsync_DrainsAndRejectsNewRequests()
+    public async ValueTask HttpInbound_StopAsync_DrainsAndRejectsNewRequests()
     {
         var httpPort = TestPortAllocator.GetRandomPort();
         var httpBase = new Uri($"http://127.0.0.1:{httpPort}/");
@@ -93,7 +93,7 @@ public class ResiliencyIntegrationTests
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task GrpcInbound_StopAsync_DrainsAndRejectsNewCalls()
+    public async ValueTask GrpcInbound_StopAsync_DrainsAndRejectsNewCalls()
     {
         var grpcPort = TestPortAllocator.GetRandomPort();
         var grpcAddress = new Uri($"http://127.0.0.1:{grpcPort}");
@@ -153,7 +153,7 @@ public class ResiliencyIntegrationTests
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task GrpcOutbound_WithMutualTlsRequirement_SurfacesRetryableMetadata()
+    public async ValueTask GrpcOutbound_WithMutualTlsRequirement_SurfacesRetryableMetadata()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-resiliency-handshake");
 
@@ -218,7 +218,7 @@ public class ResiliencyIntegrationTests
     }
 
     [Http3Fact(Timeout = 90_000)]
-    public async Task GrpcClient_WithHttp3Preferred_FallsBackToHttp2()
+    public async ValueTask GrpcClient_WithHttp3Preferred_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)
         {
@@ -297,7 +297,7 @@ public class ResiliencyIntegrationTests
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task DeadlinesAndCancellations_SurfaceStatusesAndRetryHints()
+    public async ValueTask DeadlinesAndCancellations_SurfaceStatusesAndRetryHints()
     {
         var timeoutPort = TestPortAllocator.GetRandomPort();
         var timeoutBase = new Uri($"http://127.0.0.1:{timeoutPort}/");
@@ -397,7 +397,7 @@ public class ResiliencyIntegrationTests
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task RetryMiddlewareAndCircuitBreaker_RecoverFromPeerFailures()
+    public async ValueTask RetryMiddlewareAndCircuitBreaker_RecoverFromPeerFailures()
     {
         var backendPort = TestPortAllocator.GetRandomPort();
         var backendAddress = new Uri($"http://127.0.0.1:{backendPort}");

@@ -9,7 +9,7 @@ namespace OmniRelay.Core.UnitTests.ControlPlane;
 public sealed class ControlPlaneEventBusTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PublishAsync_DeliversEventsToSubscribers()
+    public async ValueTask PublishAsync_DeliversEventsToSubscribers()
     {
         var bus = new ControlPlaneEventBus(NullLogger<ControlPlaneEventBus>.Instance);
         await using var subscription = bus.Subscribe();
@@ -23,7 +23,7 @@ public sealed class ControlPlaneEventBusTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PublishAsync_AppliesFilters()
+    public async ValueTask PublishAsync_AppliesFilters()
     {
         var bus = new ControlPlaneEventBus(NullLogger<ControlPlaneEventBus>.Instance);
         await using var subscription = bus.Subscribe(new ControlPlaneEventFilter { ClusterId = "cluster-a" });

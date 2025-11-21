@@ -22,7 +22,7 @@ public class CodegenWorkflowIntegrationTests
     private const string EncodingName = "protobuf";
 
     [Http3Fact(Timeout = 90_000)]
-    public async Task GeneratedClient_RoundTripsOverHttp3_WhenDispatcherHostEnablesIt()
+    public async ValueTask GeneratedClient_RoundTripsOverHttp3_WhenDispatcherHostEnablesIt()
     {
         if (!QuicListener.IsSupported)
         {
@@ -115,7 +115,7 @@ public class CodegenWorkflowIntegrationTests
     }
 
     [Http3Fact(Timeout = 90_000)]
-    public async Task GeneratedClient_FallsBackToHttp2_WhenServerDisablesHttp3()
+    public async ValueTask GeneratedClient_FallsBackToHttp2_WhenServerDisablesHttp3()
     {
         if (!QuicListener.IsSupported)
         {
@@ -213,7 +213,7 @@ public class CodegenWorkflowIntegrationTests
     }
 
     [Fact(Timeout = 90_000)]
-    public async Task GeneratedClient_StreamHelpers_WorkWhenResolvedFromDependencyInjection()
+    public async ValueTask GeneratedClient_StreamHelpers_WorkWhenResolvedFromDependencyInjection()
     {
         var address = new Uri($"http://127.0.0.1:{TestPortAllocator.GetRandomPort()}");
 

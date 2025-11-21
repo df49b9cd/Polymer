@@ -14,7 +14,7 @@ namespace OmniRelay.IntegrationTests;
 public class HttpStreamingIntegrationTests
 {
     [Fact(Timeout = 30_000)]
-    public async Task ServerStream_EmitsSseFramesOverHttp()
+    public async ValueTask ServerStream_EmitsSseFramesOverHttp()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -94,7 +94,7 @@ public class HttpStreamingIntegrationTests
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task ServerStream_EnforcesMessageSizeLimit()
+    public async ValueTask ServerStream_EnforcesMessageSizeLimit()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

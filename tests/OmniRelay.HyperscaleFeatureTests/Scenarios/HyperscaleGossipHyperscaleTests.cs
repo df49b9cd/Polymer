@@ -19,7 +19,7 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
     }
 
     [Fact(DisplayName = "Gossip cluster converges across dozens of nodes and recovers from churn", Timeout = TestTimeouts.Default)]
-    public async Task GossipCluster_CoversHyperscaleScenarioAsync()
+    public async ValueTask GossipCluster_CoversHyperscaleScenarioAsync()
     {
         var ct = TestContext.Current.CancellationToken;
         await StartClusterAsync(_nodes, ct);

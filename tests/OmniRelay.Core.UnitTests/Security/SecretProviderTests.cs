@@ -9,7 +9,7 @@ public sealed class SecretProviderTests
     private readonly TestAuditor _auditor = new();
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task EnvironmentSecretProvider_ReturnsValue()
+    public async ValueTask EnvironmentSecretProvider_ReturnsValue()
     {
         Environment.SetEnvironmentVariable("TEST_SECRET_VALUE", "env-secret");
         var provider = new EnvironmentSecretProvider(_auditor);
@@ -31,7 +31,7 @@ public sealed class SecretProviderTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task FileSecretProvider_LoadsSecret()
+    public async ValueTask FileSecretProvider_LoadsSecret()
     {
         using var tempFile = new TempFile("file-secret");
         var options = new FileSecretProviderOptions();
@@ -48,7 +48,7 @@ public sealed class SecretProviderTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CompositeSecretProvider_RespectsOrder()
+    public async ValueTask CompositeSecretProvider_RespectsOrder()
     {
         var inline = new InMemorySecretProvider(_auditor);
         inline.SetSecret("tls", Encoding.UTF8.GetBytes("inline-secret"));

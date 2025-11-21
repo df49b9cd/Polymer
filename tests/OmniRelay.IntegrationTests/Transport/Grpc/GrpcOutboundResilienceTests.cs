@@ -16,7 +16,7 @@ namespace OmniRelay.IntegrationTests.Transport.Grpc;
 public sealed class GrpcOutboundResilienceTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Http3Fact(Timeout = 60_000)]
-    public async Task Breaker_Trips_On_Http3_Handshake_Failures()
+    public async ValueTask Breaker_Trips_On_Http3_Handshake_Failures()
     {
         // Server supports only HTTP/2
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-grpc-resilience-h2");
@@ -89,7 +89,7 @@ public sealed class GrpcOutboundResilienceTests(ITestOutputHelper output) : Tran
     }
 
     [Http3Fact(Timeout = 30_000)]
-    public async Task Breaker_Trips_On_Transport_Errors_No_Server()
+    public async ValueTask Breaker_Trips_On_Transport_Errors_No_Server()
     {
         // No server listening at this HTTPS endpoint
         var port = TestPortAllocator.GetRandomPort();

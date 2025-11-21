@@ -26,7 +26,7 @@ public sealed class ShardControlFeatureTests : IAsyncLifetime
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task MeshShardsCommands_RunAgainstControlPlane()
+    public async ValueTask MeshShardsCommands_RunAgainstControlPlane()
     {
         var baseUrl = _host!.BaseAddress.ToString();
         var ct = TestContext.Current.CancellationToken;

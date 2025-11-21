@@ -48,7 +48,7 @@ public sealed class ShardControlHyperscaleFeatureTests : IAsyncLifetime
     }
 
     [Fact(Timeout = 90_000)]
-    public async Task ListShards_SupportsThousandScalePagination()
+    public async ValueTask ListShards_SupportsThousandScalePagination()
     {
         using var client = new HttpClient { BaseAddress = _host!.BaseAddress };
         client.DefaultRequestHeaders.Add("x-mesh-scope", "mesh.read");

@@ -7,7 +7,7 @@ namespace OmniRelay.Core.UnitTests.Transport;
 public class ServerStreamCallTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Write_Then_Complete_Succeeds_And_Tracks_Context()
+    public async ValueTask Write_Then_Complete_Succeeds_And_Tracks_Context()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");
         var call = ServerStreamCall.Create(meta);
@@ -35,7 +35,7 @@ public class ServerStreamCallTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Complete_With_Error_Faults_Context()
+    public async ValueTask Complete_With_Error_Faults_Context()
     {
         var meta = new RequestMeta(service: "svc", transport: "http");
         var call = ServerStreamCall.Create(meta);

@@ -11,7 +11,7 @@ namespace OmniRelay.Tests.Core.Middleware;
 public sealed class RpcMetricsMiddlewareTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryInbound_Success_RecordsMetrics()
+    public async ValueTask UnaryInbound_Success_RecordsMetrics()
     {
         using var meter = new Meter("test.yarpcore.metrics");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -40,7 +40,7 @@ public sealed class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task UnaryOutbound_Failure_IncrementsFailureCounter()
+    public async ValueTask UnaryOutbound_Failure_IncrementsFailureCounter()
     {
         using var meter = new Meter("test.yarpcore.metrics");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };

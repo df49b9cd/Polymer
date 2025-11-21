@@ -55,7 +55,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Records_Success_And_Duration_For_Unary()
+    public async ValueTask Records_Success_And_Duration_For_Unary()
     {
         using var meter = new Meter("test.rpc.metrics.unary.success");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -77,7 +77,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Records_Failure_For_Unary()
+    public async ValueTask Records_Failure_For_Unary()
     {
         using var meter = new Meter("test.rpc.metrics.unary.failure");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -98,7 +98,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Records_Exception_For_Unary()
+    public async ValueTask Records_Exception_For_Unary()
     {
         using var meter = new Meter("test.rpc.metrics.unary.exception");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -120,7 +120,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamOutbound_DisposeRecordsOutcome()
+    public async ValueTask StreamOutbound_DisposeRecordsOutcome()
     {
         using var meter = new Meter("test.rpc.metrics.stream");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -153,7 +153,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamOutbound_ResponseFailureRecorded()
+    public async ValueTask ClientStreamOutbound_ResponseFailureRecorded()
     {
         using var meter = new Meter("test.rpc.metrics.clientstream");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -183,7 +183,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamOutbound_ResponseThrowsRecorded()
+    public async ValueTask ClientStreamOutbound_ResponseThrowsRecorded()
     {
         using var meter = new Meter("test.rpc.metrics.clientstream.throw");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -209,7 +209,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DuplexOutbound_CompletingWithErrorRecordsFailure()
+    public async ValueTask DuplexOutbound_CompletingWithErrorRecordsFailure()
     {
         using var meter = new Meter("test.rpc.metrics.duplex");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -237,7 +237,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task OnewayOutbound_RecordsMetrics()
+    public async ValueTask OnewayOutbound_RecordsMetrics()
     {
         using var meter = new Meter("test.rpc.metrics.oneway");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };
@@ -264,7 +264,7 @@ public class RpcMetricsMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamInbound_RecordsSuccessAndFailure()
+    public async ValueTask ClientStreamInbound_RecordsSuccessAndFailure()
     {
         using var meter = new Meter("test.rpc.metrics.clientstream.inbound");
         var options = new RpcMetricsOptions { Meter = meter, MetricPrefix = "test.rpc" };

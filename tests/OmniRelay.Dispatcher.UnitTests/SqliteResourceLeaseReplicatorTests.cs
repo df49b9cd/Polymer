@@ -7,7 +7,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 public sealed class SqliteResourceLeaseReplicatorTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PublishAsync_PersistsEventAndNotifiesSinks()
+    public async ValueTask PublishAsync_PersistsEventAndNotifiesSinks()
     {
         using var temp = new TempFile();
         var connectionString = $"Data Source={temp.Path}";

@@ -31,7 +31,7 @@ namespace OmniRelay.IntegrationTests;
 public sealed class CompatibilityInteropIntegrationTests
 {
     [Fact(Timeout = 90_000)]
-    public async Task YabHttp11Interop_Succeeds()
+    public async ValueTask YabHttp11Interop_Succeeds()
     {
         var ct = TestContext.Current.CancellationToken;
         var yabPath = ExternalTool.Require("yab", "yab CLI missing. Install go.uber.org/yarpc/yab to run this test.");
@@ -104,7 +104,7 @@ public sealed class CompatibilityInteropIntegrationTests
     }
 
     [Fact(Timeout = 90_000)]
-    public async Task GrpcurlInterop_UsesHttp2()
+    public async ValueTask GrpcurlInterop_UsesHttp2()
     {
         var ct = TestContext.Current.CancellationToken;
         var grpcurlPath = ExternalTool.Require("grpcurl", "grpcurl CLI missing. Install github.com/fullstorydev/grpcurl to run this test.");
@@ -174,7 +174,7 @@ public sealed class CompatibilityInteropIntegrationTests
     }
 
     [Http3Fact(Timeout = 120_000)]
-    public async Task CurlHttp3Interop_Succeeds()
+    public async ValueTask CurlHttp3Interop_Succeeds()
     {
         var ct = TestContext.Current.CancellationToken;
         var curlPath = ExternalTool.Require("curl", "curl (with HTTP/3 support) is required for this test.");
@@ -242,7 +242,7 @@ public sealed class CompatibilityInteropIntegrationTests
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task YarpProxy_ForwardsHeadersAndHttp2Negotiation()
+    public async ValueTask YarpProxy_ForwardsHeadersAndHttp2Negotiation()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -345,7 +345,7 @@ public sealed class CompatibilityInteropIntegrationTests
     }
 
     [Fact(Timeout = 180_000)]
-    public async Task EnvoyProxy_ForwardsRpcHeadersAndNegotiatesHttp2()
+    public async ValueTask EnvoyProxy_ForwardsRpcHeadersAndNegotiatesHttp2()
     {
         var ct = TestContext.Current.CancellationToken;
         if (!string.Equals(Environment.GetEnvironmentVariable("OMNIRELAY_ENABLE_ENVOY_TESTS"), "true", StringComparison.OrdinalIgnoreCase))
@@ -434,7 +434,7 @@ public sealed class CompatibilityInteropIntegrationTests
     }
 
     [Fact(Timeout = 120_000)]
-    public async Task TeeOutbound_RoutesShadowTrafficDuringRollingUpgrade()
+    public async ValueTask TeeOutbound_RoutesShadowTrafficDuringRollingUpgrade()
     {
         var ct = TestContext.Current.CancellationToken;
 

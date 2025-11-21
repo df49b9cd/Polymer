@@ -9,7 +9,7 @@ namespace OmniRelay.Configuration.UnitTests.Configuration;
 public sealed class DispatcherHostedServiceTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAndStopAsync_LogLifecycleAndDriveDispatcher()
+    public async ValueTask StartAndStopAsync_LogLifecycleAndDriveDispatcher()
     {
         var (dispatcher, lifecycle) = CreateDispatcher();
         var logger = new TestLogger<DispatcherHostedService>();
@@ -27,7 +27,7 @@ public sealed class DispatcherHostedServiceTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StartAsync_WhenDispatcherFails_ThrowsResultException()
+    public async ValueTask StartAsync_WhenDispatcherFails_ThrowsResultException()
     {
         var (dispatcher, lifecycle) = CreateDispatcher(lifecycle => lifecycle.FailStart = true);
         var logger = new TestLogger<DispatcherHostedService>();
@@ -40,7 +40,7 @@ public sealed class DispatcherHostedServiceTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StopAsync_WhenDispatcherFails_ThrowsResultException()
+    public async ValueTask StopAsync_WhenDispatcherFails_ThrowsResultException()
     {
         var (dispatcher, lifecycle) = CreateDispatcher(lifecycle => lifecycle.FailStop = true);
         var logger = new TestLogger<DispatcherHostedService>();

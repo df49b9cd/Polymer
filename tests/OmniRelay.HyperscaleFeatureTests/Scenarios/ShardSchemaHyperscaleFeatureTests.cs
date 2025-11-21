@@ -33,7 +33,7 @@ public sealed class ShardSchemaHyperscaleFeatureTests : IAsyncLifetime
     }
 
     [Fact(DisplayName = "Shard hashing stays deterministic while nodes churn across thousands of shards", Timeout = TestTimeouts.Default)]
-    public async Task ShardHashing_WithRollingUpdatesRemainsDeterministic()
+    public async ValueTask ShardHashing_WithRollingUpdatesRemainsDeterministic()
     {
         var ct = TestContext.Current.CancellationToken;
         var namespaces = new[] { "mesh.control", "mesh.telemetry", "mesh.payments" };
@@ -79,7 +79,7 @@ public sealed class ShardSchemaHyperscaleFeatureTests : IAsyncLifetime
     }
 
     [Fact(DisplayName = "Concurrent governance edits surface optimistic concurrency violations with audits", Timeout = TestTimeouts.Default)]
-    public async Task ShardRepository_WithConcurrentGovernanceEnforcesOptimism()
+    public async ValueTask ShardRepository_WithConcurrentGovernanceEnforcesOptimism()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = "mesh.governance";

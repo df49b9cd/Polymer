@@ -15,7 +15,7 @@ namespace OmniRelay.IntegrationTests;
 public class HttpDispatcherHostIntegrationTests
 {
     [Fact(Timeout = 30_000)]
-    public async Task HttpInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
+    public async ValueTask HttpInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseUrl = $"http://127.0.0.1:{port}";
