@@ -9,7 +9,9 @@ namespace OmniRelay.Dispatcher;
 /// </summary>
 public sealed class CodecRegistry
 {
-    private readonly Dictionary<string, ProcedureCodecDescriptor> _codecs = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;
+
+    private readonly Dictionary<ProcedureCodecKey, ProcedureCodecDescriptor> _codecs = new();
     private readonly Lock _gate = new();
     private readonly string _localService;
 
@@ -100,7 +102,7 @@ public sealed class CodecRegistry
             return false;
         }
 
-        var key = BuildKey(scope, service, procedure, kind);
+        var key = new ProcedureCodecKey(scope, service, procedure, kind);
 
         lock (_gate)
         {
@@ -141,8 +143,7 @@ public sealed class CodecRegistry
             var builder = ImmutableArray.CreateBuilder<(ProcedureCodecScope, string, string, ProcedureKind, ProcedureCodecDescriptor)>(_codecs.Count);
             foreach (var entry in _codecs)
             {
-                var parsed = ParseKey(entry.Key);
-                builder.Add((parsed.Scope, parsed.Service, parsed.Procedure, parsed.Kind, entry.Value));
+                builder.Add((entry.Key.Scope, entry.Key.Service, entry.Key.Procedure, entry.Key.Kind, entry.Value));
             }
 
             return builder.ToImmutable();
@@ -198,7 +199,7 @@ public sealed class CodecRegistry
         {
             foreach (var name in EnumerateNames(procedure, aliases))
             {
-                var key = BuildKey(scope, service, name, kind);
+                var key = new ProcedureCodecKey(scope, service, name, kind);
                 if (_codecs.ContainsKey(key))
                 {
                     throw new InvalidOperationException($"Codec for {scope} procedure '{service}::{name}' ({kind}) is already registered.");
@@ -255,25 +256,37 @@ public sealed class CodecRegistry
         }
     }
 
-    private static string BuildKey(ProcedureCodecScope scope, string service, string procedure, ProcedureKind kind)
+    private readonly struct ProcedureCodecKey : IEquatable<ProcedureCodecKey>
     {
-        var normalizedService = service.Trim();
-        var normalizedProcedure = procedure.Trim();
-        return $"{scope}|{kind}|{normalizedService.ToLowerInvariant()}|{normalizedProcedure.ToLowerInvariant()}";
-    }
-
-    private static (ProcedureCodecScope Scope, string Service, string Procedure, ProcedureKind Kind) ParseKey(string key)
-    {
-        var parts = key.Split('|');
-        if (parts.Length != 4)
+        public ProcedureCodecKey(ProcedureCodecScope scope, string service, string procedure, ProcedureKind kind)
         {
-            throw new InvalidOperationException($"Codec registry key '{key}' is invalid.");
+            Scope = scope;
+            Service = service?.Trim() ?? string.Empty;
+            Procedure = procedure?.Trim() ?? string.Empty;
+            Kind = kind;
         }
 
-        return (
-            Enum.Parse<ProcedureCodecScope>(parts[0], ignoreCase: true),
-            parts[2],
-            parts[3],
-            Enum.Parse<ProcedureKind>(parts[1], ignoreCase: true));
+        public ProcedureCodecScope Scope { get; }
+        public string Service { get; }
+        public string Procedure { get; }
+        public ProcedureKind Kind { get; }
+
+        public bool Equals(ProcedureCodecKey other) =>
+            Scope == other.Scope &&
+            Comparer.Equals(Service, other.Service) &&
+            Comparer.Equals(Procedure, other.Procedure) &&
+            Kind == other.Kind;
+
+        public override bool Equals(object? obj) => obj is ProcedureCodecKey other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add((int)Scope);
+            hash.Add(Service, Comparer);
+            hash.Add(Procedure, Comparer);
+            hash.Add((int)Kind);
+            return hash.ToHashCode();
+        }
     }
 }
