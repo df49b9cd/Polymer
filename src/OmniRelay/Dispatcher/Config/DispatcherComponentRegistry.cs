@@ -1,7 +1,6 @@
 using Grpc.Core.Interceptors;
 using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core.Middleware;
-using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http.Middleware;
 
 namespace OmniRelay.Dispatcher.Config;

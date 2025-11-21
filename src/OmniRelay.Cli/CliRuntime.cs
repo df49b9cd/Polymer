@@ -137,6 +137,8 @@ internal interface IServeHost : IAsyncDisposable
 
 internal sealed class DefaultServeHostFactory : IServeHostFactory
 {
+    [RequiresUnreferencedCode("OmniRelay dispatcher bootstrapping uses reflection and dynamic configuration; it is not trimming/AOT safe.")]
+    [RequiresDynamicCode("OmniRelay dispatcher bootstrapping uses reflection and dynamic configuration; it is not trimming/AOT safe.")]
     public IServeHost CreateHost(IConfigurationRoot configuration, string section)
     {
         ArgumentNullException.ThrowIfNull(configuration);

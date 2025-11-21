@@ -4,9 +4,9 @@ set -euo pipefail
 
 RID="${1:-linux-x64}"
 case "$RID" in
-  linux-x64|linux-arm64) ;;
+  linux-x64|linux-arm64|osx-x64|osx-arm64) ;;
   *)
-    echo "Unsupported RID: $RID. Supported: linux-x64, linux-arm64"
+    echo "Unsupported RID: $RID. Supported: linux-x64, linux-arm64, osx-x64, osx-arm64"
     exit 1
     ;;
 esac
@@ -15,7 +15,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_ROOT="$ROOT_DIR/artifacts/aot/${RID}"
 
 projects=(
-  "src/OmniRelay/OmniRelay.csproj"
+  "tests/OmniRelay.MeshKit.AotSmoke/OmniRelay.MeshKit.AotSmoke.csproj"
   "src/OmniRelay.Cli/OmniRelay.Cli.csproj"
 )
 
@@ -23,7 +23,9 @@ props=(
   "-p:PublishAot=true"
   "-p:TrimMode=full"
   "-p:TreatWarningsAsErrors=true"
+  "-p:WarningsNotAsErrors=IL3053"
   "-p:InvariantGlobalization=true"
+  "-p:StripSymbols=false"
   "-p:DisableParallelAot=true"
   "--self-contained"
   "true"

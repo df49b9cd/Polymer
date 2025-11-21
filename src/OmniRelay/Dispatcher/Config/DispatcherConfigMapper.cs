@@ -7,9 +7,7 @@ using Microsoft.Extensions.Options;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Peers;
 using OmniRelay.Transport.Grpc;
-using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http;
-using OmniRelay.Transport.Http.Middleware;
 
 namespace OmniRelay.Dispatcher.Config;
 

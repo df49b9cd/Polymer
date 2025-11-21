@@ -1,4 +1,3 @@
-using System.Linq;
 using OmniRelay.Dispatcher.Config;
 
 namespace OmniRelay.Cli;

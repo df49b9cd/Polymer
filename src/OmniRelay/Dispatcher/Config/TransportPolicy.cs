@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace OmniRelay.Dispatcher.Config;
 
 // Lightweight transport-policy stubs to keep CLI/tests compiling after removing the legacy configuration package.

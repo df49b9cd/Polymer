@@ -137,6 +137,7 @@
     <Project Path="tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj" />
     <Project Path="tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj" />
     <Project Path="tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj" />
+    <Project Path="tests/OmniRelay.MeshKit.AotSmoke/OmniRelay.MeshKit.AotSmoke.csproj" />
     <File Path="tests\Directory.Build.props" />
   </Folder>
   <Folder Name="/tests/TestSupport/">
