@@ -221,7 +221,7 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
 
                     case HttpDuplexProtocol.FrameType.ResponseData:
                         // Copy because ReceiveFrameAsync reuses a shared buffer; retaining the slice would corrupt prior frames.
-                        var responseCopy = frame.Payload.ToArray();
+                        var responseCopy = CopyFramePayload(frame.Payload);
                         await _inner.ResponseWriter.WriteAsync(responseCopy, cancellationToken).ConfigureAwait(false);
                         break;
 
@@ -295,6 +295,18 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         }
 
         return exception;
+    }
+
+    private static byte[] CopyFramePayload(ReadOnlyMemory<byte> payload)
+    {
+        if (payload.IsEmpty)
+        {
+            return Array.Empty<byte>();
+        }
+
+        var copy = GC.AllocateUninitializedArray<byte>(payload.Length);
+        payload.Span.CopyTo(copy);
+        return copy;
     }
 
     private async ValueTask HandlePumpGroupFailureAsync(Error pumpError)

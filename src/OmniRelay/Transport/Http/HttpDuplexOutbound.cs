@@ -10,10 +10,20 @@ namespace OmniRelay.Transport.Http;
 /// <summary>
 /// HTTP duplex outbound transport that uses WebSockets to perform bidirectional streaming RPCs.
 /// </summary>
-/// <param name="baseAddress">The HTTP base address that will be converted to a WebSocket endpoint.</param>
-public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutboundDiagnostic
+public sealed class HttpDuplexOutbound : IDuplexOutbound, IOutboundDiagnostic
 {
-    private readonly Uri _baseAddress = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
+    private readonly Uri _baseAddress;
+    private readonly Uri _webSocketUri;
+
+    /// <summary>
+    /// Creates the HTTP duplex outbound transport.
+    /// </summary>
+    /// <param name="baseAddress">The HTTP base address that will be converted to a WebSocket endpoint.</param>
+    public HttpDuplexOutbound(Uri baseAddress)
+    {
+        _baseAddress = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
+        _webSocketUri = BuildWebSocketUri(_baseAddress);
+    }
 
     /// <summary>
     /// Starts the duplex outbound transport. No-op for the WebSocket client implementation.
@@ -56,9 +66,8 @@ public sealed class HttpDuplexOutbound(Uri baseAddress) : IDuplexOutbound, IOutb
         try
         {
             ApplyHeaders(socket, request.Meta);
-            var webSocketUri = BuildWebSocketUri(_baseAddress);
 
-            await socket.ConnectAsync(webSocketUri, cancellationToken).ConfigureAwait(false);
+            await socket.ConnectAsync(_webSocketUri, cancellationToken).ConfigureAwait(false);
 
             var responseMeta = new ResponseMeta(transport: "http", encoding: request.Meta.Encoding);
             var transportCall = await HttpDuplexStreamTransportCall

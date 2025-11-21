@@ -1,3 +1,6 @@
+using System.Buffers;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -25,6 +28,8 @@ internal static partial class HttpDuplexProtocol
     }
 
     private static readonly HttpDuplexProtocolJsonContext JsonContext = HttpDuplexProtocolJsonContext.Default;
+    internal const int MaxPooledSendBytes = 128 * 1024;
+    internal static ArrayPool<byte> FrameBufferPool { get; set; } = ArrayPool<byte>.Shared;
 
     /// <summary>
     /// Sends a framed WebSocket message with the specified frame type and payload.
@@ -39,14 +44,30 @@ internal static partial class HttpDuplexProtocol
         ReadOnlyMemory<byte> payload,
         CancellationToken cancellationToken)
     {
-        var buffer = new byte[payload.Length + 1];
-        buffer[0] = (byte)frameType;
-        if (!payload.IsEmpty)
-        {
-            payload.Span.CopyTo(buffer.AsSpan(1));
-        }
+        var length = payload.Length + 1;
+        var pool = FrameBufferPool;
+        var usePool = length <= MaxPooledSendBytes && pool is not null;
+        var buffer = usePool
+            ? pool.Rent(length)
+            : GC.AllocateUninitializedArray<byte>(length);
 
-        await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            buffer[0] = (byte)frameType;
+            if (!payload.IsEmpty)
+            {
+                payload.Span.CopyTo(buffer.AsSpan(1));
+            }
+
+            await socket.SendAsync(new ArraySegment<byte>(buffer, 0, length), WebSocketMessageType.Binary, true, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (usePool)
+            {
+                pool.Return(buffer, clearArray: false);
+            }
+        }
     }
 
     /// <summary>
@@ -144,9 +165,7 @@ internal static partial class HttpDuplexProtocol
             Encoding = meta.Encoding,
             Transport = meta.Transport,
             TtlMs = meta.Ttl?.TotalMilliseconds,
-            Headers = meta.Headers?.Count > 0
-                ? meta.Headers!.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase)
-                : null
+            Headers = BuildHeaders(meta.Headers)
         };
 
         return JsonSerializer.SerializeToUtf8Bytes(envelope, JsonContext.ResponseMetaEnvelope);
@@ -179,11 +198,9 @@ internal static partial class HttpDuplexProtocol
                 ttl = TimeSpan.FromMilliseconds(envelope.TtlMs.Value);
             }
 
-            IEnumerable<KeyValuePair<string, string>>? headers = null;
-            if (envelope.Headers is { Count: > 0 })
-            {
-                headers = envelope.Headers.Select(pair => new KeyValuePair<string, string>(pair.Key, pair.Value));
-            }
+            IEnumerable<KeyValuePair<string, string>>? headers = envelope.Headers is { Count: > 0 }
+                ? envelope.Headers
+                : null;
 
             return new ResponseMeta(
                 encoding: envelope.Encoding,
@@ -271,5 +288,21 @@ internal static partial class HttpDuplexProtocol
         public double? TtlMs { get; set; }
 
         public Dictionary<string, string>? Headers { get; set; }
+    }
+
+    private static Dictionary<string, string>? BuildHeaders(ImmutableDictionary<string, string> headers)
+    {
+        if (headers is null || headers.Count == 0)
+        {
+            return null;
+        }
+
+        var copy = new Dictionary<string, string>(headers.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in headers)
+        {
+            copy[pair.Key] = pair.Value;
+        }
+
+        return copy;
     }
 }

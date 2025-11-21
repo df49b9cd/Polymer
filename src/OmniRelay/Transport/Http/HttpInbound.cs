@@ -1405,7 +1405,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
 
                             HttpDuplexProtocol.Frame frameToWrite = frame.Payload.IsEmpty
                                 ? frame
-                                : new HttpDuplexProtocol.Frame(frame.MessageType, frame.Type, frame.Payload.ToArray());
+                                : new HttpDuplexProtocol.Frame(frame.MessageType, frame.Type, CopyFramePayload(frame.Payload));
 
                             await frameChannel.Writer.WriteAsync(frameToWrite, token).ConfigureAwait(false);
 
@@ -1824,6 +1824,18 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                 JsonContext.ErrorPayload,
                 context.RequestAborted)
             .ConfigureAwait(false);
+    }
+
+    private static byte[] CopyFramePayload(ReadOnlyMemory<byte> payload)
+    {
+        if (payload.IsEmpty)
+        {
+            return Array.Empty<byte>();
+        }
+
+        var copy = GC.AllocateUninitializedArray<byte>(payload.Length);
+        payload.Span.CopyTo(copy);
+        return copy;
     }
 
     private static string FormatStatusToken(OmniRelayStatusCode status)
