@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OmniRelay.Diagnostics;
@@ -47,6 +48,13 @@ public static class MeshGossipServiceCollectionExtensions
             var tracker = sp.GetService<PeerLeaseHealthTracker>();
             var secretProvider = sp.GetService<ISecretProvider>();
             return new MeshGossipHost(options, metadata: null, logger, loggerFactory, timeProvider, tracker, secretProvider: secretProvider);
+        });
+
+        services.AddSingleton<IHostedService>(sp =>
+        {
+            var agent = sp.GetRequiredService<IMeshGossipAgent>();
+            var logger = sp.GetRequiredService<ILogger<MeshGossipHostedService>>();
+            return new MeshGossipHostedService(agent, logger);
         });
 
         return services;
@@ -156,4 +164,37 @@ public static class MeshGossipServiceCollectionExtensions
         var value = configuration[key];
         return TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
     }
+}
+
+internal sealed class MeshGossipHostedService(IMeshGossipAgent agent, ILogger<MeshGossipHostedService> logger) : IHostedService
+{
+    private readonly IMeshGossipAgent _agent = agent ?? throw new ArgumentNullException(nameof(agent));
+    private readonly ILogger<MeshGossipHostedService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        if (_agent.IsEnabled)
+        {
+            MeshGossipHostedServiceLog.Starting(_logger, _agent.LocalMetadata.NodeId);
+            await _agent.StartAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        if (_agent.IsEnabled)
+        {
+            await _agent.StopAsync(cancellationToken).ConfigureAwait(false);
+            MeshGossipHostedServiceLog.Stopped(_logger, _agent.LocalMetadata.NodeId);
+        }
+    }
+}
+
+internal static partial class MeshGossipHostedServiceLog
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Starting mesh gossip agent for node {NodeId}")]
+    public static partial void Starting(ILogger logger, string nodeId);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "Stopped mesh gossip agent for node {NodeId}")]
+    public static partial void Stopped(ILogger logger, string nodeId);
 }
