@@ -558,7 +558,6 @@ internal static partial class ProgramMeshModule
         return command;
     }
 
-    [RequiresDynamicCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.Bind(Object)")]
     internal static async Task<int> RunMeshConfigValidateAsync(
         string[] configPaths,
         string section,
@@ -716,7 +715,8 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Get, target);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Upgrade status request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -785,7 +785,7 @@ internal static partial class ProgramMeshModule
                 Content = JsonContent.Create(new NodeDrainCommandDto(reason), mediaType: null, jsonTypeInfo: OmniRelayCliJsonContext.Default.NodeDrainCommandDto)
             };
 
-            using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Drain request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -840,7 +840,8 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            using var response = await client.PostAsync(target, content: null, cts.Token).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Post, target);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Resume request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -910,7 +911,7 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Shard list request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -1001,7 +1002,7 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Shard diff request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -1088,7 +1089,7 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Simulation request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -1250,7 +1251,8 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Get, target);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Peer diagnostics request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -1308,7 +1310,8 @@ internal static partial class ProgramMeshModule
 
         try
         {
-            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Get, target);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 await Console.Error.WriteLineAsync($"Leadership request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
@@ -1751,32 +1754,59 @@ internal static partial class ProgramMeshModule
 
     private static bool TryNormalizeShardStatuses(string[] values, out List<string> normalized, out string? error)
     {
-        normalized = new List<string>();
-        error = null;
         if (values is null || values.Length == 0)
         {
+            normalized = [];
+            error = null;
             return true;
         }
 
-        foreach (var value in values
-                     .SelectMany(v => v.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
-        {
-            if (!System.Enum.TryParse(value, ignoreCase: true, out DomainShardStatus parsed))
-            {
-                normalized = new List<string>();
-                error = $"Invalid shard status '{value}'. Valid values: {string.Join(", ", System.Enum.GetNames<DomainShardStatus>())}.";
-                return false;
-            }
+        normalized = new List<string>(values.Length);
+        error = null;
 
-            normalized.Add(parsed.ToString());
+        foreach (var raw in values)
+        {
+            var remaining = raw.AsSpan();
+            while (TryReadNextToken(ref remaining, out var token))
+            {
+                if (!Enum.TryParse(token, ignoreCase: true, out DomainShardStatus parsed))
+                {
+                    normalized.Clear();
+                    error = $"Invalid shard status '{token.ToString()}'. Valid values: {string.Join(", ", Enum.GetNames<DomainShardStatus>())}.";
+                    return false;
+                }
+
+                normalized.Add(parsed.ToString());
+            }
         }
 
         return true;
+
+        static bool TryReadNextToken(ref ReadOnlySpan<char> remaining, out ReadOnlySpan<char> token)
+        {
+            token = default;
+            if (remaining.IsEmpty)
+            {
+                return false;
+            }
+
+            var commaIndex = remaining.IndexOf(',');
+            if (commaIndex < 0)
+            {
+                token = remaining.Trim();
+                remaining = ReadOnlySpan<char>.Empty;
+                return !token.IsEmpty;
+            }
+
+            token = remaining[..commaIndex].Trim();
+            remaining = remaining[(commaIndex + 1)..];
+            return !token.IsEmpty;
+        }
     }
 
     private static bool TryParseSimulationNodes(string[] nodeTokens, out List<ShardControl.ShardSimulationNode> nodes, out string? error)
     {
-        nodes = new List<ShardControl.ShardSimulationNode>();
+        nodes = new List<ShardControl.ShardSimulationNode>(nodeTokens?.Length ?? 0);
         error = null;
 
         if (nodeTokens is null || nodeTokens.Length == 0)
@@ -1785,32 +1815,19 @@ internal static partial class ProgramMeshModule
             return false;
         }
 
-        foreach (var token in nodeTokens.SelectMany(value => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+        foreach (var raw in nodeTokens)
         {
-            var parts = token.Split(':', StringSplitOptions.TrimEntries);
-            if (parts.Length == 0 || string.IsNullOrWhiteSpace(parts[0]))
+            var remaining = raw.AsSpan();
+            while (TryReadNextEntry(ref remaining, out var entry))
             {
-                error = $"Could not parse node '{token}'. Expected nodeId[:weight[:region[:zone]]].";
-                nodes = new List<ShardControl.ShardSimulationNode>();
-                return false;
-            }
-
-            double? weight = null;
-            if (parts.Length > 1)
-            {
-                if (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedWeight))
+                if (!TryParseNodeEntry(entry, out var node, out error))
                 {
-                    error = $"Invalid weight '{parts[1]}' for node '{parts[0]}'.";
-                    nodes = new List<ShardControl.ShardSimulationNode>();
+                    nodes.Clear();
                     return false;
                 }
 
-                weight = parsedWeight;
+                nodes.Add(node);
             }
-
-            var region = parts.Length > 2 ? parts[2] : null;
-            var zone = parts.Length > 3 ? parts[3] : null;
-            nodes.Add(new ShardControl.ShardSimulationNode(parts[0], weight, region, zone));
         }
 
         if (nodes.Count == 0)
@@ -1820,6 +1837,92 @@ internal static partial class ProgramMeshModule
         }
 
         return true;
+
+        static bool TryReadNextEntry(ref ReadOnlySpan<char> remaining, out ReadOnlySpan<char> entry)
+        {
+            entry = default;
+            if (remaining.IsEmpty)
+            {
+                return false;
+            }
+
+            var commaIndex = remaining.IndexOf(',');
+            if (commaIndex < 0)
+            {
+                entry = remaining.Trim();
+                remaining = ReadOnlySpan<char>.Empty;
+                return !entry.IsEmpty;
+            }
+
+            entry = remaining[..commaIndex].Trim();
+            remaining = remaining[(commaIndex + 1)..];
+            return !entry.IsEmpty;
+        }
+
+        static bool TryParseNodeEntry(ReadOnlySpan<char> token, out ShardControl.ShardSimulationNode node, out string? error)
+        {
+            node = null!;
+            error = null;
+
+            var firstColon = token.IndexOf(':');
+            var nodeIdSpan = firstColon < 0 ? token : token[..firstColon];
+            var remainder = firstColon < 0 ? ReadOnlySpan<char>.Empty : token[(firstColon + 1)..];
+
+            if (nodeIdSpan.Trim().IsEmpty)
+            {
+                error = $"Could not parse node '{token.ToString()}'. Expected nodeId[:weight[:region[:zone]]].";
+                return false;
+            }
+
+            var weightSpan = ReadOnlySpan<char>.Empty;
+            var regionSpan = ReadOnlySpan<char>.Empty;
+            var zoneSpan = ReadOnlySpan<char>.Empty;
+
+            if (!remainder.IsEmpty)
+            {
+                var secondColon = remainder.IndexOf(':');
+                if (secondColon < 0)
+                {
+                    weightSpan = remainder;
+                }
+                else
+                {
+                    weightSpan = remainder[..secondColon];
+                    var tail = remainder[(secondColon + 1)..];
+
+                    var thirdColon = tail.IndexOf(':');
+                    if (thirdColon < 0)
+                    {
+                        regionSpan = tail;
+                    }
+                    else
+                    {
+                        regionSpan = tail[..thirdColon];
+                        zoneSpan = tail[(thirdColon + 1)..];
+                    }
+                }
+            }
+
+            double? weight = null;
+            if (!weightSpan.IsEmpty)
+            {
+                if (!double.TryParse(weightSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedWeight))
+                {
+                    error = $"Invalid weight '{weightSpan.ToString()}' for node '{nodeIdSpan.ToString()}'.";
+                    return false;
+                }
+
+                weight = parsedWeight;
+            }
+
+            node = new ShardControl.ShardSimulationNode(
+                nodeIdSpan.ToString(),
+                weight,
+                regionSpan.IsEmpty ? null : regionSpan.ToString(),
+                zoneSpan.IsEmpty ? null : zoneSpan.ToString());
+
+            return true;
+        }
     }
     private static void ApplyMeshScope(HttpRequestMessage request, string scope)
     {
