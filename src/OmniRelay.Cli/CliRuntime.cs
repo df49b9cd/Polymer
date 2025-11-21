@@ -56,7 +56,9 @@ internal static class CliRuntime
                     UseSharedTls = false,
                     Runtime = new HttpClientRuntimeOptions
                     {
-                        EnableHttp3 = true
+                        // Local CLI calls target ad-hoc HTTP endpoints spun up by tests; avoid HTTP/3
+                        // negotiation timeouts by sticking to HTTP/1.1 or HTTP/2.
+                        EnableHttp3 = false
                     }
                 };
             });
