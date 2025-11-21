@@ -29,31 +29,75 @@ public sealed class DispatcherComponentRegistry
     public void RegisterInboundMiddleware<T>(string key, Func<IServiceProvider, T> factory) where T : class
     {
         ArgumentNullException.ThrowIfNull(factory);
-        if (typeof(IUnaryInboundMiddleware).IsAssignableFrom(typeof(T))) _unaryInbound[key] = sp => (IUnaryInboundMiddleware)factory(sp);
-        if (typeof(IOnewayInboundMiddleware).IsAssignableFrom(typeof(T))) _onewayInbound[key] = sp => (IOnewayInboundMiddleware)factory(sp);
-        if (typeof(IStreamInboundMiddleware).IsAssignableFrom(typeof(T))) _streamInbound[key] = sp => (IStreamInboundMiddleware)factory(sp);
-        if (typeof(IClientStreamInboundMiddleware).IsAssignableFrom(typeof(T))) _clientStreamInbound[key] = sp => (IClientStreamInboundMiddleware)factory(sp);
-        if (typeof(IDuplexInboundMiddleware).IsAssignableFrom(typeof(T))) _duplexInbound[key] = sp => (IDuplexInboundMiddleware)factory(sp);
+        if (typeof(IUnaryInboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _unaryInbound[key] = sp => (IUnaryInboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IOnewayInboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _onewayInbound[key] = sp => (IOnewayInboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IStreamInboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _streamInbound[key] = sp => (IStreamInboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IClientStreamInboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _clientStreamInbound[key] = sp => (IClientStreamInboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IDuplexInboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _duplexInbound[key] = sp => (IDuplexInboundMiddleware)factory(sp);
+        }
     }
 
     public void RegisterOutboundMiddleware<T>(string key, Func<IServiceProvider, T> factory) where T : class
     {
         ArgumentNullException.ThrowIfNull(factory);
-        if (typeof(IUnaryOutboundMiddleware).IsAssignableFrom(typeof(T))) _unaryOutbound[key] = sp => (IUnaryOutboundMiddleware)factory(sp);
-        if (typeof(IOnewayOutboundMiddleware).IsAssignableFrom(typeof(T))) _onewayOutbound[key] = sp => (IOnewayOutboundMiddleware)factory(sp);
-        if (typeof(IStreamOutboundMiddleware).IsAssignableFrom(typeof(T))) _streamOutbound[key] = sp => (IStreamOutboundMiddleware)factory(sp);
-        if (typeof(IClientStreamOutboundMiddleware).IsAssignableFrom(typeof(T))) _clientStreamOutbound[key] = sp => (IClientStreamOutboundMiddleware)factory(sp);
-        if (typeof(IDuplexOutboundMiddleware).IsAssignableFrom(typeof(T))) _duplexOutbound[key] = sp => (IDuplexOutboundMiddleware)factory(sp);
+        if (typeof(IUnaryOutboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _unaryOutbound[key] = sp => (IUnaryOutboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IOnewayOutboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _onewayOutbound[key] = sp => (IOnewayOutboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IStreamOutboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _streamOutbound[key] = sp => (IStreamOutboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IClientStreamOutboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _clientStreamOutbound[key] = sp => (IClientStreamOutboundMiddleware)factory(sp);
+        }
+
+        if (typeof(IDuplexOutboundMiddleware).IsAssignableFrom(typeof(T)))
+        {
+            _duplexOutbound[key] = sp => (IDuplexOutboundMiddleware)factory(sp);
+        }
     }
 
-    public void RegisterHttpClientMiddleware(string key, Func<IServiceProvider, IHttpClientMiddleware> factory) =>
+    public void RegisterHttpClientMiddleware(string key, Func<IServiceProvider, IHttpClientMiddleware> factory)
+    {
         _httpClientMiddleware[key] = factory ?? throw new ArgumentNullException(nameof(factory));
+    }
 
-    public void RegisterGrpcClientInterceptor(string key, Func<IServiceProvider, Interceptor> factory) =>
+    public void RegisterGrpcClientInterceptor(string key, Func<IServiceProvider, Interceptor> factory)
+    {
         _grpcClientInterceptors[key] = factory ?? throw new ArgumentNullException(nameof(factory));
+    }
 
-    public void RegisterGrpcServerInterceptor(string key, Func<IServiceProvider, Interceptor> factory) =>
+    public void RegisterGrpcServerInterceptor(string key, Func<IServiceProvider, Interceptor> factory)
+    {
         _grpcServerInterceptors[key] = factory ?? throw new ArgumentNullException(nameof(factory));
+    }
 
     internal bool TryResolveInbound(string key, ProcedureKind kind, IServiceProvider sp, out object? middleware)
     {

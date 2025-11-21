@@ -1,14 +1,15 @@
+using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Peers;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http;
 using OmniRelay.Transport.Http.Middleware;
-using System.Collections.Immutable;
 
 namespace OmniRelay.Dispatcher.Config;
 
@@ -27,8 +28,7 @@ internal static class DispatcherConfigMapper
         IServiceProvider services,
         DispatcherComponentRegistry registry,
         DispatcherConfig config,
-        Action<IServiceProvider, DispatcherOptions>? configureOptions,
-        ILogger? logger = null)
+        Action<IServiceProvider, DispatcherOptions>? configureOptions)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(registry);
@@ -36,16 +36,16 @@ internal static class DispatcherConfigMapper
 
         var options = new DispatcherOptions(config.Service);
 
-        ApplyInbounds(services, config.Inbounds, options, logger);
-        ApplyOutbounds(services, config.Outbounds, options, logger);
-        ApplyMiddleware(services, registry, config.Middleware, options, logger);
+        ApplyInbounds(config.Inbounds, options);
+        ApplyOutbounds(services, config.Outbounds, options);
+        ApplyMiddleware(services, registry, config.Middleware, options);
 
         configureOptions?.Invoke(services, options);
 
         return new global::OmniRelay.Dispatcher.Dispatcher(options);
     }
 
-    private static void ApplyInbounds(IServiceProvider services, InboundsConfig inbounds, DispatcherOptions options, ILogger? logger)
+    private static void ApplyInbounds(InboundsConfig inbounds, DispatcherOptions options)
     {
         foreach (var http in inbounds.Http)
         {
@@ -91,7 +91,7 @@ internal static class DispatcherConfigMapper
         }
     }
 
-    private static void ApplyOutbounds(IServiceProvider services, OutboundsConfig outbounds, DispatcherOptions options, ILogger? logger)
+    private static void ApplyOutbounds(IServiceProvider services, OutboundsConfig outbounds, DispatcherOptions options)
     {
         foreach (var (service, set) in outbounds)
         {
@@ -178,8 +178,7 @@ internal static class DispatcherConfigMapper
         IServiceProvider services,
         DispatcherComponentRegistry registry,
         MiddlewareConfig middleware,
-        DispatcherOptions options,
-        ILogger? logger)
+        DispatcherOptions options)
     {
         AddMiddlewareStack(services, registry, middleware.Inbound.Unary, ProcedureKind.Unary, inbound: true, options);
         AddMiddlewareStack(services, registry, middleware.Inbound.Oneway, ProcedureKind.Oneway, inbound: true, options);
@@ -263,6 +262,8 @@ internal static class DispatcherConfigMapper
 
 public static class DispatcherConfigServiceCollectionExtensions
 {
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "DispatcherConfig is a sealed DTO reachable via source-generated metadata")] 
+    [RequiresDynamicCode("Configuration binding may emit dynamic code; callers should prefer AddOmniRelayDispatcherFromConfig with source-generated JSON context for AOT.")]
     public static IServiceCollection AddOmniRelayDispatcherFromConfiguration(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -271,15 +272,16 @@ public static class DispatcherConfigServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
+        services.Configure<DispatcherConfig>(configuration);
+
         services.AddDispatcherComponentRegistry(registry => registerComponents?.Invoke(registry));
 
         services.AddSingleton(sp =>
         {
             var registry = sp.GetRequiredService<DispatcherComponentRegistry>();
-            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger("DispatcherConfigMapper");
-            var config = configuration.Get<DispatcherConfig>() ?? new DispatcherConfig();
-            return DispatcherConfigMapper.CreateDispatcher(sp, registry, config, configureOptions, logger);
-        });
+            var dispatcherConfig = sp.GetRequiredService<IOptions<DispatcherConfig>>().Value;
+        return DispatcherConfigMapper.CreateDispatcher(sp, registry, dispatcherConfig, configureOptions);
+    });
 
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
 
@@ -305,12 +307,11 @@ public static class DispatcherConfigServiceCollectionExtensions
         services.AddSingleton(sp =>
         {
             var registry = sp.GetRequiredService<DispatcherComponentRegistry>();
-            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger("DispatcherConfigMapper");
             var json = File.ReadAllText(configPath);
             var config = JsonSerializer.Deserialize(json, DispatcherConfigJsonContext.Default.DispatcherConfig)
                          ?? throw new InvalidOperationException($"Failed to deserialize dispatcher config from {configPath}.");
 
-            return DispatcherConfigMapper.CreateDispatcher(sp, registry, config, configureOptions, logger);
+            return DispatcherConfigMapper.CreateDispatcher(sp, registry, config, configureOptions);
         });
 
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
