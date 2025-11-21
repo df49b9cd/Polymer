@@ -139,6 +139,7 @@ services.AddPrioritizedChannel<Job>(priorityLevels: 3, builder => builder
 - `AddBoundedChannel<T>` registers a `Channel<T>` alongside its reader and writer.
 - `AddPrioritizedChannel<T>` registers `PrioritizedChannel<T>`, the prioritized reader/writer helpers, and the base `ChannelReader<T>`/`ChannelWriter<T>` facades.
 - Prioritized channels prefetch at most `PrefetchPerPriority` items per lane (default 1). Tune it through `PrioritizedChannelOptions.PrefetchPerPriority` or `WithPrefetchPerPriority` to balance throughput against backpressure.
+- **Perf tip:** When only one consumer drains the channel, set `SingleReader = true` (or call `SingleReader()` on the builder). Hugo then uses a lightweight per-lane buffer instead of multi-producer queues, reducing allocations and contention while remaining Native AOT friendly. Keep it `false` if multiple readers may observe the channel.
 - The prioritized reader’s slow path now reuses wait registrations instead of `Task.WhenAny` arrays, so `WaitToReadAsync` stays effectively allocation-free when lanes run hot.
 - Exceptions or cancellations from individual priority lanes are observed immediately and surfaced through the unified reader, preventing `UnobservedTaskException` warnings when a single lane faults.
 - Builders expose `.Build()` when you need an inline channel instance without DI.
@@ -349,10 +350,10 @@ Await whichever channel case becomes ready first.
 
 ### Select APIs
 
-- `Go.SelectAsync(params ChannelCase[] cases)` to await the first ready case.
-- `Go.SelectAsync(TimeSpan timeout, TimeProvider? provider = null, CancellationToken cancellationToken = default, params ChannelCase[] cases)` for deadline-aware selects.
+- `Go.SelectAsync<TResult>(params ChannelCase<TResult>[] cases)` to await the first ready case.
+- `Go.SelectAsync<TResult>(TimeSpan timeout, TimeProvider? provider = null, CancellationToken cancellationToken = default, params ChannelCase<TResult>[] cases)` for deadline-aware selects.
 - `Go.Select<TResult>(TimeProvider? provider = null, CancellationToken cancellationToken = default)` / `Go.Select<TResult>(TimeSpan timeout, TimeProvider? provider = null, CancellationToken cancellationToken = default)` fluent builders.
-- `ChannelCase.Create<T>(ChannelReader<T>, Func<T, CancellationToken, Task<Result<Unit>>>)` plus overloads for tasks/actions and `ChannelCase.CreateDefault(...)`.
+- `ChannelCase.Create<T, TResult>(ChannelReader<T>, Func<T, CancellationToken, ValueTask<Result<TResult>>>)` plus overloads for ValueTask callbacks and `ChannelCase.CreateDefault<TResult>(...)`.
 
 ### Select example
 

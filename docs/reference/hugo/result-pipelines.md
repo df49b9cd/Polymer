@@ -23,6 +23,7 @@
 - `Result.Fail<T>(Error? error)` / `Go.Err<T>(Error? error)` create failures (null defaults to `Error.Unspecified`). `Go.Err<T>(string message, string? code = null)` and `Go.Err<T>(Exception exception, string? code = null)` shortcut common cases.
 - `Result.FromOptional<T>(Optional<T> optional, Func<Error> errorFactory)` lifts optionals into results.
 - `Result.Try(Func<T> operation, Func<Exception, Error?>? errorFactory = null)` and `Result.TryAsync(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken = default, Func<Exception, Error?>? errorFactory = null)` capture exceptions as `Error` values (cancellations become `Error.Canceled`).
+- `result.WithCompensation(Func<CancellationToken, ValueTask> compensation)` (or the overload that captures state) attaches rollback actions to a result. Pipeline orchestrators such as `ResultPipelineChannels.SelectAsync` absorb these scopes automatically so failures later in the pipeline execute the recorded cleanup.
 
 ```csharp
 var ok = Go.Ok(42);
@@ -77,17 +78,35 @@ All helpers propagate the first encountered error and respect cancellation token
 
 ## Streaming and channels
 
+- `Result.MapStreamAsync<TIn, TOut>` projects `IAsyncEnumerable<TIn>` into `IAsyncEnumerable<Result<TOut>>`, halting on the first failure. Use the overload that accepts `ValueTask<Result<TOut>>` to minimize allocations.
+- `Result.FlatMapStreamAsync<TIn, TOut>` (select-many) projects each source item into an async enumerable of `Result<TOut>` and flattens the successes/failures into a single stream.
+- `Result.FilterStreamAsync<T>` drops successful values that fail your predicate while passing failures through untouched.
+- `IAsyncEnumerable<Result<T>>.ForEachAsync`, `.ForEachLinkedCancellationAsync`, `.TapSuccessEachAsync`, `.TapFailureEachAsync`, and `.CollectErrorsAsync` provide fluent consumption patterns (per-item side effects, per-item cancellation tokens, error aggregation).
+- Use `TapSuccessEachAggregateErrorsAsync` / `TapFailureEachAggregateErrorsAsync` to traverse the whole stream while surfacing an aggregate error, or `TapSuccessEachIgnoreErrorsAsync` / `TapFailureEachIgnoreErrorsAsync` when callers must always receive success but you still want per-item taps to run.
 - `IAsyncEnumerable<Result<T>>.ToChannelAsync(ChannelWriter<Result<T>> writer, CancellationToken)` and `ChannelReader<Result<T>>.ReadAllAsync(CancellationToken)` bridge result streams with `System.Threading.Channels`.
 - `Result.FanInAsync` / `Result.FanOutAsync` merge or broadcast result streams across channel writers.
 - `Result.WindowAsync` batches successful values into fixed-size windows; `Result.PartitionAsync` splits streams using a predicate.
 
 Writers are completed automatically (with the originating error when appropriate) to prevent consumer deadlocks.
 
+### Pipeline-aware channel adapters
+
+- `ResultPipelineChannels.SelectAsync` mirrors `Go.SelectAsync` but links into the active `ResultPipelineStepContext`, automatically absorbing any compensations attached via `Result<T>.WithCompensation(...)` so failures later in the pipeline execute the recorded rollback actions.
+- `ResultPipelineChannels.Select<TResult>(...)` exposes a pipeline-aware `SelectBuilder<TResult>` for fluent fan-in workflows without rewriting cancellation/compensation plumbing.
+- `ResultPipelineChannels.FanInAsync` exposes the same overload set as `Go.SelectFanIn*`, wrapping each handler with the pipeline’s cancellation token, time provider, and compensation scope.
+- `ResultPipelineChannels.MergeAsync`, `MergeWithStrategyAsync`, and `BroadcastAsync` / `FanOut` forward to the Go helpers while preserving pipeline diagnostics and compensation scopes.
+- `ResultPipelineChannels.WindowAsync` produces `ChannelReader<IReadOnlyList<T>>` outputs that flush when a batch size or flush interval (or both) is reached, using the pipeline’s `TimeProvider` for deterministic timers.
+
 ## Parallel orchestration and retries
 
 - `Result.WhenAll` executes result-aware operations concurrently, applying the supplied `ResultExecutionPolicy` (retries + compensation) to each step. When cancellation interrupts execution—even if `Task.WhenAll` short-circuits with `OperationCanceledException`—previously completed operations have their compensation scopes replayed before the aggregated result returns `Error.Canceled`, so side effects are rolled back deterministically.
 - `Result.WhenAny` resolves once the first success arrives, compensating secondary successes and aggregating errors when every branch fails.
 - `Result.RetryWithPolicyAsync` runs a delegate under a retry/compensation policy, surfacing structured failure metadata when attempts are exhausted.
+- `ResultPipeline.FanOutAsync` / `ResultPipeline.RaceAsync` are thin wrappers over `Result.WhenAll` / `Result.WhenAny` that return `ValueTask<Result<T>>` to match the Go helpers without losing pipeline metadata.
+- `ResultPipeline.RetryAsync` mirrors `Go.RetryAsync` for pipeline-aware delegates, wiring optional loggers and exponential backoff hints into `ResultExecutionBuilders.ExponentialRetryPolicy`.
+- `ResultPipeline.WithTimeoutAsync` enforces deadlines with the same `TimeProvider` semantics as Go timers while ensuring compensations registered by the timed operation run before surfacing `Error.Timeout`.
+- `ResultPipelineWaitGroupExtensions.Go` and `ResultPipelineErrGroupExtensions.Go` bridge Go-style coordination primitives with result pipelines so background fan-out work participates in the same compensation scope.
+- `ResultPipelineTimers.DelayAsync`, `AfterAsync`, `NewTicker`, and `Tick` reuse the pipeline `TimeProvider`, linking cancellation tokens automatically and registering compensations to dispose timers/tickers deterministically.
 - `Result.TieredFallbackAsync` evaluates `ResultFallbackTier<T>` instances sequentially; strategies within a tier run concurrently and cancel once a peer succeeds. Metadata keys (`fallbackTier`, `tierIndex`, `strategyIndex`) are attached to failures for observability.
 - `ResultFallbackTier<T>.From(...)` adapts synchronous or asynchronous delegates into tier definitions without manually handling `ResultPipelineStepContext`.
 

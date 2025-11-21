@@ -56,7 +56,8 @@ All factory methods ultimately increment success/failure counters through `GoDia
 - Batch execution: `WhenAll` returns the aggregated values when all operations succeed; `WhenAny` resolves as soon as the first success arrives and compensates remaining operations.
 - Retry orchestration: `RetryWithPolicyAsync` executes a delegate under a `ResultExecutionPolicy` (see [Policies](#hugopolicies-namespace)).
 - Fallbacks: `TieredFallbackAsync` evaluates ordered `ResultFallbackTier<T>` groups, racing strategies within a tier and enriching errors with `fallbackTier`, `tierIndex`, and `strategyIndex` metadata.
-- Streaming helpers (from `Result.Streaming`): `ToChannelAsync`, `ReadAllAsync`, `FanInAsync`, `FanOutAsync`, `WindowAsync`, and `PartitionAsync` bridge result streams with `System.Threading.Channels`.
+- Streaming helpers (from `Result.Streaming`): `MapStreamAsync`, `FlatMapStreamAsync`, `FilterStreamAsync`, `ToChannelAsync`, `ReadAllAsync`, `FanInAsync`, `FanOutAsync`, `WindowAsync`, `PartitionAsync`, plus consumption helpers (`ForEachAsync`, `ForEachLinkedCancellationAsync`, `TapSuccessEachAsync`, `TapFailureEachAsync`, `CollectErrorsAsync`).
+- Streaming tap variants: `TapSuccessEachAggregateErrorsAsync` / `TapFailureEachAggregateErrorsAsync` (invoke taps, traverse the whole stream, and surface an aggregate error if any failures occur) and `TapSuccessEachIgnoreErrorsAsync` / `TapFailureEachIgnoreErrorsAsync` (invoke taps but always return success).
 
 #### `Functional` extensions
 
@@ -119,9 +120,9 @@ These primitives follow the .NET parallel programming recommendations — always
 
 #### Channel cases and select builder
 
-- `ChannelCase.Create` overloads materialise cases around `ChannelReader<T>` plus an action returning `Result<Unit>`. Variants exist for async methods (`Func<T, CancellationToken, Task<Result<Unit>>>`), `Func<T, Task<Result<Unit>>>`, `Func<T, CancellationToken, Task>`, and `Action<T>`. `CreateDefault` generates default cases (optionally with priority). Use `WithPriority(int)` to override the selection priority (lower number == higher priority).
+- `ChannelCase.Create<T, TResult>` overloads materialise cases around `ChannelReader<T>` plus an action returning `ValueTask<Result<TResult>>`. Variants exist for ValueTask delegates (`Func<T, CancellationToken, ValueTask<Result<TResult>>>`), simplified forms without the cancellation token, plain `ValueTask` callbacks, and synchronous actions. `ChannelCase.CreateDefault<TResult>` generates default cases (optionally with priority). Use `WithPriority(int)` to override the selection priority (lower number == higher priority).
 - `ChannelCaseTemplate<T>` wraps a reader and exposes `.With(...)` helpers so you can pre-build case templates and materialise them later.
-- `ChannelCaseTemplates.With(...)` materialises a batch of templates by projecting each into a `ChannelCase`.
+- `ChannelCaseTemplates.With<T, TResult>(...)` materialises a batch of templates by projecting each into a `ChannelCase<TResult>`.
 - `SelectBuilder<TResult>` orchestrates strongly typed select flows. Call `.Case(...)` using the overload matching your continuation, optionally specifying `priority`. `.Default(...)` and `.Deadline(TimeSpan dueIn, ...)` register default branches or timer-based cases (using `Go.After`). Finally, call `ExecuteAsync()` to obtain `Result<TResult>`. The builder reuses `Go.SelectInternalAsync` so metrics and cancellation semantics are identical.
 
 #### Channel builders and DI helpers
@@ -129,7 +130,7 @@ These primitives follow the .NET parallel programming recommendations — always
 | Type | Description |
 | --- | --- |
 | `BoundedChannelBuilder<T>` | Fluent API over `BoundedChannelOptions`. Configure `WithCapacity`, `WithFullMode`, `SingleReader`, `SingleWriter`, `AllowSynchronousContinuations`, and arbitrary `Configure` callbacks. Call `Build()` to produce a `Channel<T>`. |
-| `PrioritizedChannelBuilder<T>` | Fluent API for `PrioritizedChannelOptions`; configure `WithPriorityLevels`, `WithDefaultPriority`, `WithCapacityPerLevel`, `WithPrefetchPerPriority`, `WithFullMode`, `SingleReader`, `SingleWriter`, and `Configure`. `Build()` returns a `PrioritizedChannel<T>`. |
+| `PrioritizedChannelBuilder<T>` | Fluent API for `PrioritizedChannelOptions`; configure `WithPriorityLevels`, `WithDefaultPriority`, `WithCapacityPerLevel`, `WithPrefetchPerPriority`, `WithFullMode`, `SingleReader`, `SingleWriter`, and `Configure`. `Build()` returns a `PrioritizedChannel<T>`. Set `SingleReader()` when only one consumer drains the channel to enable the lean per-lane buffer. |
 | `ChannelServiceCollectionExtensions` | Dependency injection helpers: `AddBoundedChannel<T>` and `AddPrioritizedChannel<T>` register the channel plus the associated reader/writer (and prioritized reader/writer) as services with a configurable `ServiceLifetime`. |
 | `PrioritizedChannel<T>` | Combines multiple channel lanes. Exposes `Reader`/`Writer`, plus `PrioritizedReader` (merges items according to priority) and `PrioritizedWriter` (explicit `WriteAsync`, `TryWrite`, `WaitToWriteAsync` per priority level). `PriorityLevels`, `DefaultPriority`, `CapacityPerLevel`, and `PrefetchPerPriority` expose configuration. |
 
@@ -216,7 +217,13 @@ These components integrate with `WorkflowExecutionContext` and instrumentation s
 | `CompensationAction` | Lightweight record linking a callback and payload captured when registering compensations. |
 | `CompensationScope` | Collects actions emitted during pipeline execution. `Register`, `Capture`, `Absorb`, `Clear`, and `HasActions` orchestrate compensation lifecycles. |
 | `CompensationContext` | Provides execution semantics for compensation (`ExecuteAsync` sequentially or `parallel: true`). |
-| `ResultPipelineStepContext` | Passed to pipeline steps executed under a policy. Exposes `StepName`, `TimeProvider`, and `RegisterCompensation` (with optional state + conditional registration). |
+| `ResultPipelineStepContext` | Passed to pipeline steps executed under a policy. Exposes `StepName`, `TimeProvider`, `CancellationToken`, and `RegisterCompensation` (with optional state + conditional registration). |
+| `ResultPipelineChannels` | Pipeline-aware wrappers over Go channel helpers (`SelectAsync`, `FanInAsync`, `MergeAsync`, `BroadcastAsync`) that automatically absorb compensation scopes emitted by continuations. |
+| `ResultPipeline` | High-level orchestration wrappers that mirror Go helpers (`FanOutAsync`, `RaceAsync`, `RetryAsync`, `WithTimeoutAsync`) while returning `ValueTask<Result<T>>` and preserving pipeline diagnostics. |
+| `ResultPipelineSelectBuilder<TResult>` | Fluent select builder that threads `ResultPipelineStepContext` through every channel case so compensations and cancellations remain aligned with the active pipeline scope. |
+| `ResultPipelineWaitGroupExtensions` | Adds pipeline-aware `Go(...)` helpers for `WaitGroup`, ensuring spawned work inherits the parent cancellation token and registers compensations automatically. |
+| `ResultPipelineErrGroupExtensions` | Bridges `ErrGroup` with `ResultPipelineStepContext` so errgroup steps share the parent pipeline’s compensation scope. |
+| `ResultPipelineTimers` | Delay/after/ticker helpers that reuse the pipeline `TimeProvider`, link cancellation tokens, and register compensations to dispose timers deterministically. |
 | `ResultExecutionBuilders` | Convenience helpers: `FixedRetryPolicy`, `ExponentialRetryPolicy`, and `CreateSaga` (which seeds a `ResultSagaBuilder` with the supplied configuration delegates). |
 
 Policies rely on `TimeProvider` for scheduling; when testing, inject `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` to deterministically advance timers.
