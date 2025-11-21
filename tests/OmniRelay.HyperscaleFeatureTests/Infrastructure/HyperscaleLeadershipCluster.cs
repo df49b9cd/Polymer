@@ -122,7 +122,9 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         var failoverCompleted = await WaitForConditionAsync(() =>
         {
             var token = GetToken(scopeId);
-            return token is not null && !string.Equals(token.LeaderId, incumbent.LeaderId, StringComparison.Ordinal);
+            return token is not null
+                && !string.Equals(token.LeaderId, incumbent.LeaderId, StringComparison.Ordinal)
+                && token.FenceToken > incumbent.FenceToken;
         }, _options.MaxElectionWindow + TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
 
         if (!failoverCompleted)

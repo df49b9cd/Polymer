@@ -42,7 +42,7 @@ public class ScriptCommandIntegrationTests
         var script = $$"""
         {
           "steps": [
-            { "type": "introspect", "url": "http://127.0.0.1:{port}/omnirelay/introspect", "format": "text" },
+            { "type": "introspect", "url": "http://127.0.0.1:{{port}}/omnirelay/introspect", "format": "text" },
             { "type": "delay", "duration": "00:00:00.05" }
           ]
         }
@@ -55,7 +55,7 @@ public class ScriptCommandIntegrationTests
                 ["script", "run", "--file", scriptPath],
                 TestContext.Current.CancellationToken);
 
-            Assert.Equal(0, result.ExitCode);
+            Assert.True(result.ExitCode == 0, $"Exit:{result.ExitCode}\nStdOut:\n{result.StandardOutput}\nStdErr:\n{result.StandardError}");
             Assert.Contains("Loaded script", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("script-int", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
         }

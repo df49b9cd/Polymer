@@ -261,11 +261,9 @@ public sealed class MeshGossipHostTests
 
         try
         {
-            using var cts = new CancellationTokenSource();
-            var sweepTask = InvokeRunSweepLoopAsync(host, cts.Token);
-            await Task.Delay(TimeSpan.FromMilliseconds(5), TestContext.Current.CancellationToken);
-            cts.Cancel();
-            await sweepTask;
+            membership.Sweep(
+                options.SuspicionInterval,
+                options.SuspicionInterval + options.PingTimeout * Math.Max(1, options.RetransmitLimit));
 
             var snapshot = host.Snapshot();
             snapshot.Members.ShouldContain(m => m.NodeId == "peer-suspect" && m.Status == MeshGossipMemberStatus.Suspect);

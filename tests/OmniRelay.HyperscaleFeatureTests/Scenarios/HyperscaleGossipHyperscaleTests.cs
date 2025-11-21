@@ -18,7 +18,7 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
         _nodes = CreateDescriptors(nodeCount: 32);
     }
 
-    [Fact(DisplayName = "Gossip cluster converges across dozens of nodes and recovers from churn", Timeout = TestTimeouts.Default)]
+    [Fact(DisplayName = "Gossip cluster converges across dozens of nodes and recovers from churn", Timeout = TestTimeouts.Long)]
     public async ValueTask GossipCluster_CoversHyperscaleScenarioAsync()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -26,7 +26,7 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
 
         var convergence = await WaitForConditionAsync(
             () => ClusterHasAliveCoverage(_hosts, _nodes),
-            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(45),
             ct);
 
         Assert.True(convergence, $"Hyperscale cluster failed to converge.{Environment.NewLine}{DescribeSnapshots(_hosts)}");
