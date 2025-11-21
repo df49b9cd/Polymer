@@ -1730,12 +1730,23 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         writeResult.ThrowIfFailure();
 
         await callCts.CancelAsync();
+        // Ensure the server observed the cancellation before asserting on the outcome to avoid racey reads.
+        await serverCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
 
         await using var enumerator = session.ReadResponsesAsync(ct).GetAsyncEnumerator(ct);
-        var hasItem = await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10), ct);
-        Assert.True(hasItem);
-        Assert.True(enumerator.Current.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!));
+        Result<Response<ChatMessage>>? terminal = null;
+
+        while (await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10), ct))
+        {
+            if (enumerator.Current.IsFailure)
+            {
+                terminal = enumerator.Current;
+                break;
+            }
+        }
+
+        Assert.NotNull(terminal);
+        Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(terminal!.Value.Error!));
     }
 
     [Fact(Timeout = 30_000)]
