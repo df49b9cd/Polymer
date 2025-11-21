@@ -203,7 +203,7 @@ public static class AwesomeAssertionExtensions
 
     public static T ShouldBeOneOf<T>(this T actual, params T[] expected)
     {
-        actual.Should().BeOneOf(expected);
+        expected.Should().Contain(actual);
         return actual;
     }
 
