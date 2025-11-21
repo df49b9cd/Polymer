@@ -57,6 +57,8 @@ internal sealed partial class DispatcherBuilder
     private readonly ISecretProvider? _secretProvider;
     private readonly TransportSecurityPolicyEvaluator? _transportSecurityEvaluator;
     private readonly MeshAuthorizationEvaluator? _authorizationEvaluator;
+    private readonly bool _nativeAotEnabled;
+    private readonly bool _nativeAotStrict;
     private static readonly string[] MeshGossipDependency = ["mesh-gossip"];
     private static readonly string[] MeshLeadershipDependency = ["mesh-leadership"];
 
@@ -68,6 +70,8 @@ internal sealed partial class DispatcherBuilder
         _secretProvider = _serviceProvider.GetService<ISecretProvider>();
         _transportSecurityEvaluator = _serviceProvider.GetService<TransportSecurityPolicyEvaluator>();
         _authorizationEvaluator = _serviceProvider.GetService<MeshAuthorizationEvaluator>();
+        _nativeAotEnabled = options.NativeAot?.Enabled == true;
+        _nativeAotStrict = options.NativeAot?.Strict ?? true;
 
         _customInboundSpecs = _serviceProvider
             .GetServices<ICustomInboundSpec>()
@@ -83,9 +87,22 @@ internal sealed partial class DispatcherBuilder
     }
 
     /// <summary>Constructs a new dispatcher based on the current options and DI configuration.</summary>
+    public Dispatcher.Dispatcher Build()
+    {
+        if (_nativeAotEnabled)
+        {
+            return BuildNativeAot();
+        }
+
+#pragma warning disable IL2026, IL3050 // Reflection-heavy path is intentional for non-AOT builds.
+        return BuildReflection();
+#pragma warning restore IL2026, IL3050
+    }
+
+    /// <summary>Legacy reflection-heavy bootstrap path (kept for compatibility).</summary>
     [RequiresDynamicCode("OmniRelay dispatcher bootstrapping relies on reflection-heavy configuration binding.")]
     [RequiresUnreferencedCode("OmniRelay dispatcher bootstrapping relies on reflection-heavy configuration binding.")]
-    public Dispatcher.Dispatcher Build()
+    private Dispatcher.Dispatcher BuildReflection()
     {
         var serviceName = _options.Service?.Trim();
         if (string.IsNullOrEmpty(serviceName))
@@ -104,17 +121,44 @@ internal sealed partial class DispatcherBuilder
         return new Dispatcher.Dispatcher(dispatcherOptions);
     }
 
-    [RequiresDynamicCode("Inbound configuration relies on reflection-heavy diagnostics wiring.")]
-    [RequiresUnreferencedCode("Custom inbound specs are resolved via reflection and configuration binding.")]
-    private void ConfigureInbounds(DispatcherOptions dispatcherOptions)
+    /// <summary>Trimming/AOT-friendly bootstrap path that avoids runtime type scanning.</summary>
+    private Dispatcher.Dispatcher BuildNativeAot()
+    {
+        var serviceName = _options.Service?.Trim();
+        if (string.IsNullOrEmpty(serviceName))
+        {
+            throw new OmniRelayConfigurationException("OmniRelay configuration must specify a service name (service).");
+        }
+
+        var dispatcherOptions = new DispatcherOptions(serviceName);
+
+        ApplyMiddlewareNative(dispatcherOptions);
+        ConfigureInbounds(dispatcherOptions, allowCustom: !_nativeAotStrict);
+        ConfigureOutbounds(dispatcherOptions, allowCustom: !_nativeAotStrict);
+        ValidateNativeEncodings();
+        ConfigureMeshComponents(dispatcherOptions);
+
+        return new Dispatcher.Dispatcher(dispatcherOptions);
+    }
+
+    private void ConfigureInbounds(DispatcherOptions dispatcherOptions, bool allowCustom = true)
     {
         ConfigureHttpInbounds(dispatcherOptions);
         ConfigureGrpcInbounds(dispatcherOptions);
-        ConfigureCustomInbounds(dispatcherOptions);
+        if (allowCustom)
+        {
+#pragma warning disable IL2026, IL3050 // Custom inbound specs rely on reflection and are disabled in strict AOT mode.
+            ConfigureCustomInbounds(dispatcherOptions);
+#pragma warning restore IL2026, IL3050
+            return;
+        }
+
+        if (_customInboundSpecs.Count > 0 && _nativeAotStrict)
+        {
+            throw new OmniRelayConfigurationException("Custom inbounds are not supported while native AOT mode is enabled.");
+        }
     }
 
-    [RequiresDynamicCode("HTTP inbound diagnostics rely on minimal APIs and reflection.")]
-    [RequiresUnreferencedCode("HTTP inbound diagnostics rely on minimal APIs and reflection.")]
     private void ConfigureHttpInbounds(DispatcherOptions dispatcherOptions)
     {
         var index = 0;
@@ -173,8 +217,6 @@ internal sealed partial class DispatcherBuilder
         }
     }
 
-    [RequiresDynamicCode("gRPC inbound configuration instantiates interceptors via dependency injection.")]
-    [RequiresUnreferencedCode("gRPC inbound configuration instantiates interceptors via dependency injection.")]
     private void ConfigureGrpcInbounds(DispatcherOptions dispatcherOptions)
     {
         var index = 0;
@@ -255,9 +297,7 @@ internal sealed partial class DispatcherBuilder
         }
     }
 
-    [RequiresUnreferencedCode("Custom outbound specs are resolved via reflection and configuration binding.")]
-    [RequiresDynamicCode("Custom outbound bindings use configuration binder reflection.")]
-    private void ConfigureOutbounds(DispatcherOptions dispatcherOptions)
+    private void ConfigureOutbounds(DispatcherOptions dispatcherOptions, bool allowCustom = true)
     {
         foreach (var (service, config) in _options.Outbounds)
         {
@@ -268,22 +308,21 @@ internal sealed partial class DispatcherBuilder
 
             var serviceSection = _configuration.GetSection($"outbounds:{service}");
 
-            RegisterOutboundSet(dispatcherOptions, service, config.Unary, serviceSection, OutboundKind.Unary);
-            RegisterOutboundSet(dispatcherOptions, service, config.Oneway, serviceSection, OutboundKind.Oneway);
-            RegisterOutboundSet(dispatcherOptions, service, config.Stream, serviceSection, OutboundKind.Stream);
-            RegisterOutboundSet(dispatcherOptions, service, config.ClientStream, serviceSection, OutboundKind.ClientStream);
-            RegisterOutboundSet(dispatcherOptions, service, config.Duplex, serviceSection, OutboundKind.Duplex);
+            RegisterOutboundSet(dispatcherOptions, service, config.Unary, serviceSection, OutboundKind.Unary, allowCustom);
+            RegisterOutboundSet(dispatcherOptions, service, config.Oneway, serviceSection, OutboundKind.Oneway, allowCustom);
+            RegisterOutboundSet(dispatcherOptions, service, config.Stream, serviceSection, OutboundKind.Stream, allowCustom);
+            RegisterOutboundSet(dispatcherOptions, service, config.ClientStream, serviceSection, OutboundKind.ClientStream, allowCustom);
+            RegisterOutboundSet(dispatcherOptions, service, config.Duplex, serviceSection, OutboundKind.Duplex, allowCustom);
         }
     }
 
-    [RequiresDynamicCode("Custom outbound bindings use configuration binder reflection.")]
-    [RequiresUnreferencedCode("Custom outbound bindings use configuration binder reflection.")]
     private void RegisterOutboundSet(
         DispatcherOptions dispatcherOptions,
         string service,
         RpcOutboundConfiguration? configuration,
         IConfigurationSection? serviceSection,
-        OutboundKind kind)
+        OutboundKind kind,
+        bool allowCustom)
     {
         if (configuration is null)
         {
@@ -349,7 +388,19 @@ internal sealed partial class DispatcherBuilder
             grpcIndex++;
         }
 
+        if (!allowCustom)
+        {
+            if (_customOutboundSpecs.Count > 0 && _nativeAotStrict)
+            {
+                throw new OmniRelayConfigurationException("Custom outbound specs are not supported while native AOT mode is enabled.");
+            }
+
+            return;
+        }
+
+#pragma warning disable IL2026, IL3050 // Custom outbound specs rely on reflection and are disabled in strict AOT mode.
         ConfigureCustomOutbounds(dispatcherOptions, service, kind, kindSection);
+#pragma warning restore IL2026, IL3050
     }
 
     private static string GetOutboundSectionName(OutboundKind kind) => kind switch
@@ -530,8 +581,6 @@ internal sealed partial class DispatcherBuilder
         };
     }
 
-    [RequiresDynamicCode("gRPC outbound configuration instantiates interceptors via dependency injection.")]
-    [RequiresUnreferencedCode("gRPC outbound configuration instantiates interceptors via dependency injection.")]
     private GrpcOutbound CreateGrpcOutbound(string service, GrpcOutboundTargetConfiguration configuration, IConfigurationSection? configurationSection)
     {
         var endpoints = configuration.Endpoints;
@@ -759,8 +808,6 @@ internal sealed partial class DispatcherBuilder
         };
     }
 
-    [RequiresDynamicCode("Client interceptors are instantiated via dependency injection.")]
-    [RequiresUnreferencedCode("Client interceptors are instantiated via dependency injection.")]
     private GrpcClientRuntimeOptions? BuildGrpcClientRuntimeOptions(GrpcClientRuntimeConfiguration configuration)
     {
         if (configuration is null)
@@ -801,8 +848,6 @@ internal sealed partial class DispatcherBuilder
         };
     }
 
-    [RequiresDynamicCode("Instantiates interceptors via dependency injection.")]
-    [RequiresUnreferencedCode("Instantiates interceptors via dependency injection.")]
     private List<Interceptor> ResolveClientInterceptors(IEnumerable<string> typeNames)
     {
         var resolved = new List<Interceptor>();
@@ -813,22 +858,37 @@ internal sealed partial class DispatcherBuilder
                 continue;
             }
 
+            if (NativeAotTypeRegistry.TryResolveGrpcClientInterceptor(typeName, out var knownType))
+            {
+                var instance = (Interceptor)ActivatorUtilities.CreateInstance(_serviceProvider, knownType);
+                resolved.Add(instance);
+                continue;
+            }
+
+            if (_nativeAotStrict)
+            {
+                throw new OmniRelayConfigurationException(
+                    $"gRPC client interceptor '{typeName}' is not registered for native AOT bootstrap. Add it to the registry or disable strict mode.");
+            }
+
+#pragma warning disable IL2026, IL3050
             var type = ResolveType(typeName);
+#pragma warning restore IL2026, IL3050
             if (!typeof(Interceptor).IsAssignableFrom(type))
             {
                 throw new OmniRelayConfigurationException(
                     $"Configured gRPC client interceptor '{typeName}' does not derive from {nameof(Interceptor)}.");
             }
 
-            var instance = (Interceptor)ActivatorUtilities.CreateInstance(_serviceProvider, type);
-            resolved.Add(instance);
+#pragma warning disable IL2072
+            var instanceFallback = (Interceptor)ActivatorUtilities.CreateInstance(_serviceProvider, type);
+#pragma warning restore IL2072
+            resolved.Add(instanceFallback);
         }
 
         return resolved;
     }
 
-    [RequiresDynamicCode("Diagnostics control plane endpoints use minimal APIs with reflection.")]
-    [RequiresUnreferencedCode("Diagnostics control plane endpoints use minimal APIs with reflection.")]
     private Action<WebApplication>? CreateHttpInboundAppConfigurator()
     {
         var actions = new List<Action<WebApplication>>();
@@ -1202,9 +1262,7 @@ internal sealed partial class DispatcherBuilder
 
         return otelEnabled && metricsEnabled && promEnabled;
     }
-    [RequiresDynamicCode("Server interceptors are instantiated via dependency injection.")]
-    [RequiresUnreferencedCode("Server interceptors are instantiated via dependency injection.")]
-    private static GrpcServerRuntimeOptions? BuildGrpcServerRuntimeOptions(GrpcServerRuntimeConfiguration configuration)
+    private GrpcServerRuntimeOptions? BuildGrpcServerRuntimeOptions(GrpcServerRuntimeConfiguration configuration)
     {
         var interceptors = ResolveServerInterceptorTypes(configuration.Interceptors);
         var enableHttp3 = configuration.EnableHttp3 ?? false;
@@ -1245,9 +1303,7 @@ internal sealed partial class DispatcherBuilder
         };
     }
 
-    [RequiresDynamicCode("Resolves interceptor types via reflection.")]
-    [RequiresUnreferencedCode("Resolves interceptor types via reflection.")]
-    private static List<Type> ResolveServerInterceptorTypes(IEnumerable<string> typeNames)
+    private List<Type> ResolveServerInterceptorTypes(IEnumerable<string> typeNames)
     {
         var resolved = new List<Type>();
         foreach (var typeName in typeNames)
@@ -1257,7 +1313,21 @@ internal sealed partial class DispatcherBuilder
                 continue;
             }
 
+            if (NativeAotTypeRegistry.TryResolveGrpcServerInterceptor(typeName, out var knownType))
+            {
+                resolved.Add(knownType);
+                continue;
+            }
+
+            if (_nativeAotStrict)
+            {
+                throw new OmniRelayConfigurationException(
+                    $"gRPC server interceptor '{typeName}' is not registered for native AOT bootstrap. Add it to the registry or disable strict mode.");
+            }
+
+#pragma warning disable IL2026, IL3050
             var type = ResolveType(typeName);
+#pragma warning restore IL2026, IL3050
             if (!typeof(Interceptor).IsAssignableFrom(type))
             {
                 throw new OmniRelayConfigurationException(
@@ -1316,6 +1386,17 @@ internal sealed partial class DispatcherBuilder
             EnableServerLogging = configuration.EnableServerLogging ?? serverSide,
             LoggerFactory = loggerFactory
         };
+    }
+
+    private void ValidateNativeEncodings()
+    {
+        var json = _options.Encodings.Json;
+        if (json.Inbound.Count > 0 || json.Outbound.Count > 0 || json.Profiles.Count > 0)
+        {
+            throw new OmniRelayConfigurationException(
+                "Configuration-based JSON codec registrations are not supported in native AOT mode. " +
+                "Register codecs programmatically or generate source-based codecs instead.");
+        }
     }
 
     [RequiresDynamicCode("JSON codec registration relies on reflection.")]
@@ -2294,6 +2375,24 @@ internal sealed partial class DispatcherBuilder
         public string? ContextTypeName { get; init; } = ContextTypeName;
     }
 
+    private void ApplyMiddlewareNative(DispatcherOptions dispatcherOptions)
+    {
+        var inbound = _options.Middleware.Inbound;
+        var outbound = _options.Middleware.Outbound;
+
+        AddMiddlewareWithoutReflection(inbound.Unary, dispatcherOptions.UnaryInboundMiddleware);
+        AddMiddlewareWithoutReflection(inbound.Oneway, dispatcherOptions.OnewayInboundMiddleware);
+        AddMiddlewareWithoutReflection(inbound.Stream, dispatcherOptions.StreamInboundMiddleware);
+        AddMiddlewareWithoutReflection(inbound.ClientStream, dispatcherOptions.ClientStreamInboundMiddleware);
+        AddMiddlewareWithoutReflection(inbound.Duplex, dispatcherOptions.DuplexInboundMiddleware);
+
+        AddMiddlewareWithoutReflection(outbound.Unary, dispatcherOptions.UnaryOutboundMiddleware);
+        AddMiddlewareWithoutReflection(outbound.Oneway, dispatcherOptions.OnewayOutboundMiddleware);
+        AddMiddlewareWithoutReflection(outbound.Stream, dispatcherOptions.StreamOutboundMiddleware);
+        AddMiddlewareWithoutReflection(outbound.ClientStream, dispatcherOptions.ClientStreamOutboundMiddleware);
+        AddMiddlewareWithoutReflection(outbound.Duplex, dispatcherOptions.DuplexOutboundMiddleware);
+    }
+
     [RequiresDynamicCode("Middleware instances are created via dependency injection and reflection.")]
     [RequiresUnreferencedCode("Middleware instances are created via dependency injection and reflection.")]
     private void ApplyMiddleware(DispatcherOptions dispatcherOptions)
@@ -2301,22 +2400,22 @@ internal sealed partial class DispatcherBuilder
         var inbound = _options.Middleware.Inbound;
         var outbound = _options.Middleware.Outbound;
 
-        AddMiddleware(inbound.Unary, dispatcherOptions.UnaryInboundMiddleware);
-        AddMiddleware(inbound.Oneway, dispatcherOptions.OnewayInboundMiddleware);
-        AddMiddleware(inbound.Stream, dispatcherOptions.StreamInboundMiddleware);
-        AddMiddleware(inbound.ClientStream, dispatcherOptions.ClientStreamInboundMiddleware);
-        AddMiddleware(inbound.Duplex, dispatcherOptions.DuplexInboundMiddleware);
+        AddMiddlewareWithReflection(inbound.Unary, dispatcherOptions.UnaryInboundMiddleware);
+        AddMiddlewareWithReflection(inbound.Oneway, dispatcherOptions.OnewayInboundMiddleware);
+        AddMiddlewareWithReflection(inbound.Stream, dispatcherOptions.StreamInboundMiddleware);
+        AddMiddlewareWithReflection(inbound.ClientStream, dispatcherOptions.ClientStreamInboundMiddleware);
+        AddMiddlewareWithReflection(inbound.Duplex, dispatcherOptions.DuplexInboundMiddleware);
 
-        AddMiddleware(outbound.Unary, dispatcherOptions.UnaryOutboundMiddleware);
-        AddMiddleware(outbound.Oneway, dispatcherOptions.OnewayOutboundMiddleware);
-        AddMiddleware(outbound.Stream, dispatcherOptions.StreamOutboundMiddleware);
-        AddMiddleware(outbound.ClientStream, dispatcherOptions.ClientStreamOutboundMiddleware);
-        AddMiddleware(outbound.Duplex, dispatcherOptions.DuplexOutboundMiddleware);
+        AddMiddlewareWithReflection(outbound.Unary, dispatcherOptions.UnaryOutboundMiddleware);
+        AddMiddlewareWithReflection(outbound.Oneway, dispatcherOptions.OnewayOutboundMiddleware);
+        AddMiddlewareWithReflection(outbound.Stream, dispatcherOptions.StreamOutboundMiddleware);
+        AddMiddlewareWithReflection(outbound.ClientStream, dispatcherOptions.ClientStreamOutboundMiddleware);
+        AddMiddlewareWithReflection(outbound.Duplex, dispatcherOptions.DuplexOutboundMiddleware);
     }
 
     [RequiresDynamicCode("Middleware instances are created via dependency injection and reflection.")]
     [RequiresUnreferencedCode("Middleware instances are created via dependency injection and reflection.")]
-    private void AddMiddleware<TMiddleware>(IEnumerable<string> typeNames, IList<TMiddleware> targetList)
+    private void AddMiddlewareWithReflection<TMiddleware>(IEnumerable<string> typeNames, IList<TMiddleware> targetList)
     {
         foreach (var typeName in typeNames)
         {
@@ -2333,6 +2432,45 @@ internal sealed partial class DispatcherBuilder
             }
 
             var instance = (TMiddleware)ActivatorUtilities.CreateInstance(_serviceProvider, type);
+            targetList.Add(instance);
+        }
+    }
+
+    private void AddMiddlewareWithoutReflection<TMiddleware>(IEnumerable<string> typeNames, IList<TMiddleware> targetList)
+    {
+        foreach (var typeName in typeNames)
+        {
+            if (string.IsNullOrWhiteSpace(typeName))
+            {
+                continue;
+            }
+
+            if (NativeAotTypeRegistry.TryResolveMiddleware(typeName, out var knownType) &&
+                typeof(TMiddleware).IsAssignableFrom(knownType))
+            {
+                var knownInstance = (TMiddleware)ActivatorUtilities.CreateInstance(_serviceProvider, knownType);
+                targetList.Add(knownInstance);
+                continue;
+            }
+
+            if (_nativeAotStrict)
+            {
+                throw new OmniRelayConfigurationException(
+                    $"Middleware '{typeName}' is not registered for native AOT bootstrap. Add it to the registry or disable strict mode.");
+            }
+
+#pragma warning disable IL2026, IL3050
+            var resolved = ResolveType(typeName);
+#pragma warning restore IL2026, IL3050
+            if (!typeof(TMiddleware).IsAssignableFrom(resolved))
+            {
+                throw new OmniRelayConfigurationException(
+                    $"Configured middleware '{typeName}' does not implement {typeof(TMiddleware).Name}.");
+            }
+
+#pragma warning disable IL2072
+            var instance = (TMiddleware)ActivatorUtilities.CreateInstance(_serviceProvider, resolved);
+#pragma warning restore IL2072
             targetList.Add(instance);
         }
     }

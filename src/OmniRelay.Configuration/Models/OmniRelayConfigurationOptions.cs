@@ -26,6 +26,11 @@ public sealed class OmniRelayConfigurationOptions
     public SecurityConfiguration Security { get; init; } = new();
 
     public TransportPolicyConfiguration TransportPolicy { get; init; } = new();
+
+    /// <summary>
+    /// Native AOT settings that restrict reflection-based configuration and enforce the use of known, generator-friendly components.
+    /// </summary>
+    public NativeAotConfiguration NativeAot { get; init; } = new();
 }
 
 /// <summary>Inbound transport configuration for HTTP and gRPC servers.</summary>
@@ -428,4 +433,20 @@ public sealed class JsonSchemaConfiguration
     public string? Request { get; set; }
 
     public string? Response { get; set; }
+}
+
+/// <summary>
+/// Flags that opt the dispatcher bootstrapper into a trimming-safe profile.
+/// When enabled, only known middleware/interceptors/converters are allowed and reflection-based binding is disabled.
+/// </summary>
+public sealed class NativeAotConfiguration
+{
+    /// <summary>Enable the native-AOT safe bootstrap path.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// When true, unknown or reflection-based components (custom inbounds/outbounds, unregistered middleware/interceptors)
+    /// will throw during start instead of falling back to reflection.
+    /// </summary>
+    public bool Strict { get; set; } = true;
 }

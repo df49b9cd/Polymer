@@ -11,7 +11,7 @@
 
 ## Hosting Scenarios
 - **Generic Host**: `builder.Services.AddOmniRelayDispatcher(builder.Configuration);` then call `await host.RunAsync();` to co-host dispatcher + app services.
-- **Native AOT**: use the reflection-free overload `AddOmniRelayDispatcherAot(options, (sp, dispatcher) => { /* register codecs/transports */ });` to avoid trimming-sensitive binding, then follow `docs/architecture/aot-guidelines.md` and run `./eng/run-aot-publish.sh [rid] [Configuration]` to produce self-contained binaries.
+- **Native AOT**: set `omnirelay:nativeAot:enabled: true` in configuration to use the trimming-safe bootstrapper (strict by default, only registered middleware/interceptors allowed), or use the reflection-free overload `AddOmniRelayDispatcherAot(options, (sp, dispatcher) => { /* register codecs/transports */ });`. Follow `docs/architecture/aot-guidelines.md` and run `./eng/run-aot-publish.sh [rid] [Configuration]` to produce self-contained binaries.
 - **Docker/CI**: `./eng/run-ci.sh` reproduces pipeline builds; `docker build -f docker/Dockerfile.hyperscale.ci .` runs hyperscale smoke tests inside containers.
 
 ## Security & Certificates
