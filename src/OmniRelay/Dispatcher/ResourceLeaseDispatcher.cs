@@ -121,7 +121,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
 
         if (request.Payload is null)
         {
-            throw new ResultException(Error.From("resource lease payload is required", "error.resourcelease.payload_missing", cause: null!, metadata: null));
+            throw new ResultException(Error.From("resource lease payload is required", "error.resourcelease.payload_missing", cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null));
         }
 
         var workItem = ResourceLeaseWorkItem.FromPayload(request.Payload);
@@ -150,11 +150,11 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         {
             // Extremely unlikely: duplicate token. Fail the lease so it is re-queued.
             await lease.FailAsync(
-                Error.From("duplicate ownership token detected", "error.resourcelease.duplicate_token", cause: null!, metadata: null),
+                Error.From("duplicate ownership token detected", "error.resourcelease.duplicate_token", cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null),
                 requeue: true,
                 context.CancellationToken).ConfigureAwait(false);
 
-            throw new ResultException(Error.From("duplicate ownership token detected", "error.resourcelease.duplicate_token", cause: null!, metadata: null));
+            throw new ResultException(Error.From("duplicate ownership token detected", "error.resourcelease.duplicate_token", cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null));
         }
 
         var ownerPeerId = ResolvePeerId(context.RequestMeta, request?.PeerId);
@@ -788,12 +788,12 @@ public sealed record ResourceLeaseErrorInfo(string Message, string? Code)
         return new ResourceLeaseErrorInfo(error.Message, error.Code);
     }
 
-    public Error ToError()
-    {
-        var code = string.IsNullOrWhiteSpace(Code) ? "error.resourcelease.pending" : Code!;
-        return Error.From(Message, code, cause: null!, metadata: null);
+        public Error ToError()
+        {
+            var code = string.IsNullOrWhiteSpace(Code) ? "error.resourcelease.pending" : Code!;
+            return Error.From(Message, code, cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null);
+        }
     }
-}
 
 public sealed record ResourceLeaseWorkItem(
     string ResourceType,
