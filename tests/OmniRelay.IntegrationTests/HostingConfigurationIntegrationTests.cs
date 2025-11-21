@@ -427,7 +427,7 @@ public class HostingConfigurationIntegrationTests
         builder.Services.AddLogging();
         builder.Services.AddSingleton<ICustomInboundSpec>(inboundSpec);
         builder.Services.AddSingleton<ICustomOutboundSpec>(outboundSpec);
-        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
+        builder.Services.AddOmniRelayDispatcherFromConfiguration(builder.Configuration.GetSection("omnirelay"));
 
         using var host = builder.Build();
         var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();

@@ -299,6 +299,6 @@ options.UnaryOutboundMiddleware.Add(new RpcTracingMiddleware());
 ```
 
 `RpcTracingMiddleware` creates an `Activity` per RPC, flowing headers through
-`Rpc-Trace-*` metadata. Pair it with `AddOmniRelayDispatcher().AddOpenTelemetry`
+`Rpc-Trace-*` metadata. Pair it with `AddOmniRelayDispatcherFromConfiguration(...).AddOpenTelemetry`
 configuration so the runtime exports HTTP metrics and spans that share the same
 `Resource` attributes.
