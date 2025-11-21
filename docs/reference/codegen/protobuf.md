@@ -76,7 +76,7 @@ For projects that already produce [descriptor sets](https://github.com/dotnet/ro
 
 3. Build the project. MSBuild writes the generated files under `obj/<tfm>/generated/OmniRelay.Codegen.Generator/...` and the types become available to your project just like the protoc plug-in output.
 
-The repository contains a working sample wired this way: `tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample/`. It uses the `GenerateDescriptorSet` flow above and builds successfully with `dotnet build`.
+The `tests/OmniRelay.Codegen.Tests` project follows this pattern using `Protos/test_service.proto`, so CI exercises the descriptor-set flow on every run.
 
 ## Packaging the incremental generator
 

@@ -14,6 +14,6 @@
 - Tests under `tests/OmniRelay.Codegen.Tests` and `tests/OmniRelay.Codegen.Protobuf.Core` exercise incremental builds plus stub correctness.
 
 ## Descriptor Support
-- Integration tests reference `tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample`, which uses protoc + Roslyn to generate descriptor sets, ensuring the plug-in honors current `.proto` contracts.
+- Integration tests in `tests/OmniRelay.Codegen.Tests` generate descriptor sets from `Protos/test_service.proto` and run them through the incremental generator to ensure current `.proto` contracts stay compatible.
 
 Refer to README “Code generation” section and `docs/reference/codegen.md` (if present) for advanced configuration (custom namespaces, multi-module builds, analyzer diagnostics).

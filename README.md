@@ -226,7 +226,7 @@ See `docs/reference/cli.md` for profiles, protobuf automation, and CI recipes.
 ## Protobuf Automation
 
 - `src/OmniRelay.Codegen.Protobuf` provides `protoc-gen-omnirelay-csharp`, which emits dispatcher registration helpers (`Register<Service>`), service interfaces, and typed OmniRelay clients (unary + streaming) with codecs pre-wired.
-- `src/OmniRelay.Codegen.Protobuf.Generator` packages the same emitter as a Roslyn incremental generator. Reference it as an analyzer, generate descriptor sets via `Grpc.Tools`, and add them to `AdditionalFiles` to light up IntelliSense-friendly clients. See `tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample`.
+- `src/OmniRelay.Codegen.Protobuf.Generator` packages the same emitter as a Roslyn incremental generator. Reference it as an analyzer, generate descriptor sets via `Grpc.Tools`, and add them to `AdditionalFiles` to light up IntelliSense-friendly clients. The `tests/OmniRelay.Codegen.Tests` project shows the descriptor-set pattern used in CI.
 
 ## Observability
 

@@ -54,7 +54,6 @@
     <Compile Remove="Generated/TestService.actual.g.cs" />
     <Compile Remove="Generated/TestService.incremental.g.cs" />
     <Compile Remove="Generated/TestService.OmniRelay.g.cs" />
-    <Compile Remove="Projects/ProtobufIncrementalSample/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

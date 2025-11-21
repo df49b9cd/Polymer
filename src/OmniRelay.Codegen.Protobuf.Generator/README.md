@@ -36,7 +36,7 @@ The generated files can be added to your project directly, or referenced through
 
 ## Using The Incremental Generator
 
-Reference the incremental generator as an analyzer and surface descriptor sets via `AdditionalFiles`. The sample below mirrors `tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample`:
+Reference the incremental generator as an analyzer and surface descriptor sets via `AdditionalFiles`. The sample below mirrors the pattern used in `tests/OmniRelay.Codegen.Tests`:
 
 ```xml
 <ItemGroup>

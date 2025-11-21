@@ -151,7 +151,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj" />
     <Project Path="tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj" />
-    <Project Path="tests/OmniRelay.Codegen.Tests/Projects/ProtobufIncrementalSample/ProtobufIncrementalSample.csproj" />
     <Project Path="tests/OmniRelay.Cli.UnitTests/OmniRelay.Cli.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj" />
