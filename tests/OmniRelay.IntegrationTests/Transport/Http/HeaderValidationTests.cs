@@ -11,7 +11,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class HeaderValidationTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30000)]
-    public async Task MissingRpcProcedureHeader_Returns400()
+    public async ValueTask MissingRpcProcedureHeader_Returns400()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

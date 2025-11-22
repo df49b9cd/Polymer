@@ -1,13 +1,12 @@
 using System.Globalization;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OmniRelay.Configuration;
 using OmniRelay.Core.Gossip;
+using OmniRelay.Dispatcher.Config;
 using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using Xunit;
@@ -22,7 +21,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     private readonly TestCertificateInfo _certificate = TestCertificateFactory.EnsureDeveloperCertificateInfo("CN=integration-gossip");
 
     [Fact(Timeout = 60_000)]
-    public async Task GossipMesh_MutualSeeds_ConvergesClusterView()
+    public async ValueTask GossipMesh_MutualSeeds_ConvergesClusterView()
     {
         var ct = TestContext.Current.CancellationToken;
         var nodeA = new GossipNodeDescriptor("mesh-node-a", "rack-a", TestPortAllocator.GetRandomPort());
@@ -70,7 +69,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task GossipMesh_PeerDeparture_MarkedLeft()
+    public async ValueTask GossipMesh_PeerDeparture_MarkedLeft()
     {
         var ct = TestContext.Current.CancellationToken;
         var nodeA = new GossipNodeDescriptor("mesh-node-a", "rack-a", TestPortAllocator.GetRandomPort());
@@ -106,7 +105,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     }
 
     [Fact(Timeout = 90_000)]
-    public async Task GossipMesh_DiagnosticsEndpoint_ReflectsCluster()
+    public async ValueTask GossipMesh_DiagnosticsEndpoint_ReflectsCluster()
     {
         var ct = TestContext.Current.CancellationToken;
         var dispatcherNode = new GossipNodeDescriptor("mesh-node-dispatcher", "rack-control", TestPortAllocator.GetRandomPort());
@@ -245,7 +244,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
 
         builder.Configuration.AddInMemoryCollection(settings);
         builder.Services.AddLogging();
-        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
+        builder.Services.AddOmniRelayDispatcherFromConfiguration(builder.Configuration.GetSection("omnirelay"));
 
         var host = builder.Build();
         await host.StartAsync(cancellationToken);

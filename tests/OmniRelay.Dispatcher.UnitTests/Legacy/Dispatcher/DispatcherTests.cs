@@ -11,8 +11,8 @@ namespace OmniRelay.Tests.Dispatcher;
 
 public class DispatcherTests
 {
-    [Fact]
-    public async Task StartAsync_StartsAndStopsLifecycleComponents()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask StartAsync_StartsAndStopsLifecycleComponents()
     {
         var lifecycle = new StubLifecycle();
         var options = new DispatcherOptions("keyvalue");
@@ -36,7 +36,7 @@ public class DispatcherTests
         Assert.Equal(1, lifecycle.StopCalls);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Register_DuplicateProcedureReportsFailure()
     {
         var options = new DispatcherOptions("payments");
@@ -52,7 +52,7 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.FailedPrecondition, OmniRelayErrorAdapter.ToStatus(duplicate.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Register_WithDifferentServiceReturnsError()
     {
         var options = new DispatcherOptions("catalog");
@@ -66,8 +66,8 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
-    public async Task InvokeUnaryAsync_ResolvesProcedureAliases()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InvokeUnaryAsync_ResolvesProcedureAliases()
     {
         var options = new DispatcherOptions("keyvalue");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -109,8 +109,8 @@ public class DispatcherTests
         Assert.Equal(2, callCount);
     }
 
-    [Fact]
-    public async Task RegisterUnary_BuilderConfiguresPipelineAndMetadata()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RegisterUnary_BuilderConfiguresPipelineAndMetadata()
     {
         var order = new List<string>();
         var options = new DispatcherOptions("keyvalue");
@@ -151,8 +151,8 @@ public class DispatcherTests
             mw => Assert.Same(middleware2, mw));
     }
 
-    [Fact]
-    public async Task RegisterUnary_WildcardAliasRoutesRequests()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RegisterUnary_WildcardAliasRoutesRequests()
     {
         var options = new DispatcherOptions("catalog");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -195,8 +195,8 @@ public class DispatcherTests
         Assert.Equal(1, directInvocations);
     }
 
-    [Fact]
-    public async Task RegisterUnary_WildcardSpecificityPrefersMostSpecificAlias()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RegisterUnary_WildcardSpecificityPrefersMostSpecificAlias()
     {
         var options = new DispatcherOptions("inventory");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -232,7 +232,7 @@ public class DispatcherTests
         Assert.Equal(1, versionCount);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RegisterUnary_DuplicateWildcardAliasReturnsError()
     {
         var options = new DispatcherOptions("billing");
@@ -252,7 +252,7 @@ public class DispatcherTests
         Assert.Contains("conflicts", conflict.Error?.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RegisterUnary_BuilderRequiresHandler()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("edge"));
@@ -263,7 +263,7 @@ public class DispatcherTests
         Assert.Contains("Handle", result.Error?.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RegisterUnary_BlankName_ReturnsInvalidArgument()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
@@ -276,7 +276,7 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RegisterUnary_TrimsName()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
@@ -286,7 +286,7 @@ public class DispatcherTests
         Assert.True(dispatcher.TryGetProcedure("svc::call", ProcedureKind.Unary, out _));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RegisterStream_BuilderConfiguresMetadata()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("streaming"));
@@ -309,7 +309,7 @@ public class DispatcherTests
         Assert.Contains("events::watch", streamSpec.Aliases);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ClientConfig_ReturnsOutboundsAndMiddleware()
     {
         var unaryOutbound = new StubUnaryOutbound();
@@ -337,7 +337,7 @@ public class DispatcherTests
         Assert.Empty(config.ClientStreamMiddleware);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ClientConfig_UnknownServiceReturnsError()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("frontend"));
@@ -348,8 +348,8 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.NotFound, OmniRelayErrorAdapter.ToStatus(config.Error!));
     }
 
-    [Fact]
-    public async Task InvokeClientStreamAsync_ProcessesRequestAndCompletesResponse()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InvokeClientStreamAsync_ProcessesRequestAndCompletesResponse()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("keyvalue"));
 
@@ -389,8 +389,8 @@ public class DispatcherTests
         Assert.Equal(3, count);
     }
 
-    [Fact]
-    public async Task InvokeClientStreamAsync_WhenProcedureMissingReturnsError()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InvokeClientStreamAsync_WhenProcedureMissingReturnsError()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("keyvalue"));
         var requestMeta = new RequestMeta(service: "keyvalue", procedure: "missing", transport: "test");
@@ -402,8 +402,8 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.Unimplemented, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
-    public async Task Introspect_ReportsCurrentState()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask Introspect_ReportsCurrentState()
     {
         var lifecycle = new StubLifecycle();
         var unaryInbound = new PassthroughUnaryInboundMiddleware();

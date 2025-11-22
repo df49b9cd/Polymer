@@ -10,8 +10,8 @@ namespace OmniRelay.Tests.Core.Middleware;
 
 public sealed class RpcTracingMiddlewareTests
 {
-    [Fact]
-    public async Task UnaryInbound_CreatesServerSpanWithTags()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask UnaryInbound_CreatesServerSpanWithTags()
     {
         var activities = new List<Activity>();
         using var source = new ActivitySource("test.yarpcore.tracing");
@@ -55,8 +55,8 @@ public sealed class RpcTracingMiddlewareTests
         activity.GetTagItem("rpc.response.encoding").ShouldBe("application/json");
     }
 
-    [Fact]
-    public async Task UnaryOutbound_Failure_InjectsTraceContextAndSetsError()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask UnaryOutbound_Failure_InjectsTraceContextAndSetsError()
     {
         var activities = new List<Activity>();
         using var source = new ActivitySource("test.yarpcore.tracing");

@@ -17,6 +17,9 @@
     <PackageReference Include="Hugo" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="..\TestSupport\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Protobuf Include="Protos/echo.proto" GrpcServices="None" />
   </ItemGroup>
   <ItemGroup>

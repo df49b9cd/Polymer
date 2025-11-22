@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ARG DOTNET_VERSION=10.0
-ARG TEST_PROJECTS="tests/OmniRelay.Cli.UnitTests/OmniRelay.Cli.UnitTests.csproj tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj tests/OmniRelay.Configuration.UnitTests/OmniRelay.Configuration.UnitTests.csproj tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj"
+ARG TEST_PROJECTS="tests/OmniRelay.Cli.UnitTests/OmniRelay.Cli.UnitTests.csproj tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj tests/OmniRelay.Codegen.Tests/OmniRelay.Codegen.Tests.csproj tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj tests/OmniRelay.YabInterop/OmniRelay.YabInterop.csproj"
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS base
 
@@ -36,24 +36,45 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
 
 WORKDIR /repo
 
-COPY global.json Directory.Build.props Directory.Build.targets Directory.Packages.props OmniRelay.slnx ./
+COPY global.json Directory.Build.props Directory.Packages.props OmniRelay.slnx ./
 COPY src ./src
 COPY tests ./tests
 COPY samples ./samples
 COPY docs ./docs
 COPY branding ./branding
 COPY eng ./eng
+RUN chmod +x ./eng/protoc-response-file-wrapper.sh
 
 FROM base AS restore
-RUN dotnet restore OmniRelay.slnx
+RUN set -euo pipefail && \
+    dotnet restore OmniRelay.slnx && \
+    arch="$(uname -m)" && \
+    if [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then \
+        real_protoc="$(python3 -c 'import pathlib; base=pathlib.Path("/root/.nuget/packages/grpc.tools"); candidates=sorted(base.glob("*/tools/linux_arm64/protoc")); print(candidates[-1] if candidates else "")')"; \
+        if [ -z "${real_protoc}" ]; then \
+            echo "Unable to locate linux_arm64 protoc binary after restore." >&2; \
+            exit 94; \
+        fi; \
+        printf '%s\n' "${real_protoc}" > /repo/eng/.artifacts/linux-arm64-protoc-path.txt; \
+    fi
 
 FROM restore AS build
-RUN dotnet build OmniRelay.slnx -c Release --no-restore
+RUN set -euo pipefail && \
+    arch="$(uname -m)" && \
+    if [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then \
+        PROTOBUF_PROTOC=/repo/eng/protoc-response-file-wrapper.sh dotnet build OmniRelay.slnx -c Release --no-restore; \
+    else \
+        dotnet build OmniRelay.slnx -c Release --no-restore; \
+    fi
 
 FROM build AS ci
 SHELL ["/bin/bash","-c"]
 ARG TEST_PROJECTS
 RUN set -euo pipefail && \
+    arch="$(uname -m)" && \
+    if [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then \
+        export PROTOBUF_PROTOC=/repo/eng/protoc-response-file-wrapper.sh; \
+    fi && \
     mkdir -p /repo/artifacts/test-results /repo/artifacts/coverage && \
     for proj in ${TEST_PROJECTS}; do \
         name=$(basename "${proj%.csproj}"); \

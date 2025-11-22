@@ -16,7 +16,7 @@ namespace OmniRelay.IntegrationTests.Transport;
 public sealed class HttpTransportTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30000)]
-    public async Task UnaryRoundtrip_EncodesAndDecodesPayload()
+    public async ValueTask UnaryRoundtrip_EncodesAndDecodesPayload()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -91,7 +91,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
     }
 
     [Fact(Timeout = 30000)]
-    public async Task OnewayRoundtrip_SucceedsWithAck()
+    public async ValueTask OnewayRoundtrip_SucceedsWithAck()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -142,7 +142,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
     }
 
     [Fact(Timeout = 30000)]
-    public async Task ServerStreaming_EmitsEventStream()
+    public async ValueTask ServerStreaming_EmitsEventStream()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -219,7 +219,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
     }
 
     [Fact(Timeout = 30000)]
-    public async Task ServerStreaming_BinaryPayloadsAreBase64Encoded()
+    public async ValueTask ServerStreaming_BinaryPayloadsAreBase64Encoded()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -280,7 +280,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
     }
 
     [Fact(Timeout = 30000)]
-    public async Task ServerStreaming_PayloadAboveLimit_FaultsStream()
+    public async ValueTask ServerStreaming_PayloadAboveLimit_FaultsStream()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -385,7 +385,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
     }
 
     [Fact(Timeout = 30000)]
-    public async Task DuplexStreaming_OverHttpWebSocket()
+    public async ValueTask DuplexStreaming_OverHttpWebSocket()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -474,7 +474,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
     }
 
     [Fact(Timeout = 30000)]
-    public async Task DuplexStreaming_ServerCancels_PropagatesToClient()
+    public async ValueTask DuplexStreaming_ServerCancels_PropagatesToClient()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

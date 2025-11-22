@@ -6,7 +6,7 @@ namespace OmniRelay.Tests.Errors;
 
 public class OmniRelayErrorAdapterTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FromStatus_AttachesMetadata()
     {
         var error = OmniRelayErrorAdapter.FromStatus(
@@ -21,7 +21,7 @@ public class OmniRelayErrorAdapterTests
         transport.ShouldBe("grpc");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FromStatus_MergesAdditionalMetadata()
     {
         var error = OmniRelayErrorAdapter.FromStatus(
@@ -39,7 +39,7 @@ public class OmniRelayErrorAdapterTests
         node.ShouldBe("alpha");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ToStatus_UsesMetadataPriority()
     {
         var error = Error.From("denied")
@@ -50,7 +50,7 @@ public class OmniRelayErrorAdapterTests
         status.ShouldBe(OmniRelayStatusCode.Unavailable);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ToStatus_FallsBackToCode()
     {
         var error = Error.From("internal failure", "internal");
@@ -60,7 +60,7 @@ public class OmniRelayErrorAdapterTests
         status.ShouldBe(OmniRelayStatusCode.Internal);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ToStatus_MapsCancellationCause()
     {
         var error = Error.From("cancelled").WithCause(new OperationCanceledException());

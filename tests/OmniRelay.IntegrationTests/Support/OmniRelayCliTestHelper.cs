@@ -4,6 +4,12 @@ namespace OmniRelay.IntegrationTests.Support;
 
 internal static class OmniRelayCliTestHelper
 {
+#if DEBUG
+    private const string BuildConfiguration = "Debug";
+#else
+    private const string BuildConfiguration = "Release";
+#endif
+
     private static readonly string RepositoryRoot = RepositoryPaths.Root;
     private static readonly string CliProjectPath = Path.Combine(RepositoryRoot, "src", "OmniRelay.Cli", "OmniRelay.Cli.csproj");
     private static readonly object BuildLock = new();
@@ -73,7 +79,7 @@ internal static class OmniRelayCliTestHelper
         psi.ArgumentList.Add("--project");
         psi.ArgumentList.Add(CliProjectPath);
         psi.ArgumentList.Add("--configuration");
-        psi.ArgumentList.Add("Debug");
+        psi.ArgumentList.Add(BuildConfiguration);
         psi.ArgumentList.Add("--no-build");
         psi.ArgumentList.Add("--");
         foreach (var argument in cliArguments)
@@ -111,7 +117,7 @@ internal static class OmniRelayCliTestHelper
             psi.ArgumentList.Add("build");
             psi.ArgumentList.Add(CliProjectPath);
             psi.ArgumentList.Add("--configuration");
-            psi.ArgumentList.Add("Debug");
+            psi.ArgumentList.Add(BuildConfiguration);
 
             using var process = new Process { StartInfo = psi };
             if (!process.Start())

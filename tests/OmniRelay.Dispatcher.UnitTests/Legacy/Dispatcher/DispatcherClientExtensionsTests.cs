@@ -9,7 +9,7 @@ namespace OmniRelay.Tests.Dispatcher;
 
 public class DispatcherClientExtensionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateUnaryClient_WithCodecAndMissingOutbound_Throws()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("local"));
@@ -18,7 +18,7 @@ public class DispatcherClientExtensionsTests
         Assert.Throws<ResultException>(() => dispatcher.CreateUnaryClient("remote", codec));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateUnaryClient_ResolvesRegisteredCodec()
     {
         var options = new DispatcherOptions("local");
@@ -34,7 +34,7 @@ public class DispatcherClientExtensionsTests
         Assert.NotNull(client);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateStreamClient_MissingOutboundThrows()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));

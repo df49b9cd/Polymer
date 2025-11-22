@@ -5,7 +5,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class StreamingIntrospectionMetadataTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void StreamChannelMetadata_DefaultsMatchExpected()
     {
         var response = StreamChannelMetadata.DefaultResponse;
@@ -18,7 +18,7 @@ public class StreamingIntrospectionMetadataTests
         Assert.False(request.TracksMessageCount);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AggregateDefaults_ComposeChannelMetadata()
     {
         Assert.Equal(StreamChannelMetadata.DefaultResponse, StreamIntrospectionMetadata.Default.ResponseChannel);

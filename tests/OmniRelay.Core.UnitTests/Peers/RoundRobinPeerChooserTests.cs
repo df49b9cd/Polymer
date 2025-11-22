@@ -1,5 +1,6 @@
 using NSubstitute;
 using OmniRelay.Core.Peers;
+using OmniRelay.Diagnostics;
 using OmniRelay.Errors;
 using Xunit;
 
@@ -10,7 +11,7 @@ public class RoundRobinPeerChooserTests
     private static RequestMeta Meta() => new RequestMeta(service: "svc", transport: "http");
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task EmptyPeers_ReturnsUnavailable()
+    public async ValueTask EmptyPeers_ReturnsUnavailable()
     {
         var chooser = new RoundRobinPeerChooser(System.Collections.Immutable.ImmutableArray<IPeer>.Empty);
         var res = await chooser.AcquireAsync(Meta(), TestContext.Current.CancellationToken);
@@ -19,7 +20,7 @@ public class RoundRobinPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task Acquires_From_First_Available()
+    public async ValueTask Acquires_From_First_Available()
     {
         var p1 = Substitute.For<IPeer>();
         p1.Identifier.Returns("p1");
@@ -39,7 +40,7 @@ public class RoundRobinPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AllBusy_ReturnsResourceExhausted()
+    public async ValueTask AllBusy_ReturnsResourceExhausted()
     {
         var p1 = Substitute.For<IPeer>(); p1.Identifier.Returns("p1"); p1.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p1.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
         var p2 = Substitute.For<IPeer>(); p2.Identifier.Returns("p2"); p2.Status.Returns(new PeerStatus(PeerState.Available, 0, null, null)); p2.TryAcquire(Arg.Any<CancellationToken>()).Returns(false);
@@ -50,7 +51,7 @@ public class RoundRobinPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task HealthProviderSkipsIneligiblePeers()
+    public async ValueTask HealthProviderSkipsIneligiblePeers()
     {
         var unhealthy = Substitute.For<IPeer>();
         unhealthy.Identifier.Returns("p1");
@@ -75,7 +76,7 @@ public class RoundRobinPeerChooserTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task HealthProviderAllIneligible_ReturnsResourceExhausted()
+    public async ValueTask HealthProviderAllIneligible_ReturnsResourceExhausted()
     {
         var p1 = Substitute.For<IPeer>();
         p1.Identifier.Returns("p1");

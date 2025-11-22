@@ -9,6 +9,7 @@
 - `omnirelay request` — issue unary calls over HTTP or gRPC, with profiles for JSON and protobuf payloads.
 - `omnirelay benchmark` — drive concurrent HTTP or gRPC requests and report latency/throughput stats (YAB-style).
 - `omnirelay script run` — replay automation scripts (JSON) that combine requests, delays, and introspection probes.
+- `omnirelay mesh config validate` — evaluate diagnostics/control-plane transports against the HTTP/3 + Protobuf policy before deployment (text or JSON output for CI).
 
 ## Quick start
 

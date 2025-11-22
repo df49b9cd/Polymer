@@ -15,7 +15,7 @@ public class GrpcCodegenIntegrationTests
     private const string ServiceName = "grpc-integration";
 
     [Fact(Timeout = 30_000)]
-    public async Task GeneratedServiceHonorsProtobufCodegen()
+    public async ValueTask GeneratedServiceHonorsProtobufCodegen()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");

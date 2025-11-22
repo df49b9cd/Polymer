@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>Soeren Magnus Olesen</Authors>
+    <Company>df49b9cd</Company>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <AssemblyName>OmniRelay.Diagnostics.Abstractions</AssemblyName>
+    <RootNamespace>OmniRelay.Diagnostics</RootNamespace>
+    <PackageId>OmniRelay.Diagnostics.Abstractions</PackageId>
+    <Description>Core diagnostics interfaces, data contracts, and peer health models for OmniRelay hosts.</Description>
+    <PackageTags>omnirelay;diagnostics</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hugo" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+</Project>

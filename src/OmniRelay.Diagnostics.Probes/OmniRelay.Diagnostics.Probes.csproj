@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>Soeren Magnus Olesen</Authors>
+    <Company>df49b9cd</Company>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <AssemblyName>OmniRelay.Diagnostics.Probes</AssemblyName>
+    <RootNamespace>OmniRelay.Diagnostics</RootNamespace>
+    <PackageId>OmniRelay.Diagnostics.Probes</PackageId>
+    <Description>Synthetic health probe scheduler and chaos experiment coordinator for OmniRelay control-plane hosts.</Description>
+    <PackageTags>omnirelay;diagnostics;probes;chaos</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

@@ -11,7 +11,7 @@ public class JsonCodecTests
 {
     internal sealed record Sample(string Name, int Count, string? Description = null);
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_ProducesUtf8Json()
     {
         var codec = new JsonCodec<Sample, Sample>();
@@ -26,7 +26,7 @@ public class JsonCodecTests
         document.RootElement.TryGetProperty("description", out _).ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_InvalidJsonMapsToInvalidArgument()
     {
         var codec = new JsonCodec<Sample, Sample>();
@@ -40,7 +40,7 @@ public class JsonCodecTests
         status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeResponse_RehydratesPayload()
     {
         var codec = new JsonCodec<Sample, Sample>();
@@ -56,7 +56,7 @@ public class JsonCodecTests
         decoded.Value.ShouldBe(response);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeRequest_WithCustomOptionsIncludesNulls()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
@@ -75,7 +75,7 @@ public class JsonCodecTests
         description.ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DecodeRequest_WithSchemaViolation_ReturnsInvalidArgument()
     {
         var schema = JsonSchema.FromText("""
@@ -100,7 +100,7 @@ public class JsonCodecTests
         status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EncodeResponse_WithSchemaViolation_ReturnsError()
     {
         var schema = JsonSchema.FromText("""
@@ -124,7 +124,7 @@ public class JsonCodecTests
         status.ShouldBe(OmniRelayStatusCode.InvalidArgument);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_WithContextMissingTypes_Throws()
     {
         var context = new JsonCodecIncompleteContext(new JsonSerializerOptions());

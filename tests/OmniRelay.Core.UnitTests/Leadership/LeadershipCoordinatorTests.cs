@@ -7,8 +7,8 @@ namespace OmniRelay.Core.UnitTests.Leadership;
 
 public sealed class LeadershipCoordinatorTests
 {
-    [Fact]
-    public async Task Coordinator_ElectsSingleLeaderAndFailsOver()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask Coordinator_ElectsSingleLeaderAndFailsOver()
     {
         var store = new InMemoryLeadershipStore();
         var hubA = new LeadershipEventHub(NullLogger<LeadershipEventHub>.Instance);
@@ -29,10 +29,7 @@ public sealed class LeadershipCoordinatorTests
         await coordinatorA.StartAsync(TestContext.Current.CancellationToken);
         await coordinatorB.StartAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
-
-        var snapshotA = coordinatorA.Snapshot();
-        snapshotA.Tokens.ShouldNotBeEmpty();
+        var snapshotA = await WaitForTokenAsync(coordinatorA, TestContext.Current.CancellationToken);
         var initialToken = snapshotA.Tokens[0];
         (initialToken.LeaderId is "node-a" or "node-b").ShouldBeTrue();
 
@@ -41,10 +38,10 @@ public sealed class LeadershipCoordinatorTests
 
         await leaderCoordinator.StopAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
-
-        var followerSnapshot = followerCoordinator.Snapshot();
-        followerSnapshot.Tokens.ShouldNotBeEmpty();
+        var followerSnapshot = await WaitForTokenAsync(
+            followerCoordinator,
+            TestContext.Current.CancellationToken,
+            token => token.LeaderId != initialToken.LeaderId);
         var failoverToken = followerSnapshot.Tokens[0];
 
         failoverToken.LeaderId.ShouldNotBe(initialToken.LeaderId);
@@ -71,7 +68,34 @@ public sealed class LeadershipCoordinatorTests
         return options;
     }
 
-    [Fact]
+    private static async Task<LeadershipSnapshot> WaitForTokenAsync(
+        LeadershipCoordinator coordinator,
+        CancellationToken cancellationToken,
+        Func<LeadershipToken, bool>? predicate = null)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(3);
+        while (true)
+        {
+            var snapshot = coordinator.Snapshot();
+            if (snapshot.Tokens.Length > 0)
+            {
+                var token = snapshot.Tokens[0];
+                if (predicate is null || predicate(token))
+                {
+                    return snapshot;
+                }
+            }
+
+            if (DateTime.UtcNow >= deadline)
+            {
+                return snapshot;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
+        }
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Snapshot_ReturnsEmptyInitially()
     {
         var store = new InMemoryLeadershipStore();
@@ -93,8 +117,8 @@ public sealed class LeadershipCoordinatorTests
         snapshot.Tokens.ShouldBeEmpty();
     }
 
-    [Fact]
-    public async Task Coordinator_CanBeStartedAndStopped()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask Coordinator_CanBeStartedAndStopped()
     {
         var store = new InMemoryLeadershipStore();
         var hub = new LeadershipEventHub(NullLogger<LeadershipEventHub>.Instance);
@@ -120,8 +144,8 @@ public sealed class LeadershipCoordinatorTests
         await coordinator.StopAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public async Task MultipleCoordinators_CompeteForLeadership()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask MultipleCoordinators_CompeteForLeadership()
     {
         var store = new InMemoryLeadershipStore();
         var hubA = new LeadershipEventHub(NullLogger<LeadershipEventHub>.Instance);

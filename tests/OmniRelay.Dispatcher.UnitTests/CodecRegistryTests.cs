@@ -4,13 +4,13 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class CodecRegistryTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_WithWhitespaceService_Throws()
     {
         Assert.Throws<ArgumentException>(() => new CodecRegistry(" ", []));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RegisterInbound_ThenResolve_ReturnsCodec()
     {
         var codec = new TestHelpers.TestCodec<string, string>();
@@ -24,7 +24,7 @@ public class CodecRegistryTests
         Assert.Same(codec, typed);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RegisterOutbound_WithDuplicate_Throws()
     {
         var codec = new TestHelpers.TestCodec<int, int>();
@@ -36,7 +36,7 @@ public class CodecRegistryTests
             registry.RegisterOutbound("remote", "proc", ProcedureKind.Unary, codec));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Register_WithAliases_ResolvesAll()
     {
         var codec = new TestHelpers.TestCodec<int, int>();
@@ -50,7 +50,7 @@ public class CodecRegistryTests
         Assert.Same(codec, second.Codec);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryResolve_WithTypeMismatch_Throws()
     {
         var codec = new TestHelpers.TestCodec<int, string>();
@@ -62,7 +62,7 @@ public class CodecRegistryTests
             registry.TryResolve<string, string>(ProcedureCodecScope.Inbound, "svc", "proc", ProcedureKind.Unary, out _));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Snapshot_ReturnsRegisteredEntries()
     {
         var codec = new TestHelpers.TestCodec<int, int>();

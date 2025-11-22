@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Shouldly;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using OmniRelay.IntegrationTests.Support;
@@ -17,7 +16,7 @@ public sealed class LeadershipIntegrationTests(ITestOutputHelper output) : Integ
     private readonly TimeSpan _renewalTimeout = TimeSpan.FromSeconds(20);
 
     [Fact(Timeout = 60_000)]
-    public async Task LeadershipCoordinator_SharedStore_ElectsSingleLeaderAndRenews()
+    public async ValueTask LeadershipCoordinator_SharedStore_ElectsSingleLeaderAndRenews()
     {
         var ct = TestContext.Current.CancellationToken;
         var store = new InMemoryLeadershipStore();
@@ -55,7 +54,7 @@ public sealed class LeadershipIntegrationTests(ITestOutputHelper output) : Integ
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task LeadershipCoordinator_FailoverAfterLeaderStops_ElectsNewLeader()
+    public async ValueTask LeadershipCoordinator_FailoverAfterLeaderStops_ElectsNewLeader()
     {
         var ct = TestContext.Current.CancellationToken;
         var store = new InMemoryLeadershipStore();
@@ -101,7 +100,7 @@ public sealed class LeadershipIntegrationTests(ITestOutputHelper output) : Integ
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task LeadershipCoordinator_DefersElectionUntilGossipReportsHealthy()
+    public async ValueTask LeadershipCoordinator_DefersElectionUntilGossipReportsHealthy()
     {
         var ct = TestContext.Current.CancellationToken;
         var store = new InMemoryLeadershipStore();

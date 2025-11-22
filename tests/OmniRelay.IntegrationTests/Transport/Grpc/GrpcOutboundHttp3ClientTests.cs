@@ -19,7 +19,7 @@ namespace OmniRelay.IntegrationTests.Transport.Grpc;
 public sealed class GrpcOutboundHttp3ClientTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcOutbound_WithHttp3Enabled_UsesHttp3()
+    public async ValueTask GrpcOutbound_WithHttp3Enabled_UsesHttp3()
     {
         if (!QuicListener.IsSupported)
         {
@@ -97,7 +97,7 @@ public sealed class GrpcOutboundHttp3ClientTests(ITestOutputHelper output) : Tra
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcOutbound_WithOrHigher_ToHttp2Server_DowngradesToHttp2()
+    public async ValueTask GrpcOutbound_WithOrHigher_ToHttp2Server_DowngradesToHttp2()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-grpc-outbound-http2");
 
@@ -165,7 +165,7 @@ public sealed class GrpcOutboundHttp3ClientTests(ITestOutputHelper output) : Tra
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcOutbound_WithExactHttp3_ToHttp2Server_Fails()
+    public async ValueTask GrpcOutbound_WithExactHttp3_ToHttp2Server_Fails()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-grpc-outbound-http3-exact");
 

@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package omnirelay.mesh.control.v1;
+
+option csharp_namespace = "OmniRelay.Mesh.Control.V1";
+
+import "google/protobuf/timestamp.proto";
+
+enum ShardStatus {
+  SHARD_STATUS_UNSPECIFIED = 0;
+  SHARD_STATUS_ACTIVE = 1;
+  SHARD_STATUS_DRAINING = 2;
+  SHARD_STATUS_PAUSED = 3;
+  SHARD_STATUS_DISABLED = 4;
+}
+
+message ShardRecord {
+  string namespace = 1;
+  string shard_id = 2;
+  string strategy_id = 3;
+  string owner_node_id = 4;
+  string leader_id = 5;
+  double capacity_hint = 6;
+  ShardStatus status = 7;
+  int64 version = 8;
+  string checksum = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  string change_ticket = 11;
+}
+
+message ShardHistory {
+  string actor = 1;
+  string reason = 2;
+  string change_ticket = 3;
+  string previous_owner_node_id = 4;
+}
+
+message ShardListRequest {
+  string namespace = 1;
+  string owner_node_id = 2;
+  repeated ShardStatus statuses = 3;
+  string search = 4;
+  string cursor = 5;
+  int32 page_size = 6;
+}
+
+message ShardListResponse {
+  repeated ShardRecord shards = 1;
+  string next_cursor = 2;
+  int64 version = 3;
+}
+
+message ShardWatchRequest {
+  string namespace = 1;
+  string owner_node_id = 2;
+  repeated ShardStatus statuses = 3;
+  string search = 4;
+  int64 resume_token = 5;
+}
+
+message ShardDiffRequest {
+  string namespace = 1;
+  string owner_node_id = 2;
+  repeated ShardStatus statuses = 3;
+  string search = 4;
+  int64 from_token = 5;
+  int64 to_token = 6;
+}
+
+message ShardDiffNotification {
+  int64 position = 1;
+  ShardRecord current = 2;
+  ShardRecord previous = 3;
+  ShardHistory history = 4;
+}
+
+message ShardDiffResponse {
+  repeated ShardDiffNotification diffs = 1;
+  int64 last_position = 2;
+}
+
+message ShardSimulationNode {
+  string node_id = 1;
+  double weight = 2;
+  string region = 3;
+  string zone = 4;
+}
+
+message ShardSimulationRequest {
+  string namespace = 1;
+  string strategy_id = 2;
+  repeated ShardSimulationNode nodes = 3;
+}
+
+message ShardSimulationAssignment {
+  string namespace = 1;
+  string shard_id = 2;
+  string owner_node_id = 3;
+  double capacity = 4;
+  string locality_hint = 5;
+}
+
+message ShardSimulationChange {
+  string namespace = 1;
+  string shard_id = 2;
+  string current_owner = 3;
+  string proposed_owner = 4;
+  bool changes_owner = 5;
+}
+
+message ShardSimulationResponse {
+  string namespace = 1;
+  string strategy_id = 2;
+  google.protobuf.Timestamp generated_at = 3;
+  repeated ShardSimulationAssignment assignments = 4;
+  repeated ShardSimulationChange changes = 5;
+}
+
+service ShardControlService {
+  rpc List (ShardListRequest) returns (ShardListResponse);
+  rpc Watch (ShardWatchRequest) returns (stream ShardDiffNotification);
+  rpc Diff (ShardDiffRequest) returns (ShardDiffResponse);
+  rpc Simulate (ShardSimulationRequest) returns (ShardSimulationResponse);
+}

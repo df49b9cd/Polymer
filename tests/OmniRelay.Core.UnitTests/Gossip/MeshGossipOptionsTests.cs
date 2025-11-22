@@ -5,7 +5,7 @@ namespace OmniRelay.Core.UnitTests.Gossip;
 
 public sealed class MeshGossipOptionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DefaultOptions_HasExpectedValues()
     {
         var options = new MeshGossipOptions();
@@ -28,13 +28,13 @@ public sealed class MeshGossipOptionsTests
         options.CertificateReloadInterval.ShouldBe(TimeSpan.FromMinutes(5));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CurrentSchemaVersion_IsV1()
     {
         MeshGossipOptions.CurrentSchemaVersion.ShouldBe("v1");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetNormalizedSeedPeers_ReturnsEmptyList_WhenNoSeeds()
     {
         var options = new MeshGossipOptions();
@@ -43,7 +43,7 @@ public sealed class MeshGossipOptionsTests
         normalized.ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetNormalizedSeedPeers_TrimsWhitespace()
     {
         var options = new MeshGossipOptions();
@@ -58,7 +58,7 @@ public sealed class MeshGossipOptionsTests
         normalized[1].ShouldBe("peer2:17421");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GetNormalizedSeedPeers_FiltersEmptyEntries()
     {
         var options = new MeshGossipOptions();
@@ -73,7 +73,7 @@ public sealed class MeshGossipOptionsTests
         normalized[0].ShouldBe("valid:17421");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Labels_CanBeModified()
     {
         var options = new MeshGossipOptions();
@@ -85,14 +85,14 @@ public sealed class MeshGossipOptionsTests
         options.Labels["key2"].ShouldBe("value2");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AdvertisePort_DefaultsToNull()
     {
         var options = new MeshGossipOptions();
         options.AdvertisePort.ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TlsOptions_DefaultValues()
     {
         var tlsOptions = new MeshGossipTlsOptions();
@@ -102,7 +102,7 @@ public sealed class MeshGossipOptionsTests
         tlsOptions.ReloadIntervalOverride.ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TlsOptions_AllowedThumbprints_CanBeModified()
     {
         var tlsOptions = new MeshGossipTlsOptions();

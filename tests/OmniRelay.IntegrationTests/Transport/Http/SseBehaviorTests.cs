@@ -12,7 +12,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class SseBehaviorTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30000)]
-    public async Task MissingAcceptHeader_ForSse_Returns406()
+    public async ValueTask MissingAcceptHeader_ForSse_Returns406()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

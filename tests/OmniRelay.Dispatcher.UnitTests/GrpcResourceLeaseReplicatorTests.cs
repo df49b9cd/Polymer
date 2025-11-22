@@ -5,8 +5,8 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public sealed class GrpcResourceLeaseReplicatorTests
 {
-    [Fact]
-    public async Task PublishAsync_InvokesGrpcAndSinks()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask PublishAsync_InvokesGrpcAndSinks()
     {
         var client = new RecordingClient();
         var sink = new RecordingSink();
@@ -35,7 +35,7 @@ public sealed class GrpcResourceLeaseReplicatorTests
     {
         public List<ResourceLeaseReplicationEventMessage> Requests { get; } = [];
 
-        public async Task PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
+        public async ValueTask PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
         {
             await Task.Yield();
             Requests.Add(message);

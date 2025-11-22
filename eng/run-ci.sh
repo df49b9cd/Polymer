@@ -86,10 +86,13 @@ else
   PLATFORM="$(detect_host_platform)"
 fi
 
-CMD=(docker build --file "${REPO_ROOT}/Dockerfile.ci" --target ci)
+CMD=(docker build --file "${REPO_ROOT}/Dockerfile.ci" --target ci --progress=plain)
 if [[ -n "$PLATFORM" ]]; then
   CMD+=(--platform "$PLATFORM")
 fi
-CMD+=("${FORWARDED_ARGS[@]}" "${REPO_ROOT}")
+if (( ${#FORWARDED_ARGS[@]} )); then
+  CMD+=("${FORWARDED_ARGS[@]}")
+fi
+CMD+=("${REPO_ROOT}")
 
 exec "${CMD[@]}"

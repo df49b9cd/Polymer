@@ -7,7 +7,7 @@ namespace OmniRelay.Tests.Transport;
 
 public sealed class HttpStatusMapperTests
 {
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData(OmniRelayStatusCode.InvalidArgument, StatusCodes.Status400BadRequest)]
     [InlineData(OmniRelayStatusCode.DeadlineExceeded, StatusCodes.Status504GatewayTimeout)]
     [InlineData(OmniRelayStatusCode.NotFound, StatusCodes.Status404NotFound)]
@@ -16,7 +16,7 @@ public sealed class HttpStatusMapperTests
     [InlineData(OmniRelayStatusCode.ResourceExhausted, StatusCodes.Status429TooManyRequests)]
     public void ToStatusCode_MapsExpectedValues(OmniRelayStatusCode statusCode, int expectedHttp) => HttpStatusMapper.ToStatusCode(statusCode).ShouldBe(expectedHttp);
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData(StatusCodes.Status400BadRequest, OmniRelayStatusCode.InvalidArgument)]
     [InlineData(StatusCodes.Status408RequestTimeout, OmniRelayStatusCode.DeadlineExceeded)]
     [InlineData(StatusCodes.Status409Conflict, OmniRelayStatusCode.Aborted)]

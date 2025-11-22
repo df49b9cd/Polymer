@@ -1,5 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+  <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -10,6 +13,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Testcontainers" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -19,17 +23,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\TestSupport\Shards\ShardControlPlaneTestHost.cs" Link="Support/ShardControlPlaneTestHost.cs" />
     <ProjectReference Include="..\..\src\OmniRelay\OmniRelay.csproj" />
-    <ProjectReference Include="..\..\src\OmniRelay.Configuration\OmniRelay.Configuration.csproj" />
-    <ProjectReference Include="..\..\src\OmniRelay.Cli\OmniRelay.Cli.csproj" />
+    <ProjectReference Include="..\..\src\OmniRelay.ControlPlane\OmniRelay.ControlPlane.csproj" />
+<ProjectReference Include="..\..\src\OmniRelay.Cli\OmniRelay.Cli.csproj" />
+    <ProjectReference Include="..\..\src\OmniRelay.ShardStore.Relational\OmniRelay.ShardStore.Relational.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="appsettings.featuretests.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\TestSupport\TestCertificateFactory.cs" Link="Support/TestCertificateFactory.cs" />
-    <Compile Include="..\TestSupport\TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
-  </ItemGroup>
 </Project>

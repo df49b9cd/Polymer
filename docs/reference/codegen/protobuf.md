@@ -40,7 +40,7 @@ protoc \
   Protos/test_service.proto
 ```
 
-The generated C# file mirrors the proto namespace. See `tests/OmniRelay.Tests/Generated/TestService.OmniRelay.g.cs` for a complete example.
+The generated C# file mirrors the proto namespace. See `tests/OmniRelay.Codegen.Tests/Generated/TestService.OmniRelay.g.cs` for a complete example.
 
 ## Roslyn incremental generator (MSBuild integration)
 
@@ -76,7 +76,7 @@ For projects that already produce [descriptor sets](https://github.com/dotnet/ro
 
 3. Build the project. MSBuild writes the generated files under `obj/<tfm>/generated/OmniRelay.Codegen.Generator/...` and the types become available to your project just like the protoc plug-in output.
 
-The repository contains a working sample wired this way: `tests/OmniRelay.Tests/Projects/ProtobufIncrementalSample/`. It uses the `GenerateDescriptorSet` flow above and builds successfully with `dotnet build`.
+The `tests/OmniRelay.Codegen.Tests` project follows this pattern using `Protos/test_service.proto`, so CI exercises the descriptor-set flow on every run.
 
 ## Packaging the incremental generator
 
@@ -113,7 +113,7 @@ All generated clients use `ProtobufCodec`, so as long as transports supply a Pro
 
 ## Tests
 
-- Golden coverage: `tests/OmniRelay.Tests/Codegen/ProtobufCodeGeneratorTests.cs`
-- Integration coverage: `tests/OmniRelay.Tests/Codegen/GeneratedServiceIntegrationTests.cs`
+- Golden coverage: `tests/OmniRelay.Codegen.Tests/Codegen/ProtobufCodeGeneratorTests.cs`
+- Integration coverage: `tests/OmniRelay.CodeGen.IntegrationTests/GrpcCodegenIntegrationTests.cs`
 
 These tests regenerate the code for `Protos/test_service.proto`, ensure it matches the checked-in baseline, and exercise unary calls over both HTTP and gRPC.

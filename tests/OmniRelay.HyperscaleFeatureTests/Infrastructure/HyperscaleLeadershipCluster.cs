@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Core.Gossip;
@@ -59,7 +58,7 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         return new LeadershipSnapshot(DateTimeOffset.UtcNow, aggregate.Values.ToImmutableArray());
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public async ValueTask StartAsync(CancellationToken cancellationToken)
     {
         if (_started)
         {
@@ -74,7 +73,7 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         _started = true;
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public async ValueTask StopAsync(CancellationToken cancellationToken)
     {
         if (!_started)
         {
@@ -89,7 +88,7 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         _started = false;
     }
 
-    public async Task WaitForStableLeadershipAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    public async ValueTask WaitForStableLeadershipAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {
         var success = await WaitForConditionAsync(() =>
         {
@@ -123,7 +122,9 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
         var failoverCompleted = await WaitForConditionAsync(() =>
         {
             var token = GetToken(scopeId);
-            return token is not null && !string.Equals(token.LeaderId, incumbent.LeaderId, StringComparison.Ordinal);
+            return token is not null
+                && !string.Equals(token.LeaderId, incumbent.LeaderId, StringComparison.Ordinal)
+                && token.FenceToken > incumbent.FenceToken;
         }, _options.MaxElectionWindow + TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
 
         if (!failoverCompleted)

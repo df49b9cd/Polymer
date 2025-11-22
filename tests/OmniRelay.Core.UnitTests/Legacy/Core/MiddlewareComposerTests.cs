@@ -9,8 +9,8 @@ namespace OmniRelay.Tests.Core;
 
 public class MiddlewareComposerTests
 {
-    [Fact]
-    public async Task ComposeUnaryOutbound_ExecutesInRegistrationOrder()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ComposeUnaryOutbound_ExecutesInRegistrationOrder()
     {
         var transcript = new List<string>();
         var middleware = new IUnaryOutboundMiddleware[]
@@ -42,7 +42,7 @@ public class MiddlewareComposerTests
         });
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ComposeOnewayOutbound_WithNoMiddlewareReturnsTerminal()
     {
         OnewayOutboundHandler terminal = static (_, _) => ValueTask.FromResult(Ok(OnewayAck.Ack()));
@@ -52,8 +52,8 @@ public class MiddlewareComposerTests
         composed.ShouldBeSameAs(terminal);
     }
 
-    [Fact]
-    public async Task ComposeClientStreamOutbound_ExecutesInRegistrationOrder()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ComposeClientStreamOutbound_ExecutesInRegistrationOrder()
     {
         var transcript = new List<string>();
         var middleware = new IClientStreamOutboundMiddleware[]

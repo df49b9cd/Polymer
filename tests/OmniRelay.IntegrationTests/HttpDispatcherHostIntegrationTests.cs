@@ -3,9 +3,9 @@ using System.Net.Mime;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OmniRelay.Configuration;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.Dispatcher.Config;
 using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
@@ -15,7 +15,7 @@ namespace OmniRelay.IntegrationTests;
 public class HttpDispatcherHostIntegrationTests
 {
     [Fact(Timeout = 30_000)]
-    public async Task HttpInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
+    public async ValueTask HttpInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseUrl = $"http://127.0.0.1:{port}";
@@ -28,7 +28,7 @@ public class HttpDispatcherHostIntegrationTests
         });
 
         builder.Services.AddLogging();
-        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
+        builder.Services.AddOmniRelayDispatcherFromConfiguration(builder.Configuration.GetSection("omnirelay"));
 
         using var host = builder.Build();
         var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();

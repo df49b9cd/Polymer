@@ -16,7 +16,7 @@ Feature-level coverage for OmniRelay that exercises dispatcher bootstrapping, co
 ## Scenario Backlog
 | Scenario | What we exercise | Notes / Dependencies |
 | --- | --- | --- |
-| DispatcherBootstrap_DefaultProfile | `FeatureTestApplication` boots `Host.CreateApplicationBuilder` with `AddOmniRelayDispatcher` and asserts the dispatcher status, service metadata, and logging filters from `appsettings.featuretests.json`. | No containers; uses the shared collection fixture only. |
+| DispatcherBootstrap_DefaultProfile | `FeatureTestApplication` boots `Host.CreateApplicationBuilder` with `AddOmniRelayDispatcherFromConfiguration` and asserts the dispatcher status, service metadata, and logging filters from `appsettings.featuretests.json`. | No containers; uses the shared collection fixture only. |
 | ConfigurationOverlay_CLIProfile | `omnirelay config validate/apply` overlays layered appsettings + `OMNIRELAY_FEATURETESTS_*` overrides and should update `IOptionsMonitor<OmniRelayConfigurationOptions>` without rebuilding the host. | Drive through the CLI profile helpers and assert options/logging snapshots before & after the overlay. |
 | CodecNegotiation_MixedEncodings | JSON and Protobuf clients hit the same handler to prove codec registration, request translation, and response serialization remain symmetric. | Reuse CLI `request` profiles (json + protobuf) and assert `Content-Type` plus payload contents. |
 | MinimalApiBridge_SharedHandlers | ASP.NET Core Minimal APIs and the dispatcher share DI/middleware so HTTP controllers can call OmniRelay handlers and vice-versa. | Hosted via `Microsoft.AspNetCore.Mvc.Testing`; no containers required. |
@@ -32,12 +32,12 @@ Feature-level coverage for OmniRelay that exercises dispatcher bootstrapping, co
 
 ## Reasoning
 - Feature-level validation mirrors how stakeholders talk about value, so failures map directly to user impact instead of implementation detail.
-- Building on the same DI extensions (`AddOmniRelayDispatcher`) reduces skew between tests and production bootstrapping, keeping assertions honest.
+- Building on the same DI extensions (`AddOmniRelayDispatcherFromConfiguration`) reduces skew between tests and production bootstrapping, keeping assertions honest.
 - Testcontainers supplies disposable, production-like dependencies without bespoke mocks, which is critical for transports, codecs, and routing logic that depend on real protocols.
 - Making infrastructure opt-in keeps the feedback loop fast for day-to-day development while still enabling high-fidelity runs when needed.
 
 ## Methodology
-1. **Host Fidelity** - Tests spin up `Host.CreateApplicationBuilder` instances with the same `AddOmniRelayDispatcher` wiring that production uses. Assertions observe behavior only through the resulting service provider and public APIs.
+1. **Host Fidelity** - Tests spin up `Host.CreateApplicationBuilder` instances with the same `AddOmniRelayDispatcherFromConfiguration` wiring that production uses. Assertions observe behavior only through the resulting service provider and public APIs.
 2. **Scenario Vocabulary** - Each test folder maps to a feature slice (e.g., dispatcher bootstrap, routing, shadowing). Within it, use Given/When/Then naming and keep assertions focused on user-visible outcomes.
 3. **Infrastructure Isolation** - External dependencies are provisioned through `FeatureTestContainers`, which lazily starts Testcontainers for PostgreSQL, EventStoreDB, MinIO, and NATS. Containers are disabled unless `OMNIRELAY_FEATURETESTS_CONTAINERS=true` is supplied.
 4. **Composable Fixtures** - `FeatureTestApplication` acts as the shared collection fixture. Tests can request per-scenario overrides by creating new instances with custom options, but must dispose them eagerly to avoid resource leaks.
@@ -57,7 +57,7 @@ Feature-level coverage for OmniRelay that exercises dispatcher bootstrapping, co
 - **xUnit v3** - released version with asynchronous lifecycle hooks and collection fixtures.
 - **Microsoft.AspNetCore.Mvc.Testing** - boots production-style hosts without a standalone web server.
 - **Testcontainers for .NET** - orchestrates throwaway instances of databases, event stores, object storage, and message buses.
-- **OmniRelay.Configuration** – the same DI extensions production apps call, ensuring feature tests observe realistic dispatcher wiring.
+- **Dispatcher configuration** – the same source-generated config binding the runtime uses, ensuring feature tests observe realistic dispatcher wiring.
 - **Host.CreateApplicationBuilder** – consistent bootstrapping story for generic host scenarios.
 
 ## Workflow

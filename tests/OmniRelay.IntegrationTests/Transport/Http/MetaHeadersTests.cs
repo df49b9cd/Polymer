@@ -11,7 +11,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class MetaHeadersTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30000)]
-    public async Task TtlAndDeadlineHeaders_RoundTripIntoRequestMeta()
+    public async ValueTask TtlAndDeadlineHeaders_RoundTripIntoRequestMeta()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

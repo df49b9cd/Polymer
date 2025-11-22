@@ -36,7 +36,7 @@ The generated files can be added to your project directly, or referenced through
 
 ## Using The Incremental Generator
 
-Reference the incremental generator as an analyzer and surface descriptor sets via `AdditionalFiles`. The sample below mirrors `tests/OmniRelay.Tests/Projects/ProtobufIncrementalSample`:
+Reference the incremental generator as an analyzer and surface descriptor sets via `AdditionalFiles`. The sample below mirrors the pattern used in `tests/OmniRelay.Codegen.Tests`:
 
 ```xml
 <ItemGroup>
@@ -76,7 +76,7 @@ For each protobuf service, the generator emits:
 - A typed client exposing `Unary`, `ServerStream`, `ClientStream`, and `DuplexStream` methods that internally call `Dispatcher.Create*Client`.
 - Codec fields (JSON/protobuf) scoped per RPC to avoid redundant allocations.
 
-See `tests/OmniRelay.Tests/Generated/TestService.OmniRelay.g.cs` for the full emitted shape.
+See `tests/OmniRelay.Codegen.Tests/Generated/TestService.OmniRelay.g.cs` for the full emitted shape.
 
 ## Versioning
 

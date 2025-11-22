@@ -148,6 +148,31 @@ Each workflow measurement includes metric tags for `workflow.namespace`, `workfl
 
 These endpoints appear alongside `/omnirelay/introspect` on every HTTP inbound when `runtime.enableControlPlane` is true.
 
+### Shard control endpoints
+
+When an `IShardRepository` is registered the diagnostics host exposes `/control/shards*` for operators that need real‑time ownership visibility. All shard APIs require either the `mesh.read` (list/watch) or `mesh.operate` (diff/simulate) scope passed via the `x-mesh-scope` header.
+
+- `GET /control/shards` returns the paged shard catalog. Query parameters: `namespace`, `owner`, `status=Active,Draining`, `search=shard-id-fragment`, `pageSize` (defaults to 100/max 500), and `cursor`. Responses include `nextCursor` and `x-omnirelay-shards-version` headers for cache validation.
+- `GET /control/shards/diff` replays shard diffs (version history) between `fromVersion`/`toVersion`. Each entry includes the previous owner plus audit metadata, so auditors can reconcile who moved a shard and why.
+- `GET /control/shards/watch` streams `text/event-stream` updates with `event: shard.diff` frames. Clients can supply a `resumeToken` (the previous diff id) to recover after disconnects without losing events.
+- `POST /control/shards/simulate` accepts `{ \"namespace\": \"mesh.payments\", \"strategyId\": \"rendezvous\", \"nodes\": [{ \"nodeId\": \"node-a\", \"weight\": 1.0 }] }` and returns both the generated plan and the set of ownership changes compared to the current state.
+
+The CLI wraps these flows:
+
+```bash
+# List shards in a namespace (table or JSON)
+omnirelay mesh shards list --url http://127.0.0.1:8080 --namespace mesh.orders --status Active --json
+
+# Fetch diffs between resume tokens
+omnirelay mesh shards diff --url http://127.0.0.1:8080 --from-version 10 --to-version 20
+
+# Run a simulation against a custom node set
+omnirelay mesh shards simulate --url http://127.0.0.1:8080 --namespace mesh.orders \\
+  --node node-a:1.0 --node node-b:0.8
+```
+
+These commands set the appropriate scope header automatically; use `--json` for machine readable output or rely on the default table format for on-call runbooks.
+
 ### Control-plane quickstart
 
 With the `appsettings.json` above and an OmniRelay HTTP inbound listening on `http://localhost:8080`, the following commands exercise the runtime controls end-to-end:
@@ -180,6 +205,72 @@ curl http://localhost:8080/omnirelay/metrics
 ```
 
 > **Example:** `samples/Configuration.Server` enables both Prometheus scraping and runtime toggles purely through configuration and exposes the `/omnirelay/control/*` endpoints automatically on its HTTP inbound.
+
+### Documentation endpoints & schema exports
+
+Set `diagnostics.documentation` to light up shared OpenAPI + gRPC documentation services across dispatcher and control-plane hosts. `AddOmniRelayDocumentation` wires ASP.NET Core’s `AddOpenApi` + `MapOpenApi` stack and gRPC reflection, so every host produces identical schema documents without manual Swagger boilerplate.citeturn0search0turn0search2
+
+```json
+{
+  "omnirelay": {
+    "diagnostics": {
+      "documentation": {
+        "enableOpenApi": true,
+        "enableGrpcReflection": true,
+        "route": "/openapi/omnirelay.json",
+        "authorizationPolicy": "Diagnostics.Readers",
+        "metadata": {
+          "x-service-owner": "mesh-platform",
+          "x-contact": "sre@omni"
+        }
+      }
+    }
+  }
+}
+```
+
+- `MapOmniRelayDocumentation` emits the JSON contract at `route` and enables `MapGrpcReflectionService()` so the CLI/runtime tooling can discover RPC services just like the dispatcher; both endpoints inherit the same authorization policy to keep schemas private.citeturn3search0
+- `IOpenApiDocumentTransformer` enriches the document with custom metadata headers (owner, escalation channel, support tier) so operators can see ownership context inside Swagger UI or downloaded specs.
+- Use `RequireAuthorization` on the generated endpoints (already exposed via `authorizationPolicy`) when docs must stay behind RBAC-guarded portals; ASP.NET Core’s minimal APIs apply those policies even to generated OpenAPI endpoints.citeturn0reddit12
+
+### Synthetic probes, alerts, and chaos controls
+
+`diagnostics.probes` and `diagnostics.chaos` drive the reusable probe scheduler + chaos coordinator shipped in `OmniRelay.Diagnostics.Probes`. Toggling these sections enables `/omnirelay/control/probes` (JSON snapshots) and `/omnirelay/control/chaos/{name}:start|stop`, and wires probe metadata into the shared telemetry pipeline so dashboards/alerts can react.
+
+```json
+{
+  "omnirelay": {
+    "diagnostics": {
+      "probes": {
+        "enableScheduler": true,
+        "enableDiagnosticsEndpoint": true,
+        "authorizationPolicy": "Diagnostics.Readers"
+      },
+      "chaos": {
+        "enableCoordinator": true,
+        "enableControlEndpoint": true,
+        "authorizationPolicy": "Diagnostics.Writers"
+      }
+    }
+  }
+}
+```
+
+Register built-in or custom probes through `AddOmniRelayProbes` so they run on every dispatcher/control-plane process:
+
+```csharp
+builder.Services.AddOmniRelayProbes(enableScheduler: true, configure: probes =>
+{
+    probes
+        .AddProbe<ControlPlaneLatencyProbe>()
+        .AddProbe<LeadershipWatchProbe>()
+        .AddChaosExperiment<NetworkPartitionExperiment>();
+});
+```
+
+- Each `IHealthProbe` declares its interval + async execution; probe snapshots include duration, metadata, and failure text so `/omnirelay/control/probes` can be scraped by Grafana or routed to alerting when consecutive failures exceed thresholds—mirroring the managed synthetic-monitoring guidance Azure and New Relic publish for mission-critical APIs.citeturn2search0turn2search1
+- `ProbeDiagnosticsOptions.ProbeAuthorizationPolicy`/`ChaosAuthorizationPolicy` enforce least-privilege RBAC: grant read-only roles the probe endpoint and limit chaos toggles to trusted operators.
+- `ChaosCoordinator` fans out to all `IChaosExperiment` registrations, so bespoke experiments (latency injection, forced HTTP/2 downgrade, shard-surge) can be toggled safely; responses always include `{ "name", "status" }` payloads suitable for CLI automation.
 
 ## Usage guidelines
 

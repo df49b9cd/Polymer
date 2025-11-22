@@ -20,7 +20,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class Http3LimitParityTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Http3Fact(Timeout = 60_000)]
-    public async Task HttpInbound_WithHttp3_ChunkedPayloadOverLimit_Returns429WithProtocolHeader()
+    public async ValueTask HttpInbound_WithHttp3_ChunkedPayloadOverLimit_Returns429WithProtocolHeader()
     {
         if (!QuicListener.IsSupported)
         {

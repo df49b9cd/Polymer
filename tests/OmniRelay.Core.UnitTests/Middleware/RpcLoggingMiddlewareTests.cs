@@ -24,7 +24,7 @@ public class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task LogsSuccess_OnUnaryOutbound()
+    public async ValueTask LogsSuccess_OnUnaryOutbound()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var mw = new RpcLoggingMiddleware(logger);
@@ -37,7 +37,7 @@ public class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task LogsFailure_OnUnaryOutbound()
+    public async ValueTask LogsFailure_OnUnaryOutbound()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var mw = new RpcLoggingMiddleware(logger);
@@ -50,7 +50,7 @@ public class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task SkipsLogging_WhenPredicatePrevents()
+    public async ValueTask SkipsLogging_WhenPredicatePrevents()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var options = new RpcLoggingOptions
@@ -68,7 +68,7 @@ public class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task LogsException_WhenNextThrows()
+    public async ValueTask LogsException_WhenNextThrows()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var mw = new RpcLoggingMiddleware(logger);
@@ -84,7 +84,7 @@ public class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task LogsFailure_WhenErrorPredicateAllows()
+    public async ValueTask LogsFailure_WhenErrorPredicateAllows()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>();
         var options = new RpcLoggingOptions
@@ -105,7 +105,7 @@ public class RpcLoggingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ExceptionWithoutLogging_WhenDisabled()
+    public async ValueTask ExceptionWithoutLogging_WhenDisabled()
     {
         var logger = new TestLogger<RpcLoggingMiddleware>(_ => false);
         var options = new RpcLoggingOptions

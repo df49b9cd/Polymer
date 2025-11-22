@@ -6,7 +6,7 @@ namespace OmniRelay.Tests.Transport.Http;
 
 public sealed class HttpTransportMetricsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateBaseTags_WithHttp3_AddsNetworkMetadata()
     {
         var tags = HttpTransportMetrics.CreateBaseTags("svc", "svc::call", "POST", "HTTP/3");
@@ -22,7 +22,7 @@ public sealed class HttpTransportMetricsTests
         lookup["network.transport"].ShouldBe("quic");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AppendOutcome_WithStatusCode_AppendsOutcomeTags()
     {
         var baseTags = new[] { KeyValuePair.Create<string, object?>("rpc.system", "http") };
@@ -34,7 +34,7 @@ public sealed class HttpTransportMetricsTests
         lookup["outcome"].ShouldBe("error");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AppendObservedProtocol_AppendsValueAndPreservesBaseTags()
     {
         var baseTags = new[] { KeyValuePair.Create<string, object?>("rpc.system", "http") };

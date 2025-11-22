@@ -20,5 +20,4 @@
 
 The generator places output under `obj/<tfm>/generated/OmniRelay.Codegen.Generator/` and integrates seamlessly with OmniRelay runtime assemblies for immediate consumption.
 
-See `docs/reference/codegen/protobuf.md` for a complete walkthrough and `tests/OmniRelay.Tests/Projects/ProtobufIncrementalSample` for a working sample.
-
+See `docs/reference/codegen/protobuf.md` for a complete walkthrough and `tests/OmniRelay.Codegen.Tests` for a working descriptor-set example used in CI.

@@ -8,8 +8,8 @@ namespace OmniRelay.Core.UnitTests.Middleware;
 
 public sealed class PrincipalBindingMiddlewareTests
 {
-    [Fact]
-    public async Task PrincipalHeader_PromotesCallerAndMetadata()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask PrincipalHeader_PromotesCallerAndMetadata()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -41,8 +41,8 @@ public sealed class PrincipalBindingMiddlewareTests
         principal.ShouldBe("subject-a");
     }
 
-    [Fact]
-    public async Task AuthorizationHeader_BindsBearerToken()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask AuthorizationHeader_BindsBearerToken()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -73,8 +73,8 @@ public sealed class PrincipalBindingMiddlewareTests
         observed.Headers["rpc.principal"].ShouldBe("abc.def");
     }
 
-    [Fact]
-    public async Task MutualTlsAuthorizationHeader_BindsSubject()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask MutualTlsAuthorizationHeader_BindsSubject()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -107,8 +107,8 @@ public sealed class PrincipalBindingMiddlewareTests
         observed.Headers["rpc.principal"].ShouldBe("CN=client-app");
     }
 
-    [Fact]
-    public async Task ClientStreamContext_UpdatesMetadata()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ClientStreamContext_UpdatesMetadata()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -141,8 +141,8 @@ public sealed class PrincipalBindingMiddlewareTests
         updated.Meta.Caller.ShouldBe("streaming-user");
     }
 
-    [Fact]
-    public async Task ThumbprintHeader_IsCapturedWhenEnabled()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ThumbprintHeader_IsCapturedWhenEnabled()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {
@@ -177,8 +177,8 @@ public sealed class PrincipalBindingMiddlewareTests
         thumbprint.ShouldBe("THUMBPRINT123");
     }
 
-    [Fact]
-    public async Task PromoteToCallerDisabled_DoesNotOverrideExistingCaller()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask PromoteToCallerDisabled_DoesNotOverrideExistingCaller()
     {
         var middleware = new PrincipalBindingMiddleware(new PrincipalBindingOptions
         {

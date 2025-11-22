@@ -11,7 +11,7 @@ namespace OmniRelay.Core.UnitTests.Middleware;
 public class MiddlewareComposerTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeUnaryOutbound_ChainsInConfiguredOrder()
+    public async ValueTask ComposeUnaryOutbound_ChainsInConfiguredOrder()
     {
         var order = new List<string>();
         var m1 = new RecordingMiddleware("m1", order);
@@ -85,7 +85,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeUnaryInbound_Chains()
+    public async ValueTask ComposeUnaryInbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -109,7 +109,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeOnewayOutbound_Chains()
+    public async ValueTask ComposeOnewayOutbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -133,7 +133,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeOnewayInbound_Chains()
+    public async ValueTask ComposeOnewayInbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -157,7 +157,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeStreamOutbound_Chains()
+    public async ValueTask ComposeStreamOutbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -182,7 +182,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeStreamInbound_Chains()
+    public async ValueTask ComposeStreamInbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -207,7 +207,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeClientStreamInbound_Chains()
+    public async ValueTask ComposeClientStreamInbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -232,7 +232,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeClientStreamOutbound_Chains()
+    public async ValueTask ComposeClientStreamOutbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -256,7 +256,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeDuplexInbound_Chains()
+    public async ValueTask ComposeDuplexInbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");
@@ -280,7 +280,7 @@ public class MiddlewareComposerTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ComposeDuplexOutbound_Chains()
+    public async ValueTask ComposeDuplexOutbound_Chains()
     {
         var order = new List<string>();
         var meta = new RequestMeta(service: "svc");

@@ -1,39 +1,26 @@
 <Project>
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <OmniRelayVersion>0.2.0</OmniRelayVersion>
-    <RepositoryUrl>https://github.com/df49b9cd/OmniRelay</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <AnalysisMode>Recommended</AnalysisMode>
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL3050</WarningsAsErrors>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!-- Packaging/SBOM defaults -->
+    <EnableSbom>true</EnableSbom>
+    <GenerateSbom Condition="'$(EnableSbom)'=='true'">true</GenerateSbom>
+    <!-- Emit both SPDX and CycloneDX SBOMs when packing/publishing -->
+    <SbomPackageFormats>spdxjson;cyclonedxjson</SbomPackageFormats>
+    <!-- Deterministic builds to keep package hashes stable -->
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <!-- Package signing hook (off until org cert available) -->
+    <EnablePackageSigning>false</EnablePackageSigning>
+    <!-- When AOT publishing, expose NATIVE_AOT symbol for conditional code paths -->
+    <DefineConstants Condition="'$(PublishAot)'=='true'">$(DefineConstants);NATIVE_AOT</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(IsPackable)' != 'false'">
-    <Version>$(OmniRelayVersion)</Version>
-    <VersionPrefix>$(OmniRelayVersion)</VersionPrefix>
-    <Authors>OmniRelay maintainers</Authors>
-    <Company>OmniRelay</Company>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/df49b9cd/OmniRelay</PackageProjectUrl>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <DebugType>embedded</DebugType>
-    <ContinuousIntegrationBuild Condition="'$(ContinuousIntegrationBuild)' == ''">$(CI)</ContinuousIntegrationBuild>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <IsAotCompatible>true</IsAotCompatible>
-    <PublishAot>true</PublishAot>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(IsPackable)' != 'false' and '$(OutputType)' == 'Library'">
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="src/OmniRelay.Dispatcher.Generator/OmniRelay.Dispatcher.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
 </Project>

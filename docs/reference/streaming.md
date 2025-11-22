@@ -237,6 +237,6 @@ Benchmarking tip: use `omnirelay benchmark --transport grpc --grpc-http3 ...` to
 
 ## Related Reading
 
-- `tests/OmniRelay.Tests/Transport/GrpcTransportTests.cs` includes end-to-end fixtures for every streaming shape.
+- `tests/OmniRelay.IntegrationTests/Transport/Grpc/GrpcTransportTests.cs` includes end-to-end fixtures for every streaming shape.
 - `docs/todo.md` tracks remaining parity items such as compression negotiation for gRPC streams.
 - `docs/reference/diagnostics.md` documents the metrics emitted by streaming pipelines (message counters, durations, failure reasons).

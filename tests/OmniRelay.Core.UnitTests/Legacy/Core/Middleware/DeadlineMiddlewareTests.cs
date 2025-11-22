@@ -9,8 +9,8 @@ namespace OmniRelay.Tests.Core.Middleware;
 
 public sealed class DeadlineMiddlewareTests
 {
-    [Fact]
-    public async Task UnaryOutbound_DeadlineAlreadyExceeded_ReturnsErrorWithoutInvokingNext()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask UnaryOutbound_DeadlineAlreadyExceeded_ReturnsErrorWithoutInvokingNext()
     {
         var middleware = new DeadlineMiddleware();
         var meta = new RequestMeta(
@@ -35,8 +35,8 @@ public sealed class DeadlineMiddlewareTests
         OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
-    [Fact]
-    public async Task UnaryInbound_CancellationTriggeredByDeadline_MapsToDeadlineExceeded()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask UnaryInbound_CancellationTriggeredByDeadline_MapsToDeadlineExceeded()
     {
         var middleware = new DeadlineMiddleware();
         var meta = new RequestMeta(
@@ -59,8 +59,8 @@ public sealed class DeadlineMiddlewareTests
         OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
-    [Fact]
-    public async Task MinimumLeadTime_TooClose_ReturnsDeadlineExceeded()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask MinimumLeadTime_TooClose_ReturnsDeadlineExceeded()
     {
         var options = new DeadlineOptions { MinimumLeadTime = TimeSpan.FromMilliseconds(100) };
         var middleware = new DeadlineMiddleware(options);
@@ -86,8 +86,8 @@ public sealed class DeadlineMiddlewareTests
         OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.DeadlineExceeded);
     }
 
-    [Fact]
-    public async Task UnaryOutbound_NoDeadline_PropagatesCall()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask UnaryOutbound_NoDeadline_PropagatesCall()
     {
         var middleware = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "echo::call", transport: "grpc");

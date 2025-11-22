@@ -18,7 +18,7 @@ namespace OmniRelay.IntegrationTests.Transport;
 public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30_000)]
-    public async Task StopAsync_WaitsForActiveRequestsAndRejectsNewOnes()
+    public async ValueTask StopAsync_WaitsForActiveRequestsAndRejectsNewOnes()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -74,7 +74,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task StopAsync_ResetsDrainSignalAndAllowsRestart()
+    public async ValueTask StopAsync_ResetsDrainSignalAndAllowsRestart()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -141,7 +141,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task StopAsync_WithHttp3Request_PropagatesRetryAfter()
+    public async ValueTask StopAsync_WithHttp3Request_PropagatesRetryAfter()
     {
         if (!QuicListener.IsSupported)
         {
@@ -211,7 +211,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task StopAsync_WithHttp3Fallback_PropagatesRetryAfter()
+    public async ValueTask StopAsync_WithHttp3Fallback_PropagatesRetryAfter()
     {
         if (!QuicListener.IsSupported)
         {
@@ -285,7 +285,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task HttpInbound_WithHttp3_ExposesObservabilityEndpoints()
+    public async ValueTask HttpInbound_WithHttp3_ExposesObservabilityEndpoints()
     {
         if (!QuicListener.IsSupported)
         {
@@ -348,7 +348,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task StopAsync_WithCancellation_CompletesWithoutWaiting()
+    public async ValueTask StopAsync_WithCancellation_CompletesWithoutWaiting()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -402,7 +402,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task HealthEndpoints_ReflectDispatcherState()
+    public async ValueTask HealthEndpoints_ReflectDispatcherState()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -461,7 +461,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task IntrospectEndpoint_ReturnsDispatcherSnapshot()
+    public async ValueTask IntrospectEndpoint_ReturnsDispatcherSnapshot()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using OmniRelay.Core.Diagnostics;
+using OmniRelay.Diagnostics;
 using OpenTelemetry.Trace;
 using Xunit;
 
@@ -8,7 +8,7 @@ namespace OmniRelay.Tests.Core.Diagnostics;
 
 public class DiagnosticsRuntimeSamplerTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void NullRuntime_UsesFallbackSampler()
     {
         var sampler = new DiagnosticsRuntimeSampler(null, new AlwaysOffSampler());
@@ -16,7 +16,7 @@ public class DiagnosticsRuntimeSamplerTests
         result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void NullProbability_UsesFallbackSampler()
     {
         var runtime = new FakeDiagnosticsRuntime();
@@ -25,7 +25,7 @@ public class DiagnosticsRuntimeSamplerTests
         result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ZeroProbability_DropsNewTraces()
     {
         var runtime = new FakeDiagnosticsRuntime { Probability = 0d };
@@ -34,7 +34,7 @@ public class DiagnosticsRuntimeSamplerTests
         result.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ZeroProbability_RespectsRecordedParent()
     {
         var runtime = new FakeDiagnosticsRuntime { Probability = 0d };
@@ -49,7 +49,7 @@ public class DiagnosticsRuntimeSamplerTests
         result.Decision.ShouldBe(SamplingDecision.RecordAndSample);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RatioProbability_AppliesDynamicSampler()
     {
         const double probability = 0.5d;
@@ -64,7 +64,7 @@ public class DiagnosticsRuntimeSamplerTests
         dropResult.Decision.ShouldBe(SamplingDecision.Drop);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FullProbability_DelegatesToFallback()
     {
         var runtime = new FakeDiagnosticsRuntime { Probability = 1d };

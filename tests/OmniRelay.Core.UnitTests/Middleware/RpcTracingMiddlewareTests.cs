@@ -2,9 +2,9 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Hugo;
 using NSubstitute;
-using OmniRelay.Core.Diagnostics;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
+using OmniRelay.Diagnostics;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
@@ -22,7 +22,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task OutboundUnary_InjectsTraceparent()
+    public async ValueTask OutboundUnary_InjectsTraceparent()
     {
         using var source = new ActivitySource("test.tracing");
         using var listener = new ActivityListener
@@ -47,7 +47,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task InboundUnary_ExtractsParent_WhenPresent()
+    public async ValueTask InboundUnary_ExtractsParent_WhenPresent()
     {
         using var source = new ActivitySource("test.tracing");
         using var listener = new ActivityListener
@@ -76,7 +76,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task SamplingProbabilityZero_DisablesActivity()
+    public async ValueTask SamplingProbabilityZero_DisablesActivity()
     {
         using var source = new ActivitySource("test.tracing");
         using var listener = new ActivityListener
@@ -103,7 +103,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task OutboundUnary_ExceptionAddsEvent()
+    public async ValueTask OutboundUnary_ExceptionAddsEvent()
     {
         using var source = new ActivitySource("test.tracing.exception");
         var stoppedActivities = new List<Activity>();
@@ -128,7 +128,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task StreamOutbound_WrapsAndStopsActivity()
+    public async ValueTask StreamOutbound_WrapsAndStopsActivity()
     {
         using var source = new ActivitySource("test.tracing.stream");
         var stoppedActivities = new List<Activity>();
@@ -159,7 +159,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamOutbound_FailureSetsActivityError()
+    public async ValueTask ClientStreamOutbound_FailureSetsActivityError()
     {
         using var source = new ActivitySource("test.tracing.clientstream");
         var stoppedActivities = new List<Activity>();
@@ -200,7 +200,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task OnewayOutbound_FailureRecordsError()
+    public async ValueTask OnewayOutbound_FailureRecordsError()
     {
         using var source = new ActivitySource("test.tracing.oneway");
         var stoppedActivities = new List<Activity>();
@@ -228,7 +228,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task DuplexOutbound_ErrorOnCompletionStopsActivity()
+    public async ValueTask DuplexOutbound_ErrorOnCompletionStopsActivity()
     {
         using var source = new ActivitySource("test.tracing.duplex");
         var stoppedActivities = new List<Activity>();
@@ -259,7 +259,7 @@ public class RpcTracingMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ClientStreamInbound_SetsSuccessStatus()
+    public async ValueTask ClientStreamInbound_SetsSuccessStatus()
     {
         using var source = new ActivitySource("test.tracing.clientstream.in");
         var stoppedActivities = new List<Activity>();

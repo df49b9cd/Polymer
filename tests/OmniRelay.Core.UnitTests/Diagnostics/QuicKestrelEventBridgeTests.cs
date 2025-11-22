@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics.Tracing;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Diagnostics;
-using OmniRelay.TestSupport;
 using Xunit;
 
 namespace OmniRelay.Core.UnitTests.Diagnostics;

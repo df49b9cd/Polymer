@@ -27,6 +27,8 @@ public sealed class SqliteDeterministicStateStore : IDeterministicStateStore
 
     public bool TryGet(string key, out DeterministicRecord record)
     {
+        ArgumentNullException.ThrowIfNull(key);
+
         EnsureInitialized();
 
         using var connection = new SqliteConnection(_connectionString);
@@ -54,6 +56,9 @@ public sealed class SqliteDeterministicStateStore : IDeterministicStateStore
 
     public void Set(string key, DeterministicRecord record)
     {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(record);
+
         EnsureInitialized();
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
@@ -74,6 +79,9 @@ ON CONFLICT(key) DO UPDATE SET
 
     public bool TryAdd(string key, DeterministicRecord record)
     {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(record);
+
         EnsureInitialized();
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();

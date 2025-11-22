@@ -12,7 +12,7 @@ namespace OmniRelay.IntegrationTests.Transport;
 public sealed class HttpIntrospectionTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30_000)]
-    public async Task IntrospectionEndpoint_ReportsDispatcherState()
+    public async ValueTask IntrospectionEndpoint_ReportsDispatcherState()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

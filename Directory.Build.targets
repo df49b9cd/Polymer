@@ -1,33 +1,19 @@
 <Project>
-  <Target Name="GrpcTools_ConfigureWrapper"
-          BeforeTargets="_Protobuf_CoreCompile"
-          Condition=" '$(Protobuf_ToolsOs)' == 'linux' and '$(Protobuf_ToolsCpu)' == 'arm64' ">
+  <PropertyGroup Condition="'$(EnablePackageSigning)'=='true'">
+    <SignPackage>true</SignPackage>
+  </PropertyGroup>
+
+  <Target Name="_EnsureSbomFormat" BeforeTargets="Pack" Condition="'$(GenerateSbom)'=='true'">
     <PropertyGroup>
-      <GrpcTools_WrapperScript>$(MSBuildThisFileDirectory)eng/protoc-response-file-wrapper.sh</GrpcTools_WrapperScript>
-      <GrpcTools_ManifestDirectory>$(MSBuildThisFileDirectory)eng/.artifacts</GrpcTools_ManifestDirectory>
-      <GrpcTools_ManifestPath>$(GrpcTools_ManifestDirectory)/linux-arm64-protoc-path.txt</GrpcTools_ManifestPath>
-      <GrpcTools_ResolvedProtocPath Condition=" '$(GrpcTools_ResolvedProtocPath)' == '' ">$(Protobuf_ProtocFullPath)</GrpcTools_ResolvedProtocPath>
-      <Protobuf_ProtocFullPath>$(GrpcTools_WrapperScript)</Protobuf_ProtocFullPath>
+      <SbomPackageFormats Condition="'$(SbomPackageFormats)'==''">spdxjson;cyclonedxjson</SbomPackageFormats>
     </PropertyGroup>
-    <MakeDir Directories="$(GrpcTools_ManifestDirectory)" />
-    <WriteLinesToFile File="$(GrpcTools_ManifestPath)"
-                      Lines="$(GrpcTools_ResolvedProtocPath)"
-                      Overwrite="true" />
-    <Message Text="GrpcTools wrapper configured: $(GrpcTools_ResolvedProtocPath)"
-             Importance="High"
-             Condition=" '$(GrpcTools_LogConfiguration)' == 'true' " />
   </Target>
 
-  <Target Name="GrpcTools_DebugDump"
-          Condition=" '$(GrpcTools_DumpPackagePath)' == 'true' ">
-    <Message Text="MSBuildRuntimeIdentifier=$(MSBuildRuntimeIdentifier)" Importance="High" />
-    <Message Text="NETCoreSdkRuntimeIdentifier=$(NETCoreSdkRuntimeIdentifier)" Importance="High" />
-    <Message Text="RuntimeIdentifier=$(RuntimeIdentifier)" Importance="High" />
-    <Message Text="OS=$(OS)" Importance="High" />
-    <Message Text="DOTNET_HOST_ARCH=$(DOTNET_HOST_ARCH)" Importance="High" />
-    <Message Text="PROCESSOR_ARCHITECTURE=$(PROCESSOR_ARCHITECTURE)" Importance="High" />
-    <Message Text="DOTNET_HOST_PATH=$(DOTNET_HOST_PATH)" Importance="High" />
-    <Message Text="PkgGrpc_Tools=$(PkgGrpc_Tools)" Importance="High" />
-    <Message Text="Protobuf_ProtocFullPath=$(Protobuf_ProtocFullPath)" Importance="High" />
+  <Target Name="CheckBannedApis" BeforeTargets="Build" Condition="'$(SkipBannedApiCheck)'!='true'">
+    <Exec Command="$(MSBuildThisFileDirectory)eng/check-banned-apis.sh" WorkingDirectory="$(MSBuildThisFileDirectory)" />
+  </Target>
+
+  <Target Name="PerfSmoke" AfterTargets="Test" Condition="'$(EnablePerfGate)'=='true'">
+    <Exec Command="$(MSBuildThisFileDirectory)eng/run-perf-smoke.sh" WorkingDirectory="$(MSBuildThisFileDirectory)" />
   </Target>
 </Project>

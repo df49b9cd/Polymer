@@ -1,6 +1,7 @@
 # Service Discovery + Peering Gaps
 
-OmniRelay should own the connectivity fabric so product services stay focused on business logic (workflows, catalog updates, etc.). The features below describe what the mesh layer must deliver regardless of which domain-specific service rides on top.
+OmniRelay should own the connectivity fabric so product services stay focused on business logic (workflows, catalog updates, etc.). The features below describe what the mesh layer must deliver regardless of which domain-specific service rides on top.  
+⚠️ **Modern status:** These requirements now map to MeshKit modules (WORK-010..WORK-016) that run on top of OmniRelay transports. This document remains as the canonical requirements reference even though the ownership moved to MeshKit.
 
 This architecture note lives alongside `docs/architecture/omnirelay-rpc-mesh.md` and expands on the discovery and peering requirements outlined there.
 
@@ -168,10 +169,10 @@ Each subsection outlines the feature, why the mesh needs it, and objective succe
 
 ### Implementation snapshot (v1)
 
-- `MeshGossipHost` (`src/OmniRelay/Core/Gossip/`) now runs inside every OmniRelay host via `AddMeshGossipAgent`. It uses HTTP/3 + mTLS, reloads the same bootstrap certificates as the transports, and auto-starts/stops with the dispatcher lifecycle. Fanout, suspicion timers, retransmit budgets, metadata refresh, and port/adverts are all configurable through `mesh:gossip:*` settings (see table below). Configuration can be supplied via `appsettings` or environment variables such as `MESH_GOSSIP__ROLE=gateway`.
+- `MeshGossipHost` (`src/OmniRelay.ControlPlane/Core/Gossip/`) now runs inside the control-plane/agent runtime (not the data plane) via `AddMeshGossipAgent`. It uses HTTP/3 + mTLS, reloads the same bootstrap certificates as the transports, and auto-starts/stops with the control-plane lifecycle. Fanout, suspicion timers, retransmit budgets, metadata refresh, and port/adverts are all configurable through `mesh:gossip:*` settings (see table below). Configuration can be supplied via `appsettings` or environment variables such as `MESH_GOSSIP__ROLE=gateway`. Data-plane hosts consume snapshots through the `IMeshMembershipSnapshotProvider` abstraction and do not participate in gossip directly.
 - Prometheus/OpenTelemetry instrumentation exposes `mesh_gossip_members`, `mesh_gossip_rtt_ms`, and `mesh_gossip_messages_total` meters. `AddOmniRelayDispatcher` registers the `OmniRelay.Core.Gossip` meter so dashboards can chart membership counts, RTT, and failure rates next to RPC metrics.
 - Structured logs now describe gossip events once per transition: peer joins, recovers, becomes suspect, or leaves. Logs include `peerId`, `role`, `clusterId`, `region`, `meshVersion`, and whether HTTP/3 was negotiated.
-- `/control/peers` (and its legacy alias `/omnirelay/control/peers`) is available on every HTTP inbound whenever gossip is enabled. It returns the gossip snapshot (status, lastSeen, RTT, metadata) even before the persistent registry ships, fulfilling the diagnostics requirement from DISC-001.
+- `/control/peers` (and its legacy alias `/omnirelay/control/peers`) is available on every HTTP inbound whenever gossip is enabled. It returns the gossip snapshot (status, lastSeen, RTT, metadata) even before the persistent registry ships, fulfilling the diagnostics requirement first defined in the discovery backlog (now owned by MeshKit.Gossip).
 - Peer health diagnostics reuse gossip metadata by pushing labels (`mesh.role`, `mesh.cluster`, etc.) into `PeerLeaseHealthTracker`, so `/omnirelay/control/lease-health` stays consistent with `/control/peers`.
 - Sample configurations:
   - `samples/ResourceLease.MeshDemo/appsettings.Development.json` – single-node dev defaults that enable gossip with a self-signed cert and loopback seeds.
@@ -203,7 +204,7 @@ Env overrides follow standard ASP.NET Core conventions (for example `MESH_GOSSIP
 | `mesh_gossip_rtt_ms` | Histogram for gossip round-trip time per peer. | Alert if P95 > gossip interval × 2. |
 | `mesh_gossip_messages_total{mesh.direction,mesh.outcome}` | Outbound/inbound success/failure counters. | Alert on sustained `mesh.outcome="failure"` growth. |
 
-Grafana/Prometheus rules from DISC-001 now have concrete signals to target, and the sample dashboards already include the new meters.
+Grafana/Prometheus rules that originated from the legacy gossip story now have concrete signals to target, and the sample dashboards already include the new meters.
 
 ### Leadership service (v1)
 
@@ -220,6 +221,10 @@ Grafana/Prometheus rules from DISC-001 now have concrete signals to target, and 
   - Deterministic hashing strategies (ring, rendezvous, locality aware) selectable per namespace.
   - Versioned shard tables persisted in the registry with diff history for auditing.
   - Watch semantics that notify SDKs/agents when shards move or are paused.
+- **Implementation notes (2024-10)**:
+- `OmniRelay.ShardStore.Relational` persists the shard contract described above, issuing optimistic concurrency checks on every mutation and mirroring history into `shard_history`. The schema lives in the legacy-named migration `eng/migrations/20241014-disc-003-shards.sql`, with provider wrappers (`OmniRelay.ShardStore.Postgres`, `OmniRelay.ShardStore.Sqlite`, `OmniRelay.ShardStore.ObjectStorage`) for the common backends.
+  - The hashing library (`ShardHashStrategyRegistry`) now ships ring, rendezvous, and locality-aware plans that are bound from configuration via `ShardingConfiguration`. Namespaces may specify preferred nodes + locality hints and materialize plans directly from config.
+  - Hyperscale validations (`ShardSchemaHyperscaleFeatureTests`) ingest thousands of shards, roll node membership, and hammer the repository with concurrent governance edits to ensure determinism and auditing survive production-grade load.
 - **Interfaces & data contracts**:
   - `/control/shards` (REST + gRPC) returns shard ownership, leadership token, capacity hints, and version checksum.
   - Client SDK caching module persists the current map and automatically retries on version mismatch.
@@ -290,22 +295,25 @@ Grafana/Prometheus rules from DISC-001 now have concrete signals to target, and 
 
 ## 6. Secure peer bootstrap
 
-- **Feature**: TLS mutual auth + ACLs for gossip and control-plane endpoints. Provide bootstrap tokens or signed certificates so only authorized nodes participate. Optionally integrate with SPIFFE/SPIRE or cloud identity.
-- **Reasoning**: Infrastructure security should be uniform regardless of which service uses OmniRelay. Hardening the mesh frees application code from embedding bespoke ACL logic.
+- **Feature**: A dedicated bootstrap service plus CLI/API flow attests nodes, mints SPIFFE/SPIRE-compatible workload certificates, and wires the issued identity into gossip and control-plane transports. Policies/CRDs govern which roles, clusters, and environments are eligible.
+- **Reasoning**: With a single attestation + PKI workflow, transport security, auditing, and revocation become infrastructure-level concerns instead of bespoke logic for every product team.
 - **Capabilities**:
-  - PKI automation issues short-lived workload certs with embedded mesh roles and cluster ids.
-  - Bootstrap workflow validates environment posture (image signature, config) before granting mesh credentials.
-  - Gossip/control channels enforce TLS 1.3, preferred cipher suites, and certificate pinning.
+  - Pluggable workload identity providers (SPIFFE/SPIRE today, cloud-managed identity next) implement a shared identity-provider interface so operators can swap CA backends without touching dispatchers.
+  - A bootstrap policy evaluator loads JSON/CRD policy documents (role allow-lists, environment tags, attestation providers, per-role lifetimes) and rejects join attempts that fail policy with actionable metadata.
+  - Bootstrap responses include the workload certificate, trust bundle, SPIFFE ID, renewal hint, and seed peers. Auto-renewal maintains overlapping validity windows and emits alerts if renewals fail.
+  - Revocation APIs/CLI yank individual identities or whole token batches; gossip/control planes evict revoked peers immediately and emit audit events.
 - **Interfaces & data contracts**:
-  - `omnirelay cert issue` CLI command and API for automated enrollment; returns cert bundle + metadata.
-  - Policy CRDs describing which roles or namespaces may join specific clusters.
+  - The omnirelay bootstrap join endpoint (wrapped by the omnirelay mesh bootstrap join/issue commands) exchanges tokens plus attestation evidence for identity bundles.
+  - Policy documents live under security.bootstrap.policies (inline or watched directory) and reload with validation plus structured logs for change control.
+  - Threat model and hardening guide documents the bootstrap attack surface, mitigations, and operator runbooks.
 - **Operational considerations**:
-  - Rotate certs automatically with overlap windows; alert if rotation falls behind.
-  - Provide emergency revocation procedure and documented recovery for lost-root scenarios.
+  - Policy reloads are hot, so CI/CD can push new role definitions without dispatcher restarts; invalid policies fail fast with diagnostics.
+  - Renewal background service introduces jitter/backoff, exports bootstrap.renewal.success and bootstrap.renewal.failure counters, and raises alerts when certificates approach expiry.
+  - Enrollment/renewal/revocation paths log audit IDs (token GUIDs) that can be correlated in SIEM pipelines and surfaced via CLI diagnostics.
 - **Success criteria**:
-  - Peers without valid certs or tokens fail to join; audit logs capture the attempt.
-  - Certificate rotation happens without dropping more than 1 gossip RTT.
-  - Security posture documented (threat model + hardening guide) and validated via automated tests.
+  - Nodes without valid tokens/certs fail to join, and the attempt is visible through audit logs, metrics, and CLI tooling.
+  - Certificate rotation completes without disrupting mesh traffic (validated via unit/integration/feature/hyperscale tests that rotate large batches).
+  - Operators can revoke compromised identities and observe immediate eviction from gossip/control-plane endpoints.
 
 ## 7. State convergence + conflict resolution
 

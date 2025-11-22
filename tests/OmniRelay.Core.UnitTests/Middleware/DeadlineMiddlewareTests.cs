@@ -14,7 +14,7 @@ public class DeadlineMiddlewareTests
     private static IRequest<ReadOnlyMemory<byte>> MakeReq(RequestMeta meta) => new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PastDeadline_FailsImmediately()
+    public async ValueTask PastDeadline_FailsImmediately()
     {
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", deadline: DateTimeOffset.UtcNow.AddSeconds(-1));
@@ -26,7 +26,7 @@ public class DeadlineMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task TtlBelowLeadTime_FailsImmediately()
+    public async ValueTask TtlBelowLeadTime_FailsImmediately()
     {
         var mw = new DeadlineMiddleware(new DeadlineOptions { MinimumLeadTime = TimeSpan.FromSeconds(5) });
         var meta = new RequestMeta(service: "svc", procedure: "proc", timeToLive: TimeSpan.FromSeconds(1));
@@ -38,7 +38,7 @@ public class DeadlineMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task FutureDeadline_LinksCancellationToken()
+    public async ValueTask FutureDeadline_LinksCancellationToken()
     {
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", deadline: DateTimeOffset.UtcNow.AddMilliseconds(50));
@@ -57,7 +57,7 @@ public class DeadlineMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ZeroTimeToLive_FailsImmediately()
+    public async ValueTask ZeroTimeToLive_FailsImmediately()
     {
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", timeToLive: TimeSpan.Zero);
@@ -70,7 +70,7 @@ public class DeadlineMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AllShapes_WithoutDeadline_InvokeNext()
+    public async ValueTask AllShapes_WithoutDeadline_InvokeNext()
     {
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc");
@@ -102,7 +102,7 @@ public class DeadlineMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ExceptionPath_AddsExceptionMetadata()
+    public async ValueTask ExceptionPath_AddsExceptionMetadata()
     {
         var mw = new DeadlineMiddleware();
         var meta = new RequestMeta(service: "svc", procedure: "proc", timeToLive: TimeSpan.FromMilliseconds(250));

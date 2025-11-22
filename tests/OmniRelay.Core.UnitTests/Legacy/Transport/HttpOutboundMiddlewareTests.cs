@@ -9,8 +9,8 @@ namespace OmniRelay.Tests.Transport;
 
 public class HttpOutboundMiddlewareTests
 {
-    [Fact]
-    public async Task UnaryPipeline_ExecutesInGlobalServiceProcedureOrder()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask UnaryPipeline_ExecutesInGlobalServiceProcedureOrder()
     {
         var callOrder = new List<string>();
         var capturedHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -80,8 +80,8 @@ public class HttpOutboundMiddlewareTests
         await outbound.StopAsync(ct);
     }
 
-    [Fact]
-    public async Task OnewayPipeline_InvokesMiddlewareAndReturnsAck()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask OnewayPipeline_InvokesMiddlewareAndReturnsAck()
     {
         var callOrder = new List<string>();
 

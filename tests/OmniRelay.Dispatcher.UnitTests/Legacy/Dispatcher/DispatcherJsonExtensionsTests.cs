@@ -12,8 +12,8 @@ namespace OmniRelay.Tests.Dispatcher;
 
 public class DispatcherJsonExtensionsTests
 {
-    [Fact]
-    public async Task RegisterJsonUnary_RegistersCodecAndHandlesRequest()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RegisterJsonUnary_RegistersCodecAndHandlesRequest()
     {
         var options = new DispatcherOptions("echo");
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -78,8 +78,8 @@ public class DispatcherJsonExtensionsTests
             out _));
     }
 
-    [Fact]
-    public async Task CreateJsonClient_UsesCodecRegistryAndRoundTrips()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask CreateJsonClient_UsesCodecRegistryAndRoundTrips()
     {
         var options = new DispatcherOptions("gateway");
         var outbound = new RecordingUnaryOutbound();
@@ -114,8 +114,8 @@ public class DispatcherJsonExtensionsTests
         Assert.Equal("application/json", outboundCodec.Encoding);
     }
 
-    [Fact]
-    public async Task RegisterJsonUnary_HandlerExceptionReturnsError()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RegisterJsonUnary_HandlerExceptionReturnsError()
     {
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(new DispatcherOptions("svc"));
 
@@ -135,8 +135,8 @@ public class DispatcherJsonExtensionsTests
         Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
-    public async Task CreateJsonClient_ReusesExistingCodecWhenUnconfigured()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask CreateJsonClient_ReusesExistingCodecWhenUnconfigured()
     {
         var options = new DispatcherOptions("svc");
         var outbound = new RecordingUnaryOutbound();
@@ -166,7 +166,7 @@ public class DispatcherJsonExtensionsTests
         Assert.Same(codec, resolved);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateJsonClient_RegistersCodecWithAliases()
     {
         var options = new DispatcherOptions("svc");

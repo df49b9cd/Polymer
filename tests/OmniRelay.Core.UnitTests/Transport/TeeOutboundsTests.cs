@@ -12,7 +12,7 @@ public class TeeOutboundsTests
     private static IRequest<ReadOnlyMemory<byte>> MakeRequest() => new Request<ReadOnlyMemory<byte>>(new RequestMeta(service: "svc", procedure: "proc"), new byte[] { 1, 2, 3 });
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task TeeUnary_Shadow_On_Success_With_Header()
+    public async ValueTask TeeUnary_Shadow_On_Success_With_Header()
     {
         var primary = Substitute.For<IUnaryOutbound>();
         primary.CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>())
@@ -47,7 +47,7 @@ public class TeeOutboundsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task TeeUnary_Shadow_On_Failure_When_Allowed()
+    public async ValueTask TeeUnary_Shadow_On_Failure_When_Allowed()
     {
         var primary = Substitute.For<IUnaryOutbound>();
         primary.CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>())
@@ -79,7 +79,7 @@ public class TeeOutboundsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task TeeUnary_SampleRateZero_DisablesShadow()
+    public async ValueTask TeeUnary_SampleRateZero_DisablesShadow()
     {
         var primary = Substitute.For<IUnaryOutbound>();
         primary.CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>())
@@ -101,7 +101,7 @@ public class TeeOutboundsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task TeeOneway_Shadow_Predicate_Blocks()
+    public async ValueTask TeeOneway_Shadow_Predicate_Blocks()
     {
         var primary = Substitute.For<IOnewayOutbound>();
         primary.CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>())
@@ -151,7 +151,7 @@ public class TeeOutboundsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task TeeUnary_StartAsync_ShadowFails_PrimaryStopped()
+    public async ValueTask TeeUnary_StartAsync_ShadowFails_PrimaryStopped()
     {
         var primary = Substitute.For<IUnaryOutbound>();
         var shadow = Substitute.For<IUnaryOutbound>();
@@ -166,7 +166,7 @@ public class TeeOutboundsTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task TeeUnary_BlankHeaderName_DoesNotModifyHeaders()
+    public async ValueTask TeeUnary_BlankHeaderName_DoesNotModifyHeaders()
     {
         var primary = Substitute.For<IUnaryOutbound>();
         primary.CallAsync(Arg.Any<IRequest<ReadOnlyMemory<byte>>>(), Arg.Any<CancellationToken>())

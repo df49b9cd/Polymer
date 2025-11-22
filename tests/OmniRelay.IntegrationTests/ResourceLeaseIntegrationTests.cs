@@ -8,7 +8,7 @@ namespace OmniRelay.IntegrationTests;
 public sealed class ResourceLeaseIntegrationTests
 {
     [Fact(Timeout = 30_000)]
-    public async Task ResourceLeaseDispatcher_PropagatesPrincipalAndReplicatesEvents()
+    public async ValueTask ResourceLeaseDispatcher_PropagatesPrincipalAndReplicatesEvents()
     {
         var dispatcherOptions = new DispatcherOptions("resourcelease-endpoint");
         dispatcherOptions.UnaryInboundMiddleware.Add(new PrincipalBindingMiddleware(new PrincipalBindingOptions

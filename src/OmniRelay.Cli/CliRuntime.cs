@@ -1,12 +1,15 @@
+using System.Diagnostics.CodeAnalysis;
 using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics.CodeAnalysis;
-using OmniRelay.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using OmniRelay.ControlPlane.Clients;
 using OmniRelay.Core;
+using OmniRelay.Dispatcher.Config;
 using OmniRelay.Transport.Grpc;
+using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Cli;
 
@@ -14,19 +17,70 @@ internal static class CliRuntime
 {
     static CliRuntime() => Reset();
 
+    private static ServiceProvider? _controlPlaneServiceProvider;
+
     public static IServeHostFactory ServeHostFactory { get; set; } = null!;
     public static IHttpClientFactory HttpClientFactory { get; set; } = null!;
     public static IGrpcInvokerFactory GrpcInvokerFactory { get; set; } = null!;
+    public static IGrpcControlPlaneClientFactory GrpcControlPlaneClientFactory { get; set; } = null!;
     public static ICliFileSystem FileSystem { get; set; } = null!;
     public static ICliConsole Console { get; set; } = null!;
 
     public static void Reset()
     {
+        _controlPlaneServiceProvider?.Dispose();
+        _controlPlaneServiceProvider = BuildControlPlaneServiceProvider();
+        var httpControlPlaneFactory = _controlPlaneServiceProvider.GetRequiredService<IHttpControlPlaneClientFactory>();
+        var grpcControlPlaneFactory = _controlPlaneServiceProvider.GetRequiredService<IGrpcControlPlaneClientFactory>();
+
         ServeHostFactory = new DefaultServeHostFactory();
-        HttpClientFactory = new DefaultHttpClientFactory();
+        HttpClientFactory = new DefaultHttpClientFactory(httpControlPlaneFactory);
         GrpcInvokerFactory = new DefaultGrpcInvokerFactory();
+        GrpcControlPlaneClientFactory = grpcControlPlaneFactory;
         FileSystem = new SystemCliFileSystem();
         Console = new SystemCliConsole();
+    }
+
+    private static ServiceProvider BuildControlPlaneServiceProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
+
+        services.AddOptions<HttpControlPlaneClientFactoryOptions>()
+            .Configure(options =>
+            {
+                options.Profiles["default"] = new HttpControlPlaneClientProfile
+                {
+                    BaseAddress = new Uri("http://127.0.0.1"),
+                    UseSharedTls = false,
+                    Runtime = new HttpClientRuntimeOptions
+                    {
+                        // Local CLI calls target ad-hoc HTTP endpoints spun up by tests; avoid HTTP/3
+                        // negotiation timeouts by sticking to HTTP/1.1 or HTTP/2.
+                        EnableHttp3 = false
+                    }
+                };
+            });
+
+        services.AddOptions<GrpcControlPlaneClientFactoryOptions>()
+            .Configure(options =>
+            {
+                options.Profiles["default"] = new GrpcControlPlaneClientProfile
+                {
+                    Address = new Uri("http://127.0.0.1:17421"),
+                    PreferHttp3 = true,
+                    UseSharedTls = false,
+                    Runtime = new GrpcClientRuntimeOptions
+                    {
+                        EnableHttp3 = true
+                    }
+                };
+            });
+
+        services.AddSingleton<IHttpControlPlaneClientFactory, HttpControlPlaneClientFactory>();
+        services.AddSingleton<IGrpcControlPlaneClientFactory, GrpcControlPlaneClientFactory>();
+        return services.BuildServiceProvider();
     }
 }
 
@@ -102,7 +156,7 @@ internal sealed class DefaultServeHostFactory : IServeHostFactory
             options.SingleLine = true;
             options.TimestampFormat = "HH:mm:ss ";
         }));
-        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection(section));
+        builder.Services.AddOmniRelayDispatcherFromConfiguration(builder.Configuration.GetSection(section));
         var host = builder.Build();
         return new DefaultServeHost(host);
     }
@@ -133,30 +187,30 @@ internal interface IHttpClientFactory
 
 internal sealed class DefaultHttpClientFactory : IHttpClientFactory
 {
-    public HttpClient CreateClient() => new();
+    private readonly IHttpControlPlaneClientFactory _factory;
+
+    public DefaultHttpClientFactory(IHttpControlPlaneClientFactory factory)
+    {
+        _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+    }
+
+    public HttpClient CreateClient() => _factory.CreateClient("default").ValueOrThrow();
 }
 
 internal interface IGrpcInvokerFactory
 {
-    IGrpcInvoker Create(IReadOnlyList<Uri> addresses, string remoteService, GrpcClientRuntimeOptions? runtimeOptions);
-}
-
-internal interface IGrpcInvoker : IAsyncDisposable
-{
-    ValueTask StartAsync(CancellationToken cancellationToken);
-    ValueTask<Result<Response<ReadOnlyMemory<byte>>>> CallAsync(Request<ReadOnlyMemory<byte>> request, CancellationToken cancellationToken);
-    ValueTask StopAsync(CancellationToken cancellationToken);
+    OmniRelay.Cli.Core.BenchmarkRunner.IGrpcInvoker Create(IReadOnlyList<Uri> addresses, string remoteService, GrpcClientRuntimeOptions? runtimeOptions);
 }
 
 internal sealed class DefaultGrpcInvokerFactory : IGrpcInvokerFactory
 {
-    public IGrpcInvoker Create(IReadOnlyList<Uri> addresses, string remoteService, GrpcClientRuntimeOptions? runtimeOptions)
+    public OmniRelay.Cli.Core.BenchmarkRunner.IGrpcInvoker Create(IReadOnlyList<Uri> addresses, string remoteService, GrpcClientRuntimeOptions? runtimeOptions)
     {
         var outbound = new GrpcOutbound(addresses, remoteService, clientRuntimeOptions: runtimeOptions);
         return new GrpcInvoker(outbound);
     }
 
-    private sealed class GrpcInvoker(GrpcOutbound outbound) : IGrpcInvoker
+    private sealed class GrpcInvoker(GrpcOutbound outbound) : OmniRelay.Cli.Core.BenchmarkRunner.IGrpcInvoker
     {
         private readonly GrpcOutbound _outbound = outbound;
 

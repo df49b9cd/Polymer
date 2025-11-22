@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1.7
+
+ARG DOTNET_VERSION=10.0
+ARG BUILD_CONFIGURATION=Release
+
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS base
+
+RUN apk add --upgrade --no-cache \
+        bash \
+        coreutils \
+        curl \
+        gcompat \
+        git \
+        icu-data-full \
+        icu-libs \
+        iputils \
+        krb5-libs \
+        libc6-compat \
+        libmsquic \
+        lldb \
+        llvm \
+        lld \
+        lttng-ust \
+        openssl \
+        python3 \
+        py3-pip \
+        tzdata
+
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    DOTNET_SKIP_WORKLOAD_VERIFICATION=1 \
+    NUGET_XMLDOC_MODE=skip \
+    OMNIRELAY_ENABLE_HTTP3_TESTS=true
+
+WORKDIR /workspace
+
+# Copy repository artifacts required for restore/build
+COPY global.json Directory.Build.props Directory.Build.targets Directory.Packages.props OmniRelay.slnx README.md ./
+COPY branding ./branding
+COPY eng ./eng
+
+# Copy source + test projects (and samples used in AOT smoke tests)
+COPY src ./src
+COPY tests ./tests
+
+ARG BUILD_CONFIGURATION
+
+# Execute the hyperscale/feature smoke suites
+RUN chmod +x eng/run-hyperscale-smoke.sh && \
+    ./eng/run-hyperscale-smoke.sh "$BUILD_CONFIGURATION"

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>Soeren Magnus Olesen</Authors>
+    <Company>df49b9cd</Company>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <AssemblyName>OmniRelay.Diagnostics.Documentation</AssemblyName>
+    <RootNamespace>OmniRelay.Diagnostics</RootNamespace>
+    <PackageId>OmniRelay.Diagnostics.Documentation</PackageId>
+    <Description>OpenAPI/gRPC documentation utilities and endpoint helpers for OmniRelay hosts.</Description>
+    <PackageTags>omnirelay;diagnostics;documentation</PackageTags>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.OpenApi" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Abstractions\OmniRelay.Diagnostics.Abstractions.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Logging\OmniRelay.Diagnostics.Logging.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Telemetry\OmniRelay.Diagnostics.Telemetry.csproj" />
+  </ItemGroup>
+</Project>

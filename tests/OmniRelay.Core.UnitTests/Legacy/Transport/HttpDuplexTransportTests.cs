@@ -12,8 +12,8 @@ namespace OmniRelay.Tests.Transport;
 
 public class HttpDuplexTransportTests
 {
-    [Fact]
-    public async Task HttpDuplexOutbound_RawEncoding_SetsOctetStreamContentHeaders()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask HttpDuplexOutbound_RawEncoding_SetsOctetStreamContentHeaders()
     {
         var handler = new RecordingHandler();
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
@@ -35,13 +35,14 @@ public class HttpDuplexTransportTests
         RecordingHandler.LastRequest.ShouldNotBeNull();
         RecordingHandler.LastRequest!.Content?.Headers.ContentType?.MediaType.ShouldBe(MediaTypeNames.Application.Octet);
         RecordingHandler.LastRequest.Headers.TryGetValues(HttpTransportHeaders.Encoding, out var values).ShouldBeTrue();
-        values.ShouldContain(RawCodec.DefaultEncoding);
+        values.ShouldNotBeNull();
+        values!.ShouldContain(RawCodec.DefaultEncoding);
 
         await outbound.StopAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact]
-    public async Task HttpInbound_RawEncoding_ReturnsOctetStreamContentType()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask HttpInbound_RawEncoding_ReturnsOctetStreamContentType()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
@@ -79,7 +80,8 @@ public class HttpDuplexTransportTests
             response.IsSuccessStatusCode.ShouldBeTrue();
             response.Content.Headers.ContentType?.MediaType.ShouldBe(MediaTypeNames.Application.Octet);
             response.Headers.TryGetValues(HttpTransportHeaders.Encoding, out var responseEncoding).ShouldBeTrue();
-            responseEncoding.ShouldContain(RawCodec.DefaultEncoding);
+            responseEncoding.ShouldNotBeNull();
+            responseEncoding!.ShouldContain(RawCodec.DefaultEncoding);
             var responsePayload = await response.Content.ReadAsByteArrayAsync(ct);
             responsePayload.ShouldBe(payload);
         }

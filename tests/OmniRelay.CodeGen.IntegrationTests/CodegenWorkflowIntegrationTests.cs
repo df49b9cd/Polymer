@@ -5,9 +5,9 @@ using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OmniRelay.Configuration;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.Dispatcher.Config;
 using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests;
 using OmniRelay.Tests.Protos;
@@ -22,7 +22,7 @@ public class CodegenWorkflowIntegrationTests
     private const string EncodingName = "protobuf";
 
     [Http3Fact(Timeout = 90_000)]
-    public async Task GeneratedClient_RoundTripsOverHttp3_WhenDispatcherHostEnablesIt()
+    public async ValueTask GeneratedClient_RoundTripsOverHttp3_WhenDispatcherHostEnablesIt()
     {
         if (!QuicListener.IsSupported)
         {
@@ -47,6 +47,7 @@ public class CodegenWorkflowIntegrationTests
         serverBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["omnirelay:service"] = "codegen-host-http3",
+            ["omnirelay:diagnostics:runtime:enableControlPlane"] = "false",
             ["omnirelay:inbounds:grpc:0:name"] = "grpc-http3",
             ["omnirelay:inbounds:grpc:0:urls:0"] = address.ToString(),
             ["omnirelay:inbounds:grpc:0:runtime:enableHttp3"] = "true",
@@ -54,7 +55,7 @@ public class CodegenWorkflowIntegrationTests
             ["omnirelay:inbounds:grpc:0:tls:certificatePath"] = certificatePath,
             ["omnirelay:inbounds:grpc:0:tls:checkCertificateRevocation"] = "false"
         });
-        serverBuilder.Services.AddOmniRelayDispatcher(serverBuilder.Configuration.GetSection("omnirelay"));
+        serverBuilder.Services.AddOmniRelayDispatcherFromConfiguration(serverBuilder.Configuration.GetSection("omnirelay"));
 
         using var serverHost = serverBuilder.Build();
         var serverDispatcher = serverHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
@@ -66,6 +67,7 @@ public class CodegenWorkflowIntegrationTests
         clientBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["omnirelay:service"] = "codegen-client-http3",
+            ["omnirelay:diagnostics:runtime:enableControlPlane"] = "false",
             ["omnirelay:outbounds:codegen-host-http3:unary:grpc:0:remoteService"] = "codegen-host-http3",
             ["omnirelay:outbounds:codegen-host-http3:unary:grpc:0:endpoints:0:address"] = address.ToString(),
             ["omnirelay:outbounds:codegen-host-http3:unary:grpc:0:endpoints:0:supportsHttp3"] = "true",
@@ -74,7 +76,7 @@ public class CodegenWorkflowIntegrationTests
             ["omnirelay:outbounds:codegen-host-http3:unary:grpc:0:runtime:versionPolicy"] = "RequestVersionExact",
             ["omnirelay:outbounds:codegen-host-http3:unary:grpc:0:tls:allowUntrustedCertificates"] = "true"
         });
-        clientBuilder.Services.AddOmniRelayDispatcher(clientBuilder.Configuration.GetSection("omnirelay"));
+        clientBuilder.Services.AddOmniRelayDispatcherFromConfiguration(clientBuilder.Configuration.GetSection("omnirelay"));
 
         using var clientHost = clientBuilder.Build();
         var clientDispatcher = clientHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
@@ -113,7 +115,7 @@ public class CodegenWorkflowIntegrationTests
     }
 
     [Http3Fact(Timeout = 90_000)]
-    public async Task GeneratedClient_FallsBackToHttp2_WhenServerDisablesHttp3()
+    public async ValueTask GeneratedClient_FallsBackToHttp2_WhenServerDisablesHttp3()
     {
         if (!QuicListener.IsSupported)
         {
@@ -143,6 +145,7 @@ public class CodegenWorkflowIntegrationTests
         serverBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["omnirelay:service"] = "codegen-host-http2",
+            ["omnirelay:diagnostics:runtime:enableControlPlane"] = "false",
             ["omnirelay:inbounds:grpc:0:name"] = "grpc-http2",
             ["omnirelay:inbounds:grpc:0:urls:0"] = address.ToString(),
             ["omnirelay:inbounds:grpc:0:runtime:enableHttp3"] = "false",
@@ -150,7 +153,7 @@ public class CodegenWorkflowIntegrationTests
             ["omnirelay:inbounds:grpc:0:tls:certificatePath"] = certificatePath,
             ["omnirelay:inbounds:grpc:0:tls:checkCertificateRevocation"] = "false"
         });
-        serverBuilder.Services.AddOmniRelayDispatcher(serverBuilder.Configuration.GetSection("omnirelay"));
+        serverBuilder.Services.AddOmniRelayDispatcherFromConfiguration(serverBuilder.Configuration.GetSection("omnirelay"));
 
         using var serverHost = serverBuilder.Build();
         var serverDispatcher = serverHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
@@ -162,6 +165,7 @@ public class CodegenWorkflowIntegrationTests
         clientBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["omnirelay:service"] = "codegen-client-http2",
+            ["omnirelay:diagnostics:runtime:enableControlPlane"] = "false",
             ["omnirelay:outbounds:codegen-host-http2:unary:grpc:0:remoteService"] = "codegen-host-http2",
             ["omnirelay:outbounds:codegen-host-http2:unary:grpc:0:endpoints:0:address"] = address.ToString(),
             ["omnirelay:outbounds:codegen-host-http2:unary:grpc:0:endpoints:0:supportsHttp3"] = "false",
@@ -170,7 +174,7 @@ public class CodegenWorkflowIntegrationTests
             ["omnirelay:outbounds:codegen-host-http2:unary:grpc:0:runtime:versionPolicy"] = "RequestVersionExact",
             ["omnirelay:outbounds:codegen-host-http2:unary:grpc:0:tls:allowUntrustedCertificates"] = "true"
         });
-        clientBuilder.Services.AddOmniRelayDispatcher(clientBuilder.Configuration.GetSection("omnirelay"));
+        clientBuilder.Services.AddOmniRelayDispatcherFromConfiguration(clientBuilder.Configuration.GetSection("omnirelay"));
 
         using var clientHost = clientBuilder.Build();
         var clientDispatcher = clientHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
@@ -209,7 +213,7 @@ public class CodegenWorkflowIntegrationTests
     }
 
     [Fact(Timeout = 90_000)]
-    public async Task GeneratedClient_StreamHelpers_WorkWhenResolvedFromDependencyInjection()
+    public async ValueTask GeneratedClient_StreamHelpers_WorkWhenResolvedFromDependencyInjection()
     {
         var address = new Uri($"http://127.0.0.1:{TestPortAllocator.GetRandomPort()}");
 
@@ -219,10 +223,11 @@ public class CodegenWorkflowIntegrationTests
         serverBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["omnirelay:service"] = "codegen-host-streams",
+            ["omnirelay:diagnostics:runtime:enableControlPlane"] = "false",
             ["omnirelay:inbounds:grpc:0:name"] = "grpc-h2",
             ["omnirelay:inbounds:grpc:0:urls:0"] = address.ToString()
         });
-        serverBuilder.Services.AddOmniRelayDispatcher(serverBuilder.Configuration.GetSection("omnirelay"));
+        serverBuilder.Services.AddOmniRelayDispatcherFromConfiguration(serverBuilder.Configuration.GetSection("omnirelay"));
 
         using var serverHost = serverBuilder.Build();
         var serverDispatcher = serverHost.Services.GetRequiredService<Dispatcher.Dispatcher>();
@@ -234,6 +239,7 @@ public class CodegenWorkflowIntegrationTests
         clientBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["omnirelay:service"] = "codegen-client-streams",
+            ["omnirelay:diagnostics:runtime:enableControlPlane"] = "false",
             ["omnirelay:outbounds:codegen-host-streams:unary:grpc:0:remoteService"] = "codegen-host-streams",
             ["omnirelay:outbounds:codegen-host-streams:unary:grpc:0:addresses:0"] = address.ToString(),
             ["omnirelay:outbounds:codegen-host-streams:stream:grpc:0:remoteService"] = "codegen-host-streams",
@@ -243,7 +249,7 @@ public class CodegenWorkflowIntegrationTests
             ["omnirelay:outbounds:codegen-host-streams:duplex:grpc:0:remoteService"] = "codegen-host-streams",
             ["omnirelay:outbounds:codegen-host-streams:duplex:grpc:0:addresses:0"] = address.ToString()
         });
-        clientBuilder.Services.AddOmniRelayDispatcher(clientBuilder.Configuration.GetSection("omnirelay"));
+        clientBuilder.Services.AddOmniRelayDispatcherFromConfiguration(clientBuilder.Configuration.GetSection("omnirelay"));
         clientBuilder.Services.AddSingleton(sp =>
         {
             var dispatcher = sp.GetRequiredService<Dispatcher.Dispatcher>();
@@ -320,7 +326,7 @@ public class CodegenWorkflowIntegrationTests
         Assert.Equal(EncodingName, duplexMeta.Encoding);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void GeneratedRegistration_MatchesManualProcedureMetadata()
     {
         var serviceName = "codegen-manual";

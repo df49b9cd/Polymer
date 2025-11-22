@@ -6,7 +6,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class DispatcherShadowingExtensionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddTeeUnaryOutbound_RegistersTeeOutbound()
     {
         var options = new DispatcherOptions("svc");
@@ -18,7 +18,7 @@ public class DispatcherShadowingExtensionsTests
         Assert.IsType<TeeUnaryOutbound>(outbound);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddTeeOnewayOutbound_RegistersTeeOutbound()
     {
         var options = new DispatcherOptions("svc");

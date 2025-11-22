@@ -1,9 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>Soeren Magnus Olesen</Authors>
+    <Company>df49b9cd</Company>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <OutputType>Exe</OutputType>
     <AssemblyName>OmniRelay.Cli</AssemblyName>
     <RootNamespace>OmniRelay.Cli</RootNamespace>
     <PackAsTool>true</PackAsTool>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <ToolCommandName>omnirelay</ToolCommandName>
     <PackageId>OmniRelay.Cli</PackageId>
     <Description>OmniRelay operator CLI for validations, introspection, smoke tests, and benchmarking.</Description>
@@ -12,11 +23,14 @@
     <PackageIcon>omnirelay-icon.png</PackageIcon>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <PublishTrimmed>true</PublishTrimmed>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\OmniRelay.Configuration\OmniRelay.Configuration.csproj" />
-    <ProjectReference Include="..\OmniRelay\OmniRelay.csproj" />
+<ProjectReference Include="..\OmniRelay\OmniRelay.csproj" />
+    <ProjectReference Include="..\OmniRelay.ControlPlane\OmniRelay.ControlPlane.csproj" />
+    <ProjectReference Include="..\OmniRelay.Cli.Core\OmniRelay.Cli.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

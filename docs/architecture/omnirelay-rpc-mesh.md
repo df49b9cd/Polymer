@@ -166,7 +166,7 @@ Tracking these TODO items will take the existing ResourceLease + health + replic
 
 ### ResourceLease Mesh Deployment Guide
 1. **Install OmniRelay + replicator packages**
-   - Add `OmniRelay`, `OmniRelay.Configuration`, and the replicators you need (`OmniRelay.ResourceLeaseReplicator.Sqlite`, `.Grpc`, `.ObjectStorage`) to every metadata node. See `samples/ResourceLease.MeshDemo` for a runnable configuration that wires SQLite replication/deterministic stores plus diagnostics.
+   - Add `OmniRelay` and the replicators you need (`OmniRelay.ResourceLeaseReplicator.Sqlite`, `.Grpc`, `.ObjectStorage`) to every metadata node. Use the source-generated dispatcher config path (`AddOmniRelayDispatcherFromConfig`) to keep hosts trim-safe.
    - Ensure the host has .NET 8+ runtimes, OpenTelemetry exporters, and any native dependencies (for example `libsqlite3`).
 2. **Configure dispatcher + middleware**
    - Register `ResourceLeaseDispatcherComponent` inside your DI container, wiring `PrincipalBindingMiddleware`, health trackers, and transport codecs (HTTP/gRPC) just like other OmniRelay dispatchers.

@@ -6,7 +6,6 @@
     <IsPackable>true</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PrepareAnalyzerOutputs</TargetsForTfmSpecificBuildOutput>
     <AssemblyName>OmniRelay.Codegen.Generator</AssemblyName>
@@ -21,15 +20,18 @@
     <PackageIcon>omnirelay-icon.png</PackageIcon>
     <PackageReleaseNotes>Telemetry-less analyzer packaging; bundles OmniRelay runtime dependencies.</PackageReleaseNotes>
     <PublishAot>false</PublishAot>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../OmniRelay.Codegen.Protobuf.Core/OmniRelay.Codegen.Protobuf.Core.csproj" />
+    <Compile Include="../OmniRelay.Codegen.Protobuf.Core/OmniRelayProtobufGenerator.cs" Link="Shared/OmniRelayProtobufGenerator.cs" />
+    <Compile Include="../OmniRelay.Codegen.Protobuf.Core/ProtobufCliRegistrationEmitter.cs" Link="Shared/ProtobufCliRegistrationEmitter.cs" />
   </ItemGroup>
 
   <Target Name="PrepareAnalyzerOutputs" AfterTargets="Build">
@@ -44,8 +46,23 @@
       <_AnalyzerDependency Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')">
         <TargetPath>analyzers/dotnet/cs/$(TargetName).pdb</TargetPath>
       </_AnalyzerDependency>
-      <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb') and (%(ReferenceCopyLocalPaths.FileName) == 'Google.Protobuf' or %(ReferenceCopyLocalPaths.FileName) == 'OmniRelay.Codegen.Protobuf.Core' or %(ReferenceCopyLocalPaths.FileName) == 'OmniRelay')">
+      <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb') and (%(ReferenceCopyLocalPaths.FileName) == 'OmniRelay')">
         <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
+      </_AnalyzerDependency>
+      <!-- Always embed Google.Protobuf so downstream consumers don't need the package when running the generator -->
+      <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.FileName) == 'Google.Protobuf') and (%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb')">
+        <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
+      </_AnalyzerDependency>
+      <!-- Embed core generator support library -->
+      <_AnalyzerDependency Include="@(ReferenceCopyLocalPaths)" Condition="(%(ReferenceCopyLocalPaths.FileName) == 'OmniRelay.Codegen.Protobuf.Core') and (%(ReferenceCopyLocalPaths.Extension) == '.dll' or %(ReferenceCopyLocalPaths.Extension) == '.pdb')">
+        <TargetPath>analyzers/dotnet/cs/%(ReferenceCopyLocalPaths.FileName)%(ReferenceCopyLocalPaths.Extension)</TargetPath>
+      </_AnalyzerDependency>
+      <!-- Ensure project output for Core is available even if not in ReferenceCopyLocalPaths (CI restore/layout differences) -->
+      <_AnalyzerDependency Include="..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.dll" Condition="Exists('..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.dll')">
+        <TargetPath>analyzers/dotnet/cs/OmniRelay.Codegen.Protobuf.Core.dll</TargetPath>
+      </_AnalyzerDependency>
+      <_AnalyzerDependency Include="..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.pdb" Condition="Exists('..\OmniRelay.Codegen.Protobuf.Core\bin\$(Configuration)\$(TargetFramework)\OmniRelay.Codegen.Protobuf.Core.pdb')">
+        <TargetPath>analyzers/dotnet/cs/OmniRelay.Codegen.Protobuf.Core.pdb</TargetPath>
       </_AnalyzerDependency>
     </ItemGroup>
 
@@ -69,7 +86,7 @@
   <ItemGroup>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>AnalyzerDependencyPath</_Parameter1>
-      <_Parameter2>$(MSBuildProjectDirectory)bin/$(Configuration)/$(TargetFramework)/analyzers/dotnet/cs</_Parameter2>
+      <_Parameter2>$(MSBuildProjectDirectory)/bin/$(Configuration)/$(TargetFramework)/analyzers/dotnet/cs</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
 </Project>

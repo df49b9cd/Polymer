@@ -6,9 +6,9 @@ using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OmniRelay.Configuration;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
+using OmniRelay.Dispatcher.Config;
 using Xunit;
 using static Hugo.Go;
 
@@ -21,7 +21,7 @@ public class GrpcDispatcherHostIntegrationTests
         deserializer: static payload => payload ?? []);
 
     [Fact(Timeout = 30_000)]
-    public async Task GrpcInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
+    public async ValueTask GrpcInbound_ConfiguredViaHost_RoundtripsUnaryRequest()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -34,7 +34,7 @@ public class GrpcDispatcherHostIntegrationTests
         });
 
         builder.Services.AddLogging();
-        builder.Services.AddOmniRelayDispatcher(builder.Configuration.GetSection("omnirelay"));
+        builder.Services.AddOmniRelayDispatcherFromConfiguration(builder.Configuration.GetSection("omnirelay"));
 
         using var host = builder.Build();
         var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();

@@ -11,7 +11,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class DispatcherTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Register_WithServiceMismatch_ReturnsError()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
@@ -26,8 +26,8 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
-    public async Task InvokeUnaryAsync_ComposesGlobalAndLocalMiddleware()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InvokeUnaryAsync_ComposesGlobalAndLocalMiddleware()
     {
         var options = new DispatcherOptions("svc");
         var invocations = new List<string>();
@@ -52,7 +52,7 @@ public class DispatcherTests
         Assert.Equal(new[] { "global", "local", "handler" }, invocations);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ClientConfig_WithUnknownService_ReturnsError()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
@@ -63,7 +63,7 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.NotFound, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ClientConfig_WithLocalService_ReturnsEmptyConfiguration()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
@@ -73,7 +73,7 @@ public class DispatcherTests
         Assert.Empty(config.Unary);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryGetProcedure_WithAlias_ReturnsSpec()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
@@ -88,8 +88,8 @@ public class DispatcherTests
         Assert.Equal("primary", spec.Name);
     }
 
-    [Fact]
-    public async Task StartAsync_BindsDispatcherAwareComponents()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask StartAsync_BindsDispatcherAwareComponents()
     {
         var options = new DispatcherOptions("svc");
         var lifecycle = new TestHelpers.RecordingLifecycle();
@@ -109,7 +109,7 @@ public class DispatcherTests
         Assert.Contains("stop", lifecycle.Events);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Introspect_ReportsProceduresAndMiddleware()
     {
         var options = new DispatcherOptions("svc");
@@ -128,8 +128,8 @@ public class DispatcherTests
         Assert.Single(snapshot.Outbounds);
     }
 
-    [Fact]
-    public async Task InvokeUnaryAsync_WhenMissing_ReturnsUnimplementedError()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InvokeUnaryAsync_WhenMissing_ReturnsUnimplementedError()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
         var ct = TestContext.Current.CancellationToken;
@@ -139,8 +139,8 @@ public class DispatcherTests
         Assert.Equal(OmniRelayStatusCode.Unimplemented, OmniRelayErrorAdapter.ToStatus(result.Error!));
     }
 
-    [Fact]
-    public async Task InvokeClientStreamAsync_ReturnsCallHandle()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InvokeClientStreamAsync_ReturnsCallHandle()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
 
@@ -163,8 +163,8 @@ public class DispatcherTests
         await result.Value.DisposeAsync();
     }
 
-    [Fact]
-    public async Task StartAsync_WhenLifecycleFails_StopsPreviouslyStartedComponents()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask StartAsync_WhenLifecycleFails_StopsPreviouslyStartedComponents()
     {
         var options = new DispatcherOptions("svc");
         var first = new TestHelpers.RecordingLifecycle();
@@ -179,8 +179,8 @@ public class DispatcherTests
         Assert.Equal(DispatcherStatus.Stopped, dispatcher.Status);
     }
 
-    [Fact]
-    public async Task StopAsync_WhenLifecycleFails_DoesNotReportStopped()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask StopAsync_WhenLifecycleFails_DoesNotReportStopped()
     {
         var options = new DispatcherOptions("svc");
         options.AddLifecycle("only", new ThrowingLifecycle(stopThrows: true));
@@ -194,8 +194,8 @@ public class DispatcherTests
         Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
     }
 
-    [Fact]
-    public async Task StopAsync_WhileStartIsInProgress_ReturnsFailure()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask StopAsync_WhileStartIsInProgress_ReturnsFailure()
     {
         var options = new DispatcherOptions("svc");
         var lifecycle = new BlockingLifecycle();

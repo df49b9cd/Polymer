@@ -11,8 +11,8 @@ namespace OmniRelay.Tests.Transport;
 
 public sealed class OmniRelayExceptionFilterTests
 {
-    [Fact]
-    public async Task OnExceptionAsync_TransformsExceptionIntoOmniRelayPayload()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask OnExceptionAsync_TransformsExceptionIntoOmniRelayPayload()
     {
         var filter = new OmniRelayExceptionFilter();
         var httpContext = new DefaultHttpContext();

@@ -5,8 +5,8 @@ namespace OmniRelay.IntegrationTests.Cli;
 
 public class ConfigScaffoldTests
 {
-    [Fact]
-    public async Task Scaffold_Includes_Http3_Toggles_When_Requested()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask Scaffold_Includes_Http3_Toggles_When_Requested()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "omnirelay_scaffold_tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(tempDir);

@@ -12,7 +12,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class DuplexBadRequestTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30000)]
-    public async Task NonWebSocketGet_ForDuplex_Returns406()
+    public async ValueTask NonWebSocketGet_ForDuplex_Returns406()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");

@@ -46,7 +46,7 @@ Guidance for designing, extending, and running the Core unit-test suite.
 ## Examples
 ```csharp
 [Fact]
-public async Task LeaseTracker_RecordsDisconnects()
+public async ValueTask LeaseTracker_RecordsDisconnects()
 {
     // Arrange
     var tracker = new PeerLeaseHealthTracker(timeProvider: new TestTimeProvider());

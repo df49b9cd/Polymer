@@ -9,21 +9,21 @@ namespace OmniRelay.Tests.Dispatcher;
 
 public class ProcedureBuilderTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void UnaryBuilder_HandleRequired()
     {
         var builder = new UnaryProcedureBuilder();
         Assert.Throws<InvalidOperationException>(() => builder.Build("svc", "proc"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void OnewayBuilder_HandleRequired()
     {
         var builder = new OnewayProcedureBuilder();
         Assert.Throws<InvalidOperationException>(() => builder.Build("svc", "proc"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void StreamBuilder_TrimsAliasesAndCapturesMetadata()
     {
         StreamIntrospectionMetadata metadata = new(new StreamChannelMetadata(StreamDirection.Server, "bounded", 32, true));
@@ -45,14 +45,14 @@ public class ProcedureBuilderTests
         Assert.Equal(metadata, spec.Metadata);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void AddAlias_ThrowsForWhitespace()
     {
         var builder = new UnaryProcedureBuilder().Handle((req, _) => ValueTask.FromResult(Result.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty))));
         Assert.Throws<ArgumentException>(() => builder.AddAlias(" "));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Use_NullThrows()
     {
         var builder = new UnaryProcedureBuilder().Handle((req, _) => ValueTask.FromResult(Result.Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty))));

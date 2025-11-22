@@ -1,5 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+  <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -8,6 +11,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Testcontainers" />
@@ -19,12 +23,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\TestSupport\Shards\ShardControlPlaneTestHost.cs" Link="Support/ShardControlPlaneTestHost.cs" />
     <ProjectReference Include="..\..\src\OmniRelay\OmniRelay.csproj" />
-    <ProjectReference Include="..\..\src\OmniRelay.Configuration\OmniRelay.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\OmniRelay.ControlPlane\OmniRelay.ControlPlane.csproj" />
+<ProjectReference Include="..\..\src\OmniRelay.ShardStore.Sqlite\OmniRelay.ShardStore.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\OmniRelay.ShardStore.Relational\OmniRelay.ShardStore.Relational.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\TestSupport\TestCertificateFactory.cs" Link="Support/TestCertificateFactory.cs" />
-    <Compile Include="..\TestSupport\TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
-  </ItemGroup>
 </Project>

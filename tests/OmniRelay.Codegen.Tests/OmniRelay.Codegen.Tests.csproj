@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+  <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA2007</NoWarn>
   </PropertyGroup>
@@ -29,8 +32,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OmniRelay.Codegen.Protobuf.Core/OmniRelay.Codegen.Protobuf.Core.csproj" />
     <ProjectReference Include="../../src/OmniRelay.Codegen.Protobuf.Generator/OmniRelay.Codegen.Protobuf.Generator.csproj" />
-    <ProjectReference Include="../../src/OmniRelay.Configuration/OmniRelay.Configuration.csproj" />
-    <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
+<ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -44,17 +46,12 @@
   <ItemGroup>
     <Analyzer Include="../../src/OmniRelay.Codegen.Protobuf.Generator/bin/$(Configuration)/net10.0/analyzers/dotnet/cs/OmniRelay.Codegen.Generator.dll" />
     <Analyzer Include="../../src/OmniRelay.Codegen.Protobuf.Generator/bin/$(Configuration)/net10.0/analyzers/dotnet/cs/Google.Protobuf.dll" />
-    <Analyzer Include="../../src/OmniRelay.Codegen.Protobuf.Generator/bin/$(Configuration)/net10.0/analyzers/dotnet/cs/OmniRelay.Codegen.Protobuf.Core.dll" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../TestSupport/TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
-    <Compile Include="../TestSupport/Http3FactAttribute.cs" Link="Support/Http3FactAttribute.cs" />
-    <Compile Include="../TestSupport/Http3TestHelper.cs" Link="Support/Http3TestHelper.cs" />
     <Compile Remove="Generated/TestService.actual.g.cs" />
     <Compile Remove="Generated/TestService.incremental.g.cs" />
     <Compile Remove="Generated/TestService.OmniRelay.g.cs" />
-    <Compile Remove="Projects/ProtobufIncrementalSample/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

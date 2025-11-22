@@ -7,8 +7,8 @@ namespace OmniRelay.Tests.Core.Peers;
 
 public sealed class RoundRobinPeerChooserTests
 {
-    [Fact]
-    public async Task AcquireAsync_RotatesAcrossPeers()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask AcquireAsync_RotatesAcrossPeers()
     {
         var peer1 = new TestPeer("peer-1");
         var peer2 = new TestPeer("peer-2");
@@ -26,8 +26,8 @@ public sealed class RoundRobinPeerChooserTests
         await lease2.Value.DisposeAsync();
     }
 
-    [Fact]
-    public async Task AcquireAsync_WhenAllBusy_ReturnsResourceExhausted()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask AcquireAsync_WhenAllBusy_ReturnsResourceExhausted()
     {
         var peer = new TestPeer("peer-1", maxConcurrency: 1);
         var chooser = new RoundRobinPeerChooser(peer);

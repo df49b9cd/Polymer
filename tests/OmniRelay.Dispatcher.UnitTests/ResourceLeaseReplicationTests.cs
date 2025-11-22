@@ -5,8 +5,8 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public sealed class ResourceLeaseReplicationTests
 {
-    [Fact]
-    public async Task InMemoryReplicator_SequencesAndDeliversEvents()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InMemoryReplicator_SequencesAndDeliversEvents()
     {
         var sink = new RecordingSink();
         var replicator = new InMemoryResourceLeaseReplicator([sink]);
@@ -17,8 +17,8 @@ public sealed class ResourceLeaseReplicationTests
         Assert.Equal([1L, 2L], [.. sink.Events.Select(evt => evt.SequenceNumber)]);
     }
 
-    [Fact]
-    public async Task InMemoryReplicator_IgnoresProvidedSequenceAndUsesStartingOffset()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InMemoryReplicator_IgnoresProvidedSequenceAndUsesStartingOffset()
     {
         var sink = new RecordingSink();
         var replicator = new InMemoryResourceLeaseReplicator([sink], startingSequence: 10);
@@ -29,8 +29,8 @@ public sealed class ResourceLeaseReplicationTests
         Assert.Equal(11L, sink.Events[0].SequenceNumber);
     }
 
-    [Fact]
-    public async Task CheckpointingSink_DeduplicatesSequences()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask CheckpointingSink_DeduplicatesSequences()
     {
         var sink = new CountingCheckpointSink();
 
@@ -41,8 +41,8 @@ public sealed class ResourceLeaseReplicationTests
         Assert.Equal(new[] { 5L, 6L }, sink.AppliedSequences);
     }
 
-    [Fact]
-    public async Task DeterministicCoordinator_IgnoresDuplicateEffects()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask DeterministicCoordinator_IgnoresDuplicateEffects()
     {
         var coordinator = new DeterministicResourceLeaseCoordinator(new ResourceLeaseDeterministicOptions
         {

@@ -19,7 +19,7 @@ public class UnaryClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CallAsync_Success_Encodes_InvokesOutbound_Decodes()
+    public async ValueTask CallAsync_Success_Encodes_InvokesOutbound_Decodes()
     {
         var outbound = Substitute.For<IUnaryOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -48,7 +48,7 @@ public class UnaryClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CallAsync_Encode_Failure_Propagates()
+    public async ValueTask CallAsync_Encode_Failure_Propagates()
     {
         var outbound = Substitute.For<IUnaryOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -65,7 +65,7 @@ public class UnaryClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CallAsync_Outbound_Failure_Propagates()
+    public async ValueTask CallAsync_Outbound_Failure_Propagates()
     {
         var outbound = Substitute.For<IUnaryOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();
@@ -83,7 +83,7 @@ public class UnaryClientTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task CallAsync_Decode_Failure_Propagates()
+    public async ValueTask CallAsync_Decode_Failure_Propagates()
     {
         var outbound = Substitute.For<IUnaryOutbound>();
         var codec = Substitute.For<ICodec<Req, Res>>();

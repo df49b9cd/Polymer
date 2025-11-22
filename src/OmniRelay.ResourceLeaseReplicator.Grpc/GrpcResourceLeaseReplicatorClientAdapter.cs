@@ -4,7 +4,7 @@ namespace OmniRelay.Dispatcher;
 
 public interface IGrpcResourceLeaseReplicatorClient
 {
-    Task PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken);
+    ValueTask PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken);
 }
 
 internal sealed class GrpcResourceLeaseReplicatorClientAdapter(
@@ -13,7 +13,7 @@ internal sealed class GrpcResourceLeaseReplicatorClientAdapter(
 {
     private readonly ResourceLeaseReplicatorGrpc.ResourceLeaseReplicatorGrpcClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
-    public async Task PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
+    public async ValueTask PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
     {
         await _client.PublishAsync(message, cancellationToken: cancellationToken).ConfigureAwait(false);
     }

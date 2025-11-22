@@ -9,7 +9,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class ProcedureBuildersTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void UnaryProcedureBuilder_BuildsSpecWithEncodingAndAliases()
     {
         var middleware = Substitute.For<IUnaryInboundMiddleware>();
@@ -29,7 +29,7 @@ public class ProcedureBuildersTests
         Assert.Equal(new[] { "alias-one", "alias-two", "alias-three" }, spec.Aliases);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void OnewayProcedureBuilder_WithoutHandler_Throws()
     {
         var builder = new OnewayProcedureBuilder();
@@ -37,7 +37,7 @@ public class ProcedureBuildersTests
         Assert.Throws<InvalidOperationException>(() => builder.Build("svc", "name"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void StreamProcedureBuilder_WithMetadata_StoresOnSpec()
     {
         var metadata = new StreamIntrospectionMetadata(new StreamChannelMetadata(StreamDirection.Server, "bounded", 5, true));
@@ -50,7 +50,7 @@ public class ProcedureBuildersTests
         Assert.Equal(metadata, spec.Metadata);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ClientStreamProcedureBuilder_WithMetadata_StoresOnSpec()
     {
         var metadata = new ClientStreamIntrospectionMetadata(new StreamChannelMetadata(StreamDirection.Client, "bounded", 10, false), false);
@@ -63,7 +63,7 @@ public class ProcedureBuildersTests
         Assert.Equal(metadata, spec.Metadata);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void DuplexProcedureBuilder_WithMetadata_StoresOnSpec()
     {
         var metadata = new DuplexIntrospectionMetadata(

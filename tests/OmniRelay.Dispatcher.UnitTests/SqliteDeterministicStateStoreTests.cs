@@ -6,7 +6,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public sealed class SqliteDeterministicStateStoreTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryAdd_OnlySucceedsForFirstWriter()
     {
         using var temp = new TempFile();

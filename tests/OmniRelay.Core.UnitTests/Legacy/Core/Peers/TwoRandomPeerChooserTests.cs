@@ -6,8 +6,8 @@ namespace OmniRelay.Tests.Core.Peers;
 
 public sealed class TwoRandomPeerChooserTests
 {
-    [Fact]
-    public async Task AcquireAsync_ChoosesAvailablePeer()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask AcquireAsync_ChoosesAvailablePeer()
     {
         var busy = new TestPeer("busy", inflight: 5);
         var idle = new TestPeer("idle", inflight: 0);
@@ -20,8 +20,8 @@ public sealed class TwoRandomPeerChooserTests
         await lease.Value.DisposeAsync();
     }
 
-    [Fact]
-    public async Task AcquireAsync_WhenSinglePeer_ReturnsLease()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask AcquireAsync_WhenSinglePeer_ReturnsLease()
     {
         var peer = new TestPeer("single");
         var chooser = new TwoRandomPeerChooser([peer], new DeterministicRandom(0));

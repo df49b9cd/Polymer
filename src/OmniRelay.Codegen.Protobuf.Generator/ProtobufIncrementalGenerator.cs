@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Loader;
+using Google.Protobuf.Compiler;
 using Google.Protobuf.Reflection;
 using Microsoft.CodeAnalysis;
 using OmniRelay.Codegen.Protobuf.Core;
@@ -38,35 +39,52 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
             .Select((file, _) => ReadDescriptorSet(file.Path))
             .Where(static result => result is not null);
 
-        context.RegisterSourceOutput(descriptorSets, (spc, result) =>
+        var compilationAndDescriptors = context.CompilationProvider.Combine(descriptorSets.Collect());
+
+        context.RegisterSourceOutput(compilationAndDescriptors, (spc, pair) =>
         {
-            if (result is null)
-            {
-                return;
-            }
+            var compilation = pair.Left;
+            var results = pair.Right;
 
-            if (result.ReadException is not null)
+            foreach (var result in results)
             {
-                spc.ReportDiagnostic(Diagnostic.Create(DescriptorReadError, Location.None, result.Path, result.ReadException.Message));
-                return;
-            }
+                if (result is null)
+                {
+                    continue;
+                }
 
-            if (result.ParseException is not null)
-            {
-                spc.ReportDiagnostic(Diagnostic.Create(DescriptorParseError, Location.None, result.Path, result.ParseException.Message));
-                return;
-            }
+                if (result.ReadException is not null)
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(DescriptorReadError, Location.None, result.Path, result.ReadException.Message));
+                    continue;
+                }
 
-            if (result.DescriptorSet is null)
-            {
-                return;
-            }
+                if (result.ParseException is not null)
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(DescriptorParseError, Location.None, result.Path, result.ParseException.Message));
+                    continue;
+                }
 
-            var generator = new OmniRelayProtobufGenerator();
-            foreach (var file in OmniRelayProtobufGenerator.GenerateFiles(result.DescriptorSet))
-            {
-                var hintName = CreateHintName(result.Path, file.Name);
-                spc.AddSource(hintName, file.Content);
+                if (result.DescriptorSet is null)
+                {
+                    continue;
+                }
+
+                var request = BuildCodeGeneratorRequest(result.DescriptorSet);
+
+                var response = OmniRelayProtobufGenerator.Generate(request);
+                foreach (var file in response.File)
+                {
+                    var hintName = CreateHintName(result.Path, file.Name);
+                    spc.AddSource(hintName, file.Content);
+                }
+
+                // Emit CLI payload registry wiring only when the consuming compilation references the CLI registry.
+                if (compilation.GetTypeByMetadataName("OmniRelay.Cli.Core.ProtobufPayloadRegistry") is not null)
+                {
+                    var registration = ProtobufCliRegistrationEmitter.Emit(result.DescriptorSet, result.Path);
+                    spc.AddSource(registration.HintName, registration.Source);
+                }
             }
         });
     }
@@ -123,6 +141,22 @@ public sealed class ProtobufIncrementalGenerator : IIncrementalGenerator
             .Replace('\\', '_')
             .Replace('.', '_');
         return $"{descriptorName}_{sanitized}.g.cs";
+    }
+
+    private static CodeGeneratorRequest BuildCodeGeneratorRequest(FileDescriptorSet descriptorSet)
+    {
+        var request = new CodeGeneratorRequest();
+        request.ProtoFile.AddRange(descriptorSet.File);
+
+        foreach (var file in descriptorSet.File)
+        {
+            if (!string.IsNullOrWhiteSpace(file.Name))
+            {
+                request.FileToGenerate.Add(file.Name);
+            }
+        }
+
+        return request;
     }
 
     private sealed record DescriptorResult(

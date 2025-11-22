@@ -1,30 +1,39 @@
+You are an expert C#/.NET developer. You help with .NET tasks by giving clean, well-designed, error-free, fast, secure, readable, and maintainable code that follows .NET conventions. You also give insights, best practices, general software design tips, and testing best practices.
+
 # Repository Guidelines
 
+## Important Notes
+- We must be as performant and efficient as possible due to our focus on Native AOT. Therefore read and understand the 'dotnet-performance-guidelines.md' located in docs/knowledge-base.
+- Always, keep the docs/knowledge-base documents updated and current.
+
 ## Project Structure & Module Organization
-OmniRelay.slnx groups runtime code under `src/`, with `src/OmniRelay` producing the dispatcher/runtime DLL, `src/OmniRelay.Configuration` shipping DI helpers, and `src/OmniRelay.Cli` plus the `src/OmniRelay.Codegen.*` and `src/OmniRelay.ResourceLeaseReplicator.*` folders covering tooling and optional services.
-Matching unit, feature, integration, hyperscale, and yab interop suites sit in `tests/OmniRelay.*`, sharing fixtures from `tests/TestSupport`.
-Reference docs and RFC-style notes live in `docs/`, runnable walkthroughs land in `samples/`, and repository artwork is kept in `branding/`.
-Keep new assets inside those buckets so OmniRelay stays navigable.
+- `src/` houses all production code; core runtime lives in `src/OmniRelay`, CLI in `src/OmniRelay.Cli`, and codegen in `src/OmniRelay.Codegen.*`.
+- `tests/` mirrors those areas with xUnit projects (`OmniRelay.Core.UnitTests`, `OmniRelay.Cli.UnitTests`, `OmniRelay.HyperscaleFeatureTests`, etc.). Interop and yab suites sit in `tests/OmniRelay.YabInterop`.
+- `docs/` contains architecture notes and guidance (AOT, diagnostics, samples).
+- `eng/` holds repeatable scripts (`run-ci.sh`, `run-aot-publish.sh`, `run-hyperscale-smoke.sh`). Docker recipes live in `docker/`. Runnable samples are under `samples/`.
 
 ## Build, Test, and Development Commands
-`global.json` pins the .NET SDK to `10.0.100`, so install that preview before building.
-Key loops:
-- `dotnet build OmniRelay.slnx` – compiles every library, CLI, and analyzer with Nullable + analyzers enabled via `Directory.Build.props`.
-- `dotnet test tests/OmniRelay.Tests/OmniRelay.Tests.csproj` – exercises the aggregate xUnit suite; ensure localhost HTTP/2 is available for gRPC flows.
-- `dotnet pack src/OmniRelay.Cli/OmniRelay.Cli.csproj -c Release -o artifacts/cli` – produces a local CLI NuGet; `dotnet tool install --global OmniRelay.Cli --add-source artifacts/cli` installs it for smoke testing.
+- Restore/build solution: `dotnet build OmniRelay.slnx` (targets .NET 10; respects Directory.Build.* settings).
+- Fast unit slice: `dotnet test tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj`.
+- Full CI parity: `./eng/run-ci.sh` (wraps restore + build + primary test sets).
+- Hyperscale/interop container smoke: `docker build -f docker/Dockerfile.hyperscale.ci .` (invokes `eng/run-hyperscale-smoke.sh` internally).
+- Native AOT publish: `./eng/run-aot-publish.sh [rid] [Configuration]` (defaults to `linux-x64 Release`).
+- CLI development: `dotnet run --project src/OmniRelay.Cli -- --help` for local validation flows.
 
 ## Coding Style & Naming Conventions
-`.editorconfig` enforces UTF-8, trimmed trailing whitespace, and spaces everywhere (4 for `.cs`/`.sh`, 2 for JSON, YAML, props, and resx).
-Declare file-scoped namespaces, always keep braces, and stick with implicit usings and nullable reference types that `Directory.Build.props` enables.
-Follow the `OmniRelay.<Feature>` pattern for projects and namespaces; mirror it in test assemblies (`OmniRelay.<Feature>.UnitTests`, etc.).
-Depend on the centrally managed package versions in `Directory.Packages.props` rather than adding ad-hoc numbers.
+- C# uses spaces with `indent_size = 4`; file-scoped namespaces; System usings sorted first; braces required even for single statements; newline before braces.
+- Prefer `var` for locals; UTF-8 with final newline; trim trailing whitespace.
+- Namespaces and packages follow `OmniRelay.*`; public types/members in `PascalCase`, locals/fields in `camelCase`; async methods end with `Async`.
+- Keep configuration examples under `docs/` or `samples/`; avoid committing real secrets or environment-specific endpoints.
 
 ## Testing Guidelines
-All suites run on xUnit v3 with Shouldly assertions plus the `coverlet.collector`, so collect coverage with `dotnet test --collect:"XPlat Code Coverage"` when validating larger changes.
-Place scenario-specific tests in the matching folder (`tests/OmniRelay.Dispatcher.UnitTests`, `tests/OmniRelay.IntegrationTests`, `tests/OmniRelay.YabInterop`, etc.) and reuse helpers from `tests/TestSupport`.
-Tests that touch transports should use the provided `TestPortAllocator` and TLS factories to avoid flakiness.
+- Framework: xUnit across unit, integration, and feature suites. Typical naming: `*Tests.cs` for unit, `*FeatureTests` for broader coverage.
+- Run targeted filters with `dotnet test <proj> --filter Category=<name>` when available; keep new tests deterministic (no external network).
+- CI reports coverage to Codecov; aim to cover new branches/edge cases when touching transports, middleware, or codecs.
+- For transport/interop changes, run `tests/OmniRelay.YabInterop` and the hyperscale Docker recipe before opening a PR.
 
 ## Commit & Pull Request Guidelines
-Recent history follows conventional prefixes (`feat:`, `fix:`, `test:`, `docs:`), so continue using `type: summary` subjects (e.g., `feat: Enhance TLS configuration with inline certificate data`).
-Reference the related issue or `todo.md` entry, describe behavioral changes and config migrations, and attach relevant `dotnet build`/`dotnet test` output or CLI screenshots.
-For PRs, include reproduction steps, note any new docs (`docs/reference/...`) or samples touched, and highlight rollout considerations such as required HTTP/2 support or certificate handling changes.
+- Follow the existing conventional-prefix style seen in history (`feat:`, `fix:`, `chore:`, `docs:`, `revert …`). Keep subject imperative and ≤72 characters; include scope in the body if helpful.
+- PRs should link issues/tickets, list user-facing changes and breaking notes, and quote key commands executed (e.g., `dotnet build OmniRelay.slnx; dotnet test …`).
+- Attach logs or screenshots for CLI/messages changes when output shape matters; update `docs/` or samples alongside behavior changes.
+- Before pushing, ensure `dotnet format`/IDE analyzers are clean per `.editorconfig` and that core/unit suites pass.***

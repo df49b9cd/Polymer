@@ -1,14 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+  <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA2007</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Hugo" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NSubstitute" />
-    <PackageReference Include="Shouldly" />
     <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -22,13 +25,16 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.ShardStore.ObjectStorage/OmniRelay.ShardStore.ObjectStorage.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.Diagnostics.Abstractions/OmniRelay.Diagnostics.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.Diagnostics.Runtime/OmniRelay.Diagnostics.Runtime.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../TestSupport/Http3FactAttribute.cs" Link="Support/Http3FactAttribute.cs" />
-    <Compile Include="../TestSupport/Http3TestHelper.cs" Link="Support/Http3TestHelper.cs" />
-    <Compile Include="../TestSupport/TestPortAllocator.cs" Link="Support/TestPortAllocator.cs" />
     <Compile Include="../TestSupport/Support/TestLogger.cs" Link="Support/TestLogger.cs" />
-    <Compile Include="../TestSupport/TestCertificateFactory.cs" Link="Support/TestCertificateFactory.cs" />
   </ItemGroup>
+
 </Project>

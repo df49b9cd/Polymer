@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using OmniRelay.ControlPlane.Throttling;
 using OmniRelay.Core;
 using Xunit;
 
@@ -14,8 +15,8 @@ public sealed class ResourceLeaseBackpressureListenerTests
     private static ResourceLeaseBackpressureSignal ClearedSignal(long pending = 2) =>
         new(false, pending, DateTimeOffset.UtcNow, HighWatermark: 8, LowWatermark: 4);
 
-    [Fact]
-    public async Task RateLimitingListener_TogglesGate()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RateLimitingListener_TogglesGate()
     {
         await using var normal = new ConcurrencyLimiter(new ConcurrencyLimiterOptions
         {
@@ -45,8 +46,8 @@ public sealed class ResourceLeaseBackpressureListenerTests
         Assert.Same(normal, gate.SelectLimiter(meta));
     }
 
-    [Fact]
-    public async Task DiagnosticsListener_StoresLatestAndStreams()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask DiagnosticsListener_StoresLatestAndStreams()
     {
         var listener = new ResourceLeaseBackpressureDiagnosticsListener(historyCapacity: 4);
         Assert.Null(listener.Latest);

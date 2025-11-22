@@ -8,8 +8,8 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class DispatcherJsonExtensionsTests
 {
-    [Fact]
-    public async Task RegisterJsonUnary_RegistersProcedureAndCodec()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RegisterJsonUnary_RegistersProcedureAndCodec()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));
 
@@ -31,7 +31,7 @@ public class DispatcherJsonExtensionsTests
         Assert.Equal("custom/json", codec.Encoding);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateJsonClient_RegistersOutboundCodecWhenMissing()
     {
         var options = new DispatcherOptions("svc");
@@ -48,7 +48,7 @@ public class DispatcherJsonExtensionsTests
         Assert.True(dispatcher.Codecs.TryResolve<JsonDocument, JsonDocument>(ProcedureCodecScope.Outbound, "downstream", "alias", ProcedureKind.Unary, out _));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateJsonClient_ReusesExistingCodec()
     {
         var options = new DispatcherOptions("svc");
@@ -62,7 +62,7 @@ public class DispatcherJsonExtensionsTests
         Assert.IsType<Core.Clients.UnaryClient<JsonDocument, JsonDocument>>(client);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateJsonClient_WithCustomCodecRegistration_IsIdempotent()
     {
         var options = new DispatcherOptions("svc");

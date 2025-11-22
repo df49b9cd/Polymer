@@ -6,7 +6,7 @@ namespace OmniRelay.Tests.Errors;
 
 public class OmniRelayErrorsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FromException_CancellationProducesCancelledStatus()
     {
         using var cts = new CancellationTokenSource();
@@ -23,7 +23,7 @@ public class OmniRelayErrorsTests
         OmniRelayErrorAdapter.ToStatus(result.Error!).ShouldBe(OmniRelayStatusCode.Cancelled);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FromError_PreservesMetadata()
     {
         var error = OmniRelayErrorAdapter.FromStatus(
@@ -41,7 +41,7 @@ public class OmniRelayErrorsTests
         scope.ShouldBe("read");
     }
 
-    [Theory]
+    [Theory(Timeout = TestTimeouts.Default)]
     [InlineData(OmniRelayStatusCode.InvalidArgument, OmniRelayFaultType.Client)]
     [InlineData(OmniRelayStatusCode.Internal, OmniRelayFaultType.Server)]
     [InlineData(OmniRelayStatusCode.Unimplemented, OmniRelayFaultType.Server)]
@@ -49,7 +49,7 @@ public class OmniRelayErrorsTests
     [InlineData(OmniRelayStatusCode.Unknown, OmniRelayFaultType.Unknown)]
     public void GetFaultType_ReturnsExpectedClassification(OmniRelayStatusCode status, OmniRelayFaultType expected) => OmniRelayErrors.GetFaultType(status).ShouldBe(expected);
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ToResult_StatusProducesFailure()
     {
         var result = OmniRelayErrors.ToResult<string>(OmniRelayStatusCode.Unavailable, "service unavailable");
@@ -60,7 +60,7 @@ public class OmniRelayErrorsTests
         error.Message.ShouldBe("service unavailable");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void EnsureTransport_RewritesMetadata()
     {
         var exception = OmniRelayErrors.FromException(new TimeoutException("deadline"), transport: "http");
@@ -74,7 +74,7 @@ public class OmniRelayErrorsTests
         newTransport.ShouldBe("grpc");
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void FromStatus_PopulatesFaultAndRetryableMetadata()
     {
         var error = OmniRelayErrorAdapter.FromStatus(OmniRelayStatusCode.Unavailable, "unavailable");
@@ -85,7 +85,7 @@ public class OmniRelayErrorsTests
         retryable.ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void IsRetryable_RespectsErrorMetadataOverride()
     {
         var error = Error.From("unavailable", "unavailable")

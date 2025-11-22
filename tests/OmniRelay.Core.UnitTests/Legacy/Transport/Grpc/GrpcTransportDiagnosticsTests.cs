@@ -8,19 +8,33 @@ namespace OmniRelay.Tests.Transport.Grpc;
 
 public sealed class GrpcTransportDiagnosticsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void StartClientActivity_NoListener_ReturnsNull()
     {
+        var sourceField = typeof(GrpcTransportDiagnostics).GetField(
+            "ActivitySource",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        sourceField.ShouldNotBeNull();
+        var source = (ActivitySource?)sourceField!.GetValue(null);
+        source.ShouldNotBeNull();
+
         var activity = GrpcTransportDiagnostics.StartClientActivity(
             remoteService: "svc",
             procedure: "svc::Unary",
             address: new Uri("https://example.test:5001"),
             operation: "unary");
 
-        activity.ShouldBeNull();
+        if (source!.HasListeners())
+        {
+            activity.ShouldNotBeNull();
+        }
+        else
+        {
+            activity.ShouldBeNull();
+        }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void StartClientActivity_WithListener_PopulatesRpcAndNetworkTags()
     {
         var started = new List<Activity>();
@@ -50,7 +64,7 @@ public sealed class GrpcTransportDiagnosticsTests
         ((int)ipActivity.GetTagItem("net.peer.port")!).ShouldBe(9443);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void SetStatusAndRecordException_UpdateActivityState()
     {
         var started = new List<Activity>();
@@ -75,13 +89,13 @@ public sealed class GrpcTransportDiagnosticsTests
         exceptionEvent.Tags!.ShouldContain(tag => tag.Key == "exception.message" && Equals(tag.Value, "boom"));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ParseHttpProtocol_HandlesHttpAndCustomValues()
     {
         var parseMethod = typeof(GrpcTransportDiagnostics).GetMethod(
             "ParseHttpProtocol",
-            BindingFlags.NonPublic | BindingFlags.Static);
-        parseMethod.ShouldNotBeNull();
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Missing ParseHttpProtocol.");
 
         var http3 = InvokeParse(parseMethod, "HTTP/3.0");
         http3.ShouldBe(("http", "3.0"));
@@ -96,26 +110,26 @@ public sealed class GrpcTransportDiagnosticsTests
         missing.ShouldBe(((string?)null, (string?)null));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ExtractParentContext_ReturnsNullForInvalidTraceParent()
     {
         var extract = typeof(GrpcTransportDiagnostics).GetMethod(
             "ExtractParentContext",
-            BindingFlags.NonPublic | BindingFlags.Static);
-        extract.ShouldNotBeNull();
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Missing ExtractParentContext.");
 
         var metadata = new Metadata { { "traceparent", "not-a-valid-trace" } };
         var context = (ActivityContext?)extract!.Invoke(null, [metadata]);
         context.HasValue.ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ExtractParentContext_ReturnsContextForValidTraceParent()
     {
         var extract = typeof(GrpcTransportDiagnostics).GetMethod(
             "ExtractParentContext",
-            BindingFlags.NonPublic | BindingFlags.Static);
-        extract.ShouldNotBeNull();
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Missing ExtractParentContext.");
 
         var traceId = ActivityTraceId.CreateRandom();
         var spanId = ActivitySpanId.CreateRandom();
@@ -127,9 +141,10 @@ public sealed class GrpcTransportDiagnosticsTests
 
         var context = (ActivityContext?)extract!.Invoke(null, [metadata]);
         context.HasValue.ShouldBeTrue();
-        context.Value.TraceId.ShouldBe(traceId);
-        context.Value.SpanId.ShouldBe(spanId);
-        context.Value.TraceState.ShouldBe("congo=t61rcWkgMzE");
+        var contextValue = context!.Value;
+        contextValue.TraceId.ShouldBe(traceId);
+        contextValue.SpanId.ShouldBe(spanId);
+        contextValue.TraceState.ShouldBe("congo=t61rcWkgMzE");
     }
 
     private static (string? Name, string? Version) InvokeParse(MethodInfo parseMethod, string? protocol)

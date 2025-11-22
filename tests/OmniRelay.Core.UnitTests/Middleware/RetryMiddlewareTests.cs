@@ -13,7 +13,7 @@ public class RetryMiddlewareTests
     private static IRequest<ReadOnlyMemory<byte>> MakeReq(RequestMeta meta) => new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ShouldRetryRequest_False_DoesNotRetry()
+    public async ValueTask ShouldRetryRequest_False_DoesNotRetry()
     {
         var options = new RetryOptions
         {
@@ -34,7 +34,7 @@ public class RetryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ShouldRetryError_False_DoesNotRetry()
+    public async ValueTask ShouldRetryError_False_DoesNotRetry()
     {
         var options = new RetryOptions
         {
@@ -55,7 +55,7 @@ public class RetryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task RetriesUntilSuccess_WhenPolicyAllows()
+    public async ValueTask RetriesUntilSuccess_WhenPolicyAllows()
     {
         var options = new RetryOptions
         {
@@ -83,7 +83,7 @@ public class RetryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task NonRetryableError_ReturnsImmediately()
+    public async ValueTask NonRetryableError_ReturnsImmediately()
     {
         var options = new RetryOptions
         {
@@ -106,7 +106,7 @@ public class RetryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task PolicySelector_OverridesDefaultPolicy()
+    public async ValueTask PolicySelector_OverridesDefaultPolicy()
     {
         var overridePolicy = ResultExecutionPolicy.None.WithRetry(ResultRetryPolicy.FixedDelay(maxAttempts: 2, delay: TimeSpan.Zero));
         var options = new RetryOptions
@@ -131,7 +131,7 @@ public class RetryMiddlewareTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task ShouldRetryError_OverridesDefaultRetryability()
+    public async ValueTask ShouldRetryError_OverridesDefaultRetryability()
     {
         var options = new RetryOptions
         {

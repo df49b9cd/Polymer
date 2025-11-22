@@ -32,7 +32,7 @@ public class GrpcTransportIntegrationTests
     private static readonly TimeSpan DeadlineTolerance = TimeSpan.FromSeconds(5);
 
     [Fact(Timeout = 60_000)]
-    public async Task Http2_CoversAllRpcShapes_WithMetadataAndInterceptors()
+    public async ValueTask Http2_CoversAllRpcShapes_WithMetadataAndInterceptors()
     {
         var port = TestPortAllocator.GetRandomPort();
         var address = new Uri($"http://127.0.0.1:{port}");
@@ -97,7 +97,7 @@ public class GrpcTransportIntegrationTests
     }
 
     [Http3Fact(Timeout = 90_000)]
-    public async Task Http3_CoversAllRpcShapes_WithGeneratedService()
+    public async ValueTask Http3_CoversAllRpcShapes_WithGeneratedService()
     {
         if (!QuicListener.IsSupported)
         {
@@ -203,7 +203,7 @@ public class GrpcTransportIntegrationTests
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task TlsMutualAuthAndAlpnPoliciesAreEnforced()
+    public async ValueTask TlsMutualAuthAndAlpnPoliciesAreEnforced()
     {
         using var serverCert = TestCertificateFactory.CreateLoopbackCertificate("CN=grpc-mtls-server");
         using var clientCert = TestCertificateFactory.CreateLoopbackCertificate("CN=grpc-mtls-client");
@@ -295,7 +295,7 @@ public class GrpcTransportIntegrationTests
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task Http3Runtime_Tuning_EmitsInformationLog()
+    public async ValueTask Http3Runtime_Tuning_EmitsInformationLog()
     {
         if (!QuicListener.IsSupported)
         {

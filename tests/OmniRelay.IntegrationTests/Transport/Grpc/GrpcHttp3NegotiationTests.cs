@@ -28,7 +28,7 @@ namespace OmniRelay.IntegrationTests.Transport.Grpc;
 public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3Enabled_ExecutesInterceptorsOverHttp3()
+    public async ValueTask GrpcInbound_WithHttp3Enabled_ExecutesInterceptorsOverHttp3()
     {
         if (!QuicListener.IsSupported)
         {
@@ -120,7 +120,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3Enabled_RunsTransportInterceptorsOverHttp3()
+    public async ValueTask GrpcInbound_WithHttp3Enabled_RunsTransportInterceptorsOverHttp3()
     {
         if (!QuicListener.IsSupported)
         {
@@ -201,7 +201,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3Disabled_FallsBackToHttp2()
+    public async ValueTask GrpcInbound_WithHttp3Disabled_FallsBackToHttp2()
     {
         if (!QuicListener.IsSupported)
         {
@@ -287,7 +287,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3_ServerStreamHandlesLargePayload()
+    public async ValueTask GrpcInbound_WithHttp3_ServerStreamHandlesLargePayload()
     {
         if (!QuicListener.IsSupported)
         {
@@ -364,7 +364,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3_DuplexHandlesLargePayloads()
+    public async ValueTask GrpcInbound_WithHttp3_DuplexHandlesLargePayloads()
     {
         if (!QuicListener.IsSupported)
         {
@@ -441,7 +441,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 60_000)]
-    public async Task GrpcInbound_WithHttp3_KeepAliveMaintainsDuplex()
+    public async ValueTask GrpcInbound_WithHttp3_KeepAliveMaintainsDuplex()
     {
         if (!QuicListener.IsSupported)
         {
@@ -530,7 +530,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3Enabled_DrainRejectsNewCallsWithRetryAfter()
+    public async ValueTask GrpcInbound_WithHttp3Enabled_DrainRejectsNewCallsWithRetryAfter()
     {
         if (!QuicListener.IsSupported)
         {
@@ -624,7 +624,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3Enabled_CompressionNegotiatesGzip()
+    public async ValueTask GrpcInbound_WithHttp3Enabled_CompressionNegotiatesGzip()
     {
         if (!QuicListener.IsSupported)
         {
@@ -713,7 +713,7 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
     }
 
     [Http3Fact(Timeout = 45_000)]
-    public async Task GrpcInbound_WithHttp3Disabled_CompressionNegotiatesGzip()
+    public async ValueTask GrpcInbound_WithHttp3Disabled_CompressionNegotiatesGzip()
     {
         using var certificate = TestCertificateFactory.CreateLoopbackCertificate("CN=omnirelay-grpc-http2-compression");
 

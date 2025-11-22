@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Core.Leadership;
 using OmniRelay.HyperscaleFeatureTests.Infrastructure;
-using OmniRelay.Tests;
 using Xunit;
 
 namespace OmniRelay.HyperscaleFeatureTests.Scenarios;
@@ -32,7 +31,7 @@ public sealed class LeadershipHyperscaleFeatureTests : IAsyncLifetime
             ElectionBackoff = TimeSpan.FromMilliseconds(250),
             MaxElectionWindow = TimeSpan.FromSeconds(5),
             ClusterId = "hyperscale-validation",
-            MeshVersion = "disc-002-feature-tests"
+            MeshVersion = "mesh-leadership-feature-tests"
         };
 
         _cluster = new HyperscaleLeadershipCluster(_store, _options, _loggerFactory);
@@ -50,8 +49,8 @@ public sealed class LeadershipHyperscaleFeatureTests : IAsyncLifetime
         await _cluster.DisposeAsync();
     }
 
-    [Fact(DisplayName = "Leadership cluster maintains exclusive leaders per scope and fails over inside SLA")]
-    public async Task LeadershipCluster_MeetsElectionSlaUnderChurnAsync()
+    [Fact(DisplayName = "Leadership cluster maintains exclusive leaders per scope and fails over inside SLA", Timeout = TestTimeouts.Default)]
+    public async ValueTask LeadershipCluster_MeetsElectionSlaUnderChurnAsync()
     {
         var ct = TestContext.Current.CancellationToken;
         await _cluster.WaitForStableLeadershipAsync(TimeSpan.FromSeconds(10), ct);
@@ -85,8 +84,8 @@ public sealed class LeadershipHyperscaleFeatureTests : IAsyncLifetime
         }
     }
 
-    [Fact(DisplayName = "Leadership event streams stay consistent during watcher churn and registry lag")]
-    public async Task LeadershipStreams_WithWatcherChurnRemainConsistentAsync()
+    [Fact(DisplayName = "Leadership event streams stay consistent during watcher churn and registry lag", Timeout = TestTimeouts.Default)]
+    public async ValueTask LeadershipStreams_WithWatcherChurnRemainConsistentAsync()
     {
         var ct = TestContext.Current.CancellationToken;
         await _cluster.WaitForStableLeadershipAsync(TimeSpan.FromSeconds(10), ct);

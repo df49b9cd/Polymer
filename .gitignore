@@ -422,5 +422,5 @@ FodyWeavers.xsd
 *.msp
 
 # Polymer code generation diagnostics
-tests/OmniRelay.Tests/Generated/TestService.actual.g.cs
-tests/OmniRelay.Tests/Generated/TestService.incremental.g.cs
+tests/OmniRelay.Codegen.Tests/Generated/TestService.actual.g.cs
+tests/OmniRelay.Codegen.Tests/Generated/TestService.incremental.g.cs

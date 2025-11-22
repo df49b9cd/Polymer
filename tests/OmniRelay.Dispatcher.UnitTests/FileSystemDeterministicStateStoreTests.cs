@@ -1,3 +1,4 @@
+using System.Linq;
 using Hugo;
 using Xunit;
 
@@ -5,7 +6,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public sealed class FileSystemDeterministicStateStoreTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Set_OverwritesExistingRecords()
     {
         using var temp = new TempDirectory();
@@ -21,7 +22,7 @@ public sealed class FileSystemDeterministicStateStoreTests
         Assert.Equal(2, fetched.Version);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void TryAdd_ReturnsFalseWhenFileExists()
     {
         using var temp = new TempDirectory();
@@ -30,6 +31,22 @@ public sealed class FileSystemDeterministicStateStoreTests
 
         Assert.True(store.TryAdd("key", record));
         Assert.False(store.TryAdd("key", record));
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public void Set_And_Get_Handle_Long_Keys()
+    {
+        using var temp = new TempDirectory();
+        var store = new FileSystemDeterministicStateStore(temp.Path);
+
+        var longKey = new string('k', 2_048);
+        var payload = Enumerable.Range(0, 256).Select(static i => (byte)i).ToArray();
+        var record = new DeterministicRecord("kind", 3, payload, DateTimeOffset.UtcNow);
+
+        store.Set(longKey, record);
+
+        Assert.True(store.TryGet(longKey, out var fetched));
+        Assert.Equal(payload, fetched.Payload.ToArray());
     }
 
     private sealed class TempDirectory : IDisposable

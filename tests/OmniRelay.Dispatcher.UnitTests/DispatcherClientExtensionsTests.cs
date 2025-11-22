@@ -8,7 +8,7 @@ namespace OmniRelay.Dispatcher.UnitTests;
 
 public class DispatcherClientExtensionsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateUnaryClient_WithCodec_ResolvesOutbound()
     {
         var dispatcher = CreateDispatcher(out var unaryOutbound);
@@ -20,7 +20,7 @@ public class DispatcherClientExtensionsTests
         Assert.False(unaryOutbound.ReceivedCalls().Any());
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateUnaryClient_WithRegisteredCodec_UsesRegistry()
     {
         var dispatcher = CreateDispatcher(out _);
@@ -32,7 +32,7 @@ public class DispatcherClientExtensionsTests
         Assert.IsType<UnaryClient<string, string>>(client);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateDuplexClient_WhenOutboundMissing_Throws()
     {
         var dispatcher = new Dispatcher(new DispatcherOptions("svc"));

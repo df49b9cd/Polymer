@@ -1,0 +1,13 @@
+# Banned APIs for AOT/perf safety (trim-friendly, no dynamic/runtime codegen)
+System.Reflection.Assembly.Load
+System.Reflection.Assembly.LoadFrom
+System.Type.GetType
+System.Activator.CreateInstance
+System.Reflection.Emit
+System.Reflection.MethodInfo.Invoke
+System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+System.Runtime.Remoting
+System.AppDomain
+System.Dynamic.ExpandoObject
+Microsoft.CSharp.CSharpCodeProvider
+System.Linq.Expressions.Expression.Compile

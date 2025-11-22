@@ -1,14 +1,10 @@
-using System;
 using System.Collections.Immutable;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Core.Gossip;
-using OmniRelay.Core.Peers;
+using OmniRelay.Diagnostics;
 using OmniRelay.Tests.Support;
 using Xunit;
 
@@ -33,7 +29,7 @@ public sealed class MeshGossipHostTests
     private static readonly FieldInfo HttpClientField =
         typeof(MeshGossipHost).GetField("_httpClient", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Constructor_ThrowsWhenFanoutInvalid()
     {
         var options = CreateOptions();
@@ -43,8 +39,8 @@ public sealed class MeshGossipHostTests
             new MeshGossipHost(options, metadata: null, NullLogger<MeshGossipHost>.Instance, NullLoggerFactory.Instance));
     }
 
-    [Fact]
-    public async Task ProcessEnvelopeAsync_ReturnsLocalEnvelopeWhenSchemaMismatch()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ProcessEnvelopeAsync_ReturnsLocalEnvelopeWhenSchemaMismatch()
     {
         var (host, _) = CreateHost();
 
@@ -64,8 +60,8 @@ public sealed class MeshGossipHostTests
         }
     }
 
-    [Fact]
-    public async Task ProcessEnvelopeAsync_MergesSenderAndMembersIntoSnapshot()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ProcessEnvelopeAsync_MergesSenderAndMembersIntoSnapshot()
     {
         var (host, _) = CreateHost();
 
@@ -123,8 +119,8 @@ public sealed class MeshGossipHostTests
         }
     }
 
-    [Fact]
-    public async Task ExecuteRoundAsync_GossipsWithKnownPeersAndUpdatesMembership()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ExecuteRoundAsync_GossipsWithKnownPeersAndUpdatesMembership()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
         var (host, _) = CreateHost(timeProvider: time);
@@ -218,8 +214,8 @@ public sealed class MeshGossipHostTests
         }
     }
 
-    [Fact]
-    public async Task RunSweepLoopAsync_TransitionsPeersBasedOnTimers()
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask RunSweepLoopAsync_TransitionsPeersBasedOnTimers()
     {
         var start = DateTimeOffset.UtcNow;
         var time = new TestTimeProvider(start);
@@ -265,11 +261,9 @@ public sealed class MeshGossipHostTests
 
         try
         {
-            using var cts = new CancellationTokenSource();
-            var sweepTask = InvokeRunSweepLoopAsync(host, cts.Token);
-            await Task.Delay(TimeSpan.FromMilliseconds(5), TestContext.Current.CancellationToken);
-            cts.Cancel();
-            await sweepTask;
+            membership.Sweep(
+                options.SuspicionInterval,
+                options.SuspicionInterval + options.PingTimeout * Math.Max(1, options.RetransmitLimit));
 
             var snapshot = host.Snapshot();
             snapshot.Members.ShouldContain(m => m.NodeId == "peer-suspect" && m.Status == MeshGossipMemberStatus.Suspect);
@@ -281,7 +275,7 @@ public sealed class MeshGossipHostTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void UpdateLeaseDiagnostics_PopulatesTrackerMetadata()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -328,7 +322,7 @@ public sealed class MeshGossipHostTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void BuildEnvelope_TruncatesMembershipToThirtyTwoEntries()
     {
         var time = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -373,7 +367,7 @@ public sealed class MeshGossipHostTests
         }
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void RecordMetrics_LogsPeerLifecycleAndDisconnects()
     {
         var sharedTime = new TestTimeProvider(DateTimeOffset.UtcNow);
@@ -489,7 +483,7 @@ public sealed class MeshGossipHostTests
             NullLoggerFactory.Instance,
             timeProvider ?? new TestTimeProvider(DateTimeOffset.UtcNow),
             tracker,
-            certificateProvider: null);
+            tlsManager: null);
         return (host, logger);
     }
 

@@ -1,23 +1,13 @@
-using System.Collections.Concurrent;
+using System.Buffers;
 using System.CommandLine;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using Google.Protobuf.WellKnownTypes;
 using Hugo;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using OmniRelay.Configuration;
-using OmniRelay.Core.Gossip;
+using OmniRelay.Cli.Core;
+using OmniRelay.Cli.Modules;
 using OmniRelay.Core;
-using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
@@ -26,43 +16,19 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Cli;
 
-[RequiresUnreferencedCode("OmniRelay CLI uses reflection-heavy utilities and is not trimming safe.")]
-[RequiresDynamicCode("OmniRelay CLI uses reflection-heavy utilities and is not AOT safe.")]
-public static class Program
+public static partial class Program
 {
-    private const string DefaultConfigSection = "omnirelay";
-    private const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
-    private const string DefaultControlPlaneUrl = "http://127.0.0.1:8080";
-    private static readonly JsonSerializerOptions PrettyJsonOptions = new(JsonSerializerDefaults.Web)
+    static Program()
     {
-        WriteIndented = true
-    };
-    private static readonly JsonSerializerOptions LeadershipJsonOptions = CreateLeadershipJsonOptions();
-    private static readonly IReadOnlyDictionary<string, FileDescriptor> WellKnownFileDescriptors = new Dictionary<string, FileDescriptor>(StringComparer.Ordinal)
-    {
-        ["google/protobuf/any.proto"] = AnyReflection.Descriptor,
-        ["google/protobuf/api.proto"] = ApiReflection.Descriptor,
-        ["google/protobuf/duration.proto"] = DurationReflection.Descriptor,
-        ["google/protobuf/empty.proto"] = EmptyReflection.Descriptor,
-        ["google/protobuf/field_mask.proto"] = FieldMaskReflection.Descriptor,
-        ["google/protobuf/source_context.proto"] = SourceContextReflection.Descriptor,
-        ["google/protobuf/struct.proto"] = StructReflection.Descriptor,
-        ["google/protobuf/timestamp.proto"] = TimestampReflection.Descriptor,
-        ["google/protobuf/type.proto"] = TypeReflection.Descriptor,
-        ["google/protobuf/wrappers.proto"] = WrappersReflection.Descriptor
-    };
-    private static MethodInfo? _fileDescriptorBuildFrom;
-    private static readonly ConcurrentDictionary<string, DescriptorCacheEntry> DescriptorCache = new(StringComparer.Ordinal);
-
-    private static JsonSerializerOptions CreateLeadershipJsonOptions()
-    {
-        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
-        {
-            PropertyNameCaseInsensitive = true
-        };
-        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-        return options;
+        ProtobufPayloadRegistration.RegisterGenerated();
+        ProtobufPayloadRegistration.RegisterManualEncoders();
     }
+
+    internal const string DefaultConfigSection = "omnirelay";
+    internal const string DefaultIntrospectionUrl = "http://127.0.0.1:8080/omnirelay/introspect";
+    internal const int PrettyPrintLimitBytes = 512 * 1024; // avoid large buffering/LOH during pretty-print
+    private const int MaxPayloadBytes = 1 * 1024 * 1024;   // cap payload materialization to avoid LOH
+    private const int Base64ChunkBytes = 12 * 1024;        // multiple-of-3 chunk to stream base64 without LOH
 
     public static async Task<int> Main(string[] args)
     {
@@ -81,536 +47,18 @@ public static class Program
 
     internal static RootCommand BuildRootCommand()
     {
-        var root = new RootCommand("OmniRelay CLI providing configuration validation, dispatcher introspection, and ad-hoc request tooling.")
+        var root = new RootCommand("OmniRelay CLI providing configuration validation, dispatcher introspection, and ad-hoc request tooling.");
+
+        // Configure shared benchmarking hooks once for the process.
+        BenchmarkRunner.HttpClientFactory = static () => CliRuntime.HttpClientFactory.CreateClient();
+        BenchmarkRunner.GrpcInvokerFactory = static (addresses, service, runtime) => CliRuntime.GrpcInvokerFactory.Create(addresses, service, runtime);
+
+        foreach (var module in CliModules.GetDefaultModules())
         {
-            CreateConfigCommand(),
-            CreateServeCommand(),
-            CreateIntrospectCommand(),
-            CreateRequestCommand(),
-            CreateBenchmarkCommand(),
-            CreateScriptCommand(),
-            CreateMeshCommand()
-        };
+            root.Add(module.Build());
+        }
+
         return root;
-    }
-
-    internal static Command CreateConfigCommand()
-    {
-        var command = new Command("config", "Configuration utilities.")
-        {
-            CreateConfigValidateCommand(),
-            CreateConfigScaffoldCommand()
-        };
-        return command;
-    }
-
-    internal static Command CreateServeCommand()
-    {
-        var command = new Command("serve", "Run an OmniRelay dispatcher using configuration files.");
-
-        var configOption = new Option<string[]>("--config")
-        {
-            Description = "Configuration file(s) to load.",
-            AllowMultipleArgumentsPerToken = true,
-            Required = true,
-            Arity = ArgumentArity.OneOrMore
-        };
-
-        var sectionOption = new Option<string>("--section")
-        {
-            Description = "Root configuration section name.",
-            DefaultValueFactory = _ => DefaultConfigSection
-        };
-
-        var setOption = new Option<string[]>("--set")
-        {
-            Description = "Override configuration values (KEY=VALUE).",
-            AllowMultipleArgumentsPerToken = true,
-            DefaultValueFactory = _ => []
-        };
-
-        var readyFileOption = new Option<string?>("--ready-file")
-        {
-            Description = "Touch the specified file once the dispatcher starts."
-        };
-
-        var shutdownAfterOption = new Option<string?>("--shutdown-after")
-        {
-            Description = "Automatically shut down after the specified duration (e.g. 30s)."
-        };
-
-        command.Add(configOption);
-        command.Add(sectionOption);
-        command.Add(setOption);
-        command.Add(readyFileOption);
-        command.Add(shutdownAfterOption);
-
-        command.SetAction(parseResult =>
-        {
-            var configs = parseResult.GetValue(configOption) ?? [];
-            var section = parseResult.GetValue(sectionOption) ?? DefaultConfigSection;
-            var overrides = parseResult.GetValue(setOption) ?? [];
-            var readyFile = parseResult.GetValue(readyFileOption);
-            var shutdownAfter = parseResult.GetValue(shutdownAfterOption);
-            return RunServeAsync(configs, section, overrides, readyFile, shutdownAfter).GetAwaiter().GetResult();
-        });
-
-        return command;
-    }
-
-    internal static Command CreateConfigScaffoldCommand()
-    {
-        var command = new Command("scaffold", "Generate an example appsettings.json with optional HTTP/3 toggles.");
-
-        var outputOption = new Option<string>("--output")
-        {
-            Description = "Path to write the appsettings file.",
-            DefaultValueFactory = _ => "appsettings.json"
-        };
-        outputOption.Aliases.Add("-o");
-
-        var sectionOption = new Option<string>("--section")
-        {
-            Description = "Root configuration section name.",
-            DefaultValueFactory = _ => DefaultConfigSection
-        };
-
-        var serviceOption = new Option<string>("--service")
-        {
-            Description = "Service name to embed in the scaffolded config.",
-            DefaultValueFactory = _ => "sample"
-        };
-
-        var enableHttp3HttpOption = new Option<bool>("--http3-http")
-        {
-            Description = "Include an HTTPS HTTP inbound with HTTP/3 enabled."
-        };
-
-        var enableHttp3GrpcOption = new Option<bool>("--http3-grpc")
-        {
-            Description = "Include an HTTPS gRPC inbound with HTTP/3 enabled."
-        };
-
-        var includeOutboundOption = new Option<bool>("--include-outbound")
-        {
-            Description = "Include an example outbound with endpoints that indicate HTTP/3 support."
-        };
-
-        var outboundServiceOption = new Option<string>("--outbound-service")
-        {
-            Description = "Name for the example outbound service entry.",
-            DefaultValueFactory = _ => "ledger"
-        };
-
-        command.Add(outputOption);
-        command.Add(sectionOption);
-        command.Add(serviceOption);
-        command.Add(enableHttp3HttpOption);
-        command.Add(enableHttp3GrpcOption);
-        command.Add(includeOutboundOption);
-        command.Add(outboundServiceOption);
-
-        command.SetAction(parseResult =>
-        {
-            var output = parseResult.GetValue(outputOption) ?? "appsettings.json";
-            var section = parseResult.GetValue(sectionOption) ?? DefaultConfigSection;
-            var service = parseResult.GetValue(serviceOption) ?? "sample";
-            var http3Http = parseResult.GetValue(enableHttp3HttpOption);
-            var http3Grpc = parseResult.GetValue(enableHttp3GrpcOption);
-            var includeOutbound = parseResult.GetValue(includeOutboundOption);
-            var outboundService = parseResult.GetValue(outboundServiceOption) ?? "ledger";
-            return RunConfigScaffoldAsync(output, section, service, http3Http, http3Grpc, includeOutbound, outboundService).GetAwaiter().GetResult();
-        });
-
-        return command;
-    }
-
-    internal static async Task<int> RunConfigScaffoldAsync(
-        string outputPath,
-        string section,
-        string service,
-        bool includeHttp3HttpInbound,
-        bool includeHttp3GrpcInbound,
-        bool includeOutbound,
-        string outboundService)
-    {
-        try
-        {
-            var scaffold = BuildScaffoldJson(section, service, includeHttp3HttpInbound, includeHttp3GrpcInbound, includeOutbound, outboundService);
-            var directory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await File.WriteAllTextAsync(outputPath, scaffold, Encoding.UTF8).ConfigureAwait(false);
-            Console.WriteLine($"Wrote configuration scaffold to '{outputPath}'.");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Failed to write scaffold: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-    }
-
-    private static string BuildScaffoldJson(
-        string section,
-        string service,
-        bool includeHttp3HttpInbound,
-        bool includeHttp3GrpcInbound,
-        bool includeOutbound,
-        string outboundService)
-    {
-        // Minimal baseline with optional HTTP/3 inbounds and example outbound endpoints including supportsHttp3 hints
-        using var stream = new MemoryStream();
-        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
-
-        writer.WriteStartObject();
-        writer.WritePropertyName(section);
-        writer.WriteStartObject();
-
-        writer.WriteString("service", service);
-
-        writer.WritePropertyName("inbounds");
-        writer.WriteStartObject();
-
-        writer.WritePropertyName("http");
-        writer.WriteStartArray();
-        // Always include an HTTP listener (non-HTTP3). Add an HTTPS+HTTP3 if requested.
-        writer.WriteStartObject();
-        writer.WritePropertyName("urls");
-        writer.WriteStartArray();
-        writer.WriteStringValue("http://0.0.0.0:8080");
-        writer.WriteEndArray();
-        writer.WritePropertyName("runtime");
-        writer.WriteStartObject();
-        writer.WriteNumber("maxRequestBodySize", 8388608);
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-
-        if (includeHttp3HttpInbound)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("urls");
-            writer.WriteStartArray();
-            writer.WriteStringValue("https://0.0.0.0:8443");
-            writer.WriteEndArray();
-            writer.WritePropertyName("runtime");
-            writer.WriteStartObject();
-            writer.WriteBoolean("enableHttp3", true);
-            writer.WritePropertyName("http3");
-            writer.WriteStartObject();
-            writer.WriteBoolean("enableAltSvc", true);
-            writer.WriteNumber("maxBidirectionalStreams", 128);
-            writer.WriteNumber("maxUnidirectionalStreams", 32);
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-            writer.WritePropertyName("tls");
-            writer.WriteStartObject();
-            writer.WriteString("certificatePath", "certs/server.pfx");
-            writer.WriteString("certificatePassword", "change-me");
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-        }
-
-        writer.WriteEndArray();
-
-        writer.WritePropertyName("grpc");
-        writer.WriteStartArray();
-        // Always include an HTTP/2-only gRPC listener
-        writer.WriteStartObject();
-        writer.WritePropertyName("urls");
-        writer.WriteStartArray();
-        writer.WriteStringValue("http://0.0.0.0:8090");
-        writer.WriteEndArray();
-        writer.WritePropertyName("runtime");
-        writer.WriteStartObject();
-        writer.WriteNumber("maxReceiveMessageSize", 8388608);
-        writer.WriteNumber("maxSendMessageSize", 8388608);
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-
-        if (includeHttp3GrpcInbound)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("urls");
-            writer.WriteStartArray();
-            writer.WriteStringValue("https://0.0.0.0:9091");
-            writer.WriteEndArray();
-            writer.WritePropertyName("runtime");
-            writer.WriteStartObject();
-            writer.WriteBoolean("enableHttp3", true);
-            writer.WriteEndObject();
-            writer.WritePropertyName("tls");
-            writer.WriteStartObject();
-            writer.WriteString("certificatePath", "certs/server.pfx");
-            writer.WriteString("certificatePassword", "change-me");
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-        }
-
-        writer.WriteEndArray(); // grpc
-        writer.WriteEndObject(); // inbounds
-
-        if (includeOutbound)
-        {
-            writer.WritePropertyName("outbounds");
-            writer.WriteStartObject();
-            writer.WritePropertyName(outboundService);
-            writer.WriteStartObject();
-            writer.WritePropertyName("unary");
-            writer.WriteStartObject();
-            writer.WritePropertyName("grpc");
-            writer.WriteStartArray();
-            writer.WriteStartObject();
-            writer.WritePropertyName("endpoints");
-            writer.WriteStartArray();
-            writer.WriteStartObject();
-            writer.WriteString("address", "https://peer-h3:9091");
-            writer.WriteBoolean("supportsHttp3", true);
-            writer.WriteEndObject();
-            writer.WriteStartObject();
-            writer.WriteString("address", "https://peer-h2:9090");
-            writer.WriteBoolean("supportsHttp3", false);
-            writer.WriteEndObject();
-            writer.WriteEndArray();
-            writer.WriteString("remoteService", outboundService);
-            writer.WriteEndObject();
-            writer.WriteEndArray();
-            writer.WriteEndObject(); // unary
-            writer.WriteEndObject(); // service
-            writer.WriteEndObject(); // outbounds
-        }
-
-        writer.WriteEndObject(); // section
-        writer.WriteEndObject(); // root
-        writer.Flush();
-
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    internal static Command CreateScriptCommand()
-    {
-        var command = new Command("script", "Run scripted OmniRelay CLI automation.");
-
-        var runCommand = new Command("run", "Execute a sequence of actions described in a JSON script.");
-
-        var fileOption = new Option<string>("--file")
-        {
-            Description = "Path to the automation script (JSON).",
-            Required = true
-        };
-        fileOption.Aliases.Add("-f");
-
-        var dryRunOption = new Option<bool>("--dry-run")
-        {
-            Description = "Emit the planned steps without executing them."
-        };
-
-        var continueOnErrorOption = new Option<bool>("--continue-on-error")
-        {
-            Description = "Keep executing subsequent steps even if one fails."
-        };
-
-        runCommand.Add(fileOption);
-        runCommand.Add(dryRunOption);
-        runCommand.Add(continueOnErrorOption);
-
-        runCommand.SetAction(parseResult =>
-        {
-            var file = parseResult.GetValue(fileOption) ?? string.Empty;
-            var dryRun = parseResult.GetValue(dryRunOption);
-            var continueOnError = parseResult.GetValue(continueOnErrorOption);
-            return RunAutomationAsync(file, dryRun, continueOnError).GetAwaiter().GetResult();
-        });
-
-        command.Add(runCommand);
-        return command;
-    }
-
-    internal static Command CreateMeshCommand()
-    {
-        var command = new Command("mesh", "Mesh control-plane tooling.")
-        {
-            CreateMeshLeadersCommand(),
-            CreateMeshPeersCommand()
-        };
-        return command;
-    }
-
-    internal static Command CreateMeshLeadersCommand()
-    {
-        var command = new Command("leaders", "Leadership status and diagnostics.")
-        {
-            CreateMeshLeadersStatusCommand()
-        };
-        return command;
-    }
-
-    internal static Command CreateMeshPeersCommand()
-    {
-        var command = new Command("peers", "Mesh membership diagnostics.")
-        {
-            CreateMeshPeersListCommand()
-        };
-
-        return command;
-    }
-
-    internal static Command CreateMeshPeersListCommand()
-    {
-        var command = new Command("list", "List gossip peers from the control plane.");
-
-        var urlOption = new Option<string>("--url")
-        {
-            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080)."
-        };
-        urlOption.Aliases.Add("-u");
-
-        var formatOption = new Option<MeshPeersOutputFormat>("--format")
-        {
-            Description = "Output format (table or json)."
-        };
-
-        var timeoutOption = new Option<string?>("--timeout")
-        {
-            Description = "Request timeout (e.g. 10s, 1m)."
-        };
-
-        command.Add(urlOption);
-        command.Add(formatOption);
-        command.Add(timeoutOption);
-
-        command.SetAction(parseResult =>
-        {
-            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
-            var format = parseResult.GetValue(formatOption);
-            var timeout = parseResult.GetValue(timeoutOption);
-            return RunMeshPeersListAsync(url, format, timeout).GetAwaiter().GetResult();
-        });
-
-        return command;
-    }
-
-    internal static Command CreateMeshLeadersStatusCommand()
-    {
-        var command = new Command("status", "Show current leadership tokens or stream leadership events.");
-
-        var urlOption = new Option<string>("--url")
-        {
-            Description = "Base control-plane URL (e.g. http://127.0.0.1:8080).",
-            DefaultValueFactory = _ => DefaultControlPlaneUrl
-        };
-        urlOption.Aliases.Add("-u");
-
-        var scopeOption = new Option<string?>("--scope")
-        {
-            Description = "Scope filter (global-control, shard/namespace/id, etc.)."
-        };
-
-        var watchOption = new Option<bool>("--watch")
-        {
-            Description = "Stream leadership changes via SSE."
-        };
-
-        var timeoutOption = new Option<string?>("--timeout")
-        {
-            Description = "Request timeout (e.g. 10s, 1m)."
-        };
-
-        command.Add(urlOption);
-        command.Add(scopeOption);
-        command.Add(watchOption);
-        command.Add(timeoutOption);
-
-        command.SetAction(parseResult =>
-        {
-            var url = parseResult.GetValue(urlOption) ?? DefaultControlPlaneUrl;
-            var scope = parseResult.GetValue(scopeOption);
-            var watch = parseResult.GetValue(watchOption);
-            var timeout = parseResult.GetValue(timeoutOption);
-            return RunMeshLeadersStatusAsync(url, scope, watch, timeout).GetAwaiter().GetResult();
-        });
-
-        return command;
-    }
-
-    internal static Command CreateConfigValidateCommand()
-    {
-        var command = new Command("validate", "Validate OmniRelay dispatcher configuration.");
-
-        var configOption = new Option<string[]>("--config")
-        {
-            Description = "Configuration file(s) to load.",
-            AllowMultipleArgumentsPerToken = true,
-            Required = true,
-            Arity = ArgumentArity.OneOrMore
-        };
-        configOption.Aliases.Add("-c");
-
-        var sectionOption = new Option<string>("--section")
-        {
-            Description = "Root configuration section name.",
-            DefaultValueFactory = _ => DefaultConfigSection
-        };
-
-        var setOption = new Option<string[]>("--set")
-        {
-            Description = "Override configuration values (KEY=VALUE).",
-            AllowMultipleArgumentsPerToken = true,
-            DefaultValueFactory = _ => []
-        };
-
-        command.Add(configOption);
-        command.Add(sectionOption);
-        command.Add(setOption);
-
-        command.SetAction(parseResult =>
-        {
-            var configs = parseResult.GetValue(configOption) ?? [];
-            var section = parseResult.GetValue(sectionOption) ?? DefaultConfigSection;
-            var overrides = parseResult.GetValue(setOption) ?? [];
-            return RunConfigValidateAsync(configs, section, overrides).GetAwaiter().GetResult();
-        });
-
-        return command;
-    }
-
-    internal static Command CreateIntrospectCommand()
-    {
-        var command = new Command("introspect", "Fetch dispatcher introspection over HTTP.");
-
-        var urlOption = new Option<string>("--url")
-        {
-            Description = "Introspection endpoint to query.",
-            DefaultValueFactory = _ => DefaultIntrospectionUrl
-        };
-
-        var formatOption = new Option<string>("--format")
-        {
-            Description = "Output format (text|json).",
-            DefaultValueFactory = _ => "text"
-        };
-
-        var timeoutOption = new Option<string?>("--timeout")
-        {
-            Description = "Request timeout (e.g. 5s, 00:00:05)."
-        };
-
-        command.Add(urlOption);
-        command.Add(formatOption);
-        command.Add(timeoutOption);
-
-        command.SetAction(parseResult =>
-        {
-            var url = parseResult.GetValue(urlOption) ?? DefaultIntrospectionUrl;
-            var format = parseResult.GetValue(formatOption) ?? "text";
-            var timeout = parseResult.GetValue(timeoutOption);
-            return RunIntrospectAsync(url, format, timeout).GetAwaiter().GetResult();
-        });
-
-        return command;
     }
 
     internal static Command CreateRequestCommand()
@@ -676,7 +124,7 @@ public static class Program
 
         var protoFileOption = new Option<string[]>("--proto-file")
         {
-            Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding.",
+            Description = "(Deprecated) Path(s) to FileDescriptorSet binaries. Ignored unless using binary payloads.",
             AllowMultipleArgumentsPerToken = true,
             DefaultValueFactory = _ => []
         };
@@ -879,7 +327,7 @@ public static class Program
 
         var protoFileOption = new Option<string[]>("--proto-file")
         {
-            Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding.",
+            Description = "Path(s) to FileDescriptorSet binaries used for protobuf encoding. (Deprecated; binary-only when provided.)",
             AllowMultipleArgumentsPerToken = true,
             DefaultValueFactory = _ => []
         };
@@ -1062,256 +510,6 @@ public static class Program
         });
 
         return command;
-    }
-
-    internal static async Task<int> RunConfigValidateAsync(string[] configPaths, string section, string[] setOverrides)
-    {
-        if (!TryBuildConfiguration(configPaths, setOverrides, out var configuration, out var errorMessage))
-        {
-            await Console.Error.WriteLineAsync(errorMessage ?? "Failed to load configuration.").ConfigureAwait(false);
-            return 1;
-        }
-
-        var services = new ServiceCollection();
-        services.AddLogging(static logging => logging.AddSimpleConsole(options =>
-        {
-            options.SingleLine = true;
-            options.TimestampFormat = "HH:mm:ss ";
-        }));
-
-        try
-        {
-            services.AddOmniRelayDispatcher(configuration.GetSection(section ?? DefaultConfigSection));
-        }
-        catch (OmniRelayConfigurationException ex)
-        {
-            await Console.Error.WriteLineAsync($"Configuration invalid: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Failed to configure OmniRelay dispatcher: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-
-        try
-        {
-            var provider = services.BuildServiceProvider();
-            await using var providerScope = provider.ConfigureAwait(false);
-            var dispatcher = provider.GetRequiredService<Dispatcher.Dispatcher>();
-            var summary = dispatcher.Introspect();
-
-            Console.WriteLine($"Configuration valid for service '{summary.Service}'.");
-            Console.WriteLine($"Status: {summary.Status}");
-            Console.WriteLine("Procedures:");
-            Console.WriteLine($"  Unary:        {summary.Procedures.Unary.Length}");
-            Console.WriteLine($"  Oneway:       {summary.Procedures.Oneway.Length}");
-            Console.WriteLine($"  Stream:       {summary.Procedures.Stream.Length}");
-            Console.WriteLine($"  ClientStream: {summary.Procedures.ClientStream.Length}");
-            Console.WriteLine($"  Duplex:       {summary.Procedures.Duplex.Length}");
-
-            if (summary.Components.Length <= 0)
-            {
-                return 0;
-            }
-
-            Console.WriteLine("Lifecycle components:");
-            foreach (var component in summary.Components)
-            {
-                Console.WriteLine($"  - {component.Name} ({component.ComponentType})");
-            }
-
-            return 0;
-        }
-        catch (OmniRelayConfigurationException ex)
-        {
-            await Console.Error.WriteLineAsync($"Configuration validation failed: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Dispatcher validation threw: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-    }
-
-    internal static async Task<int> RunServeAsync(string[] configPaths, string section, string[] setOverrides, string? readyFile, string? shutdownAfterOption)
-    {
-        if (!TryBuildConfiguration(configPaths, setOverrides, out var configuration, out var errorMessage))
-        {
-            await Console.Error.WriteLineAsync(errorMessage ?? "Failed to load configuration.").ConfigureAwait(false);
-            return 1;
-        }
-
-        TimeSpan? shutdownAfter = null;
-        if (!string.IsNullOrWhiteSpace(shutdownAfterOption))
-        {
-            if (!TryParseDuration(shutdownAfterOption!, out var parsed))
-            {
-                await Console.Error.WriteLineAsync($"Could not parse --shutdown-after value '{shutdownAfterOption}'.").ConfigureAwait(false);
-                return 1;
-            }
-
-            if (parsed <= TimeSpan.Zero)
-            {
-                await Console.Error.WriteLineAsync("--shutdown-after duration must be greater than zero.").ConfigureAwait(false);
-                return 1;
-            }
-
-            shutdownAfter = parsed;
-        }
-
-        var resolvedSection = string.IsNullOrWhiteSpace(section) ? DefaultConfigSection : section;
-        IServeHost? serveHost;
-        try
-        {
-            serveHost = CliRuntime.ServeHostFactory.CreateHost(configuration, resolvedSection);
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Failed to configure dispatcher: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-
-        await using var host = serveHost;
-        var shutdownSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        ConsoleCancelEventHandler? cancelHandler = null;
-
-        void RequestShutdown()
-        {
-            shutdownSignal.TrySetResult(true);
-        }
-
-        cancelHandler = (_, eventArgs) =>
-        {
-            eventArgs.Cancel = true;
-            RequestShutdown();
-        };
-
-        Console.CancelKeyPress += cancelHandler;
-
-        if (shutdownAfter.HasValue)
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(shutdownAfter.Value).ConfigureAwait(false);
-                    RequestShutdown();
-                }
-                catch
-                {
-                    RequestShutdown();
-                }
-            });
-        }
-
-        try
-        {
-            await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            var dispatcher = host.Dispatcher;
-            var serviceName = dispatcher?.ServiceName ?? resolvedSection;
-            Console.WriteLine($"OmniRelay dispatcher '{serviceName}' started.");
-
-            if (!string.IsNullOrWhiteSpace(readyFile))
-            {
-                TryWriteReadyFile(readyFile!);
-            }
-
-            Console.WriteLine(shutdownAfter.HasValue
-                ? $"Shutting down automatically after {shutdownAfter.Value:c}."
-                : "Press Ctrl+C to stop.");
-
-            await shutdownSignal.Task.ConfigureAwait(false);
-            await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Failed to run dispatcher: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-        finally
-        {
-            Console.CancelKeyPress -= cancelHandler;
-        }
-    }
-
-    [RequiresDynamicCode("Calls System.Text.Json.Serialization.JsonStringEnumConverter.JsonStringEnumConverter(JsonNamingPolicy, Boolean)")]
-    [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
-    internal static async Task<int> RunIntrospectAsync(string url, string format, string? timeoutOption)
-    {
-        var normalizedFormat = string.IsNullOrWhiteSpace(format) ? "text" : format.ToLowerInvariant();
-        var timeout = TimeSpan.FromSeconds(10);
-
-        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
-        {
-            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'. Use standard TimeSpan formats or suffixes like 5s/1m.").ConfigureAwait(false);
-            return 1;
-        }
-
-        using var httpClient = CliRuntime.HttpClientFactory.CreateClient();
-        httpClient.Timeout = Timeout.InfiniteTimeSpan;
-
-        using var cts = new CancellationTokenSource(timeout);
-
-        try
-        {
-            using var response = await httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                await Console.Error.WriteLineAsync($"Introspection request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
-                return 1;
-            }
-
-            await using ((await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false)).AsAsyncDisposable(out var stream))
-            {
-                var options = CreateJsonOptions(configure: static options =>
-                {
-                    options.PropertyNameCaseInsensitive = true;
-                });
-                options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-
-                var snapshot = await JsonSerializer.DeserializeAsync<DispatcherIntrospection>(stream, options, cts.Token).ConfigureAwait(false);
-                if (snapshot is null)
-                {
-                    await Console.Error.WriteLineAsync("Introspection response was empty.").ConfigureAwait(false);
-                    return 1;
-                }
-
-                if (normalizedFormat is "json" or "raw")
-                {
-                    var outputOptions = CreateJsonOptions(configure: static options =>
-                    {
-                        options.WriteIndented = true;
-                    });
-                    outputOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-                    var json = JsonSerializer.Serialize(snapshot, outputOptions);
-                    Console.WriteLine(json);
-                }
-                else if (normalizedFormat is "text" or "summary")
-                {
-                    PrintIntrospectionSummary(snapshot);
-                }
-                else
-                {
-                    await Console.Error.WriteLineAsync($"Unknown format '{format}'. Expected 'text' or 'json'.").ConfigureAwait(false);
-                    return 1;
-                }
-            }
-
-            return 0;
-        }
-        catch (TaskCanceledException)
-        {
-            await Console.Error.WriteLineAsync("Introspection request timed out.").ConfigureAwait(false);
-            return 2;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Introspection failed: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
     }
 
     internal static bool TryBuildConfiguration(string[] configPaths, string[] setOverrides, out IConfigurationRoot configuration, out string? errorMessage)
@@ -1533,6 +731,16 @@ public static class Program
             }
 
             timeout = parsedTimeout;
+        }
+
+        var payloadSourcesSpecified = (string.IsNullOrEmpty(body) ? 0 : 1)
+                                      + (string.IsNullOrEmpty(bodyFile) ? 0 : 1)
+                                      + (string.IsNullOrEmpty(bodyBase64) ? 0 : 1);
+
+        if (payloadSourcesSpecified > 1)
+        {
+            error = "Specify only one of --body, --body-file, or --body-base64.";
+            return false;
         }
 
         if (!TryParseHeaders(headers, out var headerPairs, out var headerError))
@@ -1845,229 +1053,34 @@ public static class Program
             uris.Add(uri);
         }
 
-        await using var invoker = CliRuntime.GrpcInvokerFactory.Create(uris, remoteService, runtimeOptions);
+        var invoker = CliRuntime.GrpcInvokerFactory.Create(uris, remoteService, runtimeOptions);
 
-        try
+        await using (invoker.ConfigureAwait(false))
         {
-            await invoker.StartAsync(cancellationToken).ConfigureAwait(false);
-            var result = await invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
-
-            if (result.IsSuccess)
+            try
             {
-                PrintResponse(result.Value);
-                return 0;
-            }
+                await invoker.StartAsync(cancellationToken).ConfigureAwait(false);
+                var result = await invoker.CallAsync(request, cancellationToken).ConfigureAwait(false);
 
-            PrintError(result.Error!, "grpc");
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"gRPC call failed: {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-        finally
-        {
-            await invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-    }
-
-    [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.DeserializeAsync<TValue>(Stream, JsonSerializerOptions, CancellationToken)")]
-    internal static async Task<int> RunAutomationAsync(string scriptPath, bool dryRun, bool continueOnError)
-    {
-        if (string.IsNullOrWhiteSpace(scriptPath))
-        {
-            await Console.Error.WriteLineAsync("Script path was empty.").ConfigureAwait(false);
-            return 1;
-        }
-
-        if (!File.Exists(scriptPath))
-        {
-            await Console.Error.WriteLineAsync($"Script file '{scriptPath}' does not exist.").ConfigureAwait(false);
-            return 1;
-        }
-
-        AutomationScript? script;
-        try
-        {
-            await using (File.OpenRead(scriptPath).AsAsyncDisposable(out var stream))
-            {
-                var options = CreateJsonOptions(configure: static options =>
+                if (result.IsSuccess)
                 {
-                    options.PropertyNameCaseInsensitive = true;
-                    options.AllowTrailingCommas = true;
-                });
-                script = await JsonSerializer.DeserializeAsync<AutomationScript>(stream, options).ConfigureAwait(false);
+                    PrintResponse(result.Value);
+                    return 0;
+                }
+
+                PrintError(result.Error!, "grpc");
+                return 1;
             }
-        }
-        catch (Exception ex)
-        {
-            await Console.Error.WriteLineAsync($"Failed to parse script '{scriptPath}': {ex.Message}").ConfigureAwait(false);
-            return 1;
-        }
-
-        if (script?.Steps is null || script.Steps.Length == 0)
-        {
-            await Console.Error.WriteLineAsync($"Script '{scriptPath}' does not contain any steps.").ConfigureAwait(false);
-            return 1;
-        }
-
-        Console.WriteLine($"Loaded script '{scriptPath}' with {script.Steps.Length} step(s).");
-        var exitCode = 0;
-
-        for (var index = 0; index < script.Steps.Length; index++)
-        {
-            var step = script.Steps[index];
-            var typeLabel = string.IsNullOrWhiteSpace(step.Type) ? "(unspecified)" : step.Type;
-            var description = string.IsNullOrWhiteSpace(step.Description) ? string.Empty : $" - {step.Description}";
-            Console.WriteLine($"[{index + 1}/{script.Steps.Length}] {typeLabel}{description}");
-
-            var normalizedType = step.Type?.Trim().ToLowerInvariant() ?? string.Empty;
-            switch (normalizedType)
+            catch (Exception ex)
             {
-                case "request":
-                    if (string.IsNullOrWhiteSpace(step.Service) || string.IsNullOrWhiteSpace(step.Procedure))
-                    {
-                        await Console.Error.WriteLineAsync("  Request step is missing 'service' or 'procedure'.").ConfigureAwait(false);
-                        exitCode = exitCode == 0 ? 1 : exitCode;
-                        if (!continueOnError)
-                        {
-                            return exitCode;
-                        }
-                        continue;
-                    }
-
-                    var headerPairs = step.Headers?.Select(static kvp => $"{kvp.Key}={kvp.Value}").ToArray() ?? [];
-                    var profiles = step.Profiles ?? [];
-                    var addresses = step.Addresses?.Where(static address => !string.IsNullOrWhiteSpace(address)).ToArray() ?? [];
-                    if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(step.Address))
-                    {
-                        addresses = [step.Address];
-                    }
-
-                    var targetSummary = !string.IsNullOrWhiteSpace(step.Url)
-                        ? step.Url
-                        : (addresses.Length > 0 ? string.Join(", ", addresses) : "(default transport settings)");
-                    Console.WriteLine($"  -> {step.Transport ?? "http"} {step.Service}/{step.Procedure} @ {targetSummary}");
-
-                    if (dryRun)
-                    {
-                        Console.WriteLine("  dry-run: skipping request execution.");
-                        continue;
-                    }
-
-                    var requestResult = await RunRequestAsync(
-                        step.Transport ?? "http",
-                        step.Service,
-                        step.Procedure,
-                        step.Caller,
-                        step.Encoding,
-                        headerPairs,
-                        profiles,
-                        step.ShardKey,
-                        step.RoutingKey,
-                        step.RoutingDelegate,
-                        step.ProtoFiles ?? [],
-                        step.ProtoMessage,
-                        step.Ttl,
-                        step.Deadline,
-                        step.Timeout,
-                        step.Body,
-                        step.BodyFile,
-                        step.BodyBase64,
-                        step.Url,
-                        addresses,
-                        enableHttp3: false,
-                        enableGrpcHttp3: false).ConfigureAwait(false);
-
-                    if (requestResult != 0)
-                    {
-                        exitCode = exitCode == 0 ? requestResult : exitCode;
-                        if (!continueOnError)
-                        {
-                            return exitCode;
-                        }
-                    }
-                    break;
-
-                case "introspect":
-                    var targetUrl = string.IsNullOrWhiteSpace(step.Url) ? DefaultIntrospectionUrl : step.Url!;
-                    Console.WriteLine($"  -> GET {targetUrl} (format={step.Format ?? "text"})");
-
-                    if (dryRun)
-                    {
-                        Console.WriteLine("  dry-run: skipping introspection call.");
-                        continue;
-                    }
-
-                    var introspectResult = await RunIntrospectAsync(targetUrl, step.Format ?? "text", step.Timeout).ConfigureAwait(false);
-                    if (introspectResult != 0)
-                    {
-                        exitCode = exitCode == 0 ? introspectResult : exitCode;
-                        if (!continueOnError)
-                        {
-                            return exitCode;
-                        }
-                    }
-                    break;
-
-                case "delay":
-                case "sleep":
-                case "wait":
-                    var delayValue = step.Duration ?? step.Delay;
-                    if (string.IsNullOrWhiteSpace(delayValue))
-                    {
-                        await Console.Error.WriteLineAsync("  Delay step requires a 'duration' or 'delay' value.").ConfigureAwait(false);
-                        exitCode = exitCode == 0 ? 1 : exitCode;
-                        if (!continueOnError)
-                        {
-                            return exitCode;
-                        }
-                        continue;
-                    }
-
-                    if (!TryParseDuration(delayValue!, out var delay))
-                    {
-                        await Console.Error.WriteLineAsync($"  Could not parse delay '{delayValue}'.").ConfigureAwait(false);
-                        exitCode = exitCode == 0 ? 1 : exitCode;
-                        if (!continueOnError)
-                        {
-                            return exitCode;
-                        }
-                        continue;
-                    }
-
-                    Console.WriteLine($"  ... waiting for {delay}");
-                    if (!dryRun)
-                    {
-                        try
-                        {
-                            await Task.Delay(delay).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            await Console.Error.WriteLineAsync($"  Delay interrupted: {ex.Message}").ConfigureAwait(false);
-                            exitCode = exitCode == 0 ? 1 : exitCode;
-                            if (!continueOnError)
-                            {
-                                return exitCode;
-                            }
-                        }
-                    }
-                    break;
-
-                default:
-                    await Console.Error.WriteLineAsync($"  Unknown script step type '{step.Type}'.").ConfigureAwait(false);
-                    exitCode = exitCode == 0 ? 1 : exitCode;
-                    if (!continueOnError)
-                    {
-                        return exitCode;
-                    }
-                    break;
+                await Console.Error.WriteLineAsync($"gRPC call failed: {ex.Message}").ConfigureAwait(false);
+                return 1;
+            }
+            finally
+            {
+                await invoker.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
-
-        return exitCode;
     }
 
     private static void PrintBenchmarkSummary(
@@ -2167,7 +1180,7 @@ public static class Program
         else
         {
             Console.WriteLine($"Body ({response.Body.Length} bytes, base64):");
-            Console.WriteLine(Convert.ToBase64String(response.Body.Span));
+            WriteBase64Body(response.Body.Span);
         }
     }
 
@@ -2191,340 +1204,7 @@ public static class Program
         }
     }
 
-    private static void PrintIntrospectionSummary(DispatcherIntrospection snapshot)
-    {
-        Console.WriteLine($"Service: {snapshot.Service}");
-        Console.WriteLine($"Status: {snapshot.Status}");
-        Console.WriteLine();
-
-        Console.WriteLine("Procedures:");
-        PrintProcedureGroup("Unary", snapshot.Procedures.Unary.Select(static p => p.Name));
-        PrintProcedureGroup("Oneway", snapshot.Procedures.Oneway.Select(static p => p.Name));
-        PrintProcedureGroup("Stream", snapshot.Procedures.Stream.Select(static p => p.Name));
-        PrintProcedureGroup("ClientStream", snapshot.Procedures.ClientStream.Select(static p => p.Name));
-        PrintProcedureGroup("Duplex", snapshot.Procedures.Duplex.Select(static p => p.Name));
-        Console.WriteLine();
-
-        if (snapshot.Components.Length > 0)
-        {
-            Console.WriteLine("Lifecycle components:");
-            foreach (var component in snapshot.Components)
-            {
-                Console.WriteLine($"  - {component.Name} ({component.ComponentType})");
-            }
-            Console.WriteLine();
-        }
-
-        if (snapshot.Outbounds.Length > 0)
-        {
-            Console.WriteLine("Outbounds:");
-            foreach (var outbound in snapshot.Outbounds)
-            {
-                Console.WriteLine($"  • {outbound.Service}");
-                PrintOutboundGroup("    Unary", outbound.Unary);
-                PrintOutboundGroup("    Oneway", outbound.Oneway);
-                PrintOutboundGroup("    Stream", outbound.Stream);
-                PrintOutboundGroup("    ClientStream", outbound.ClientStream);
-                PrintOutboundGroup("    Duplex", outbound.Duplex);
-            }
-            Console.WriteLine();
-        }
-
-        Console.WriteLine("Middleware (Inbound → Outbound):");
-        PrintMiddlewareLine("Unary", snapshot.Middleware.InboundUnary, snapshot.Middleware.OutboundUnary);
-        PrintMiddlewareLine("Oneway", snapshot.Middleware.InboundOneway, snapshot.Middleware.OutboundOneway);
-        PrintMiddlewareLine("Stream", snapshot.Middleware.InboundStream, snapshot.Middleware.OutboundStream);
-        PrintMiddlewareLine("ClientStream", snapshot.Middleware.InboundClientStream, snapshot.Middleware.OutboundClientStream);
-        PrintMiddlewareLine("Duplex", snapshot.Middleware.InboundDuplex, snapshot.Middleware.OutboundDuplex);
-    }
-
-    internal static async Task<int> RunMeshLeadersStatusAsync(string baseUrl, string? scope, bool watch, string? timeoutOption)
-    {
-        var timeout = TimeSpan.FromSeconds(10);
-        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
-        {
-            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
-            return 1;
-        }
-
-        if (watch)
-        {
-            return await RunMeshLeadersWatchAsync(baseUrl, scope, timeout).ConfigureAwait(false);
-        }
-
-        return await RunMeshLeadersSnapshotAsync(baseUrl, scope, timeout).ConfigureAwait(false);
-    }
-
-    internal static async Task<int> RunMeshPeersListAsync(string baseUrl, MeshPeersOutputFormat format, string? timeoutOption)
-    {
-        var timeout = TimeSpan.FromSeconds(10);
-        if (!string.IsNullOrWhiteSpace(timeoutOption) && !TryParseDuration(timeoutOption!, out timeout))
-        {
-            await Console.Error.WriteLineAsync($"Could not parse timeout '{timeoutOption}'.").ConfigureAwait(false);
-            return 1;
-        }
-
-        Uri target;
-        try
-        {
-            target = BuildControlPlaneUri(baseUrl, "/control/peers", scope: null);
-        }
-        catch (ArgumentException ex)
-        {
-            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
-            return 1;
-        }
-
-        using var client = CliRuntime.HttpClientFactory.CreateClient();
-        client.Timeout = Timeout.InfiniteTimeSpan;
-        using var cts = new CancellationTokenSource(timeout);
-
-        try
-        {
-            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                await Console.Error.WriteLineAsync($"Peer diagnostics request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
-                return 1;
-            }
-
-            await using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
-            var result = await JsonSerializer.DeserializeAsync(stream, OmniRelayCliJsonContext.Default.MeshPeersResponse, cts.Token).ConfigureAwait(false);
-            if (result is null)
-            {
-                await Console.Error.WriteLineAsync("Peer diagnostics response was empty.").ConfigureAwait(false);
-                return 1;
-            }
-
-            switch (format)
-            {
-                case MeshPeersOutputFormat.Json:
-                    var json = JsonSerializer.Serialize(result, OmniRelayCliJsonContext.Default.MeshPeersResponse);
-                    CliRuntime.Console.WriteLine(json);
-                    break;
-                default:
-                    PrintMeshPeersTable(result);
-                    break;
-            }
-
-            return 0;
-        }
-        catch (TaskCanceledException)
-        {
-            await Console.Error.WriteLineAsync("Peer diagnostics request timed out.").ConfigureAwait(false);
-            return 2;
-        }
-    }
-
-    [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
-    internal static async Task<int> RunMeshLeadersSnapshotAsync(string baseUrl, string? scope, TimeSpan timeout)
-    {
-        Uri target;
-        try
-        {
-            target = BuildControlPlaneUri(baseUrl, "/control/leaders", scope);
-        }
-        catch (ArgumentException ex)
-        {
-            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
-            return 1;
-        }
-
-        using var client = CliRuntime.HttpClientFactory.CreateClient();
-        client.Timeout = Timeout.InfiniteTimeSpan;
-        using var cts = new CancellationTokenSource(timeout);
-
-        try
-        {
-            using var response = await client.GetAsync(target, cts.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                await Console.Error.WriteLineAsync($"Leadership request failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
-                return 1;
-            }
-
-            await using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
-            var snapshot = await JsonSerializer.DeserializeAsync<LeadershipSnapshotResponse>(stream, LeadershipJsonOptions, cts.Token).ConfigureAwait(false);
-            PrintLeadershipSnapshot(snapshot, scope);
-            return 0;
-        }
-        catch (TaskCanceledException)
-        {
-            await Console.Error.WriteLineAsync("Leadership request timed out.").ConfigureAwait(false);
-            return 2;
-        }
-    }
-
-    [SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "Method awaits asynchronous disposables and already configures awaited operations for CLI usage.")]
-    internal static async Task<int> RunMeshLeadersWatchAsync(string baseUrl, string? scope, TimeSpan timeout)
-    {
-        Uri target;
-        try
-        {
-            target = BuildControlPlaneUri(baseUrl, "/control/events/leadership", scope);
-        }
-        catch (ArgumentException ex)
-        {
-            await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
-            return 1;
-        }
-
-        using var client = CliRuntime.HttpClientFactory.CreateClient();
-        client.Timeout = Timeout.InfiniteTimeSpan;
-        using var request = new HttpRequestMessage(HttpMethod.Get, target);
-        request.Headers.Accept.ParseAdd("text/event-stream");
-
-        using var connectCts = new CancellationTokenSource(timeout);
-        try
-        {
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, connectCts.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                await Console.Error.WriteLineAsync($"Leadership stream failed: {(int)response.StatusCode} {response.ReasonPhrase}.").ConfigureAwait(false);
-                return 1;
-            }
-
-            Console.WriteLine($"Streaming leadership events from {target} (scope={scope ?? "*"}). Press Ctrl+C to exit.");
-
-            await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var reader = new StreamReader(stream);
-            var buffer = new StringBuilder();
-
-            while (true)
-            {
-                var line = await reader.ReadLineAsync().ConfigureAwait(false);
-                if (line is null)
-                {
-                    break;
-                }
-
-                if (line.Length == 0)
-                {
-                    if (buffer.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    var payload = buffer.ToString();
-                    buffer.Clear();
-                    try
-                    {
-                        var leadershipEvent = JsonSerializer.Deserialize<LeadershipEventDto>(payload, LeadershipJsonOptions);
-                        if (leadershipEvent is not null)
-                        {
-                            PrintLeadershipEvent(leadershipEvent);
-                        }
-                    }
-                    catch (JsonException ex)
-                    {
-                        await Console.Error.WriteLineAsync($"Failed to parse leadership event: {ex.Message}").ConfigureAwait(false);
-                    }
-
-                    continue;
-                }
-
-                if (line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-                {
-                    var segment = line.Length > 5 ? line[5..].TrimStart() : string.Empty;
-                    buffer.Append(segment);
-                }
-            }
-
-            return 0;
-        }
-        catch (TaskCanceledException)
-        {
-            await Console.Error.WriteLineAsync("Leadership stream connection timed out.").ConfigureAwait(false);
-            return 2;
-        }
-    }
-
-    private static Uri BuildControlPlaneUri(string baseUrl, string relativePath, string? scope)
-    {
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri))
-        {
-            throw new ArgumentException($"Invalid control-plane URL '{baseUrl}'.", nameof(baseUrl));
-        }
-
-        var target = new Uri(baseUri, relativePath);
-        if (string.IsNullOrWhiteSpace(scope))
-        {
-            return target;
-        }
-
-        var builder = new UriBuilder(target)
-        {
-            Query = $"scope={Uri.EscapeDataString(scope)}"
-        };
-        return builder.Uri;
-    }
-
-    private static void PrintLeadershipSnapshot(LeadershipSnapshotResponse? snapshot, string? scopeFilter)
-    {
-        if (snapshot is null)
-        {
-            Console.WriteLine("No leadership data available.");
-            return;
-        }
-
-        var tokens = snapshot.Tokens ?? [];
-        if (!string.IsNullOrWhiteSpace(scopeFilter))
-        {
-            tokens = [.. tokens.Where(token => string.Equals(token.Scope, scopeFilter, StringComparison.OrdinalIgnoreCase))];
-        }
-
-        Console.WriteLine($"Generated at: {snapshot.GeneratedAt:O}");
-
-        if (tokens.Length == 0)
-        {
-            Console.WriteLine("No active leaders.");
-            return;
-        }
-
-        Console.WriteLine();
-        Console.WriteLine($"{"Scope",-32} {"Leader",-20} {"Term",6} {"Fence",6} {"Expires (UTC)",-24} {"Kind",-12}");
-
-        foreach (var token in tokens.OrderBy(static t => t.Scope, StringComparer.OrdinalIgnoreCase))
-        {
-            var expires = token.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss\\Z", CultureInfo.InvariantCulture);
-            Console.WriteLine($"{token.Scope,-32} {token.LeaderId,-20} {token.Term,6} {token.FenceToken,6} {expires,-24} {token.ScopeKind,-12}");
-        }
-    }
-
-    private static void PrintMeshPeersTable(MeshPeersResponse response)
-    {
-        Console.WriteLine($"Generated at: {response.GeneratedAt:O}");
-        Console.WriteLine($"Local node: {response.LocalNodeId}");
-        Console.WriteLine();
-        Console.WriteLine($"{"Node",-24} {"Status",-8} {"Role",-12} {"Cluster",-18} {"Region",-18} {"Version",-12} {"HTTP/3",-7} {"rtt (ms)",8}");
-
-        var ordered = response.Peers
-            .OrderByDescending(peer => string.Equals(peer.NodeId, response.LocalNodeId, StringComparison.Ordinal))
-            .ThenBy(peer => peer.NodeId, StringComparer.Ordinal);
-
-        foreach (var peer in ordered)
-        {
-            var metadata = peer.Metadata;
-            var rtt = peer.RoundTripTimeMs.HasValue ? peer.RoundTripTimeMs.Value.ToString("0.##", CultureInfo.InvariantCulture) : "-";
-            Console.WriteLine(
-                $"{peer.NodeId,-24} {peer.Status,-8} {metadata.Role,-12} {metadata.ClusterId,-18} {metadata.Region,-18} {metadata.MeshVersion,-12} {(metadata.Http3Support ? "yes" : "no"),-7} {rtt,8}");
-        }
-    }
-
-    private static void PrintLeadershipEvent(LeadershipEventDto leadershipEvent)
-    {
-        var leader = leadershipEvent.Token?.LeaderId ?? leadershipEvent.LeaderId ?? "n/a";
-        var term = leadershipEvent.Token?.Term ?? 0;
-        var fence = leadershipEvent.Token?.FenceToken ?? 0;
-        var expires = leadershipEvent.Token is null
-            ? "n/a"
-            : leadershipEvent.Token.ExpiresAt.ToUniversalTime().ToString("HH:mm:ss\\Z", CultureInfo.InvariantCulture);
-        var reason = string.IsNullOrWhiteSpace(leadershipEvent.Reason) ? "(none)" : leadershipEvent.Reason!;
-        var scope = leadershipEvent.Scope ?? leadershipEvent.Token?.Scope ?? "*";
-        Console.WriteLine($"[{leadershipEvent.OccurredAt:HH:mm:ss}] {leadershipEvent.EventKind.ToString().ToUpperInvariant(),-10} scope={scope} leader={leader} term={term} fence={fence} expires={expires} reason={reason}");
-    }
-
-    private static void PrintProcedureGroup(string label, IEnumerable<string> names)
+    internal static void PrintProcedureGroup(string label, IEnumerable<string> names)
     {
         var nameList = names.ToList();
         Console.WriteLine($"  {label}: {nameList.Count}");
@@ -2537,7 +1217,7 @@ public static class Program
         Console.WriteLine($"    {string.Join(", ", preview)}{(nameList.Count > preview.Count ? $" (+{nameList.Count - preview.Count} more)" : string.Empty)}");
     }
 
-    private static void PrintOutboundGroup(string label, IReadOnlyList<OutboundBindingDescriptor> bindings)
+    internal static void PrintOutboundGroup(string label, IReadOnlyList<OutboundBindingDescriptor> bindings)
     {
         if (bindings.Count == 0)
         {
@@ -2551,7 +1231,7 @@ public static class Program
         }
     }
 
-    private static void PrintMiddlewareLine(string label, IReadOnlyList<string> inbound, IReadOnlyList<string> outbound) => Console.WriteLine($"  {label}: inbound[{inbound.Count}] outbound[{outbound.Count}]");
+    internal static void PrintMiddlewareLine(string label, IReadOnlyList<string> inbound, IReadOnlyList<string> outbound) => Console.WriteLine($"  {label}: inbound[{inbound.Count}] outbound[{outbound.Count}]");
 
     private static bool TryParseHeaders(IEnumerable<string> values, out List<KeyValuePair<string, string>> headers, out string? error)
     {
@@ -2570,6 +1250,20 @@ public static class Program
         }
 
         return true;
+    }
+
+    private static void EnsureHeader(List<KeyValuePair<string, string>> headers, string key, string value)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (headers.Any(h => string.Equals(h.Key, key, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        headers.Add(new KeyValuePair<string, string>(key, value));
     }
 
     private static bool TryPrepareProfiles(
@@ -2611,7 +1305,7 @@ public static class Program
 
                 case "protobuf":
                 case "proto":
-                    if (state.Proto is not null)
+                    if (state.ProtoMessageName is not null)
                     {
                         error = "Multiple protobuf profiles specified. Provide a single protobuf profile per request.";
                         return false;
@@ -2624,13 +1318,9 @@ public static class Program
                         return false;
                     }
 
-                    if (protoFiles.Length == 0)
-                    {
-                        error = "Protobuf profiles require at least one --proto-file pointing to a FileDescriptorSet.";
-                        return false;
-                    }
-
-                    state.Proto = new ProtoProcessingState(protoFiles, messageName.Trim());
+                    // In AOT mode we rely on compiled encoders; descriptor files are only valid when supplying raw binary payloads.
+                    state.ProtoMessageName = messageName.Trim();
+                    state.HasExternalDescriptors = protoFiles?.Length > 0;
                     encoding ??= transport == "grpc" ? "application/grpc" : "application/x-protobuf";
 
                     if (transport == "http")
@@ -2664,9 +1354,39 @@ public static class Program
     {
         error = null;
 
-        if (state.Proto is not null && !TryEncodeProtobufPayload(state.Proto, inlineBody, bodyFile, payloadSource, ref payload, out error))
+        if (state.ProtoMessageName is not null)
         {
-            return false;
+            var binaryPayloadProvided = payloadSource is PayloadSource.Base64 || (payloadSource is PayloadSource.File && !payload.IsEmpty);
+
+            // If caller supplied raw binary (base64 or file), accept as-is.
+            if (!binaryPayloadProvided)
+            {
+                var jsonText = inlineBody;
+                if (string.IsNullOrEmpty(jsonText) && payloadSource == PayloadSource.File && !string.IsNullOrEmpty(bodyFile))
+                {
+                    try
+                    {
+                        jsonText = File.ReadAllText(bodyFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = $"Failed to read payload file '{bodyFile}': {ex.Message}";
+                        return false;
+                    }
+                }
+
+                jsonText ??= "{}";
+
+                if (!ProtobufPayloadRegistry.Instance.TryEncode(state.ProtoMessageName, jsonText, out payload, out error))
+                {
+                    if (state.HasExternalDescriptors)
+                    {
+                        error ??= "Runtime .proto descriptor loading isn't supported in NativeAOT. Provide a binary payload via --body-base64/--body-file or ensure a generated encoder is registered for the message.";
+                    }
+
+                    return false;
+                }
+            }
         }
 
         if (state.PrettyPrintJson)
@@ -2702,55 +1422,86 @@ public static class Program
         EnsureHeader(headers, "Accept", "application/json");
     }
 
-    [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Serialize<TValue>(TValue, JsonSerializerOptions)")]
     private static void FormatJsonPayload(
         string? inlineBody,
         string? bodyFile,
         PayloadSource payloadSource,
         ref ReadOnlyMemory<byte> payload)
     {
+        // Guard against reformatting large payloads that would allocate on LOH.
+        if (payload.Length > PrettyPrintLimitBytes)
+        {
+            Console.Error.WriteLine($"Warning: payload size {payload.Length:N0} bytes exceeds pretty-print limit ({PrettyPrintLimitBytes:N0}); skipping formatting.");
+            return;
+        }
+
         if (payloadSource == PayloadSource.Base64)
         {
             Console.Error.WriteLine("Warning: cannot pretty-print JSON when payload is provided via --body-base64.");
             return;
         }
 
-        var jsonText = inlineBody;
+        ReadOnlyMemory<byte> sourcePayload = payload;
 
-        if (string.IsNullOrEmpty(jsonText) && !string.IsNullOrEmpty(bodyFile) && File.Exists(bodyFile))
+        if (sourcePayload.IsEmpty)
         {
-            try
+            if (!string.IsNullOrEmpty(inlineBody))
             {
-                jsonText = File.ReadAllText(bodyFile);
+                var inlineBytes = Encoding.UTF8.GetBytes(inlineBody);
+                if (inlineBytes.Length > PrettyPrintLimitBytes)
+                {
+                    Console.Error.WriteLine($"Warning: payload size {inlineBytes.Length:N0} bytes exceeds pretty-print limit ({PrettyPrintLimitBytes:N0}); skipping formatting.");
+                    return;
+                }
+
+                sourcePayload = inlineBytes;
             }
-            catch (Exception ex)
+            else if (!string.IsNullOrEmpty(bodyFile) && File.Exists(bodyFile))
             {
-                Console.Error.WriteLine($"Warning: failed to read JSON payload file '{bodyFile}': {ex.Message}");
-                return;
+                try
+                {
+                    var info = new FileInfo(bodyFile);
+                    if (info.Length > PrettyPrintLimitBytes)
+                    {
+                        Console.Error.WriteLine($"Warning: payload size {info.Length:N0} bytes exceeds pretty-print limit ({PrettyPrintLimitBytes:N0}); skipping formatting.");
+                        return;
+                    }
+
+                    sourcePayload = File.ReadAllBytes(bodyFile);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Warning: failed to read JSON payload file '{bodyFile}': {ex.Message}");
+                    return;
+                }
             }
         }
 
-        if (string.IsNullOrEmpty(jsonText))
+        if (sourcePayload.IsEmpty)
         {
-            if (payload.IsEmpty)
-            {
-                return;
-            }
-
-            if (!TryDecodeUtf8(payload.Span, out var decoded))
-            {
-                Console.Error.WriteLine("Warning: payload is not UTF-8; skipping JSON formatting.");
-                return;
-            }
-
-            jsonText = decoded;
+            return;
         }
 
         try
         {
-            using var document = JsonDocument.Parse(jsonText);
-            var formatted = JsonSerializer.Serialize(document.RootElement, PrettyJsonOptions);
-            payload = Encoding.UTF8.GetBytes(formatted);
+            var initialCapacity = Math.Max(Math.Min(PrettyPrintLimitBytes, sourcePayload.Length + 256), 1024);
+            var buffer = new ArrayBufferWriter<byte>(initialCapacity);
+
+            using (var document = JsonDocument.Parse(sourcePayload, new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip
+            }))
+            {
+                using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true });
+                document.RootElement.WriteTo(writer);
+            }
+
+            payload = buffer.WrittenMemory;
+        }
+        catch (JsonException ex)
+        {
+            Console.Error.WriteLine($"Warning: could not format JSON payload: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -2758,838 +1509,35 @@ public static class Program
         }
     }
 
-    private static bool TryEncodeProtobufPayload(
-        ProtoProcessingState protoState,
+    private static bool TryResolvePayload(
         string? inlineBody,
         string? bodyFile,
-        PayloadSource payloadSource,
-        ref ReadOnlyMemory<byte> payload,
+        string? bodyBase64,
+        out ReadOnlyMemory<byte> payload,
+        out PayloadSource source,
         out string? error)
     {
         error = null;
-
-        if (payloadSource == PayloadSource.Base64)
-        {
-            // Caller supplied the binary payload directly.
-            return true;
-        }
-
-        if (!TryLoadMessageDescriptor(protoState.DescriptorPaths, protoState.MessageName, out var descriptor, out error))
-        {
-            return false;
-        }
-
-        var json = inlineBody;
-
-        if (string.IsNullOrEmpty(json) && payloadSource == PayloadSource.File && !string.IsNullOrEmpty(bodyFile))
-        {
-            try
-            {
-                json = File.ReadAllText(bodyFile);
-            }
-            catch (Exception ex)
-            {
-                error = $"Failed to read payload file '{bodyFile}' as JSON: {ex.Message}";
-                return false;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            json = "{}";
-        }
-
-        try
-        {
-            var parserSettings = JsonParser.Settings.Default
-                .WithIgnoreUnknownFields(true)
-                .WithTypeRegistry(TypeRegistry.FromFiles(descriptor.File));
-            var parser = new JsonParser(parserSettings);
-            var message = parser.Parse(json, descriptor);
-            payload = message.ToByteArray();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            // Fall back to a manual serializer if the runtime lacks dynamic parsing support.
-            if (TrySerializeMessage(descriptor, json, out var manualPayload, out var manualError))
-            {
-                payload = manualPayload;
-                return true;
-            }
-
-            error = manualError ?? $"Failed to encode protobuf payload: {ex.Message}";
-            return false;
-        }
-    }
-
-    private static bool TrySerializeMessage(MessageDescriptor descriptor, string json, out ReadOnlyMemory<byte> payload, out string? error)
-    {
         payload = ReadOnlyMemory<byte>.Empty;
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
-        }
-        catch (Exception ex)
-        {
-            error = $"JSON payload could not be parsed: {ex.Message}";
-            return false;
-        }
-
-        if (!TrySerializeMessage(descriptor, document.RootElement, out var buffer, out error))
-        {
-            return false;
-        }
-
-        payload = buffer;
-        return true;
-    }
-
-    private static bool TrySerializeMessage(MessageDescriptor descriptor, JsonElement element, out ReadOnlyMemory<byte> payload, out string? error)
-    {
-        payload = ReadOnlyMemory<byte>.Empty;
-        error = null;
-
-        if (element.ValueKind == JsonValueKind.Null)
-        {
-            return true;
-        }
-
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            error = $"Expected JSON object for message '{descriptor.FullName}'.";
-            return false;
-        }
-
-        using var stream = new MemoryStream();
-        var output = new CodedOutputStream(stream);
-
-        foreach (var property in element.EnumerateObject())
-        {
-            var field = FindField(descriptor, property.Name);
-            if (field is null)
-            {
-                continue;
-            }
-
-            if (!TryWriteField(field, property.Value, output, out error))
-            {
-                return false;
-            }
-        }
-
-        output.Flush();
-        payload = stream.ToArray();
-        return true;
-    }
-
-    private static FieldDescriptor? FindField(MessageDescriptor descriptor, string name)
-    {
-        var field = descriptor.FindFieldByName(name);
-        return field ?? descriptor.Fields.InDeclarationOrder().FirstOrDefault(candidate => string.Equals(candidate.JsonName, name, StringComparison.Ordinal) || string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool TryWriteField(FieldDescriptor field, JsonElement element, CodedOutputStream output, out string? error)
-    {
-        error = null;
-
-        if (element.ValueKind == JsonValueKind.Null)
-        {
-            return true;
-        }
-
-        if (field.IsMap)
-        {
-            if (element.ValueKind != JsonValueKind.Object)
-            {
-                error = $"Map field '{field.FullName}' expects a JSON object.";
-                return false;
-            }
-
-            foreach (var property in element.EnumerateObject())
-            {
-                if (!TrySerializeMapEntry(field, property.Name, property.Value, out var entryBytes, out error))
-                {
-                    return false;
-                }
-
-                output.WriteTag(field.FieldNumber, WireFormat.WireType.LengthDelimited);
-                output.WriteBytes(ByteString.CopyFrom(entryBytes));
-            }
-
-            return true;
-        }
-
-        if (field.IsRepeated)
-        {
-            if (element.ValueKind != JsonValueKind.Array)
-            {
-                error = $"Repeated field '{field.FullName}' expects a JSON array.";
-                return false;
-            }
-
-            if (field.IsPacked && IsPackable(field.FieldType))
-            {
-                using var packedStream = new MemoryStream();
-                var packedOutput = new CodedOutputStream(packedStream);
-
-                foreach (var item in element.EnumerateArray())
-                {
-                    if (!TryWriteValue(field, item, packedOutput, writeTag: false, out error))
-                    {
-                        return false;
-                    }
-                }
-
-                packedOutput.Flush();
-                output.WriteTag(field.FieldNumber, WireFormat.WireType.LengthDelimited);
-                var packedBytes = packedStream.ToArray();
-                output.WriteBytes(ByteString.CopyFrom(packedBytes));
-                return true;
-            }
-
-            foreach (var item in element.EnumerateArray())
-            {
-                if (!TryWriteValue(field, item, output, writeTag: true, out error))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        return TryWriteValue(field, element, output, writeTag: true, out error);
-    }
-
-    private static bool TryWriteValue(FieldDescriptor field, JsonElement element, CodedOutputStream output, bool writeTag, out string? error)
-    {
-        error = null;
-
-        if (element.ValueKind == JsonValueKind.Null)
-        {
-            return true;
-        }
-
-        if (writeTag)
-        {
-            output.WriteTag(field.FieldNumber, GetWireType(field));
-        }
-
-        switch (field.FieldType)
-        {
-            case FieldType.String:
-                output.WriteString(element.GetString() ?? string.Empty);
-                return true;
-            case FieldType.Bool:
-                output.WriteBool(ReadBoolean(element));
-                return true;
-            case FieldType.Int32:
-                output.WriteInt32(ReadInt32(element, field.FullName));
-                return true;
-            case FieldType.Int64:
-                output.WriteInt64(ReadInt64(element, field.FullName));
-                return true;
-            case FieldType.SInt32:
-                output.WriteSInt32(ReadInt32(element, field.FullName));
-                return true;
-            case FieldType.SInt64:
-                output.WriteSInt64(ReadInt64(element, field.FullName));
-                return true;
-            case FieldType.UInt32:
-                output.WriteUInt32(ReadUInt32(element, field.FullName));
-                return true;
-            case FieldType.UInt64:
-                output.WriteUInt64(ReadUInt64(element, field.FullName));
-                return true;
-            case FieldType.Fixed32:
-                output.WriteFixed32(ReadUInt32(element, field.FullName));
-                return true;
-            case FieldType.Fixed64:
-                output.WriteFixed64(ReadUInt64(element, field.FullName));
-                return true;
-            case FieldType.SFixed32:
-                output.WriteSFixed32(ReadInt32(element, field.FullName));
-                return true;
-            case FieldType.SFixed64:
-                output.WriteSFixed64(ReadInt64(element, field.FullName));
-                return true;
-            case FieldType.Float:
-                output.WriteFloat((float)ReadDouble(element, field.FullName));
-                return true;
-            case FieldType.Double:
-                output.WriteDouble(ReadDouble(element, field.FullName));
-                return true;
-            case FieldType.Bytes:
-                output.WriteBytes(ByteString.CopyFrom(ReadBytes(element, field.FullName)));
-                return true;
-            case FieldType.Enum:
-                var enumValue = ReadEnum(field.EnumType, element, field.FullName);
-                output.WriteEnum(enumValue.Number);
-                return true;
-            case FieldType.Message:
-                if (!TrySerializeMessage(field.MessageType, element, out var nestedPayload, out error))
-                {
-                    return false;
-                }
-
-                output.WriteBytes(ByteString.CopyFrom(nestedPayload.ToArray()));
-                return true;
-            default:
-                error = $"Unsupported protobuf field type '{field.FieldType}' for '{field.FullName}'.";
-                return false;
-        }
-    }
-
-    private static bool TrySerializeMapEntry(FieldDescriptor mapField, string keyText, JsonElement valueElement, out byte[] payload, out string? error)
-    {
-        payload = [];
-        error = null;
-
-        var entryDescriptor = mapField.MessageType;
-        var keyDescriptor = entryDescriptor.Fields.InDeclarationOrder()[0];
-        var valueDescriptor = entryDescriptor.Fields.InDeclarationOrder()[1];
-
-        using var stream = new MemoryStream();
-        var output = new CodedOutputStream(stream);
-
-        if (!TryWriteMapKey(keyDescriptor, keyText, output, out error))
-        {
-            return false;
-        }
-
-        if (!TryWriteValue(valueDescriptor, valueElement, output, writeTag: true, out error))
-        {
-            return false;
-        }
-
-        output.Flush();
-        payload = stream.ToArray();
-        return true;
-    }
-
-    private static bool TryWriteMapKey(FieldDescriptor keyDescriptor, string keyText, CodedOutputStream output, out string? error)
-    {
-        error = null;
-
-        output.WriteTag(keyDescriptor.FieldNumber, GetWireType(keyDescriptor));
-
-        try
-        {
-            switch (keyDescriptor.FieldType)
-            {
-                case FieldType.String:
-                    output.WriteString(keyText);
-                    return true;
-                case FieldType.Bool:
-                    output.WriteBool(bool.Parse(keyText));
-                    return true;
-                case FieldType.Int32:
-                case FieldType.SInt32:
-                case FieldType.SFixed32:
-                    output.WriteInt32(int.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                case FieldType.Int64:
-                case FieldType.SInt64:
-                case FieldType.SFixed64:
-                    output.WriteInt64(long.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                case FieldType.UInt32:
-                case FieldType.Fixed32:
-                    output.WriteUInt32(uint.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                case FieldType.UInt64:
-                case FieldType.Fixed64:
-                    output.WriteUInt64(ulong.Parse(keyText, CultureInfo.InvariantCulture));
-                    return true;
-                default:
-                    error = $"Unsupported map key type '{keyDescriptor.FieldType}'.";
-                    return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            error = $"Could not parse map key '{keyText}' for '{keyDescriptor.FullName}': {ex.Message}";
-            return false;
-        }
-    }
-
-    private static WireFormat.WireType GetWireType(FieldDescriptor field) => field.FieldType switch
-    {
-        FieldType.Double => WireFormat.WireType.Fixed64,
-        FieldType.Float => WireFormat.WireType.Fixed32,
-        FieldType.Int64 or FieldType.UInt64 or FieldType.Int32 => WireFormat.WireType.Varint,
-        FieldType.Fixed64 => WireFormat.WireType.Fixed64,
-        FieldType.Fixed32 => WireFormat.WireType.Fixed32,
-        FieldType.Bool => WireFormat.WireType.Varint,
-        FieldType.String => WireFormat.WireType.LengthDelimited,
-        FieldType.Group => WireFormat.WireType.StartGroup,
-        FieldType.Message or FieldType.Bytes => WireFormat.WireType.LengthDelimited,
-        FieldType.UInt32 => WireFormat.WireType.Varint,
-        FieldType.SFixed32 => WireFormat.WireType.Fixed32,
-        FieldType.SFixed64 => WireFormat.WireType.Fixed64,
-        _ => WireFormat.WireType.Varint
-    };
-
-    private static bool IsPackable(FieldType fieldType) => fieldType switch
-    {
-        FieldType.String or FieldType.Bytes or FieldType.Message or FieldType.Group => false,
-        _ => true
-    };
-
-    private static bool ReadBoolean(JsonElement element) => element.ValueKind switch
-    {
-        JsonValueKind.True => true,
-        JsonValueKind.False => false,
-        JsonValueKind.String => bool.Parse(element.GetString() ?? "false"),
-        _ => throw new InvalidOperationException("Expected boolean value."),
-    };
-
-    private static int ReadInt32(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var value) ||
-        element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse int32 value for '{fieldName}'.");
-
-    private static long ReadInt64(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var value) ||
-        element.ValueKind == JsonValueKind.String && long.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse int64 value for '{fieldName}'.");
-
-    private static uint ReadUInt32(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetUInt32(out var value) ||
-        element.ValueKind == JsonValueKind.String && uint.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse uint32 value for '{fieldName}'.");
-
-    private static ulong ReadUInt64(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetUInt64(out var value) ||
-        element.ValueKind == JsonValueKind.String && ulong.TryParse(element.GetString(), NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse uint64 value for '{fieldName}'.");
-
-    private static double ReadDouble(JsonElement element, string fieldName) =>
-        element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out var value) ||
-        element.ValueKind == JsonValueKind.String && double.TryParse(element.GetString(),
-            NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value)
-            ? value
-            : throw new InvalidOperationException($"Could not parse floating point value for '{fieldName}'.");
-
-    private static byte[] ReadBytes(JsonElement element, string fieldName)
-    {
-        var text = element.GetString();
-        if (string.IsNullOrEmpty(text))
-        {
-            return [];
-        }
-
-        try
-        {
-            return Convert.FromBase64String(text);
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidOperationException($"Could not parse base64 payload for '{fieldName}': {ex.Message}");
-        }
-    }
-
-    private static EnumValueDescriptor ReadEnum(EnumDescriptor enumDescriptor, JsonElement element, string fieldName)
-    {
-        if (element.ValueKind != JsonValueKind.String)
-        {
-            return element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var numericValue) ||
-                   element.ValueKind == JsonValueKind.String && int.TryParse(element.GetString(), NumberStyles.Integer,
-                       CultureInfo.InvariantCulture, out numericValue)
-                ? enumDescriptor.FindValueByNumber(numericValue) ??
-                  throw new InvalidOperationException(
-                      $"Enum numeric value '{numericValue}' is not defined for '{fieldName}'.")
-                : throw new InvalidOperationException($"Could not parse enum value for '{fieldName}'.");
-        }
-
-        var name = element.GetString() ?? string.Empty;
-        var match = enumDescriptor.FindValueByName(name) ?? enumDescriptor.Values.FirstOrDefault(v => string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
-        return match ?? throw new InvalidOperationException($"Enum value '{name}' is not defined for '{fieldName}'.");
-
-    }
-
-    private static bool TryLoadMessageDescriptor(
-        string[] descriptorInputs,
-        string messageName,
-        out MessageDescriptor descriptor,
-        out string? error)
-    {
-        descriptor = null!;
-        error = null;
-
-        if (descriptorInputs.Length == 0)
-        {
-            error = "No protobuf descriptor files supplied.";
-            return false;
-        }
-
-        var resolvedFiles = ResolveDescriptorFiles(descriptorInputs);
-        if (resolvedFiles.Count == 0)
-        {
-            error = "No descriptor files found at the supplied --proto-file paths.";
-            return false;
-        }
-
-        var normalizedMessage = NormalizeProtoMessageName(messageName);
-        var cacheKey = BuildDescriptorCacheKey(resolvedFiles);
-
-        if (DescriptorCache.TryGetValue(cacheKey, out var cachedEntry) &&
-            cachedEntry.Messages.TryGetValue(normalizedMessage, out var cachedDescriptor))
-        {
-            descriptor = cachedDescriptor;
-            return true;
-        }
-
-        DescriptorCacheEntry entry;
-        try
-        {
-            entry = BuildDescriptorCacheEntry(resolvedFiles);
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-            return false;
-        }
-
-        DescriptorCache[cacheKey] = entry;
-
-        if (entry.Messages.TryGetValue(normalizedMessage, out var resolvedDescriptor))
-        {
-            descriptor = resolvedDescriptor;
-            return true;
-        }
-
-        error = $"Could not find protobuf message '{messageName}' in provided descriptors.";
-        descriptor = null!;
-        return false;
-    }
-
-    private static DescriptorCacheEntry BuildDescriptorCacheEntry(IReadOnlyList<string> descriptorFiles)
-    {
-        var descriptorProtos = new List<FileDescriptorProto>();
-
-        foreach (var path in descriptorFiles)
-        {
-            try
-            {
-                using var stream = File.OpenRead(path);
-                var set = FileDescriptorSet.Parser.ParseFrom(stream);
-                descriptorProtos.AddRange(set.File);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to read descriptor '{path}': {ex.Message}");
-            }
-        }
-
-        if (!TryBuildFileDescriptors(descriptorProtos, out var descriptorMap, out var buildError))
-        {
-            throw new InvalidOperationException(buildError ?? "Failed to build protobuf descriptors.");
-        }
-
-        var messageMap = new Dictionary<string, MessageDescriptor>(StringComparer.Ordinal);
-        foreach (var message in descriptorMap.Values.SelectMany(descriptor => EnumerateMessages(descriptor.MessageTypes)))
-        {
-            messageMap[message.FullName] = message;
-        }
-
-        return new DescriptorCacheEntry(descriptorMap, messageMap);
-    }
-
-    private static bool TryBuildFileDescriptors(
-        IEnumerable<FileDescriptorProto> protos,
-        out Dictionary<string, FileDescriptor> descriptors,
-        out string? error)
-    {
-        descriptors = new Dictionary<string, FileDescriptor>(StringComparer.Ordinal);
-        error = null;
-
-        foreach (var kvp in WellKnownFileDescriptors)
-        {
-            descriptors[kvp.Key] = kvp.Value;
-        }
-
-        var pending = new Dictionary<string, FileDescriptorProto>(StringComparer.Ordinal);
-        foreach (var proto in protos)
-        {
-            // Avoid rebuilding well-known descriptors if they are embedded in the set.
-            if (!descriptors.ContainsKey(proto.Name))
-            {
-                pending[proto.Name] = proto;
-            }
-        }
-
-        var progress = true;
-        while (pending.Count > 0 && progress)
-        {
-            progress = false;
-            foreach (var (name, proto) in pending.ToList())
-            {
-                var dependencies = new List<FileDescriptor>(proto.Dependency.Count);
-                var unresolved = false;
-
-                foreach (var dependencyName in proto.Dependency)
-                {
-                    if (descriptors.TryGetValue(dependencyName, out var dependencyDescriptor))
-                    {
-                        dependencies.Add(dependencyDescriptor);
-                    }
-                    else if (!pending.ContainsKey(dependencyName))
-                    {
-                        error = $"Descriptor dependency '{dependencyName}' not found for '{name}'.";
-                        return false;
-                    }
-                    else
-                    {
-                        unresolved = true;
-                        break;
-                    }
-                }
-
-                if (unresolved)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var descriptor = BuildFileDescriptor(proto, [.. dependencies]);
-                    descriptors[name] = descriptor;
-                    pending.Remove(name);
-                    progress = true;
-                }
-                catch (Exception ex)
-                {
-                    error = $"Failed to materialize descriptor for '{name}': {ex.Message}";
-                    return false;
-                }
-            }
-        }
-
-        if (pending.Count <= 0)
-        {
-            return true;
-        }
-
-        error = $"Could not resolve descriptor dependencies for: {string.Join(", ", pending.Keys)}.";
-        return false;
-
-    }
-
-    private static IEnumerable<MessageDescriptor> EnumerateMessages(IEnumerable<MessageDescriptor> rootMessages)
-    {
-        foreach (var message in rootMessages)
-        {
-            yield return message;
-
-            foreach (var nested in EnumerateMessages(message.NestedTypes))
-            {
-                yield return nested;
-            }
-        }
-    }
-
-    private static string NormalizeProtoMessageName(string messageName)
-    {
-        var trimmed = messageName.Trim();
-        return trimmed.StartsWith('.') ? trimmed[1..] : trimmed;
-    }
-
-    private static List<string> ResolveDescriptorFiles(IEnumerable<string> inputs)
-    {
-        var files = new List<string>();
-        foreach (var input in inputs)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                continue;
-            }
-
-            if (Directory.Exists(input))
-            {
-                files.AddRange(Directory.EnumerateFiles(input, "*.pb", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.desc", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.protoset", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.fds", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                files.AddRange(Directory.EnumerateFiles(input, "*.bin", SearchOption.AllDirectories).Select(Path.GetFullPath));
-                continue;
-            }
-
-            if (File.Exists(input))
-            {
-                files.Add(Path.GetFullPath(input));
-            }
-        }
-
-        return files;
-    }
-
-    private static string BuildDescriptorCacheKey(List<string> descriptorFiles)
-    {
-        if (descriptorFiles.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var fragments = new string[descriptorFiles.Count];
-        for (var index = 0; index < descriptorFiles.Count; index++)
-        {
-            var fullPath = descriptorFiles[index];
-            var timestamp = File.GetLastWriteTimeUtc(fullPath).Ticks;
-            fragments[index] = $"{fullPath}:{timestamp}";
-        }
-
-        Array.Sort(fragments, StringComparer.Ordinal);
-        return string.Join('|', fragments);
-    }
-
-    private static FileDescriptor BuildFileDescriptor(FileDescriptorProto proto, FileDescriptor[] dependencies)
-    {
-        if (_fileDescriptorBuildFrom is not null)
-        {
-            return InvokeBuildFrom(_fileDescriptorBuildFrom, proto, dependencies);
-        }
-
-        var candidates = typeof(FileDescriptor)
-            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-            .Where(static method => string.Equals(method.Name, "BuildFrom", StringComparison.Ordinal))
-            .ToArray();
-
-        foreach (var candidate in candidates)
-        {
-            var arguments = TryCreateBuildFromArguments(candidate.GetParameters(), proto, dependencies);
-            if (arguments is null)
-            {
-                continue;
-            }
-
-            try
-            {
-                var result = candidate.Invoke(null, arguments);
-                if (result is not FileDescriptor descriptor)
-                {
-                    continue;
-                }
-
-                _fileDescriptorBuildFrom = candidate;
-                return descriptor;
-            }
-            catch
-            {
-                // try the next candidate
-            }
-        }
-
-        throw new InvalidOperationException("Google.Protobuf internal API 'FileDescriptor.BuildFrom' is not available in this runtime.");
-    }
-
-    private static FileDescriptor InvokeBuildFrom(MethodInfo method, FileDescriptorProto proto, FileDescriptor[] dependencies)
-    {
-        var arguments = TryCreateBuildFromArguments(method.GetParameters(), proto, dependencies)
-            ?? throw new InvalidOperationException("Cached FileDescriptor.BuildFrom signature is no longer supported.");
-
-        var result = method.Invoke(null, arguments)
-            ?? throw new InvalidOperationException("Failed to build descriptor.");
-
-        return (FileDescriptor)result;
-    }
-
-    private static object[]? TryCreateBuildFromArguments(ParameterInfo[] parameters, FileDescriptorProto proto, FileDescriptor[] dependencies)
-    {
-        if (parameters.Length == 0)
-        {
-            return null;
-        }
-
-        var arguments = new object[parameters.Length];
-
-        for (var index = 0; index < parameters.Length; index++)
-        {
-            var parameterType = parameters[index].ParameterType;
-            if (parameterType == typeof(FileDescriptorProto))
-            {
-                arguments[index] = proto;
-            }
-            else if (parameterType == typeof(FileDescriptor[]) || typeof(IEnumerable<FileDescriptor>).IsAssignableFrom(parameterType))
-            {
-                arguments[index] = dependencies;
-            }
-            else if (parameterType == typeof(bool))
-            {
-                arguments[index] = true;
-            }
-            else if (parameterType == typeof(string))
-            {
-                arguments[index] = string.Empty;
-            }
-            else
-            {
-                arguments[index] = parameterType.IsValueType
-                    ? Activator.CreateInstance(parameterType)!
-                    : null!;
-            }
-        }
-
-        return arguments;
-    }
-
-    private static void EnsureHeader(List<KeyValuePair<string, string>> headers, string key, string value)
-    {
-        for (var index = 0; index < headers.Count; index++)
-        {
-            if (!string.Equals(headers[index].Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            headers[index] = new KeyValuePair<string, string>(key, value);
-            return;
-        }
-
-        headers.Add(new KeyValuePair<string, string>(key, value));
-    }
-
-    private static bool TryResolvePayload(string? body, string? bodyFile, string? bodyBase64, out ReadOnlyMemory<byte> payload, out PayloadSource source, out string? error)
-    {
-        payload = ReadOnlyMemory<byte>.Empty;
-        source = PayloadSource.None;
-        error = null;
-
-        var sources = new[]
-        {
-            (Name: "--body", HasValue: !string.IsNullOrEmpty(body)),
-            (Name: "--body-file", HasValue: !string.IsNullOrEmpty(bodyFile)),
-            (Name: "--body-base64", HasValue: !string.IsNullOrEmpty(bodyBase64))
-        };
-
-        var active = sources.Count(static s => s.HasValue);
-        if (active > 1)
-        {
-            error = "Specify only one of --body, --body-file, or --body-base64.";
-            return false;
-        }
+        source = PayloadSource.Inline;
 
         if (!string.IsNullOrEmpty(bodyBase64))
         {
             try
             {
                 payload = Convert.FromBase64String(bodyBase64);
+                if (payload.Length > MaxPayloadBytes)
+                {
+                    error = $"Decoded base64 payload is too large ({payload.Length:N0} bytes). Limit is {MaxPayloadBytes:N0} bytes.";
+                    payload = ReadOnlyMemory<byte>.Empty;
+                    return false;
+                }
                 source = PayloadSource.Base64;
                 return true;
             }
-            catch (FormatException ex)
+            catch (Exception ex)
             {
-                error = $"Failed to decode base64 payload: {ex.Message}";
+                error = $"Failed to parse --body-base64: {ex.Message}";
                 return false;
             }
         }
@@ -3598,97 +1546,48 @@ public static class Program
         {
             if (!File.Exists(bodyFile))
             {
-                error = $"Payload file '{bodyFile}' does not exist.";
+                error = $"Body file '{bodyFile}' does not exist.";
                 return false;
             }
 
-            payload = File.ReadAllBytes(bodyFile);
-            source = PayloadSource.File;
-            return true;
+            try
+            {
+                var info = new FileInfo(bodyFile);
+                if (info.Length > MaxPayloadBytes)
+                {
+                    error = $"Body file is too large ({info.Length:N0} bytes). Limit is {MaxPayloadBytes:N0} bytes.";
+                    return false;
+                }
+
+                payload = File.ReadAllBytes(bodyFile);
+                source = PayloadSource.File;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = $"Failed to read body file '{bodyFile}': {ex.Message}";
+                return false;
+            }
         }
 
-        if (!string.IsNullOrEmpty(body))
+        if (inlineBody is not null)
         {
-            payload = Encoding.UTF8.GetBytes(body);
+            if (Encoding.UTF8.GetByteCount(inlineBody) > MaxPayloadBytes)
+            {
+                error = $"Inline body is too large. Limit is {MaxPayloadBytes:N0} bytes.";
+                return false;
+            }
+
+            payload = Encoding.UTF8.GetBytes(inlineBody);
             source = PayloadSource.Inline;
             return true;
         }
 
+        // Empty payload is OK for some requests.
         payload = ReadOnlyMemory<byte>.Empty;
-        source = PayloadSource.None;
+        source = PayloadSource.Inline;
         return true;
     }
-
-    private sealed class ProfileProcessingState
-    {
-        public bool PrettyPrintJson { get; set; }
-
-        public ProtoProcessingState? Proto { get; set; }
-    }
-
-    private sealed record ProtoProcessingState(string[] DescriptorPaths, string MessageName);
-
-    private enum PayloadSource
-    {
-        None,
-        Inline,
-        File,
-        Base64
-    }
-
-    private sealed class LeadershipSnapshotResponse
-    {
-        public DateTimeOffset GeneratedAt { get; set; }
-
-        public LeadershipTokenResponse[] Tokens { get; set; } = [];
-    }
-
-    private sealed class LeadershipTokenResponse
-    {
-        public string Scope { get; set; } = string.Empty;
-
-        public string ScopeKind { get; set; } = string.Empty;
-
-        public string LeaderId { get; set; } = string.Empty;
-
-        public long Term { get; set; }
-
-        public long FenceToken { get; set; }
-
-        public DateTimeOffset IssuedAt { get; set; }
-
-        public DateTimeOffset ExpiresAt { get; set; }
-
-        public Dictionary<string, string> Labels { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-    }
-
-    private sealed class LeadershipEventDto
-    {
-        public LeadershipEventKind EventKind { get; set; } = LeadershipEventKind.Snapshot;
-
-        public string? Scope { get; set; }
-
-        public string? LeaderId { get; set; }
-
-        public LeadershipTokenResponse? Token { get; set; }
-
-        public string? Reason { get; set; }
-
-        public Guid CorrelationId { get; set; }
-
-        public DateTimeOffset OccurredAt { get; set; }
-    }
-
-    private sealed record DescriptorCacheEntry(
-        Dictionary<string, FileDescriptor> Files,
-        Dictionary<string, MessageDescriptor> Messages);
-
-    internal enum MeshPeersOutputFormat
-    {
-        Table,
-        Json
-    }
-
 
     private static bool TryDecodeUtf8(ReadOnlySpan<byte> data, out string text)
     {
@@ -3704,6 +1603,20 @@ public static class Program
         }
     }
 
+    private sealed class ProfileProcessingState
+    {
+        public bool PrettyPrintJson { get; set; }
+        public string? ProtoMessageName { get; set; }
+        public bool HasExternalDescriptors { get; set; }
+    }
+
+    private enum PayloadSource
+    {
+        Inline,
+        File,
+        Base64
+    }
+
     internal static bool TryParseDuration(string value, out TimeSpan duration)
     {
         if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out duration))
@@ -3711,35 +1624,19 @@ public static class Program
             return true;
         }
 
-        var trimmed = value.Trim();
+        var trimmed = value.AsSpan().Trim();
         if (trimmed.Length < 2)
         {
             duration = TimeSpan.Zero;
             return false;
         }
 
-        var suffixes = new Dictionary<string, Func<double, TimeSpan>>(StringComparer.OrdinalIgnoreCase)
+        if (TryParseWithSuffix(trimmed, "ms", TimeSpan.FromMilliseconds, out duration) ||
+            TryParseWithSuffix(trimmed, "s", TimeSpan.FromSeconds, out duration) ||
+            TryParseWithSuffix(trimmed, "m", TimeSpan.FromMinutes, out duration) ||
+            TryParseWithSuffix(trimmed, "h", TimeSpan.FromHours, out duration))
         {
-            ["ms"] = TimeSpan.FromMilliseconds,
-            ["s"] = TimeSpan.FromSeconds,
-            ["m"] = TimeSpan.FromMinutes,
-            ["h"] = TimeSpan.FromHours
-        };
-
-        foreach (var (suffix, factory) in suffixes)
-        {
-            if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                var numberPart = trimmed[..^suffix.Length];
-                if (double.TryParse(numberPart, NumberStyles.Float, CultureInfo.InvariantCulture, out var scalar))
-                {
-                    duration = factory(scalar);
-                    return true;
-                }
-
-                duration = TimeSpan.Zero;
-                return false;
-            }
+            return true;
         }
 
         duration = TimeSpan.Zero;
@@ -3761,31 +1658,59 @@ public static class Program
         return true;
     }
 
-    private static JsonSerializerOptions CreateJsonOptions(
-        JsonSerializerDefaults defaults = JsonSerializerDefaults.Web,
-        Action<JsonSerializerOptions>? configure = null)
+    private static bool TryParseWithSuffix(ReadOnlySpan<char> value, ReadOnlySpan<char> suffix, Func<double, TimeSpan> factory, out TimeSpan duration)
     {
-        var options = new JsonSerializerOptions(defaults);
-        EnsureSerializerTypeInfo(options);
-        configure?.Invoke(options);
-        return options;
+        if (!value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            duration = default;
+            return false;
+        }
+
+        var numberPart = value[..^suffix.Length];
+        if (double.TryParse(numberPart, NumberStyles.Float, CultureInfo.InvariantCulture, out var scalar))
+        {
+            duration = factory(scalar);
+            return true;
+        }
+
+        duration = default;
+        return false;
     }
 
-    private static void EnsureSerializerTypeInfo(JsonSerializerOptions options)
+    private static void WriteBase64Body(ReadOnlySpan<byte> payload)
     {
-        var additionalResolver = JsonSerializer.IsReflectionEnabledByDefault
-            ? ReflectionBackedResolver.Value
-            : CliOnlyResolver.Value;
+        if (payload.IsEmpty)
+        {
+            Console.WriteLine("<empty>");
+            return;
+        }
 
-        options.TypeInfoResolver = options.TypeInfoResolver is null
-            ? additionalResolver
-            : JsonTypeInfoResolver.Combine(options.TypeInfoResolver, additionalResolver);
+        var buffer = ArrayPool<char>.Shared.Rent(CalculateBase64CharLength(Base64ChunkBytes));
+
+        try
+        {
+            var remaining = payload;
+            while (!remaining.IsEmpty)
+            {
+                var chunkLength = Math.Min(Base64ChunkBytes, remaining.Length);
+                var chunk = remaining[..chunkLength];
+
+                if (!Convert.TryToBase64Chars(chunk, buffer, out var written))
+                {
+                    throw new InvalidOperationException("Failed to encode payload as base64.");
+                }
+
+                Console.Write(buffer.AsSpan(0, written));
+                remaining = remaining[chunkLength..];
+            }
+
+            Console.WriteLine();
+        }
+        finally
+        {
+            ArrayPool<char>.Shared.Return(buffer);
+        }
     }
 
-    private static readonly Lazy<IJsonTypeInfoResolver> CliOnlyResolver = new(static () => OmniRelayCliJsonContext.Default);
-
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Reflection-based JSON fallback is only used when dynamic code is available.")]
-    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Reflection-based JSON fallback is only used when dynamic code is available.")]
-    private static readonly Lazy<IJsonTypeInfoResolver> ReflectionBackedResolver = new(static () =>
-        JsonTypeInfoResolver.Combine(OmniRelayCliJsonContext.Default, new DefaultJsonTypeInfoResolver()));
+    private static int CalculateBase64CharLength(int byteLength) => ((byteLength + 2) / 3) * 4;
 }

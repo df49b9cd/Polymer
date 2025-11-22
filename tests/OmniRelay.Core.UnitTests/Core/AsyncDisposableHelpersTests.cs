@@ -18,7 +18,7 @@ public class AsyncDisposableHelpersTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public async Task AsAsyncDisposable_AssignsOutAndReturnsInstance()
+    public async ValueTask AsAsyncDisposable_AssignsOutAndReturnsInstance()
     {
         DummyAsyncDisposable.Reset();
         var dummy = new DummyAsyncDisposable();

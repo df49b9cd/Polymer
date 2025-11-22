@@ -1,5 +1,3 @@
-global using Shouldly;
 global using System.CommandLine;
-global using System.CommandLine.Invocation;
-global using System.CommandLine.Parsing;
+global using OmniRelay.Cli.Core;
 global using Xunit;

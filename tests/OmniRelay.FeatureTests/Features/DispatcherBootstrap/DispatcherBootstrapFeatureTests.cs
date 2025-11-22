@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using OmniRelay.Configuration.Models;
 using OmniRelay.Dispatcher;
+using OmniRelay.Dispatcher.Config;
 using OmniRelay.FeatureTests.Fixtures;
 using Xunit;
 
@@ -12,7 +12,7 @@ public sealed class DispatcherBootstrapFeatureTests(FeatureTestApplication appli
 {
     private readonly FeatureTestApplication _application = application;
 
-    [Fact(DisplayName = "Dispatcher host boots with feature configuration")]
+    [Fact(DisplayName = "Dispatcher host boots with feature configuration", Timeout = TestTimeouts.Default)]
     public void DispatcherStartsWithFeatureConfiguration()
     {
         var dispatcher = _application.Services.GetRequiredService<Dispatcher.Dispatcher>();
@@ -21,7 +21,7 @@ public sealed class DispatcherBootstrapFeatureTests(FeatureTestApplication appli
         Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
     }
 
-    [Fact(DisplayName = "Feature configuration binds logging and diagnostics overrides")]
+    [Fact(DisplayName = "Feature configuration binds logging and diagnostics overrides", Timeout = TestTimeouts.Default)]
     public void ConfigurationBindingsAreApplied()
     {
         var options = _application.Services.GetRequiredService<IOptionsMonitor<OmniRelayConfigurationOptions>>();

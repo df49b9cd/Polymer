@@ -13,7 +13,7 @@ namespace OmniRelay.Tests.Codegen;
 
 public class ProtobufCodeGeneratorTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void Generated_Code_Matches_Golden_File()
     {
         var request = CodeGeneratorRequestFactory.Create();
@@ -28,7 +28,7 @@ public class ProtobufCodeGeneratorTests
         Assert.Equal(expected, generated);
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void IncrementalGenerator_Produces_Golden_File()
     {
         var descriptorSet = CodeGeneratorRequestFactory.CreateDescriptorSet();

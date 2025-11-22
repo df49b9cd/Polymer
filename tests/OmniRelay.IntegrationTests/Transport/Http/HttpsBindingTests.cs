@@ -12,7 +12,7 @@ namespace OmniRelay.IntegrationTests.Transport.Http;
 public sealed class HttpsBindingTests(ITestOutputHelper output) : TransportIntegrationTest(output)
 {
     [Fact(Timeout = 30000)]
-    public async Task Https_WithCertificate_BindsAndServes()
+    public async ValueTask Https_WithCertificate_BindsAndServes()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"https://127.0.0.1:{port}/");
@@ -49,7 +49,7 @@ public sealed class HttpsBindingTests(ITestOutputHelper output) : TransportInteg
     }
 
     [Fact(Timeout = 30000)]
-    public async Task Https_WithoutCertificate_ThrowsOnStart()
+    public async ValueTask Https_WithoutCertificate_ThrowsOnStart()
     {
         var port = TestPortAllocator.GetRandomPort();
         var baseAddress = new Uri($"https://127.0.0.1:{port}/");

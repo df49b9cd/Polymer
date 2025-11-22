@@ -6,7 +6,7 @@ namespace OmniRelay.Tests.Transport.Grpc;
 
 public class GrpcTransportMetricsTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateBaseTags_WithProtocol_AddsNetworkMetadata()
     {
         var meta = new RequestMeta(

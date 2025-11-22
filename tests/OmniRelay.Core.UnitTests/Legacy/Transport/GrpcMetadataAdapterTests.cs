@@ -7,7 +7,7 @@ namespace OmniRelay.Tests.Transport;
 
 public class GrpcMetadataAdapterTests
 {
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateRequestMetadata_ThrowsForInvalidHeaderCharacters()
     {
         var meta = new RequestMeta(
@@ -21,7 +21,7 @@ public class GrpcMetadataAdapterTests
         Should.Throw<ArgumentException>(() => GrpcMetadataAdapter.CreateRequestMetadata(meta));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ResolveDeadline_UsesSoonerOfDeadlineAndTtl()
     {
         var now = DateTime.UtcNow;
@@ -36,10 +36,11 @@ public class GrpcMetadataAdapterTests
         var resolved = InvokeResolveDeadline(meta);
 
         resolved.HasValue.ShouldBeTrue();
-        resolved.Value.ShouldBeInRange(deadline.AddSeconds(-1), deadline.AddSeconds(1));
+        var resolvedValue = resolved!.Value;
+        resolvedValue.ShouldBeInRange(deadline.AddSeconds(-1), deadline.AddSeconds(1));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ResolveDeadline_UsesTtlWhenDeadlineMissing()
     {
         var ttl = TimeSpan.FromMilliseconds(200);
@@ -51,10 +52,11 @@ public class GrpcMetadataAdapterTests
         var before = DateTime.UtcNow;
         var resolved = InvokeResolveDeadline(meta);
         resolved.HasValue.ShouldBeTrue();
-        resolved.Value.ShouldBeInRange(before.AddMilliseconds(50), before.AddMilliseconds(600));
+        var resolvedValue = resolved!.Value;
+        resolvedValue.ShouldBeInRange(before.AddMilliseconds(50), before.AddMilliseconds(600));
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void ResolveDeadline_ReturnsNullWhenNoDeadlineOrTtl()
     {
         var meta = new RequestMeta(service: "svc", procedure: "echo");
@@ -62,7 +64,7 @@ public class GrpcMetadataAdapterTests
         resolved.ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Timeout = TestTimeouts.Default)]
     public void CreateResponseHeaders_PreservesRawEncoding()
     {
         var meta = new ResponseMeta(encoding: RawCodec.DefaultEncoding);
@@ -78,8 +80,8 @@ public class GrpcMetadataAdapterTests
     {
         var method = typeof(GrpcOutbound).GetMethod(
             "ResolveDeadline",
-            BindingFlags.NonPublic | BindingFlags.Static);
-        method.ShouldNotBeNull();
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Missing ResolveDeadline.");
         var result = method.Invoke(null, [meta]);
         return (DateTime?)result;
     }
