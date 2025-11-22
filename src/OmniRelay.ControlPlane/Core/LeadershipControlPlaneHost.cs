@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OmniRelay.ControlPlane.Hosting;
 using OmniRelay.ControlPlane.Security;
+using OmniRelay.ControlPlane.Identity;
 using OmniRelay.Core.Shards.ControlPlane;
 using OmniRelay.Core.Transport;
 using OmniRelay.Transport.Grpc;
@@ -59,6 +60,11 @@ public sealed partial class LeadershipControlPlaneHost : ILifecycle, IDisposable
             {
                 services.AddSingleton(shardGrpcService);
             }
+            var caService = _services.GetService<CertificateAuthorityService>();
+            if (caService is not null)
+            {
+                services.AddSingleton(caService);
+            }
         });
         builder.ConfigureApp(app =>
         {
@@ -66,6 +72,11 @@ public sealed partial class LeadershipControlPlaneHost : ILifecycle, IDisposable
             if (shardGrpcService is not null)
             {
                 app.MapGrpcService<ShardControlGrpcService>();
+            }
+            var caService = _services.GetService<CertificateAuthorityService>();
+            if (caService is not null)
+            {
+                app.MapGrpcService<CertificateAuthorityService>();
             }
         });
 

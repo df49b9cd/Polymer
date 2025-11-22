@@ -22,5 +22,6 @@
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore.Server" />
     <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 </Project>

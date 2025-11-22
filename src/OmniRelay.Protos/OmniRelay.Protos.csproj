@@ -24,6 +24,7 @@
     <Protobuf Include="Protos\leadership_control.proto" GrpcServices="Server" />
     <Protobuf Include="Protos\shard_control.proto" GrpcServices="Server" />
     <Protobuf Include="Protos\control_plane.proto" GrpcServices="Both" />
+    <Protobuf Include="Protos\ca.proto" GrpcServices="Both" />
   </ItemGroup>
 
   <ItemGroup>

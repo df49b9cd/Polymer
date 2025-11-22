@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option csharp_namespace = "OmniRelay.Protos.Ca";
+package omnirelay.ca;
+
+message CsrRequest {
+  string node_id = 1;
+  bytes csr = 2; // PKCS#10
+}
+
+message CertResponse {
+  bytes certificate = 1; // DER
+  bytes certificate_chain = 2; // concatenated DER
+  bytes trust_bundle = 3; // PEM bundle
+  string expires_at = 4; // RFC3339
+}
+
+message TrustBundleRequest {}
+
+message TrustBundleResponse {
+  bytes trust_bundle = 1; // PEM bundle
+}
+
+service CertificateAuthority {
+  rpc SubmitCsr(CsrRequest) returns (CertResponse);
+  rpc TrustBundle(TrustBundleRequest) returns (TrustBundleResponse);
+}
