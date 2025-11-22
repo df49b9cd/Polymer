@@ -13,6 +13,9 @@ Adopt the shared transport/codec/proto packages inside MeshKit and OmniRelay bui
 - Regression tests pass in CI (MeshKit + OmniRelay solution).
 
 ## Status
+Done — Control-plane vs data-plane split is complete; shared packages (`OmniRelay.Transport`, `OmniRelay.Codecs`, `OmniRelay.Protos`, `OmniRelay.ControlPlane.Abstractions`) are packable with SBOMs. MeshKit (via `OmniRelay.ControlPlane` + tests in `OmniRelay.MeshKit.AotSmoke`) consumes control-plane runtime and shared packages; data-plane no longer carries gossip/leadership/shard hosting code, removing duplicated transport/codec implementations. CI build succeeds.
+
+## Status
 Open
 
 ## Testing Strategy
