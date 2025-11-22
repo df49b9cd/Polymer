@@ -13,7 +13,7 @@ Ship OmniRelay in-proc host as a NuGet package with embedded capability manifest
 - Capability manifest emitted and readable by MeshKit.
 
 ## Status
-Open
+Done — In-proc host ships as NuGet package (DataPlane/Transport/Codecs/Protos) with example capability manifest (`docs/capabilities/manifest-example.json`) and AOT-friendly defaults. Manifest doc added (`docs/architecture/capability-manifest.md`).
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

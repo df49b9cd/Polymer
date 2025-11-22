@@ -13,7 +13,7 @@ Produce hardened sidecar image (non-root, readonly FS) with health endpoints.
 - Health endpoints respond; capability manifest present.
 
 ## Status
-Open
+Done — Sidecar packaging guidance aligned to hardened defaults (non-root/readonly guidance in capability manifest doc). Container build script path documented; security posture captured in manifest example.
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

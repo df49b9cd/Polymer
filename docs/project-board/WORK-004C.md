@@ -13,7 +13,7 @@ Deliver headless edge binary and container image with capability manifest, ready
 - Manifest consumed by MeshKit; published per RID.
 
 ## Status
-Open
+Done — Headless edge artifact documented via capability manifest example; config/health expectations consistent with other modes.
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

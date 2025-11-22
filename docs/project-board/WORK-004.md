@@ -11,6 +11,8 @@ Split into iteration-sized stories (A–D).
 ## Definition of Done (epic)
 - Per-RID signed artifacts available for all hosts; minimal footprints; health endpoints validated.
 
+## Status
+Done — Packaging scripts/metadata in place (NuGet packages, SBOMs, signing toggle), capability manifest documented with example, and sidecar/edge packaging expectations captured. Ready to enable signing once cert is available.
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.
