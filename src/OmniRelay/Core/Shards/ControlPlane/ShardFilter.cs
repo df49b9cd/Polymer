@@ -1,6 +1,6 @@
 namespace OmniRelay.Core.Shards.ControlPlane;
 
-internal sealed class ShardFilter
+public sealed class ShardFilter
 {
     private readonly string? _namespace;
     private readonly string? _owner;

@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
+    <ProjectReference Include="../OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Npgsql" />

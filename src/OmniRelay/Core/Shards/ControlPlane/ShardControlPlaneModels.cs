@@ -67,7 +67,7 @@ public sealed record ShardSimulationResponse(
     IReadOnlyList<ShardSimulationAssignment> Assignments,
     IReadOnlyList<ShardSimulationChange> Changes);
 
-internal static class ShardControlPlaneMapper
+public static class ShardControlPlaneMapper
 {
     public static ShardSummary ToSummary(ShardRecord record)
     {

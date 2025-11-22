@@ -25,6 +25,7 @@
   <ItemGroup>
     <Compile Include="..\TestSupport\Shards\ShardControlPlaneTestHost.cs" Link="Support/ShardControlPlaneTestHost.cs" />
     <ProjectReference Include="..\..\src\OmniRelay\OmniRelay.csproj" />
+    <ProjectReference Include="..\..\src\OmniRelay.ControlPlane\OmniRelay.ControlPlane.csproj" />
 <ProjectReference Include="..\..\src\OmniRelay.ShardStore.Sqlite\OmniRelay.ShardStore.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\OmniRelay.ShardStore.Relational\OmniRelay.ShardStore.Relational.csproj" />
   </ItemGroup>

@@ -7,7 +7,7 @@ using ProtoLeadershipSubscribeRequest = OmniRelay.Mesh.Control.V1.LeadershipSubs
 namespace OmniRelay.Core.Leadership;
 
 /// <summary>gRPC control-plane service that streams leadership events.</summary>
-internal sealed class LeadershipControlGrpcService(
+public sealed class LeadershipControlGrpcService(
     ILeadershipObserver leadership,
     ILogger<LeadershipControlGrpcService> logger)
     : ProtoLeadershipControlService.LeadershipControlServiceBase

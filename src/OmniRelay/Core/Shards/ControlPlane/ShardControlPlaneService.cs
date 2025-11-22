@@ -4,7 +4,7 @@ using OmniRelay.Core.Shards.Hashing;
 
 namespace OmniRelay.Core.Shards.ControlPlane;
 
-internal sealed class ShardControlPlaneService
+public sealed class ShardControlPlaneService
 {
     private readonly IShardRepository _repository;
     private readonly ShardHashStrategyRegistry _strategies;

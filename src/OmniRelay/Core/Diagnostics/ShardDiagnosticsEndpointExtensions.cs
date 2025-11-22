@@ -8,7 +8,7 @@ using OmniRelay.Core.Shards.ControlPlane;
 
 namespace OmniRelay.Core.Diagnostics;
 
-internal static class ShardDiagnosticsEndpointExtensions
+public static class ShardDiagnosticsEndpointExtensions
 {
     private const string MeshReadScope = "mesh.read";
     private const string MeshOperateScope = "mesh.operate";

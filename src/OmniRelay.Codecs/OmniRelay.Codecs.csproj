@@ -10,6 +10,7 @@
     <AssemblyName>OmniRelay.Codecs</AssemblyName>
     <RootNamespace>OmniRelay</RootNamespace>
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
 

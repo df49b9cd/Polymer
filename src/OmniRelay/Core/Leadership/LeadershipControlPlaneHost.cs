@@ -12,7 +12,7 @@ using OmniRelay.Transport.Grpc.Interceptors;
 namespace OmniRelay.Core.Leadership;
 
 /// <summary>Dedicated gRPC host for leadership control-plane streaming APIs.</summary>
-internal sealed partial class LeadershipControlPlaneHost : ILifecycle, IDisposable, IGrpcServerInterceptorSink
+public sealed partial class LeadershipControlPlaneHost : ILifecycle, IDisposable, IGrpcServerInterceptorSink
 {
     private readonly IServiceProvider _services;
     private readonly GrpcControlPlaneHostOptions _options;

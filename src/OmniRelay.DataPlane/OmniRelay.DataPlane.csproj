@@ -10,6 +10,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>OmniRelay.DataPlane</AssemblyName>
     <RootNamespace>OmniRelay.DataPlane</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,9 +26,10 @@
     <Compile Include="..\OmniRelay\Core\Diagnostics\**\*.cs" Link="Core/Diagnostics/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\OmniRelay\Core\Gossip\**\*.cs" Link="Core/Gossip/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\OmniRelay\Core\Peers\**\*.cs" Link="Core/Peers/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Shards\**\*.cs" Link="Core/Shards/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\ControlPlane\Hosting\**\*.cs" Link="ControlPlane/Hosting/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\ControlPlane\Upgrade\**\*.cs" Link="ControlPlane/Upgrade/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\ControlPlane\Hosting\LifecycleOrchestrator*.cs" Link="ControlPlane/Hosting/%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\ControlPlane\Hosting\LifecycleComponentRegistration.cs" Link="ControlPlane/Hosting/LifecycleComponentRegistration.cs" />
+    <Compile Include="..\OmniRelay\ControlPlane\Hosting\ILifecycleOrchestrator.cs" Link="ControlPlane/Hosting/ILifecycleOrchestrator.cs" />
+    <Compile Include="..\OmniRelay\ControlPlane\Hosting\LifecycleComponentStatus.cs" Link="ControlPlane/Hosting/LifecycleComponentStatus.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +40,7 @@
     <Compile Remove="..\OmniRelay\Core\Diagnostics\ShardDiagnosticsJsonContext.cs" />
     <Compile Remove="..\OmniRelay\Core\Diagnostics\DiagnosticsJsonContext.cs" />
     <Compile Remove="..\OmniRelay\Core\Leadership\**\*.cs" />
+    <Compile Remove="..\OmniRelay\Core\Shards\**\*.cs" />
     <Compile Remove="..\OmniRelay\ControlPlane\Upgrade\**\*.cs" />
   </ItemGroup>
 

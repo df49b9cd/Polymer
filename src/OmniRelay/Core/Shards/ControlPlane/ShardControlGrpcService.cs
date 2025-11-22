@@ -5,7 +5,7 @@ using MeshControl = OmniRelay.Mesh.Control.V1;
 
 namespace OmniRelay.Core.Shards.ControlPlane;
 
-internal sealed class ShardControlGrpcService : MeshControl.ShardControlService.ShardControlServiceBase
+public sealed class ShardControlGrpcService : MeshControl.ShardControlService.ShardControlServiceBase
 {
     private const string MeshScopeHeader = "x-mesh-scope";
     private const string MeshReadScope = "mesh.read";
