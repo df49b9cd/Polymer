@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option csharp_namespace = "OmniRelay.Protos.Control";
+package omnirelay.control;
+
+// Capability-aware control-plane watch API (delta + snapshot).
+message ControlWatchRequest {
+  string node_id = 1;
+  repeated string capabilities = 2;
+}
+
+message ControlWatchResponse {
+  string version = 1;
+  bytes payload = 2; // Serialized config bundle (routes/clusters/policies/extensions), TBD schema.
+  repeated string capabilities = 3; // Capabilities required for this payload.
+  bool full_snapshot = 4;
+}
+
+message ControlSnapshotRequest {
+  string node_id = 1;
+  repeated string capabilities = 2;
+}
+
+message ControlSnapshotResponse {
+  string version = 1;
+  bytes payload = 2;
+  repeated string capabilities = 3;
+}
+
+service ControlPlaneWatch {
+  rpc Watch(ControlWatchRequest) returns (stream ControlWatchResponse);
+  rpc Snapshot(ControlSnapshotRequest) returns (ControlSnapshotResponse);
+}

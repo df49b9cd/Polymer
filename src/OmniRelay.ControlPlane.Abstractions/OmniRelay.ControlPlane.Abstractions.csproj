@@ -24,4 +24,8 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.Protos\OmniRelay.Protos.csproj" />
+  </ItemGroup>
 </Project>
