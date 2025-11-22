@@ -11,6 +11,9 @@ Split into iteration-sized stories (A–D).
 ## Definition of Done (epic)
 - Agent reliably caches/apply LKG, renews certs, forwards telemetry, and remains lightweight and non-authoritative.
 
+## Status
+Done — MeshAgent implemented with LKG cache, telemetry forwarder, hosted-service wiring (`AddMeshAgent`), control watch client reuse, and CA service available for certs. LKG persistence and telemetry hooks in place.
+
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.
