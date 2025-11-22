@@ -7,42 +7,10 @@
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>OmniRelay.DataPlane</AssemblyName>
     <RootNamespace>OmniRelay.DataPlane</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="Dispatcher\**\*.cs" />
-    <Compile Include="Transport\**\*.cs" />
-    <Compile Include="Security\**\*.cs" />
-    <Compile Include="Errors\**\*.cs" />
-    <Compile Include="Properties/AssemblyInfo.cs" />
-    <!-- Linked source from original OmniRelay for data-plane components not already in Codecs -->
-    <Compile Include="..\OmniRelay\Core\AsyncDisposableHelpers.cs" Link="Core/AsyncDisposableHelpers.cs" />
-    <Compile Include="..\OmniRelay\Core\Clients\**\*.cs" Link="Core/Clients/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Middleware\**\*.cs" Link="Core/Middleware/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Diagnostics\**\*.cs" Link="Core/Diagnostics/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Gossip\**\*.cs" Link="Core/Gossip/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Peers\**\*.cs" Link="Core/Peers/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\ControlPlane\Hosting\LifecycleOrchestrator*.cs" Link="ControlPlane/Hosting/%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\ControlPlane\Hosting\LifecycleComponentRegistration.cs" Link="ControlPlane/Hosting/LifecycleComponentRegistration.cs" />
-    <Compile Include="..\OmniRelay\ControlPlane\Hosting\ILifecycleOrchestrator.cs" Link="ControlPlane/Hosting/ILifecycleOrchestrator.cs" />
-    <Compile Include="..\OmniRelay\ControlPlane\Hosting\LifecycleComponentStatus.cs" Link="ControlPlane/Hosting/LifecycleComponentStatus.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Exclude control-plane-only diagnostics/leadership artifacts from DataPlane -->
-    <Compile Remove="..\OmniRelay\Core\Diagnostics\DiagnosticsControlPlaneHost.cs" />
-    <Compile Remove="..\OmniRelay\Core\Diagnostics\DiagnosticsControlPlaneJsonContext.cs" />
-    <Compile Remove="..\OmniRelay\Core\Diagnostics\ShardDiagnosticsEndpointExtensions.cs" />
-    <Compile Remove="..\OmniRelay\Core\Diagnostics\ShardDiagnosticsJsonContext.cs" />
-    <Compile Remove="..\OmniRelay\Core\Diagnostics\DiagnosticsJsonContext.cs" />
-    <Compile Remove="..\OmniRelay\Core\Leadership\**\*.cs" />
-    <Compile Remove="..\OmniRelay\Core\Shards\**\*.cs" />
-    <Compile Remove="..\OmniRelay\ControlPlane\Upgrade\**\*.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OmniRelay.ControlPlane.Abstractions\OmniRelay.ControlPlane.Abstractions.csproj" />

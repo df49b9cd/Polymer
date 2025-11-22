@@ -12,16 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\OmniRelay\ControlPlane\**\*.cs" Link="%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Diagnostics\**\*.cs" Link="Core/Diagnostics/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Leadership\**\*.cs" Link="Core/Leadership/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\OmniRelay\Core\Shards\**\*.cs" Link="Core/Shards/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Remove="..\OmniRelay\ControlPlane\Hosting\LifecycleOrchestrator*.cs" />
-    <Compile Remove="..\OmniRelay\ControlPlane\Hosting\LifecycleComponentRegistration.cs" />
-    <Compile Remove="..\OmniRelay\ControlPlane\Hosting\ILifecycleOrchestrator.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\OmniRelay.ControlPlane.Abstractions\OmniRelay.ControlPlane.Abstractions.csproj" />
     <ProjectReference Include="..\OmniRelay.Codecs\OmniRelay.Codecs.csproj" />
     <ProjectReference Include="..\OmniRelay.Protos\OmniRelay.Protos.csproj" />
