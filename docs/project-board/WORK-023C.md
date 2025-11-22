@@ -1,15 +1,15 @@
 # WORK-023C – MeshKit Integration & Regression Tests
 
 ## Goal
-Adopt the shared transport/codec/proto packages inside MeshKit and OmniRelay build/test pipeline, removing any duplicated transport/codec code in MeshKit.
+Adopt the shared transport/codec/proto packages inside MeshKit and OmniRelay build/test pipeline, removing any duplicated transport/codec code in MeshKit. MeshKit should depend on `OmniRelay.ControlPlane` + shared packages, not on `OmniRelay.DataPlane` internals.
 
 ## Scope
 - Replace MeshKit transport/codec usages with shared libraries; remove duplicated implementations.
-- Ensure OmniRelay references the packages (not source) in build/test.
+- Ensure OmniRelay.DataPlane and OmniRelay.ControlPlane reference the packages (not source) in build/test.
 - Contract tests ensuring MeshKit uses the same behaviors as OmniRelay (in-proc fixtures/in-memory server) and guard against future drift in CI.
 
 ## Acceptance Criteria
-- MeshKit builds against shared packages; no duplicated transport/codec code remains.
+- MeshKit builds against shared packages and `OmniRelay.ControlPlane`; no duplicated transport/codec code remains; `OmniRelay.DataPlane` stays data-plane only.
 - Regression tests pass in CI (MeshKit + OmniRelay solution).
 
 ## Status

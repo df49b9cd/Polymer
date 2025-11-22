@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 ### 1.1 Purpose
-Define the business objectives, scope, and success criteria for OmniRelay as the high-performance, Native AOT-friendly platform. OmniRelay is delivered as three layers inside one repo: shared (Codecs/Protos/Transport.Host), a DataPlane (dispatcher, peers, extensions, filter chain, sidecar/edge/in-proc hosts), and a ControlPlane (MeshKit services, registry, identity, rollout, bridge).
+Define the business objectives, scope, and success criteria for OmniRelay as the high-performance, Native AOT-friendly platform. OmniRelay is delivered as three layers inside one repo and split into separate runtimes/assemblies: shared (Codecs/Protos/Transport.Host), `OmniRelay.DataPlane` (dispatcher, peers, extensions, filter chain, sidecar/edge/in-proc hosts), and `OmniRelay.ControlPlane` (MeshKit-facing services, registry, identity, rollout, bridge).
 
 ### 1.2 Scope
 - In scope: L4/L7 proxying (DataPlane), routing, retries/circuit breaking, mTLS/JWT authn/authz enforcement, telemetry emission, dynamic extension hosting (DSL, Proxy-Wasm, native plugins), watchdog/resource guards, capability negotiation; ControlPlane services (MeshKit) for config/identity/registry/rollout; shared libraries for codecs/protos/host wiring.

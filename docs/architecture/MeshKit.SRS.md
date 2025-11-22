@@ -8,7 +8,7 @@
 - Bridge: component federating selected state between control domains without merging consensus.
 
 ### 1.2 Background
-MeshKit provides the configuration, identity, policy, and extension lifecycle needed to run OmniRelay globally with both centralized and edge-aware topologies.
+MeshKit provides the configuration, identity, policy, and extension lifecycle needed to run OmniRelay globally with both centralized and edge-aware topologies, built atop the `OmniRelay.ControlPlane` runtime and shared packages (Codecs/Protos/Transport.Host) without embedding data-plane logic.
 
 ### 1.3 System Overview
 Components: central control-plane ring (leader + followers) per domain; local agents per node/pod; mesh bridges connecting domains; extension registry; CA/identity service; telemetry collector; operator API/CLI.

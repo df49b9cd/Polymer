@@ -1,15 +1,14 @@
 # MeshKit Extraction Plan
 
-This document outlines how we will split the MeshKit control-plane stack out of the OmniRelay repository once the WORK backlog reaches the desired maturity. Until extraction, all code lives under `src/OmniRelay/*`; this plan keeps us honest about dependency boundaries, project references, CI pipelines, and release packaging.
+This document originally described an external-repo extraction. Control-plane code is now already isolated inside this repo as `src/OmniRelay.ControlPlane` and `src/OmniRelay.ControlPlane.Abstractions`, with data-plane runtime in `src/OmniRelay.DataPlane` and shared packages (`Transport`, `Codecs`, `Protos`). The remaining purpose of this plan is to keep dependency boundaries clean and leave the door open for a future repo split if/when governance requires it.
 
 ## 1. Current Footprint
 
-### Source directories to migrate
-- `src/OmniRelay/Core/Gossip/*` – gossip agent, metadata models, health integration.
-- `src/OmniRelay/Core/Leadership/*` – coordinator, event hub, fences, stores, control services.
-- `src/OmniRelay/Core/Shards/*` – shard domain models, hashing strategies, repositories.
-- `src/OmniRelay/ControlPlane/*` – hosting builders, control-plane services, client factories.
-- `src/OmniRelay/Diagnostics/*` + `src/OmniRelay.Diagnostics.*` (Alerting, Logging, Telemetry, Probes) – shared diagnostics runtime the MeshKit hosts depend on.
+### Source directories to migrate (now already compartmentalized)
+- `src/OmniRelay.ControlPlane/**` – hosting builders, control-plane services, clients, throttling/upgrade, shard/leadership.
+- `src/OmniRelay.ControlPlane.Abstractions/**` – contracts for event bus, TLS options, drain participants.
+- `src/OmniRelay.DataPlane/**` – stays data-plane only; do **not** reintroduce control-plane sources here.
+- `src/OmniRelay.Diagnostics.*` – shared diagnostics runtime the MeshKit hosts depend on.
 - `src/OmniRelay.ResourceLeaseReplicator.*` – replicator frameworks that feed rebalancer/failover plans.
 
 ### Tests to migrate

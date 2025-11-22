@@ -8,7 +8,7 @@
 - LKG: Last-known-good configuration snapshot.
 
 ### 1.2 Background
-OmniRelay replaces or complements sidecar proxies by providing an in-proc option plus sidecar/headless modes, while retaining mesh-grade features (mTLS, routing, policy, extensibility) and AOT performance characteristics.
+OmniRelay replaces or complements sidecar proxies by providing an in-proc option plus sidecar/headless modes, while retaining mesh-grade features (mTLS, routing, policy, extensibility) and AOT performance characteristics. The implementation is split into `OmniRelay.DataPlane` (hot path) and `OmniRelay.ControlPlane` (control/diagnostics hosting) over shared packages.
 
 ### 1.3 System Overview
 Components: listener/pipeline, routing/cluster manager, extension hosts (DSL/Wasm/native), watchdogs, telemetry emitters, config client for MeshKit, and capability advertisement. Deployed per workload or as edge proxy.

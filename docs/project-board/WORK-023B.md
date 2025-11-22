@@ -1,15 +1,15 @@
 # WORK-023B – Packaging & Multi-Targeting
 
 ## Goal
-Make the shared libraries NuGet-packable/internal-feed ready, multi-targeting `net10.0` and AOT-safe `net10.0` with `#if NATIVE_AOT` guards, and publish them for consumption by MeshKit/OmniRelay builds.
+Make the shared libraries NuGet-packable/internal-feed ready, multi-targeting `net10.0` and AOT-safe `net10.0` with `#if NATIVE_AOT` guards, and publish them for consumption by OmniRelay.DataPlane/ControlPlane and MeshKit builds.
 
 ## Scope
 - NuGet metadata, internal feed publishing, and versioning strategy.
 - Multi-targeting; guard AOT-sensitive code paths; avoid reflection/dynamic load.
-- CI jobs to build/package and push these libraries; OmniRelay and MeshKit consume via project/package refs.
+- CI jobs to build/package and push these libraries; OmniRelay.DataPlane, OmniRelay.ControlPlane, and MeshKit consume via project/package refs (no source links).
 
 ## Acceptance Criteria
-- Packages publish successfully for both targets; AOT publish passes.
+- Packages publish successfully for both targets; AOT publish passes for DataPlane and ControlPlane hosts using only package references.
 - Packages signed and include symbols/SBOM per policy.
 
 ## Status

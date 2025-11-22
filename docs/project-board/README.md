@@ -9,7 +9,7 @@ Use this board with:
 
 | Lane | Focus | Stories (sequence) | Notes |
 | --- | --- | --- | --- |
-| L0 | Shared foundations & split layers | WORK-023 → WORK-001 → WORK-005 | First refactor shared libraries (Codecs/Protos/Transport.Host) and establish DataPlane vs ControlPlane split, then ensure mode parity, AOT/perf, extensions, packaging, and CI gating. |
+| L0 | Shared foundations & split layers | WORK-023 → WORK-001 → WORK-005 | Shared packages in place (Codecs/Protos/Transport.Host) and runtime split completed (`OmniRelay.DataPlane`, `OmniRelay.ControlPlane`). Next: mode parity, AOT/perf hardening, extensions, packaging, and CI gating. |
 | L1 | MeshKit control-plane foundation | WORK-006 → WORK-009 | Define control protocol, identity/CA, local agent with LKG cache, and bootstrap/watch harnesses. MeshKit consumes shared libraries/Transport.Host, not DataPlane internals. |
 | L2 | Extensions & rollout | WORK-010 → WORK-011 | Signed extension registry plus rollout/kill-switch machinery for DSL/Wasm/native bundles. |
 | L3 | Federation & capability | WORK-012 → WORK-016 | Telemetry correlation, domain bridging, capability down-leveling, routing/failover orchestration. |
@@ -25,17 +25,17 @@ Status legend: Open / In design / In progress / Needs re-scope / Done. Epics are
 
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
-| WORK-001 | OmniRelay transport/pipeline parity (in-proc, sidecar, edge) | Needs re-scope | Ensure identical behavior & perf targets across deployment modes with AOT-safe pipelines. |
+| WORK-001 | OmniRelay transport/pipeline parity (in-proc, sidecar, edge) | Needs re-scope | Ensure identical behavior & perf targets across deployment modes with AOT-safe pipelines; now runs atop the split `OmniRelay.DataPlane` runtime. |
 | WORK-002 | Native AOT perf & compliance baseline | Needs re-scope | Apply dotnet-performance-guidelines; measure/watch p99; enforce no reflection/JIT in hot paths. |
 | WORK-003 | Extension hosts (DSL, Proxy-Wasm, native) + watchdogs | Needs re-scope | Sandbox, quotas, failure policies, and capability flags per runtime. |
 | WORK-004 | Deployment packaging (per-RID, in-proc host, sidecar, headless edge) | Needs re-scope | Signed artifacts, slim images, host wrappers. |
-| WORK-005 | CI gating for AOT/publish/tests | Open | Block merges unless all hosts build/publish AOT and core test tiers pass. |
+| WORK-005 | CI gating for AOT/publish/tests | Open | Block merges unless all hosts build/publish AOT and core test tiers pass (DataPlane + ControlPlane). |
 
 ### L1 – MeshKit Control Plane
 
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
-| WORK-006 | Control protocol (xDS-like) & capability negotiation | Needs re-scope | Versioned protobufs, deltas/snapshots, epochs, capability flags. |
+| WORK-006 | Control protocol (xDS-like) & capability negotiation | Needs re-scope | Versioned protobufs, deltas/snapshots, epochs, capability flags; served by `OmniRelay.ControlPlane` and consumed by agents/edge. |
 | WORK-007 | Identity/CA service & cert rotation | Needs re-scope | CSR, issuance, trust bundles, rotation, SPIFFE compatibility. |
 | WORK-008 | Local agent with LKG cache & telemetry forwarder | Needs re-scope | Subscribe to control domain, cache LKG, renew certs, never elect leaders. |
 | WORK-009 | Bootstrap/watch harness & validation | Needs re-scope | Shared startup harness, config validators, resume/backoff semantics. |
