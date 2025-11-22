@@ -7,12 +7,20 @@
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>OmniRelay.ControlPlane</AssemblyName>
     <RootNamespace>OmniRelay.ControlPlane</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\OmniRelay\ControlPlane\**\*.cs" Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Diagnostics\**\*.cs" Link="Core/Diagnostics/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Leadership\**\*.cs" Link="Core/Leadership/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Shards\**\*.cs" Link="Core/Shards/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay.DataPlane\Security\TransportTlsManager.cs" Link="Security/TransportTlsManager.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.ControlPlane.Abstractions\OmniRelay.ControlPlane.Abstractions.csproj" />
     <ProjectReference Include="..\OmniRelay.DataPlane\OmniRelay.DataPlane.csproj" />
     <ProjectReference Include="..\OmniRelay.Codecs\OmniRelay.Codecs.csproj" />
     <ProjectReference Include="..\OmniRelay.Protos\OmniRelay.Protos.csproj" />

@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ResourceLeaseReplicator.Sqlite/OmniRelay.ResourceLeaseReplicator.Sqlite.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ResourceLeaseReplicator.ObjectStorage/OmniRelay.ResourceLeaseReplicator.ObjectStorage.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ResourceLeaseReplicator.Grpc/OmniRelay.ResourceLeaseReplicator.Grpc.csproj" />

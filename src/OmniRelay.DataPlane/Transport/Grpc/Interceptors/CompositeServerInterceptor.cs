@@ -4,7 +4,7 @@ using Grpc.Core.Interceptors;
 
 namespace OmniRelay.Transport.Grpc.Interceptors;
 
-internal sealed class CompositeServerInterceptor(GrpcServerInterceptorRegistry registry) : Interceptor
+public sealed class CompositeServerInterceptor(GrpcServerInterceptorRegistry registry) : Interceptor
 {
     private readonly GrpcServerInterceptorRegistry _registry = registry ?? throw new ArgumentNullException(nameof(registry));
 

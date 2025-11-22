@@ -15,7 +15,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OmniRelay.ControlPlane.Events;
 using OmniRelay.ControlPlane.Security;
 using OmniRelay.Diagnostics;
 using OmniRelay.Security.Secrets;
@@ -31,7 +30,6 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
     private readonly ILogger<MeshGossipHost> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly MeshGossipMembershipTable _membership;
-    private readonly IControlPlaneEventBus? _eventBus;
     private readonly TransportTlsManager _tlsManager;
     private readonly List<MeshGossipPeerEndpoint> _seedPeers;
     private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
@@ -56,11 +54,6 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
             LogLevel.Warning,
             new EventId(2, "MeshGossipSchemaRejected"),
             "Rejected gossip envelope with incompatible schema {Schema}");
-    private static readonly Action<ILogger, string, string?, Exception?> GossipEventBusPublishFailedLog =
-        LoggerMessage.Define<string, string?>(
-            LogLevel.Warning,
-            new EventId(3, "MeshGossipEventPublishFailed"),
-            "Failed to publish control-plane event {EventType}: {Reason}");
 
     public MeshGossipHost(
         MeshGossipOptions options,
@@ -70,7 +63,6 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         TimeProvider? timeProvider = null,
         PeerLeaseHealthTracker? leaseHealthTracker = null,
         TransportTlsManager? tlsManager = null,
-        IControlPlaneEventBus? eventBus = null,
         ISecretProvider? secretProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -85,7 +77,6 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         var localMetadata = metadata ?? BuildMetadata(options);
         localMetadata = EnsureEndpoint(localMetadata, options);
         _membership = new MeshGossipMembershipTable(localMetadata.NodeId, localMetadata, _timeProvider);
-        _eventBus = eventBus;
         _tlsManager = tlsManager ?? new TransportTlsManager(
             options.Tls.ToTransportTlsOptions(options.CertificateReloadInterval),
             CreateCertificateLogger(loggerFactory),
@@ -1000,32 +991,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 
     private void PublishMembershipEvent(string reason, MeshGossipMemberSnapshot? changedMember = null)
     {
-        var bus = _eventBus;
-        if (bus is null)
-        {
-            return;
-        }
-
-        var snapshot = _membership.Snapshot();
-        var metadata = _membership.LocalMetadata;
-        var evt = new GossipMembershipEvent(
-            metadata.ClusterId,
-            metadata.Role,
-            metadata.Region,
-            reason,
-            snapshot,
-            changedMember);
-
-        _ = PublishAsync();
-
-        async Task PublishAsync()
-        {
-            var publishResult = await bus.PublishAsync(evt, CancellationToken.None).ConfigureAwait(false);
-            if (publishResult.IsFailure)
-            {
-                GossipEventBusPublishFailedLog(_logger, evt.EventType, publishResult.Error?.Message, publishResult.Error?.Cause);
-            }
-        }
+        // Control-plane event bus publishing removed in data-plane split.
     }
 
     private static ILogger<TransportTlsManager> CreateCertificateLogger(ILoggerFactory factory) =>
