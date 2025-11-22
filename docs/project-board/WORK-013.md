@@ -1,37 +1,37 @@
-# WORK-013 – MeshKit.Registry Read APIs
+# WORK-013 – Mesh Bridge / Federation Between Control Domains
 
 ## Goal
-Expose authoritative registry data (peers, clusters, versions, config) via MeshKit-hosted HTTP/3 and gRPC endpoints so operators, dashboards, and automation have a single control surface for discovery without touching OmniRelay internals.
+Enable controlled federation between MeshKit control domains (regions/tenants) via mesh bridges that export selected routes/policies/identities without merging consensus rings.
 
 ## Scope
-- Implement `GET /meshkit/peers`, `/meshkit/clusters`, `/meshkit/versions`, `/meshkit/config` with filtering, pagination, sorting, and ETag caching.
-- Provide SSE/gRPC streaming endpoints for peer/cluster updates with resume tokens and negotiated transport metadata.
-- Generate OpenAPI/Protobuf contracts and sample queries; update CLI commands (`mesh peers *`, `mesh clusters list`, etc.) to consume the MeshKit APIs.
+- Bridge role that subscribes to source domain, filters/rewrites allowed state, and republishes to target domain with new epochs.
+- Export allowlists/denylists for services, routes, identities, and extensions.
+- Identity mediation (trust bundle translation) and optional namespace rewriting.
+- Queue/replay of deltas during partition with ordering guarantees.
 
 ## Requirements
-1. **RBAC** – Enforce scopes (`mesh.read`, `mesh.observe`) and record audit events for unauthorized attempts.
-2. **Performance** – P95 <200 ms for 1k peers; streaming endpoints must sustain 100+ subscribers.
-3. **Caching** – ETag + `If-None-Match` semantics with consistent version metadata tied to MeshKit.Shards registry revisions.
-4. **Consistency** – Document snapshot semantics (last committed registry version) and ensure CLI/dashboards align.
-5. **Observability** – Log negotiated protocol/encoding, emit metrics for request latency + stream subscribers, and expose downgrade counters.
+1. **Isolation** – Domains keep separate leader elections; bridge never participates in either consensus ring.
+2. **Policy Control** – Explicit export policies with audit; default deny.
+3. **Consistency** – Ordered replay with epoch translation; duplicate suppression.
+4. **Security** – mTLS on both sides; signature verification; cross-domain trust scoped per export policy.
 
 ## Deliverables
-- MeshKit.Registry read service + documentation.
-- CLI/SDK updates to rely solely on MeshKit endpoints.
-- Integration tests + sample scripts for dashboards and automation.
+- Bridge service implementation and configuration model.
+- Export policy definitions and validation tooling.
+- Monitoring for replay lag, export errors, and trust failures.
 
 ## Acceptance Criteria
-- Endpoints return accurate data, enforce RBAC, and power CLI watchers (`--watch`) with resume tokens.
-- Unauthorized access yields 401/403 responses and audit logs.
-- CLI output and dashboards stay consistent with MeshKit snapshots even during downgrades or reconnects.
-- Native AOT publish/tests succeed (WORK-002..WORK-005).
+- Bridged routes/policies appear in target domain with translated epochs and correct scoping.
+- Partitions lead to queued deltas; replay on recovery without divergence.
+- Unauthorized exports are blocked and logged.
 
 ## Testing Strategy
-- Unit tests for filter/pagination/ETag validators and stream fan-out handling.
-- Integration tests hitting HTTP/3 + forced HTTP/2, verifying RBAC, caching, and streaming.
-- Feature tests simulating peer churn with CLI + dashboards verifying consistent data.
-- Hyperscale tests stressing streaming clients and RBAC churn.
+- Integration: dual-domain harness with exports; partition/rejoin; trust failures.
+- Perf: measure replay lag under sustained updates.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.BRD.md`
+- `docs/architecture/MeshKit.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

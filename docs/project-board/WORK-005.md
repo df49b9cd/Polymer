@@ -1,34 +1,33 @@
-# WORK-005 – AOT CI Gating & Runtime Validation
+# WORK-005 – CI Gate for AOT Publish and Core Test Suites
 
 ## Goal
-Integrate native AOT build/test runs into CI/CD so every commit proves OmniRelay transports, MeshKit services, and the CLI remain AOT-ready, preventing regressions as the layered architecture evolves.
+Block merges unless all affected OmniRelay hosts and MeshKit roles build/publish as Native AOT and pass targeted test suites.
 
 ## Scope
-- Add CI jobs (GitHub Actions/Azure Pipelines) that run `dotnet publish /p:PublishAot=true` for OmniRelay dispatcher, representative MeshKit modules (shards, rebalancer, cluster descriptors), and the CLI for linux-x64 (minimum) plus optional additional RIDs.
-- Execute smoke/integration tests against the produced binaries (launch hosts, run CLI commands, execute control-plane RPCs) inside containers.
-- Fail builds on trimming/AOT warnings or runtime smoke-test failures; surface clear logs.
-- Publish status badges/metrics and document how to reproduce failures locally.
+- CI jobs for `dotnet build OmniRelay.slnx`, targeted `dotnet test` slices, and `dotnet publish /p:PublishAot=true` per host/role.
+- Mode-aware test matrix (in-proc, sidecar, edge; central, agent, bridge).
+- Perf smoke (latency budget checks) optional but reported.
 
 ## Requirements
-1. **CI coverage** – At minimum, linux-x64 AOT builds for dispatcher, MeshKit.Shards, MeshKit.Rebalancer, MeshKit.ClusterDescriptors, and CLI per PR; optional matrix for other RIDs.
-2. **Caching** – Optimize pipeline runtimes with caching of NuGet/dotnet artifacts.
-3. **Smoke tests** – Start AOT hosts in CI containers, call key endpoints (peers, shards, rebalancer), and run core CLI commands.
-4. **Reporting** – Provide readable CI output (which project, warnings) and add README badges/dashboards.
-5. **Developer guidance** – Document local commands to reproduce AOT builds/tests.
+1. **Coverage** – Gate includes data-plane + control-plane binaries and CLI.
+2. **Artifacts** – Publish signed artifacts; verify signatures in CI; store SBOM.
+3. **Fail fast** – Banned APIs and perf regressions fail the gate (hooks from WORK-002).
+4. **Configurability** – Allow scoped runs (changed files) while guaranteeing full runs in nightly.
 
 ## Deliverables
-- CI workflow updates, smoke-test scripts, documentation.
+- CI definitions/scripts; matrix for hosts/roles/RIDs.
+- Documentation of gates and how to rerun locally.
 
 ## Acceptance Criteria
-- CI blocks merges when AOT builds/tests fail; build time impact stays within agreed budget.
-- Developers can reproduce failures locally via documented commands.
-- Status badges/metrics reflect AOT health.
+- PRs blocked when AOT publish or tests fail for impacted components.
+- Nightly full matrix green; artifacts signed and archived with manifests.
 
 ## Testing Strategy
-- Unit: if scripts/analyzers added, ensure coverage.
-- Integration: CI job executes publish + smoke tests; manual dry runs documented.
-- Feature/Hyperscale: periodic feature/hyperscale suites executed against AOT artifacts to ensure deep coverage beyond smoke tests.
+- CI self-tests; simulate failures to ensure gate behavior.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/OmniRelay.SRS.md`
+- `docs/architecture/MeshKit.SRS.md`
+
+## Status
+Open.

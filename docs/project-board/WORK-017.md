@@ -1,37 +1,36 @@
-# WORK-017 – Samples & Documentation Refresh
+# WORK-017 – Operator UX & CLI (OmniRelay + MeshKit)
 
 ## Goal
-Update samples, READMEs, and diagrams so new contributors can stand up the Hugo → OmniRelay → MeshKit stack, run CLI workflows, and understand which layer owns which responsibility.
+Deliver a unified, AOT-safe CLI and operator UX for configuring, monitoring, and troubleshooting OmniRelay and MeshKit across roles and deployment modes.
 
 ## Scope
-- Refresh `samples/ResourceLease.MeshDemo` (and related docker assets) to show OmniRelay transports hosting MeshKit control-plane modules.
-- Revise docs in `docs/knowledge-base` and `docs/reference` covering onboarding, HTTP/3 diagnostics, MeshKit modules, and CLI usage.
-- Add diagrams/flowcharts depicting traffic flow, bootstrapping, and operator workflows under the new architecture.
-- Provide validation checklists ensuring instructions succeed end-to-end on macOS/Linux/Windows.
+- CLI verbs for config diff/apply/simulate, rollout control, extension registry operations, capability inspection, and failover commands.
+- Output formats: table/JSON with golden tests; machine-friendly exit codes.
+- Auth: mTLS + tokens; RBAC scopes aligned to control APIs.
+- Ergonomics: profile/config files, completions, clear error messaging.
 
 ## Requirements
-1. **Accuracy** – Terminology and steps must align with `transport-layer-vision.md` and current CLI verbs.
-2. **Examples** – Include step-by-step instructions for enabling HTTP/3, running MeshKit.Shards APIs, executing rebalancer workflows, and observing telemetry/dashboards.
-3. **Automation** – Integrate docs linting, link checking, and CLI snippet validation in CI.
-4. **Screenshots/logs** – Offer refreshed screenshots/log extracts for CLI + dashboards after new flows.
-5. **AOT** – Document how to run native AOT builds of OmniRelay + MeshKit components.
+1. **AOT compliance** – CLI builds/publishes AOT; no reflection-based plugins.
+2. **Coverage** – Supports central/agent/bridge roles and all OmniRelay modes.
+3. **Safety** – Prompts/guards for destructive actions; dry-run and simulate modes.
+4. **Diagnostics** – Commands to inspect capability sets, current epoch, LKG status, extension health.
 
 ## Deliverables
-- Updated sample configs/compose files.
-- Revised documentation + diagrams.
-- Verification checklist/test plan covering the documented workflows.
+- CLI implementation + test fixtures; completions; packaging.
+- UX docs and examples; integration in samples.
 
 ## Acceptance Criteria
-- Following the refreshed docs enables a new engineer to boot the layered stack, run CLI commands, and inspect telemetry without guessing.
-- HTTP/3 defaults + downgrades are explained with CLI + dashboard validation steps.
-- Docs lint/tests pass in CI; stakeholders sign off.
+- CLI verified against live fixtures for core flows (apply, simulate, rollout, registry ops, failover).
+- Golden tests stable; AOT publish green.
+- RBAC errors surfaced with actionable remediation.
 
 ## Testing Strategy
-- Automated docs linting/link checking + snippet validation.
-- Integration tests exercising sample instructions on supported OS/runner combos.
-- Feature tests: buddy-testing sessions verifying docs clarity.
-- Hyperscale tests: ensure multi-OS instructions stay consistent.
+- Unit: command parsing, formatting, validators.
+- Integration: CLI -> control APIs under mTLS; failure/permission cases.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.BRD.md`
+- `docs/architecture/OmniRelay.BRD.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

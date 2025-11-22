@@ -5,6 +5,8 @@ This directory consolidates high-level context for every major subsystem.
 - [Architecture Overview](architecture-overview.md)
 - [Runtime Components](runtime-components.md)
 - [Configuration & Hosting](configuration-and-hosting.md)
+- [Runtime Config & Control Plane](runtime-config-control-plane.md)
+- [Simulation Lab (Multi-Cell)](simulation-lab.md)
 - [Diagnostics & Observability](diagnostics-and-observability.md)
 - [CLI & Operator Tooling](cli-and-tooling.md)
 - [Code Generation](codegen.md)

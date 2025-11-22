@@ -1,38 +1,37 @@
-# WORK-006 – CLI & Diagnostics Client Helpers
+# WORK-006 – Control Protocol (xDS-like) & Capability Negotiation
 
 ## Goal
-Provide a shared HTTP/3 + gRPC client helper library that encapsulates transport builders, mTLS/auth, retries, serialization contexts, and streaming helpers so the OmniRelay CLI, MeshKit modules, and third-party automation all share the same control-plane plumbing.
+Define and ship the versioned control-plane protocol between MeshKit and OmniRelay (central → agent → data plane) with capability negotiation, deltas/snapshots, and epoch handling.
 
 ## Scope
-- Extract client setup from `OmniRelay.Cli` into `MeshKit.ControlPlane.Client` (or similar) using OmniRelay transport factories/TLS manager.
-- Offer typed helpers for common diagnostics calls (`/meshkit/peers`, `/meshkit/shards`, `/omnirelay/control/*`, leadership/shard streams) with resume token handling.
-- Support streaming, pagination, retries, and downgrade telemetry out of the box.
-- Document usage patterns for CLI, automation scripts, and service integrations.
+- Protobuf schemas for routes, clusters, policies, extensions, capability sets, and epochs/terms.
+- Watch streams (gRPC) supporting deltas and full snapshots with resume tokens and backoff guidance.
+- Capability negotiation: nodes advertise supported runtimes/features; server tailors payloads; down-level handling defined.
+- Error semantics and LKG signaling.
 
 ## Requirements
-1. **Auth parity** – Support mTLS client certs, bearer tokens, and future providers; integrate with secret manager abstractions.
-2. **Protocol support** – Default to HTTP/3/gRPC with downgrade fallback; expose negotiated protocol metadata for telemetry.
-3. **Error handling** – Normalize HTTP/gRPC failures into typed exceptions with remediation hints.
-4. **Serialization** – Use shared registry/diagnostics models + source-generated serializers for trimming/AOT safety.
-5. **Extensibility** – Allow new endpoints to register typed clients without duplicating lower-level transport logic.
+1. **Versioning** – Backward-compatible schema evolution with explicit deprecation windows.
+2. **Reliability** – Idempotent apply; monotonic epochs; resume from tokens after disconnect.
+3. **Security** – mTLS on control channels; signed payload validation; RBAC on mutation APIs.
+4. **Observability** – Metrics/logs for stream state, lag, rejections, capability mismatches.
 
 ## Deliverables
-- Client helper library, tests, docs, and sample usage.
-- CLI refactor to depend on the helpers.
-- Guidance for third-party/automation consumers.
+- Protobuf definitions and generated clients/servers.
+- Reference server/client in MeshKit/OmniRelay with feature flags for capabilities.
+- Docs for operators and developers on negotiation and error handling.
 
 ## Acceptance Criteria
-- CLI continues to function unchanged (output, errors) using the helper library.
-- MeshKit services/automation scripts can reuse helpers with minimal configuration.
-- Helpers reuse OmniRelay transport/TLS builders; telemetry counters stay consistent.
-- Native AOT publish/tests succeed per WORK-002..WORK-005.
+- OmniRelay can subscribe and apply deltas/snapshots; mismatched capabilities are rejected with actionable errors.
+- Resume tokens and epochs verified via integration tests.
+- Control streams run over mTLS with certs from MeshKit identity.
 
 ## Testing Strategy
-- Unit: auth handler injection, error translation, serialization round-trips, streaming/pagination helpers.
-- Integration: helper calls against test MeshKit hosts verifying handshake, auth, retries, downgrades.
-- Feature: CLI + automation workflows validated via helper library.
-- Hyperscale: stress helper concurrency, connection pooling, and auth caching.
+- Contract tests for schema compatibility and negotiation.
+- Integration tests with drop/reconnect, version skew, and capability mismatches.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.BRD.md`
+- `docs/architecture/MeshKit.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

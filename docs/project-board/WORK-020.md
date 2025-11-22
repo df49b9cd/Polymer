@@ -1,38 +1,34 @@
-# WORK-020 – MeshKit Synthetic Health Checks
+# WORK-020 – Synthetic Probes & Partition Tests
 
 ## Goal
-Deploy MeshKit synthetic probes that continuously validate control-plane functionality (MeshKit APIs, streams, HTTP/3 negotiation) using least-privilege credentials, providing early detection of regressions without depending on production traffic.
+Create read-only probes and partition tests to continuously validate control/data paths, capability negotiation, and LKG behavior without impacting production traffic.
 
 ## Scope
-- Build probe agents (container/cron job) that periodically:
-  - Call `/meshkit/peers`, `/meshkit/shards`, `/meshkit/clusters`, `/meshkit/versions` and validate responses, latency, and auth behavior.
-  - Subscribe to leadership/shard watch streams ensuring heartbeat cadence and resume tokens function.
-  - Execute gRPC calls over HTTP/3, forcing downgrades to HTTP/2 to confirm telemetry + CLI `transport stats` alignment.
-- Feed results into Prometheus/Grafana and alerting pipelines.
+- Synthetic requests against control APIs and data-plane endpoints (HTTP/gRPC) with downgrade detection.
+- Partition simulations: drop control stream, CA outage, registry unavailability; verify agent/OmniRelay responses.
+- Probes run as scheduled jobs and CI smoke; results feed alerts (WORK-018).
 
 ## Requirements
-1. **Configurable targets** – Support per-cluster/namespace schedules, thresholds, and probe types via declarative config.
-2. **Isolation** – Probes run with read-only scopes (`mesh.observe`) and independent networking so they don’t depend on production paths.
-3. **Alerting** – Consecutive failures or latency breaches trigger alerts via the shared MeshKit alerting framework.
-4. **Reporting** – Generate daily/weekly health reports summarizing success rates/global latency trends.
-5. **AOT** – Probe binaries publish as native AOT per WORK-002..WORK-005.
+1. **Non-intrusive** – Probes read-only; tagged; rate-limited per tenant/region.
+2. **Coverage** – Central, agent, bridge paths; in-proc/sidecar/edge modes.
+3. **Verification** – Check capability negotiation responses, LKG usage, and admin state transitions.
+4. **Reporting** – Emit metrics/logs consumable by dashboards/alerts.
 
 ## Deliverables
-- Probe service/container + Helm chart/manifest.
-- Metrics/alerts dashboards for probe status.
-- Documentation for deployment, tuning, troubleshooting.
+- Probe suite and runner; configs for environments.
+- Scenarios for partitions and downgrade detection.
+- Documentation for scheduling and interpreting results.
 
 ## Acceptance Criteria
-- Synthetic checks detect injected failures (API downtime, slow responses, stalled streams) and alert within configured windows.
-- Dashboards/reporting show pass/fail trends; probes adjustable via config reload.
-- Native AOT builds/tests succeed.
+- Probes detect regressions in control stream health, cert expiry risk, and downgrade rates.
+- Partition simulations confirm LKG fallback and recovery behaviors.
 
 ## Testing Strategy
-- Unit: config parsing, scheduler, timeout handling, classification/report builders.
-- Integration: deploy probe against staging cluster verifying API calls, stream subscriptions, HTTP/3 fallback, and alert triggers.
-- Feature: incident rehearsals where probes detect outages and responders follow documented steps.
-- Hyperscale: fleets of probes per cluster/namespace ensuring coordination and alert fan-out scale.
+- Automated runs in CI and staging; chaos hooks for partitions.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/OmniRelay.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

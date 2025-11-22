@@ -1,35 +1,33 @@
-# WORK-022 – MeshKit Chaos Automation & Reporting
+# WORK-022 – Samples & Docs Alignment
 
 ## Goal
-Automate chaos experiments (from WORK-021) via CI/CD, enforce nightly runs, and integrate results into release gating so MeshKit regressions are caught before deployment.
+Update samples and documentation to reflect the OmniRelay/MeshKit BRD/SRS, covering deployment modes, control-plane roles, extension lifecycle, and security practices.
 
 ## Scope
-- Define `chaos-scenarios.yaml` describing experiments (fault sequences, expected SLOs, monitored metrics, rollback instructions).
-- Build orchestration pipelines (GitHub Actions/Azure Pipelines) deploying the chaos environment, executing scenarios, collecting logs/metrics, and uploading artifacts.
-- Generate machine-readable reports (JUnit/JSON) plus human summaries; automatically open tickets/alerts on failure.
-- Maintain historical dashboard of chaos outcomes/trends.
+- Samples for in-proc, sidecar, and headless edge OmniRelay; control-plane central/agent/bridge setups.
+- End-to-end extension lifecycle examples (DSL, Wasm, native) with signed packages and rollout.
+- Guides for identity bootstrap/rotation, capability negotiation, LKG behavior, and failover drills.
+- Knowledge-base updates in `docs/knowledge-base` and architecture docs cross-links.
 
 ## Requirements
-1. **Scenario DSL** – Validate prerequisites, steps, SLOs, rollback; provide linting and schema tests.
-2. **CI integration** – Nightly + on-demand runs; release pipeline blocks on failures until override.
-3. **Metrics ingestion** – Parse Prometheus/Grafana data to compute convergence times vs thresholds.
-4. **Notifications** – Publish summary to Slack/Teams/email; create GitHub issues/Jira when SLO breaches occur.
-5. **History** – Store reports/artifacts for trend dashboards.
+1. **Accuracy** – Matches current schemas, commands, and behaviors; validated via runnable scripts/tests.
+2. **Performance/Security notes** – Call out AOT constraints, watchdog defaults, signed artifacts, least-privilege deployment steps.
+3. **Discoverability** – Clear entry points per persona (operator, platform, service dev).
 
 ## Deliverables
-- Scenario definitions, orchestration scripts, CI configuration, reporting tooling, documentation for adding new scenarios.
+- Updated docs in `docs/architecture`, `docs/knowledge-base`, and `samples/` with runnable scripts.
+- Diagrams for control/data flows and extension pipeline.
 
 ## Acceptance Criteria
-- Nightly chaos pipeline runs automatically, stores reports, notifies stakeholders, and blocks releases on failures.
-- Engineers add new scenarios via YAML + tests, with validation preventing malformed submissions.
-- Native AOT binaries used during chaos automation; CI fails if AOT builds break.
+- Samples execute in CI or nightly smoke; outputs documented.
+- Docs reference latest CLI commands and schemas; outdated references removed.
 
 ## Testing Strategy
-- Unit: DSL parser, report generators, gating logic.
-- Integration: Execute pipelines end-to-end deploying chaos env, running scenarios, uploading artifacts, opening tickets.
-- Feature: onboarding workflow for adding new scenario and observing it run.
-- Hyperscale: parallel pipelines across clusters ensuring storage + notification scaling.
+- Scripted sample runs; link checks; doc tests where applicable.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/OmniRelay.BRD.md`
+- `docs/architecture/MeshKit.BRD.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

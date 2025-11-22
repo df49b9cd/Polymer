@@ -1,35 +1,33 @@
-# WORK-021 – MeshKit Chaos Environments
+# WORK-021 – Chaos Automation
 
 ## Goal
-Provision reproducible environments (docker-compose + Kubernetes) for executing scripted chaos experiments targeting MeshKit modules (gossip, leadership, shards, rebalancer, replication) while measuring impact through OmniRelay transports and MeshKit observability.
+Automate chaos scenarios covering control-plane partitions, agent loss, extension crashes, and failover triggers to harden OmniRelay and MeshKit.
 
 ## Scope
-- Create compose stack launching MeshKit modules, OmniRelay transport endpoints, Prometheus/Grafana, and fault-injection helpers (tc/netem, chaos containers).
-- Provide Kubernetes manifests/Helm charts replicating setup with configurable node counts and namespaces.
-- Author scripts to trigger faults: kill leaders, partition network segments, inject latency/packet loss, surge join/leave events, simulate cert expiry, force transport downgrades.
-- Collect artifacts (logs, metrics, topology snapshots) for analysis.
+- Scenario catalog with severity/expected outcomes: control partition, bridge outage, extension watchdog trip, registry corruption, CA downtime.
+- Automation runner (CI/nightly) targeting staging environments; integration with alerts.
+- Reporting: pass/fail with links to telemetry and logs; issue auto-filing optional.
 
 ## Requirements
-1. **Determinism** – One-command setup with documented prerequisites; environment resets cleanly.
-2. **Fault library** – Parameterized faults (duration, intensity) with ability to chain scenarios.
-3. **Telemetry** – Observability stack included by default; ensures WORK-018 dashboards render inside chaos env.
-4. **Cleanup** – Provide teardown scripts; ensure secrets/certs rotated per run.
-5. **AOT** – Support running native AOT binaries inside the chaos env.
+1. **Repeatable** – Deterministic scenarios with seedable randomness; stable results.
+2. **Safe** – Runs in staging/sandboxes; guardrails to prevent production impact.
+3. **Coverage** – Exercises LKG fallback, rollout abort, failover orchestrations.
+4. **Observability** – Capture metrics/logs/traces during chaos; attach to reports.
 
 ## Deliverables
-- Docker-compose + Kubernetes assets, helper scripts, documentation, sample scenarios.
+- Automation scripts/manifests; scheduler for nightly/weekly runs.
+- Documentation and runbooks linked from alerts.
 
 ## Acceptance Criteria
-- Engineers start the chaos environment locally/in cluster, execute sample scenarios, and collect artifacts per documentation.
-- Observability dashboards/alerts operate inside the chaos environment.
-- Fault catalog covers leader kill, network partition, latency injection, membership surge, transport downgrade, cert expiration.
+- Core scenarios executed nightly; failures block releases or open issues.
+- LKG/rollback/failover behaviors verified under chaos.
 
 ## Testing Strategy
-- Unit: schema tests for scenario definitions, script linting, determinism checks.
-- Integration: CI jobs boot chaos env, run sample faults, capture artifacts.
-- Feature: run documented chaos scenarios as game days, ensuring cleanup resets environment.
-- Hyperscale: execute chained faults across large node counts verifying orchestration reliability and observability at scale.
+- Dry-run mode; validation of chaos runners themselves; regression tests on assertions.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.BRD.md`
+- `docs/architecture/OmniRelay.BRD.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

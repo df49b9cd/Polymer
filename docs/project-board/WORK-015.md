@@ -1,37 +1,37 @@
-# WORK-015 – MeshKit.Cluster Descriptors
+# WORK-015 – Routing & Policy Engine with Multi-Version Canary
 
 ## Goal
-Create MeshKit.ClusterDescriptors as first-class registry entities capturing geo metadata, state, priorities, failover policy, and governance so multi-region routing can be automated independently of OmniRelay transports.
+Compute and distribute routing/policy bundles (routes, clusters, retries/timeouts, authz) with support for staged multi-version rollout and verification before global apply.
 
 ## Scope
-- Define descriptor schema (`clusterId`, `region`, `state`, `priority`, `failoverPolicy`, `replicationEndpoints`, `owners`, `annotations`, `changeTicket`).
-- Persist descriptors in MeshKit registry with versioning/audit history.
-- Extend MeshKit.Registry read APIs/CLI to list/filter descriptors; expose watchers for topology changes.
-- Validate transitions (active ↔ passive ↔ draining ↔ maintenance) and priority rules.
+- Policy computation from service inventory and operator inputs; output route/cluster/authz bundles with epochs.
+- Multi-version bundles to support canary/blue-green (ties into WORK-011).
+- Simulation/diff tools for operators (pre-flight checks) and LKG fallbacks.
+- Per-route metadata for extension bindings and failure policies.
 
 ## Requirements
-1. **Governance fields** – Require owner/team metadata, change-ticket references, and annotations for compliance.
-2. **Failover metadata** – Track planned vs emergency flags, dependencies, and readiness indicators consumed by WORK-016.
-3. **Observability** – Metrics for cluster counts per state, failover readiness, and descriptor drift.
-4. **RBAC** – Enforce `mesh.operate` for updates; read APIs remain `mesh.read`.
-5. **Documentation** – Provide lifecycle guidance and CLI/automation examples.
+1. **Determinism** – Same inputs produce same bundle; include hash/version metadata.
+2. **Validation** – Static checks (syntax, references, capability fit) before publish.
+3. **Safety** – Staged apply; rollback on regression signals; LKG preserved.
+4. **Performance** – Incremental recompute and diff; avoid full recompute when unnecessary.
 
 ## Deliverables
-- Descriptor schema + migrations.
-- APIs/CLI updates and documentation/runbooks.
-- Metrics/dashboards showing topology state.
+- Policy engine service/library; protobuf/OpenAPI outputs.
+- CLI/UX for diff/simulate/apply; integration with rollout manager.
+- Tests and docs for policy fields and extension binding semantics.
 
 ## Acceptance Criteria
-- Operators create/update descriptors via API/CLI with validation and audit logs.
-- MeshKit.ClusterDescriptors watchers/dashboards reflect changes immediately and feed failover automation.
-- Native AOT publish/tests succeed (WORK-002..WORK-005).
+- Bundles generated with hashes/epochs; applied via control protocol; staged rollout works in tests.
+- Simulation catches bad references or capability mismatches pre-publish.
+- LKG fallback verified in failure scenarios.
 
 ## Testing Strategy
-- Unit tests for schema validation, transition rules, and diff/audit builders.
-- Integration tests executing CRUD via REST/gRPC, verifying RBAC + optimistic concurrency + watcher updates.
-- Feature tests simulating geo deployments and verifying dashboards/alerts.
-- Hyperscale tests managing many clusters with concurrent edits ensuring conflict detection + observability scale.
+- Unit: policy resolution, diffing, validation rules.
+- Integration: end-to-end bundle publish, canary, rollback; mixed capability nodes.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/OmniRelay.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

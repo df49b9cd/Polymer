@@ -1,52 +1,37 @@
-# WORK-011 – MeshKit.Rebalancer
+# WORK-011 – Rollout Manager (Canary, Fail-Open/Closed, Kill Switch)
 
 ## Goal
-Introduce MeshKit.Rebalancer as an independent control-plane module that ingests MeshKit telemetry (shards, peer health, SafeTaskQueue backpressure) and produces safe shard movement plans with dry-run/approval workflows. OmniRelay continues to provide only transports and telemetry plumbing.
+Implement rollout orchestration for configs and extension bundles with staged canary, automated health gates, fail-open/closed choices, and remote kill switches.
 
 ## Scope
-- Build a scoring engine that consumes MeshKit.Shards snapshots, MeshKit peer health, and Hugo backpressure feeds to detect imbalance.
-- Define a state machine (`steady`, `investigating`, `draining`, `planPending`, `executing`, `completed`, `failed`) with guardrails (max moves, cooldowns, healthy replica requirements).
-- Expose plan APIs (`/meshkit/rebalance-plans` REST + gRPC) for listing, approving, cancelling, monitoring progress.
-- Emit events/metrics for controller state changes, plan execution, and guardrail violations.
-- Provide CLI verbs (`mesh shards rebalance plan|approve|cancel|watch`) using the shared client helpers.
+- Rollout plans: stages, scope (namespace/region/percent), success criteria, timeouts.
+- Health evaluation: tie telemetry (WORK-012) to rollout gates; regressions trigger pause/rollback.
+- Kill switch per extension/policy; remote disable propagates via control protocol.
+- Persistent history and audit of rollouts and decisions.
 
 ## Requirements
-1. **Policy awareness** – Namespace/cluster policies specify thresholds, concurrent moves, and approvals; they are validated at plan creation.
-2. **Safety** – Controller throttles rebalances on incidents, requires at least one healthy replica, and records change-ticket metadata.
-3. **Audit** – Persist every plan with before/after snapshots, actor/reason, outcome, and streaming updates.
-4. **Transport** – APIs run over HTTP/3/gRPC via OmniRelay builders with downgrade telemetry + RBAC enforcement.
-5. **Extensibility** – Allow pluggable scoring adapters (latency, backlog, error rate) via DI so third parties can extend the controller.
+1. **Safety** – Default fail-open/closed per artifact type; configurable per rollout.
+2. **Observability** – Real-time status, SLO checks, regression signals; surfaced via CLI/dashboards.
+3. **Recovery** – Automatic rollback on failed stage; manual override supported.
+4. **Compatibility** – Honors capability negotiation; skips nodes lacking required features.
 
 ## Deliverables
-- MeshKit.Rebalancer service + policy/config schema.
-- REST/gRPC endpoints, documentation, and OpenAPI/Proto definitions.
-- CLI workflows and demo policies showing dry-run, approval, execution, and rollback flows.
-- Metrics/alerts integrated with MeshKit observability (feeds WORK-012/015).
+- Rollout service in MeshKit with APIs and CLI verbs.
+- Integration with registry metadata and control protocol epochs.
+- Dashboards/alerts for rollout health.
 
 ## Acceptance Criteria
-- Rebalancer schedules dry-run plans, enforces approvals, executes moves, and emits telemetry/alerts per spec.
-- CLI/automation invoke the APIs end-to-end with RBAC enforcement and descriptive errors.
-- Guardrails prevent over-concentration, respect cooldowns, and expose clear diagnostics when throttling occurs.
-- Native AOT publish + tests succeed per WORK-002..WORK-005.
+- Canary -> ramp -> global workflows executed in tests; regression triggers rollback.
+- Kill switch disables targeted artifact within bounded time; propagated to agents/OmniRelay.
+- Audit entries for each action with user/time/context.
 
 ## Testing Strategy
-All tiers run against native AOT builds.
-
-### Unit Tests
-- Scoring engine combinations (latency/backlog/error), guardrails, cooldown timers, and approval requirements.
-- Plan audit builders, serialization, and policy validators.
-
-### Integration Tests
-- Controller hosted against MeshKit.Shards + telemetry adapters validating plan lifecycle, RBAC, transport negotiation, and failover behavior.
-- CLI automation hitting HTTP/3 + HTTP/2 fallback verifying streaming updates and exit codes.
-
-### Feature Tests
-- Feature harness: operator workflow planning, approving, executing, and cancelling plans; verify dashboards/alerts.
-
-### Hyperscale Tests
-- Hyperscale harness: simulated fleets with heavy load to ensure guardrails cap concurrent moves and telemetry noise remains manageable.
-
+- Integration: staged rollout with synthetic regressions; capability mismatches; kill switch.
+- Chaos: control-plane partition during rollout; ensure LKG and rollback behavior are correct.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/OmniRelay.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

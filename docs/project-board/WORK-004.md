@@ -1,35 +1,37 @@
-# WORK-004 – Native AOT Tooling & Packaging
+# WORK-004 – Deployment Packaging (In-Proc, Sidecar, Headless Edge)
 
 ## Goal
-Distribute OmniRelay CLI and supporting tooling as native AOT binaries for linux-x64, linux-arm64, macOS, and Windows, minimizing cold-start time and dependency footprint for cloud-native workflows.
+Deliver signed, per-RID Native AOT packages for all OmniRelay hosts with minimal footprints and clear host builders for in-proc, sidecar, and headless edge deployments.
 
 ## Scope
-- Update CLI/tooling projects to be trimming/AOT safe (source-generated command parsers, serialization contexts, DI usage) and configure publish profiles for each RID.
-- Produce self-contained binaries and/or slim container images; update dotnet tool packages to include or reference AOT builds.
-- Document installation paths, platform support, troubleshooting, and fallback instructions.
+- Host wrappers for in-proc embedding, sidecar container, and headless edge binary.
+- Per-RID publish pipelines (linux-x64/arm64; macOS dev) with symbol stripping and reproducible builds.
+- Container images for sidecar/edge with slim base, non-root, readonly FS, and health endpoints.
+- Packaging includes capability manifest (supported runtimes, limits, build epoch) for MeshKit.
 
 ## Requirements
-1. **CLI AOT builds** – `dotnet publish OmniRelay.Cli.csproj /p:PublishAot=true` succeeds for target RIDs with zero warnings.
-2. **Command parsing** – Use source generators (System.CommandLine or custom) to avoid reflection.
-3. **Packaging** – Provide scripts to package binaries into dotnet tool nupkgs, tarballs/zip files, and optionally distroless containers.
-4. **Telemetry/auth** – Ensure CLI authentication helpers and telemetry remain functional and trimmed.
-5. **Docs** – Update CLI docs referencing AOT distribution, supported platforms, fallback to JIT when needed.
+1. **Signed artifacts** – All packages/images signed; signatures verified by MeshKit/agents before rollout.
+2. **Reproducibility** – Deterministic builds with pinned toolchains; SBOM generated.
+3. **Footprint** – Target minimal image size; document RAM/CPU expectations per mode.
+4. **Interop** – Host selection via config/CLI flags; same config schema across modes.
 
 ## Deliverables
-- Build scripts/pipelines producing native binaries + container images.
-- Documentation for installing/upgrading AOT CLI.
-- Smoke-test suite validating commands on each platform.
+- Build scripts/pipelines producing per-RID artifacts and images.
+- Capability manifest format and generator.
+- Docs for selecting deployment mode and integrating with MeshKit rollout.
 
 ## Acceptance Criteria
-- CLI runs as native AOT on supported platforms executing core commands successfully.
-- Dotnet tool/container distributions published as part of release pipeline.
-- Observed startup latency reduction recorded for release notes.
+- Reproducible build logs; SBOM produced; signatures validated in CI.
+- Sidecar/edge images run as non-root with readonly FS; health endpoints live.
+- In-proc host NuGet/package consumable by services; samples updated.
 
 ## Testing Strategy
-- Unit: command parser generators, trimming-safe helpers.
-- Integration: run published binaries for each platform executing representative CLI commands.
-- Feature: incorporate AOT CLI in feature/hyperscale automation to validate long-running scenarios.
+- Pipeline integration tests verifying signatures and manifests.
+- Runtime smoke tests per mode; health/readiness checks; config application.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/OmniRelay.BRD.md`
+- `docs/architecture/OmniRelay.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

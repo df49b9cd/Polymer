@@ -1,34 +1,41 @@
-# WORK-003 – MeshKit Library AOT Readiness
+# WORK-003 – Extension Hosts (DSL, Proxy-Wasm, Native) with Watchdogs
 
 ## Goal
-Make every MeshKit module (shards, registry, rebalancer, cluster descriptors, failover, observability) trimming/AOT-friendly so control-plane services can publish as native AOT without bespoke workarounds.
+Provide secure, performant extension hosting for DSL, Proxy-Wasm, and native plugins with resource guards, failure policies, and capability signaling.
 
 ## Scope
-- Audit MeshKit libraries for trimming blockers (reflection, dynamically loaded assemblies, unsupported configuration patterns).
-- Introduce source-generated registries (middleware/interceptors, event handlers) rather than runtime scanning.
-- Ensure DI/configuration binding avoids non-trimmable patterns (`Activator.CreateInstance`, unbounded reflection) and annotate unavoidable cases.
-- Provide analyzers/build checks to prevent regressions.
+- DSL interpreter (AOT-compiled) with opcode allowlist, quotas, and signature validation.
+- Proxy-Wasm host supporting selectable runtime (V8 default; Wasmtime/WAMR if built) and ABI 0.2.x.
+- Native plugin loader using `NativeLibrary.Load` + `UnmanagedCallersOnly` ABI handshake.
+- Watchdogs for CPU/heap per extension, fail-open/closed/reload policies, and telemetry.
+- Capability flags exposed to MeshKit (runtime availability, limits, ABI versions).
 
 ## Requirements
-1. **Library trimming** – Each MeshKit assembly builds with `<PublishTrimmed>true` and zero warnings.
-2. **Source-generated metadata** – Replace runtime discovery with generators for registries and configuration maps.
-3. **Configuration binding** – Use trimming-friendly binding (OptionsBuilder) with annotations.
-4. **Analyzer** – CI fails if new code introduces disallowed APIs.
-5. **Docs** – Update module READMEs indicating AOT support/constraints.
+1. **Safety** – Verify signatures before load; sandbox memory/CPU; terminate on limit breach.
+2. **Observability** – Metrics/logs for load, instantiation, faults, watchdog hits, and boundary latency.
+3. **Parity** – Same extension behavior across deployment modes; VM per worker unless singleton service allowed.
+4. **Failure policy** – Configurable per extension (fail-open/closed/reload); defaults documented.
+5. **Capability negotiation** – Advertise supported runtimes/ABI to MeshKit; refuse incompatible payloads.
 
 ## Deliverables
-- Code changes, generators, annotations, analyzer/build tooling, documentation.
+- Extension host implementations with policy hooks and watchdogs.
+- Telemetry surfaces and admin views for extension state.
+- Docs describing packaging, signature expectations, and failure policies.
 
 ## Acceptance Criteria
-- Representative MeshKit services (shards, rebalancer, leadership) publish/run as native AOT binaries.
-- Analyzer prevents new reflection-based patterns from landing.
-- Documentation describes AOT expectations per module.
+- Invalid or unsigned packages are rejected before load.
+- Watchdog breach results in configured policy action and telemetry.
+- Proxy-Wasm/DSL/native samples run across modes; capability flags accurate.
+- AOT publish/test suites pass with extension hosts enabled.
 
 ## Testing Strategy
-- Unit: generator tests, trimming-targeted tests.
-- Integration: publish representative MeshKit hosts as AOT and run integration suites.
-- Feature/Hyperscale: run MeshKit scenarios on AOT builds to ensure parity.
+- Unit: manifest validation, watchdog triggers, capability negotiation paths.
+- Integration: run sample DSL/Wasm/native plugins; verify policies and telemetry.
+- Chaos: inject infinite loop/out-of-memory to confirm watchdog handling.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/OmniRelay.BRD.md`
+- `docs/architecture/OmniRelay.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

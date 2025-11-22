@@ -1,46 +1,43 @@
-# WORK-001 – OmniRelay Transport & Encoding Policy Engine
+# WORK-001 – OmniRelay Transport & Pipeline Parity (In-Proc, Sidecar, Edge)
 
 ## Goal
-Keep OmniRelay focused on transport governance by enforcing HTTP/3-first policies, downgrade telemetry, and encoding rules while providing CLI validation so MeshKit and third-party modules can rely on a predictable transport layer.
+Guarantee identical semantics, policy enforcement, and performance baselines for OmniRelay across all deployment modes (in-process library, sidecar, headless edge proxy) while staying compliant with Native AOT constraints.
 
 ## Scope
-- Extend OmniRelay configuration schema to declare allowed transports (`http3`, `http2`, `grpc`) and encodings (`protobuf`, `json`, `raw`) per endpoint category (control-plane, diagnostics, optional exceptions).
-- Implement validation at startup + `omnirelay mesh config validate` to block disallowed combinations and suggest remediation.
-- Emit telemetry counters for negotiated transports/encodings, downgrade ratios, and policy violations with dashboards/alerts.
-- Document policy configuration, override workflows, and CLI validation paths.
+- Listener/pipeline configuration parity and deterministic filter ordering across modes.
+- Routing, retry, timeout, and circuit-breaking behavior equivalence with mode-specific defaults documented.
+- Buffering/watermark and watchdog defaults tuned per mode.
+- Capability advertisement of supported modes and limits back to MeshKit.
 
 ## Requirements
-1. **Immutable defaults** – Mesh-internal endpoints must prefer HTTP/3 + Protobuf; exceptions require explicit policy entries and RBAC approvals.
-2. **Downgrade awareness** – Record downgrade reasons in metrics/logs and expose through CLI/diagnostics.
-3. **CLI validation** – Provide fast validation before deployment, including inline config fragments and CI automation integration.
-4. **Observability** – Export metrics/dashboards showing transport adoption trends and highlight legacy usage.
-5. **AOT gate** – OmniRelay transport binaries must publish as native AOT with policy engine enabled (WORK-002).
+1. **Parity** – Same config yields the same behavior in every mode; any deviation must be reported via capability flags and warnings.
+2. **Performance** – Document and meet SLOs (p95/p99) per mode; avoid reflection/JIT in hot paths (AOT-safe).
+3. **Isolation knobs** – Support per-mode watchdog thresholds and buffer limits; fail-open/closed configurable.
+4. **Admin visibility** – Surface mode, config epoch, capability set, and active filters via admin/metrics endpoints.
+5. **Testing coverage** – Cross-mode feature tests validate parity and latency deltas within agreed budgets.
 
 ## Deliverables
-- Updated configuration schema + validation library.
-- Telemetry instrumentation + dashboards/alerts for transport adoption.
-- CLI command updates + documentation.
+- Unified configuration schema covering all deployment modes.
+- Admin/diagnostic surfaces exposing mode, capabilities, and filter chain.
+- Benchmarks comparing modes with published SLOs and guidance.
+- Updated docs/samples showing how to select modes per workload.
 
 ## Acceptance Criteria
-- Invalid transport/encoding combos fail fast with actionable errors (CLI + startup) and do not start the host.
-- Metrics/alerts show HTTP/3 adoption and highlight exceptions.
-- Samples/docs demonstrate approved exceptions (e.g., HTTP/1 JSON) using the new policy engine.
-- Native AOT build/tests succeed per WORK-002..WORK-005.
+- A single config file applies without edits to all modes; differences are limited to documented capability flags.
+- Benchmarks demonstrate p99 within target budgets per mode; regressions fail the gate.
+- Feature tests pass for in-proc, sidecar, and edge hosts.
+- Native AOT publish succeeds for all hosts.
 
 ## Testing Strategy
-- Unit tests for policy parsing, validation, telemetry counters, CLI output.
-- Integration tests launching OmniRelay hosts with valid/invalid configs, forcing downgrades, verifying telemetry + CLI validation.
-- Feature tests enabling/disabling exceptions and ensuring dashboards/CLI reflect state.
-- Hyperscale tests rolling policy updates across many services ensuring downgrade monitoring/alerting scales.
+- Unit: configuration parsing, capability flags, watchdog/buffer defaults per mode.
+- Integration: run identical configs across hosts; assert routing/policy outcomes match.
+- Feature: end-to-end HTTP/gRPC flows per mode with latency assertions.
+- Perf: compare p95/p99 latency/throughput; track in CI trend.
 
 ## References
+- `docs/architecture/OmniRelay.BRD.md`
+- `docs/architecture/OmniRelay.SRS.md`
 - `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
 
-## Status & Validation
-- Completed on November 19, 2025 with CLI summaries, JSON schema updates, and telemetry hints wired into `omnirelay mesh config validate`.
-- Validation commands:
-  - `dotnet test tests/OmniRelay.Dispatcher.UnitTests/OmniRelay.Dispatcher.UnitTests.csproj --filter TransportPolicy`
-  - `dotnet test tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj --filter TransportPolicy`
-  - `dotnet test tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj --filter TransportPolicyIntegrationTests`
-  - `dotnet test tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj --filter TransportPolicyHyperscaleFeatureTests`
+## Status
+Needs re-scope (post-BRD alignment).

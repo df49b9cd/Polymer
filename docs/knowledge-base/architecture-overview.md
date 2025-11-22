@@ -1,10 +1,11 @@
 # Architecture Overview
 
-OmniRelay is the .NET 10 port of Uber's YARPC runtime layered on Hugo primitives. Every assembly follows the `OmniRelay.*` prefix and targets transport/middleware/tooling parity with yarpc-go while integrating tightly with .NET Generic Host and System.CommandLine. The modern stack now splits responsibilities three ways:
+OmniRelay is the .NET 10 port of Uber's YARPC runtime layered on Hugo primitives. Every assembly follows the `OmniRelay.*` prefix and targets transport/middleware/tooling parity with yarpc-go while integrating tightly with .NET Generic Host and System.CommandLine. The modern stack now splits responsibilities four ways:
 
 1. **Hugo** supplies SafeTaskQueue and concurrency primitives.
-2. **OmniRelay** delivers the stateless transport appliance (HTTP/3-first listeners, transports, middleware, CLI).
-3. **MeshKit** owns control-plane services (gossip, leadership, shards, rebalancer, replication) built on top of OmniRelay transports.
+2. **OmniRelay** is the transport/data plane delivering the stateless transport appliance (HTTP/3-first listeners, transports, middleware, CLI).
+3. **Control Plane** (new) holds desired dispatcher/routing/shadowing config, validates it, manages rollout and audit, and publishes signed snapshots to OmniRelay nodes.
+4. **MeshKit** provides discovery/coordination (gossip, shards, rebalancer, replication) built on OmniRelay transports; it emits membership/health signals that the control plane and data plane consume.
 
 ## Core pillars
 - **Dispatcher (src/OmniRelay)** bundles transports (HTTP, gRPC), codecs (JSON, Protobuf, raw), middleware (logging, tracing, metrics, deadlines, retries, circuit breakers, panic recovery, rate limiting), and peer choosers (round-robin, fewest-pending, two-random-choice). Resource-lease subsystems, chaos labs, and sharding helpers extend the peer/routing layer.

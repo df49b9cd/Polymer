@@ -1,36 +1,38 @@
-# WORK-008 – Configuration Reload & Watcher Services
+# WORK-008 – MeshKit Local Agent (LKG Cache & Telemetry Forwarder)
 
 ## Goal
-Provide a reusable configuration watcher/service that monitors JSON/environment/secret sources, validates updates, and applies them safely across OmniRelay transports and MeshKit modules without restarts.
+Deliver a lightweight MeshKit agent that subscribes to the control domain, caches last-known-good (LKG) config/artifacts, renews certs, and forwards telemetry—without participating in leader election.
 
 ## Scope
-- Extract reload logic (file watchers, debounce, validation-before-apply) from existing dispatcher hosting code.
-- Offer APIs to register configuration sections with validation callbacks and rollback semantics.
-- Surface reload status/events via diagnostics endpoints and CLI commands.
-- Support multiple sources (files, env, secret providers) and integrate with MeshKit + OmniRelay DI pipelines.
+- Control-plane watch client with resume/backoff and LKG persistence.
+- Cert renewal client integrating with WORK-007.
+- Telemetry forwarding (OTLP) with buffering/backpressure; optional local sampling.
+- Health reporting to central MeshKit (status, version, epoch, capability).
 
 ## Requirements
-1. **Safe reloads** – Validate new config snapshots before applying; rollback on failure with clear logging and metrics.
-2. **Debounce/throttling** – Coalesce rapid file changes; allow configurable delays per section.
-3. **Multi-source watching** – Monitor JSON files, env vars, optional remote stores; integrate with secret providers for TLS/credentials.
-4. **Observability** – Emit metrics/logs for reloads, failures, applied sections, and expose via diagnostics endpoints.
-5. **AOT** – Watcher services must function in native AOT hosts.
+1. **Non-authoritative** – Agent never elects leaders; trusts domain epochs/terms; rejects conflicting payloads.
+2. **Resilience** – Uses LKG when central unreachable; configurable cache TTL and safety checks.
+3. **Resource bounds** – Small memory/CPU footprint; bounded queues for telemetry and config.
+4. **Security** – Verifies signatures/certs for config/artifacts; runs with least-privilege FS access.
 
 ## Deliverables
-- Shared watcher service/library, tests, docs.
-- Wiring updates for OmniRelay + MeshKit hosts.
+- Agent service/library with install/run instructions.
+- Persistence for LKG (on-disk) with hash/signature checks.
+- Metrics/logs for cache hits/misses, resume attempts, and forwarding lag.
 
 ## Acceptance Criteria
-- OmniRelay/MeshKit hosts can enable hot reload for documented sections; invalid updates roll back with actionable errors.
-- Diagnostics/CLI show reload history and status.
-- Native AOT tests pass per WORK-002..WORK-005.
+- During partition, OmniRelay continues with LKG; agent reports degraded state; resync on recovery.
+- Telemetry buffering prevents data loss within configured bounds; drop policies observable.
+- AOT publish and smoke tests pass for agent binary.
 
 ## Testing Strategy
-- Unit: debounce logic, validation callbacks, rollback behavior, multiple section handling.
-- Integration: modify config while hosts run, confirm reload, rollback, diagnostics output.
-- Feature: operator workflows toggling settings (rate limits, policies) via reload.
-- Hyperscale: large deployments rolling config updates without thrash.
+- Integration: disconnect/reconnect scenarios; LKG apply; resume tokens.
+- Perf: measure agent resource footprint under load.
+- Security: signature/cert validation tests and permission checks.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/MeshKit.BRD.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

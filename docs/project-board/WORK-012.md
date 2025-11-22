@@ -1,39 +1,37 @@
-# WORK-012 – MeshKit.Rebalance Observability Package
+# WORK-012 – Telemetry & Health Correlation with Config Epochs
 
 ## Goal
-Bundle dashboards, alerts, and documentation that make MeshKit.Rebalancer activity observable across clusters in real time, ensuring operators can reason about shard movement without touching OmniRelay internals.
+Ingest metrics/logs/traces from OmniRelay/agents, correlate them with config epochs/rollouts, and surface SLO/regression signals for operators and rollout gates.
 
 ## Scope
-- Instrument MeshKit.Rebalancer with Prometheus metrics (`meshkit_rebalance_state`, `meshkit_rebalance_shards_in_flight`, `meshkit_rebalance_duration_seconds`, `meshkit_rebalance_plan_approvals_total`).
-- Produce Grafana dashboards (exec + on-call views) templated by namespace/cluster showing plan queues, per-node shard counts, drain timelines, and approval backlog.
-- Define alert rules for stuck plans, excessive concurrent moves, repeated failures, missing controller heartbeats, and policy violations.
-- Document runbooks linking dashboards, CLI commands, and remediation workflows.
+- OTLP ingest pipeline with per-tenant rate limits and buffering.
+- Tagging of telemetry with node ID, capability set, config epoch/term, rollout stage.
+- Health evaluation rules feeding WORK-011 gates and alerts.
+- Storage and query paths for dashboards and troubleshooting.
 
 ## Requirements
-1. **MeshKit data sources** – Metrics flow from MeshKit.Rebalancer and MeshKit.Shards; OmniRelay transports remain unchanged.
-2. **Dashboard governance** – JSON kept under version control with linting/tests; include screenshot diffs or storybook snapshots.
-3. **Alert routing** – Provide Prometheus rules + sample PagerDuty/Teams integrations with templated annotations.
-4. **Docs** – Update `docs/knowledge-base` + operator guides with setup instructions, screenshots, and CLI tie-ins.
-5. **AOT gate** – Observability exporters must work in native AOT builds per WORK-002..WORK-005.
+1. **Correlation** – Every record must carry epoch/version; missing data is rejected or downgraded with warning.
+2. **Scalability** – Handle fleet-scale ingestion with backpressure; drop policies observable.
+3. **Security** – mTLS ingestion; authZ scopes for read/write; PII-safe logging.
+4. **Availability** – Degradation does not block data-plane; buffer with bounded loss.
 
 ## Deliverables
-- Metrics wiring + unit tests for label cardinality.
-- Grafana dashboards, Prometheus rule files, screenshot artifacts, and provisioning instructions.
-- Runbook markdown referencing CLI workflows (`mesh shards rebalance ...`).
+- Telemetry collector/processor configuration in MeshKit.
+- Enrichment layer adding epoch/capability tags.
+- Alerts/dashboards for rollout health, control-plane lag, extension faults.
 
 ## Acceptance Criteria
-- Dashboards render against staging MeshKit deployments with healthy + failing plan scenarios.
-- Alerts fire for simulated incidents and stay quiet during steady state.
-- Documentation reviewed by SRE + product stakeholders with validated walkthroughs.
-- Native AOT tests + linting for dashboards/rules succeed in CI.
+- Rollout manager can query health signals by epoch/stage.
+- Dashboards show per-epoch error/latency; alerts fire on SLO breach.
+- Ingestion protected by mTLS and RBAC; rate limits enforced.
 
 ## Testing Strategy
-- Unit tests for metrics labels + JSON/YAML schema validation.
-- Integration tests provisioning dashboards/rules against sample data (Grafana provisioning tests, Prometheus rule unit tests).
-- Feature tests: run rebalancer scenarios inside feature harness verifying dashboards/alerts/runbooks.
-- Hyperscale tests: stress dashboards with large plan counts and ensure alert volume manageable.
+- Load tests for ingest throughput/backpressure.
+- Integration: ensure tags propagate from OmniRelay to collector; missing tags handled correctly.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
-- `docs/knowledge-base/shards-overview.md`
+- `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/OmniRelay.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

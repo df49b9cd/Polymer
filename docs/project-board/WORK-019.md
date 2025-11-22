@@ -1,42 +1,37 @@
-# WORK-019 – OmniRelay Mesh CLI Enhancements
+# WORK-019 – Security, Audit, and Supply-Chain Hardening
 
 ## Goal
-Evolve the `omnirelay mesh` CLI into the canonical operator surface for MeshKit modules (shards, clusters, rebalancer, failover, transport policy) while maintaining native AOT readiness and transport-only responsibilities within OmniRelay.
+Harden OmniRelay and MeshKit against supply-chain and operational risks with signed artifacts/configs, audit trails, and least-privilege runtime defaults.
 
 ## Scope
-- Implement subcommands:
-  - `peers list/status/drain/cordon`
-  - `leaders status --watch`
-  - `shards list/diff/simulate/rebalance`
-  - `clusters list/promote/failback`
-  - `config validate/show`
-  - `transport stats`
-  - `debug downgrade-events`
-- Support JSON + table output, filtering/pagination, interactive confirmations, `--watch`, `--dry-run`, and `--scope` flags aligned with MeshKit RBAC.
-- Provide completion scripts (bash/zsh/pwsh) and help docs referencing the new architecture.
+- Signing for binaries, containers, configs, and extension artifacts; verification in agents/OmniRelay.
+- Audit logging for control-plane mutations, rollouts, certificate actions, and registry operations.
+- Runtime hardening: non-root containers, readonly FS, seccomp/AppArmor profiles where applicable.
+- Key management: rotation policies, HSM/KMS integration.
 
 ## Requirements
-1. **Auth reuse** – CLI uses MeshKit/OmniRelay shared auth (mTLS, tokens) via REFWORK-020 helpers and surfaces clear errors for expired credentials.
-2. **UX consistency** – Commands share option patterns, progress indicators, colorized warnings (when supported), and structured exit codes.
-3. **Testing** – Integration tests hitting MeshKit fixtures; golden-file tests for output formatting; CLI analyzers ensuring options remain trimmed/AOT-safe.
-4. **Extensibility** – Command architecture allows new verbs/modules without refactoring core plumbing.
-5. **AOT** – CLI ships native binaries per WORK-004 and passes AOT smoke tests per WORK-005.
+1. **End-to-end verification** – No artifact/config applied without signature/root-of-trust validation.
+2. **Auditability** – Tamper-evident logs with user, time, action, context; retention policy defined.
+3. **Least privilege** – Default deployments run with minimal FS/network permissions.
+4. **Compliance** – SBOMs published; vulnerability scans in CI; CVE policy defined.
 
 ## Deliverables
-- CLI implementations, tests, completion scripts, packaging/release notes.
-- Documentation + demo scripts for onboarding/training.
+- Signing/verification pipeline and agent/OmniRelay enforcement hooks.
+- Audit log schema and sinks; CLI to query/audit.
+- Hardened container specs and docs.
 
 ## Acceptance Criteria
-- CLI workflows exercise MeshKit APIs end-to-end (list shards, simulate, drain peers, promote clusters) with deterministic output.
-- `config validate` catches policy violations before deployment.
-- Native AOT build/publish for Linux/macOS/Windows is part of CI.
+- Unsigned/invalid artifacts rejected; event logged.
+- Audit logs produced for registry, rollout, identity, and control mutations.
+- Containers run non-root/readonly; security scans clean at release time.
 
 ## Testing Strategy
-- Unit tests for command routing, option binding, prompts, output format.
-- Integration tests hitting MeshKit fixtures (HTTP/3 + forced HTTP/2) verifying RBAC, streaming, destructive flows.
-- Feature tests scripting operator workflows solely via CLI.
-- Hyperscale tests: CLI handles pagination through tens of thousands of objects and sustained watch sessions.
+- Integration: signature verification failures; key rotation; audit log coverage.
+- Security: container hardening checks; dependency vulnerability scans.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/OmniRelay.BRD.md`
+- `docs/architecture/MeshKit.BRD.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

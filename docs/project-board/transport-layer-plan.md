@@ -1,40 +1,51 @@
-# Transport Layer Realignment Plan
+# Delivery Plan (Aligned to OmniRelay & MeshKit BRD/SRS)
 
-This plan sequences the WORK-xxx items that keep OmniRelay transport-focused, extract MeshKit control-plane modules, and enforce native AOT at every layer. Use it with `docs/architecture/transport-layer-vision.md` and the updated project-board README.
+Use with the project-board README and the OmniRelay/MeshKit BRD & SRS documents.
 
-## Phase 0 – Alignment & Governance (Week 0-1)
-- Publish the transport-layer vision and communicate ownership boundaries across teams.
-- Tag backlog items with their owning layer (Hugo, OmniRelay, MeshKit) and freeze new OmniRelay work that introduces control-plane state.
-- Establish a tri-layer design review (Hugo + OmniRelay + MeshKit) that blocks transport stories lacking MeshKit/Hugo dependency notes.
+## Phase 0 – Alignment & Governance (Week 0–1)
+- Socialize roles: OmniRelay = data plane (in-proc/sidecar/edge), MeshKit = control plane (central/agent/bridge).
+- Tag all WORK items with deployment modes and control-plane roles they affect.
+- Freeze new scope that mixes control-plane logic into OmniRelay.
 
-## Phase 1 – Transport Hardening (Weeks 1-4)
-- Complete WORK-001 → WORK-005 (transport policy gate + OmniRelay/MeshKit/CLI AOT baseline, packaging, and CI gating).
-- Ensure CLI verbs already implemented (`leaders`, `peers`, etc.) rely on MeshKit endpoints exclusively and surface downgrade telemetry.
-- Keep `dotnet build OmniRelay.slnx`, `dotnet test` (unit/integration/feature/hyperscale), and native AOT publishes in every PR gate.
+## Phase 1 – OmniRelay Core & Perf (Weeks 1–4)
+- WORK-001: Pipeline parity across modes; perf baselines per SLO; watchdog defaults.
+- WORK-002: AOT/perf compliance (no reflection/JIT hot paths) and instrumentation.
+- WORK-003: Extension hosts (DSL, Wasm, native) with quotas/failure policy; capability flags.
+- WORK-004: Packaging per RID (in-proc host, sidecar, edge) with signed artifacts.
+- WORK-005: CI gate for AOT publish + core test suites.
 
-## Phase 2 – MeshKit Core Surfaces (Weeks 3-6)
-- Deliver WORK-006 → WORK-009 (client helpers, chaos/probe infrastructure, config watchers, bootstrap harness) so future MeshKit modules reuse the same transport/auth runtime.
-- Wire shared kits into samples/FeatureTests so MeshKit extraction work has reliable fixtures.
+## Phase 2 – MeshKit Control Foundations (Weeks 3–7)
+- WORK-006: Versioned control protocol (xDS-like) with deltas/snapshots and capability negotiation.
+- WORK-007: Identity/CA service with CSR, issuance, rotation, and trust-bundle delivery.
+- WORK-008: Local agent (LKG cache, telemetry forwarder, cert renewal) and subscription semantics.
+- WORK-009: Bootstrap/watch harness, validators, resume/backoff rules.
 
-## Phase 3 – MeshKit Registry & Shards (Weeks 5-9)
-- Implement WORK-010 → WORK-014: MeshKit.Shards, MeshKit.Rebalancer, Rebalance observability, registry read/mutation APIs.
-- Update CLI (WORK-019) alongside these modules so operators exercise MeshKit endpoints only.
+## Phase 3 – Extensions & Rollout (Weeks 6–9)
+- WORK-010: Extension registry/admission for signed DSL/Wasm/native bundles.
+- WORK-011: Rollout manager with canary, fail-open/closed, kill switch, and epoch tracking.
 
-## Phase 4 – Multi-Cluster & Failover (Weeks 8-12)
-- Build WORK-015 (MeshKit.ClusterDescriptors) and WORK-016 (Cross-Cluster Failover) once registry/rebalancer modules are healthy.
-- Validate planned/emergency failovers via integration + hyperscale suites using MeshKit automation.
+## Phase 4 – Federation & Capability (Weeks 8–12)
+- WORK-012: Telemetry/health correlation with config epochs; SLO regression detection.
+- WORK-013: Mesh bridge/federation with export allowlists and replay during partition.
+- WORK-014: Capability down-leveling; schema evolution windows and compatibility tests.
+- WORK-015: Routing/policy engine with multi-version canary + verification hooks.
+- WORK-016: Cross-region/cluster failover orchestration driven by MeshKit automation.
 
-## Phase 5 – Operator Experience & Reliability (Weeks 9-13)
-- Refresh docs/samples (WORK-017), dashboards/alerts (WORK-018), CLI UX (WORK-019), synthetic probes (WORK-020), chaos environments (WORK-021), and automated chaos gating (WORK-022).
-- Ensure dashboards/alerts/probes/chaos outputs all depend on MeshKit metrics rather than OmniRelay internals.
+## Phase 5 – Ops, UX, Resilience (Weeks 10–14)
+- WORK-017: Operator CLI/UX (AOT-safe) with table/JSON output, targeting control APIs.
+- WORK-018: Dashboards/alerts for CP health, DP health, extension rollouts.
+- WORK-019: Security/compliance/audit trails and supply-chain hardening.
+- WORK-020: Synthetic probes + partition tests (downgrade, LKG verification).
+- WORK-021: Chaos automation suites (extension crash, CP partition, agent loss).
+- WORK-022: Samples/docs for in-proc vs sidecar vs edge, extension lifecycle, control roles.
 
 ## Validation Checklist
-- **Build/Test**: `dotnet build OmniRelay.slnx`, `dotnet test` across core suites, plus MeshKit-specific test projects as they split.
-- **Native AOT**: `dotnet publish -r linux-x64 -c Release /p:PublishAot=true` for OmniRelay dispatcher, MeshKit hosts, and CLI (WORK-002..WORK-005).
-- **Docs/Samples**: Update knowledge base, samples, and onboarding docs any time WORK-017 changes behavior.
-- **Observability**: Dashboards/alerts (WORK-012, WORK-018) must highlight MeshKit signals; OmniRelay dashboards focus on transport health/downgrades.
+- Build/Test: `dotnet build OmniRelay.slnx`; targeted `dotnet test` slices for modified components.
+- Native AOT: publish all affected hosts (OmniRelay in-proc/sidecar/edge; MeshKit central/agent/bridge; CLI) per WORK-005 gate.
+- Security: signed config/artifacts verified before load; capability negotiation exercised in tests.
+- Resilience: LKG cache and fail-open/closed paths exercised in feature/chaos suites.
 
 ## Exit Criteria
-- OmniRelay repo contains only transport, middleware, diagnostics, and CLI logic; MeshKit repositories own gossip, leadership, shards, rebalancer, replication, bootstrap, and chaos workflows.
-- CLI bundles default to MeshKit endpoints for control-plane operations with transport diagnostics kept separate.
-- Native AOT CI gating (WORK-005) remains green, and hyperscale suites cover both transport + control-plane interplay using the layered deployment model.
+- OmniRelay delivers the same policy/enforcement across deployment modes with AOT/perf SLOs met and extension sandboxes enforced.
+- MeshKit central/agent/bridge roles operate with signed config, identity, registry, rollout, and federation flows validated.
+- Operators have CLI, dashboards, probes, and chaos automation tied to config epochs and capability flags.

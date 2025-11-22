@@ -1,57 +1,76 @@
-# Project Board Overview
+# Project Board Overview (Aligned to OmniRelay & MeshKit BRD/SRS)
 
-OmniRelay now plays the role of a transport appliance layered beneath MeshKit (control plane) and Hugo (execution/runtime). Only stories that advance this model remain on the board—completed epics have been removed. Use this document alongside:
-- `docs/architecture/transport-layer-vision.md` for the layered narrative.
-- `docs/project-board/transport-layer-plan.md` for phase sequencing and validation gates.
+Use this board with:
+- `docs/architecture/OmniRelay.BRD.md` / `docs/architecture/OmniRelay.SRS.md`
+- `docs/architecture/MeshKit.BRD.md` / `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/transport-layer-vision.md`
 
 ## Dependency Backbone
 
-| Lane | Focus | Stories (sequence order) | Notes |
+| Lane | Focus | Stories (sequence) | Notes |
 | --- | --- | --- | --- |
-| L0 | Transport correctness & AOT | `WORK-001` → `WORK-005` | Keep OmniRelay transport-only (WORK-001) and finish AOT baseline/tooling/CI (WORK-002..WORK-005) before layering new modules. |
-| L1 | MeshKit Core surfaces | `WORK-006` → `WORK-009` | Provide shared client helpers, chaos/probe infra, config watchers, and bootstrap harnesses reused by every MeshKit module. |
-| L2 | MeshKit Registry & Shards | `WORK-010` → `WORK-014` | Build MeshKit.Shards, MeshKit.Rebalancer, and MeshKit.Registry APIs/mutations on top of OmniRelay transports. |
-| L3 | Multi-cluster & failover | `WORK-015`, `WORK-016` | Layer MeshKit.ClusterDescriptors and MeshKit.Failover once registry + rebalancer events exist. |
-| L4 | Operator experience & docs | `WORK-017` → `WORK-022` | Refresh docs, dashboards, CLI, probes, and chaos/automation around the new module boundaries. |
+| L0 | OmniRelay data-plane core & perf | WORK-001 → WORK-005 | Establish AOT/perf baseline, extension hosts, deployment modes, and CI gating. Must stay green before higher lanes move. |
+| L1 | MeshKit control-plane foundation | WORK-006 → WORK-009 | Define control protocol, identity/CA, local agent with LKG cache, and bootstrap/watch harnesses. |
+| L2 | Extensions & rollout | WORK-010 → WORK-011 | Signed extension registry plus rollout/kill-switch machinery for DSL/Wasm/native bundles. |
+| L3 | Federation & capability | WORK-012 → WORK-016 | Telemetry correlation, domain bridging, capability down-leveling, routing/failover orchestration. |
+| L4 | Ops, UX, and resilience | WORK-017 → WORK-022 | Operator UX/CLI, dashboards/alerts, security/audit, probes, chaos automation, samples/docs. |
 
-Lanes still respect the transport-layer plan: L0 must stay green before advancing, L1 unblocks L2, L2/L3 feed L4.
+Lanes are ordered; L0 must remain healthy to advance others. L1 depends on L0; L2 depends on L1; L3 depends on L1/L2; L4 spans all lanes for operability.
 
 ## Active Work Items
 
-### OmniRelay & Platform Readiness
+Status legend: Open / In design / In progress / Needs re-scope / Done.
+
+### L0 – OmniRelay Core & Perf
 
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
-| WORK-001 | OmniRelay Transport & Encoding Policy Engine | Complete | HTTP/3-first policy engine enforced at startup + CLI with downgrade summaries/telemetry. |
-| WORK-002 | OmniRelay AOT Compliance Baseline | Complete | Native AOT surfacing trimmed/sourced diagnostics, shard controls, bootstrap paths; publish gated by symbol-strip tool availability. |
-| WORK-003 | MeshKit Library AOT Readiness | Open | Ensure all MeshKit modules (shards, rebalancer, registry, cluster) are trimming-safe/native-publishable. |
-| WORK-004 | Native AOT Tooling & Packaging | In design | Deliver native AOT CLI/tooling for Linux/macOS/Windows plus slim containers. |
-| WORK-005 | AOT CI Gating & Runtime Validation | Open | CI blocks merges unless OmniRelay, MeshKit, and CLI native builds + smoke tests succeed. |
-| WORK-006 | CLI & Diagnostics Client Helpers | In design | Shared HTTP/3/gRPC client SDK that powers CLI, MeshKit modules, and third-party automation. |
-| WORK-007 | Chaos & Health Probe Infrastructure | In design | Reusable probe scheduler/chaos hooks aligned with MeshKit synthetic/chaos stories. |
-| WORK-008 | Configuration Reload & Watcher Services | In design | Shared configuration watchers/validators for OmniRelay transports + MeshKit modules. |
-| WORK-009 | Runtime Bootstrap Harness | In design | Common startup harness (logging, telemetry, feature flags) for OmniRelay + MeshKit hosts. |
+| WORK-001 | OmniRelay transport/pipeline parity (in-proc, sidecar, edge) | Needs re-scope | Ensure identical behavior & perf targets across deployment modes with AOT-safe pipelines. |
+| WORK-002 | Native AOT perf & compliance baseline | Needs re-scope | Apply dotnet-performance-guidelines; measure/watch p99; enforce no reflection/JIT in hot paths. |
+| WORK-003 | Extension hosts (DSL, Proxy-Wasm, native) + watchdogs | Needs re-scope | Sandbox, quotas, failure policies, and capability flags per runtime. |
+| WORK-004 | Deployment packaging (per-RID, in-proc host, sidecar, headless edge) | Needs re-scope | Signed artifacts, slim images, host wrappers. |
+| WORK-005 | CI gating for AOT/publish/tests | Open | Block merges unless all hosts build/publish AOT and core test tiers pass. |
 
-### MeshKit Modules & Operator Experience
+### L1 – MeshKit Control Plane
 
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
-| WORK-010 | MeshKit.Shards APIs & Tooling | Open | Re-scope shard APIs/CLI to live inside MeshKit.Shards while OmniRelay remains transport-only. |
-| WORK-011 | MeshKit.Rebalancer | Open | Health-aware rebalancer consuming MeshKit.Shards + observability bus. |
-| WORK-012 | MeshKit.Rebalance Observability | Open | Dashboards/alerts sourced from MeshKit.Rebalancer metrics; OmniRelay only exposes transport counters. |
-| WORK-013 | MeshKit.Registry Read APIs | Open | Versioned HTTP/3/gRPC surfaces for peers/clusters/config derived from MeshKit registry state. |
-| WORK-014 | MeshKit.Registry Mutation APIs | Open | RBAC-governed mutation verbs plus CLI adapters targeting MeshKit endpoints. |
-| WORK-015 | MeshKit.Cluster Descriptors | Open | First-class cluster metadata/priorities for multi-region routing and failover automation. |
-| WORK-016 | MeshKit.Cross-Cluster Failover | Open | Planned/emergency workflows orchestrated via MeshKit automation using OmniRelay transports. |
-| WORK-017 | Samples & Docs Refresh | Open | Update samples/docs to showcase Hugo → OmniRelay → MeshKit flow, including new control surfaces. |
-| WORK-018 | Operator Dashboards & Alerts | Open | Unified dashboards fed by MeshKit metrics (gossip, leadership, shards, rebalancer, replication). |
-| WORK-019 | OmniRelay Mesh CLI Enhancements | In design | CLI focuses on MeshKit endpoints (shards, clusters, transport stats) while keeping transport tooling deterministic/AOT safe. |
-| WORK-020 | MeshKit Synthetic Health Checks | Open | Read-only probes hitting MeshKit APIs/streams plus HTTP/3 negotiation tests. |
-| WORK-021 | MeshKit Chaos Environments | Open | Deterministic docker/Kubernetes chaos stacks focused on MeshKit modules. |
-| WORK-022 | MeshKit Chaos Automation & Reporting | Open | Scenario DSL + CI automation enforcing nightly chaos runs tied to MeshKit metrics. |
+| WORK-006 | Control protocol (xDS-like) & capability negotiation | Needs re-scope | Versioned protobufs, deltas/snapshots, epochs, capability flags. |
+| WORK-007 | Identity/CA service & cert rotation | Needs re-scope | CSR, issuance, trust bundles, rotation, SPIFFE compatibility. |
+| WORK-008 | Local agent with LKG cache & telemetry forwarder | Needs re-scope | Subscribe to control domain, cache LKG, renew certs, never elect leaders. |
+| WORK-009 | Bootstrap/watch harness & validation | Needs re-scope | Shared startup harness, config validators, resume/backoff semantics. |
+
+### L2 – Extensions & Rollout
+
+| ID | Title | Status | Notes |
+| --- | --- | --- | --- |
+| WORK-010 | Extension registry (DSL/Wasm/native) + admission | Needs re-scope | Signed manifests, ABI metadata, dependency checks, storage. |
+| WORK-011 | Rollout manager (canary/kill-switch/fail-open/closed) | Needs re-scope | Policy-driven rollouts with epoch tracking and remote disable. |
+
+### L3 – Federation & Capability
+
+| ID | Title | Status | Notes |
+| --- | --- | --- | --- |
+| WORK-012 | Telemetry/health correlation with config epochs | Needs re-scope | Ingest OTLP, map to versions, surface SLO/regressions. |
+| WORK-013 | Mesh bridge/federation between control domains | Needs re-scope | Export allowlists, identity mediation, queued replay. |
+| WORK-014 | Capability down-leveling & schema evolution | Needs re-scope | Tailor payloads to node capabilities; maintain backward compatibility windows. |
+| WORK-015 | Routing/policy engine with multi-version canary | Needs re-scope | Compute routes/policies with staged rollout and verification. |
+| WORK-016 | Cross-region/cluster failover orchestration | Needs re-scope | Planned/emergency failovers driven by MeshKit using OmniRelay transports. |
+
+### L4 – Ops, UX, Resilience
+
+| ID | Title | Status | Notes |
+| --- | --- | --- | --- |
+| WORK-017 | Operator UX/CLI (OmniRelay + MeshKit) | Needs re-scope | Unified CLI against control APIs; AOT-safe; table/JSON outputs. |
+| WORK-018 | Dashboards & alerts | Needs re-scope | MeshKit CP health, OmniRelay DP signals, extension rollouts. |
+| WORK-019 | Security, audit, supply-chain hardening | Needs re-scope | Signed artifacts/configs, audit trails, FS perms, key rotation. |
+| WORK-020 | Synthetic probes & partition tests | Needs re-scope | Read-only probes, LKG verification, downgrade checks. |
+| WORK-021 | Chaos automation | Needs re-scope | Scenarios for CP partition, agent loss, extension crash; nightly runs. |
+| WORK-022 | Samples & docs alignment | Needs re-scope | In-proc vs sidecar examples; extension lifecycle; control-plane roles. |
 
 ## Working Agreements
-- Every story **must** cite the layer it belongs to (Hugo, OmniRelay, MeshKit) and consume shared transport/telemetry kits instead of inventing new hosting code.
-- Native AOT publish + `dotnet test` (unit, integration, feature, hyperscale tiers) remain part of acceptance criteria and are enforced by WORK-002 → WORK-005.
-- CLI/SDK/diagnostics endpoints are the canonical control surfaces. Third-party modules must integrate through those instead of accessing private registries.
-- Update this board whenever a story lands so completed epics stay archived outside the board.
+- Keep OmniRelay data-plane lean and AOT-safe; MeshKit owns control-plane logic (identity, policy, registry, rollout, bridging).
+- Signed artifacts/configs and capability negotiation are mandatory before loading extensions or applying policy.
+- Every story lists target deployment modes (in-proc/sidecar/edge) and control-plane roles (central/agent/bridge) it touches.
+- CI gates require `dotnet build OmniRelay.slnx`, relevant `dotnet test` slices, and AOT publish for affected hosts.
+- Update docs/samples alongside behavior changes, especially for extension lifecycle and control-plane interaction.

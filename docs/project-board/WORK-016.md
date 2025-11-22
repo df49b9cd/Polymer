@@ -1,36 +1,36 @@
-# WORK-016 – MeshKit.Cross-Cluster Replication & Failover
+# WORK-016 – Cross-Region/Cluster Failover Orchestration
 
 ## Goal
-Use MeshKit.ClusterDescriptors plus replication streams to orchestrate planned and emergency failovers across clusters, emitting telemetry and CLI workflows while OmniRelay remains a stateless transport fabric.
+Provide planned and emergency failover workflows across regions/clusters using MeshKit automation and OmniRelay transports, respecting capability and policy constraints.
 
 ## Scope
-- Enhance replication services to stream logs between clusters with `ClusterVersionVector` metadata, lag metrics, and idempotent replay.
-- Build planned failover workflow (drain primary, promote passive, update routing metadata atomically) and emergency workflow (force promote with fencing tokens + warnings).
-- Provide CLI commands (`mesh clusters promote`, `mesh clusters failback`, `mesh replication status`) hitting MeshKit automation endpoints.
-- Document runbooks, diagrams, and rollback steps.
+- Failover playbooks: trigger conditions, scope, sequencing, rollback paths.
+- Data-plane controls: traffic shifting, outlier detection thresholds, circuit breaker adjustments during failover.
+- Control-plane coordination: ensure consistent routes/identities across participating domains; integrate with bridge (WORK-013) where needed.
+- Operator UX: CLI commands and dashboards for failover status.
 
 ## Requirements
-1. **Ordering & dedupe** – Maintain per-cluster monotonic sequencing, support replays, and guard against double-applying updates.
-2. **Security** – Replication channels use HTTP/3/gRPC with mTLS + optional attestation.
-3. **Automation** – Integrate with change management approvals, pre-flight checks (lag, health), and audit logging.
-4. **Observability** – Metrics for lag, active/passive state, workflow progress; alerts for lag thresholds and failover failures.
-5. **Testing** – Chaos scenarios simulating regional loss/failover must meet documented SLO (<30s for core control-plane APIs).
+1. **Safety** – Drains/traffic shifts are bounded and observable; default to conservative moves.
+2. **Consistency** – Routes and trust bundles align across domains before traffic moves.
+3. **Automation** – Predefined runbooks executable via CLI/automation; manual overrides allowed with audit.
+4. **Testing** – Regular drills validated via synthetic/chaos suites.
 
 ## Deliverables
-- Replication enhancements, failover controllers, CLI workflows, documentation/runbooks.
+- Failover orchestrator logic in MeshKit; CLI verbs; dashboards.
+- Runbooks documenting triggers and guardrails.
 
 ## Acceptance Criteria
-- Replication lag metrics accurate ±5%; dashboards/alerts wired.
-- Planned failover completes within SLO, updates routing metadata, and logs audit trail.
-- Emergency failover forcibly promotes passive cluster with fencing tokens; clients resume operations quickly.
-- Native AOT builds/tests per WORK-002..WORK-005.
+- Drill scenario passes: traffic shifted to target region with SLOs preserved; rollback works.
+- Audit logs capture initiator, scope, timings.
+- Integration with rollout manager to avoid overlapping risky changes.
 
 ## Testing Strategy
-- Unit tests for version-vector math, workflow state machines, serialization compatibility.
-- Integration tests with multi-cluster setups measuring lag, executing planned/emergency failovers, verifying telemetry + audit.
-- Feature tests running runbook drills for planned failover and failback.
-- Hyperscale tests performing concurrent failovers across regions to validate automation + alerting scale.
+- Integration: simulated region failure; planned migration; rollback.
+- Chaos: inject partial outages and validate orchestrator choices.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/OmniRelay.SRS.md`
+
+## Status
+Needs re-scope (post-BRD alignment).

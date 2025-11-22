@@ -1,35 +1,37 @@
-# WORK-007 – Chaos & Health Probe Infrastructure
+# WORK-007 – Identity & CA Service (CSR, Issuance, Rotation)
 
 ## Goal
-Refactor probe scheduling and chaos hooks into a reusable MeshKit Diagnostics package so control-plane services can register probes/faults through shared APIs, reusing the same metrics, authorization, and CLI surfacing as WORK-020/018/019.
+Provide MeshKit-hosted identity/CA services that issue, rotate, and revoke certificates for OmniRelay nodes (all modes) with trust-bundle distribution and SPIFFE compatibility.
 
 ## Scope
-- Extract probe registries, scheduler, and result aggregation from existing test harnesses into `MeshKit.Diagnostics.Probes`.
-- Provide abstractions for health probes (latency checks, dependency calls), chaos experiments (latency injection, packet loss, node restart), and reporting via telemetry + diagnostics endpoints.
-- Integrate with OmniRelay transport builders for secure HTTP/3/gRPC control endpoints.
-- Document configuration and operator usage.
+- CSR endpoints and approval pipeline; issuance and renewal schedules; revocation handling.
+- Trust bundle distribution to agents/OmniRelay; pinning and rotation workflows.
+- Optional SPIFFE/SPIRE interop; SAN/URI encoding rules for services and roles.
+- Audit logging and metrics for issuance/rotation failures.
 
 ## Requirements
-1. **Probe abstraction** – Support sync/async probes with intervals/timeouts/thresholds; allow tagging by cluster/namespace.
-2. **Chaos controls** – Enable/disable experiments per host with RBAC + confirmation tokens; log every activation.
-3. **Telemetry** – Emit metrics/logs for probe success/failure, chaos activations, recovery times.
-4. **Security** – Restrict chaos endpoints to authorized operators; integrate with diagnostics runtime toggles.
-5. **Extensibility** – DI-friendly registration for new probe/chaos types without editing core library.
+1. **Security** – mTLS on CA endpoints; signed responses; key storage backed by HSM or encrypted KMS where available.
+2. **Rotation** – Automatic renewal before expiry; failure backoff; LKG cert retention policy.
+3. **Compatibility** – Support central + agent roles; certs carry capability/role info where needed.
+4. **Observability** – Metrics/logs/alerts for issuance latency, failure rate, and time-to-expiry.
 
 ## Deliverables
-- Library, tests, documentation, and sample registration code for MeshKit modules.
+- CA service in MeshKit with CSR API, issuance logic, rotation jobs, and trust-bundle publication.
+- Agent/client logic in OmniRelay/MeshKit agent to request/renew certs and cache bundles.
+- Docs for ops (bootstrap, rotate, revoke) and security (key handling, audit).
 
 ## Acceptance Criteria
-- MeshKit services register probes/chaos hooks through the shared infrastructure; diagnostics endpoints expose consistent payloads.
-- CLI + dashboards display probe/chaos status across hosts.
-- Native AOT publishing/trimming works per WORK-002..WORK-005.
+- OmniRelay/agents obtain and renew certs automatically; expired certs are rotated without traffic loss (via LKG fallback where applicable).
+- SPIFFE-compatible IDs validated in integration tests (optional feature flag).
+- Audit logs show who/what/when for issuance and revocation.
 
 ## Testing Strategy
-- Unit: probe scheduling, timeout logic, chaos configuration parsing, telemetry counters.
-- Integration: register probes against test endpoints, execute chaos hooks, verify diagnostics endpoints + RBAC.
-- Feature: use infrastructure inside MeshKit.FeatureTests to drive probes/chaos scenarios.
-- Hyperscale: manage hundreds of probes/faults ensuring scheduling + authorization scale.
+- Integration tests for CSR -> issue -> rotate -> revoke flows.
+- Chaos tests for CA unavailability and clock skew; ensure LKG cert grace period works.
 
 ## References
-- `docs/architecture/transport-layer-vision.md`
-- `docs/project-board/transport-layer-plan.md`
+- `docs/architecture/MeshKit.SRS.md`
+- `docs/architecture/MeshKit.BRD.md`
+
+## Status
+Needs re-scope (post-BRD alignment).
