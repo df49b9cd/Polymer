@@ -31,7 +31,7 @@ public sealed class ClientStreamCall : IAsyncDisposable
     /// <summary>Gets the request writer channel.</summary>
     public ChannelWriter<ReadOnlyMemory<byte>> Requests => _requests.Writer;
 
-    internal ChannelReader<ReadOnlyMemory<byte>> Reader => _requests.Reader;
+    public ChannelReader<ReadOnlyMemory<byte>> Reader => _requests.Reader;
 
     /// <summary>Gets the ValueTask that completes with the unary response.</summary>
     public ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Response =>
@@ -52,7 +52,7 @@ public sealed class ClientStreamCall : IAsyncDisposable
         return new ClientStreamCall(meta, requests);
     }
 
-    internal void TryComplete(Result<Response<ReadOnlyMemory<byte>>> result)
+    public void TryComplete(Result<Response<ReadOnlyMemory<byte>>> result)
     {
         if (result.IsSuccess)
         {
@@ -62,7 +62,7 @@ public sealed class ClientStreamCall : IAsyncDisposable
         _completion.TrySetResult(result);
     }
 
-    internal void TryCompleteWithError(Error error)
+    public void TryCompleteWithError(Error error)
     {
         var err = Err<Response<ReadOnlyMemory<byte>>>(error);
         _completion.TrySetResult(err);

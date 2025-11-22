@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>OmniRelay.DataPlane</AssemblyName>
+    <RootNamespace>OmniRelay.DataPlane</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Dispatcher\**\*.cs" />
+    <Compile Include="Transport\**\*.cs" />
+    <Compile Include="Security\**\*.cs" />
+    <Compile Include="Errors\**\*.cs" />
+    <Compile Include="Properties/AssemblyInfo.cs" />
+    <!-- Linked source from original OmniRelay for data-plane components not already in Codecs -->
+    <Compile Include="..\OmniRelay\Core\AsyncDisposableHelpers.cs" Link="Core/AsyncDisposableHelpers.cs" />
+    <Compile Include="..\OmniRelay\Core\Clients\**\*.cs" Link="Core/Clients/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Middleware\**\*.cs" Link="Core/Middleware/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Diagnostics\**\*.cs" Link="Core/Diagnostics/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Gossip\**\*.cs" Link="Core/Gossip/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Leadership\**\*.cs" Link="Core/Leadership/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Peers\**\*.cs" Link="Core/Peers/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\Core\Shards\**\*.cs" Link="Core/Shards/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OmniRelay\ControlPlane\**\*.cs" Link="ControlPlane/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.Codecs\OmniRelay.Codecs.csproj" />
+    <ProjectReference Include="..\OmniRelay.Protos\OmniRelay.Protos.csproj" />
+    <ProjectReference Include="..\OmniRelay.Transport.Host\OmniRelay.Transport.Host.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Abstractions\OmniRelay.Diagnostics.Abstractions.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Runtime\OmniRelay.Diagnostics.Runtime.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Probes\OmniRelay.Diagnostics.Probes.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Telemetry\OmniRelay.Diagnostics.Telemetry.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Logging\OmniRelay.Diagnostics.Logging.csproj" />
+    <ProjectReference Include="..\OmniRelay.Diagnostics.Documentation\OmniRelay.Diagnostics.Documentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore.Server" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="System.IO.Hashing" />
+  </ItemGroup>
+</Project>

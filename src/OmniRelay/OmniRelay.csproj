@@ -41,21 +41,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Core\ICodec.cs" />
-    <Compile Remove="Core\IRequest.cs" />
-    <Compile Remove="Core\IResponse.cs" />
-    <Compile Remove="Core\RequestMeta.cs" />
-    <Compile Remove="Core\ResponseMeta.cs" />
-    <Compile Remove="Core\RequestLoggingScope.cs" />
-    <Compile Remove="Core\RawCodec.cs" />
-    <Compile Remove="Core\JsonCodec.cs" />
-    <Compile Remove="Core\ProtobufEncoding.cs" />
-    <Compile Remove="Core\ProtobufCodec.cs" />
-    <Compile Remove="Core\ProtobufCallAdapters.cs" />
-    <Compile Remove="Core\Request.cs" />
-    <Compile Remove="Core\Response.cs" />
-    <Compile Remove="Errors\*.cs" />
-    <Compile Remove="Core\Transport\**\*.cs" />
+    <Compile Remove="Core\**\*.cs" />
+    <Compile Remove="Errors\**\*.cs" />
+    <Compile Remove="Transport\**\*.cs" />
+    <Compile Remove="Dispatcher\**\*.cs" />
+    <Compile Remove="Security\**\*.cs" />
+    <Compile Remove="ControlPlane\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -66,6 +57,7 @@
     <ProjectReference Include="..\OmniRelay.Diagnostics.Probes\OmniRelay.Diagnostics.Probes.csproj" />
     <ProjectReference Include="..\OmniRelay.Codecs\OmniRelay.Codecs.csproj" />
     <ProjectReference Include="..\OmniRelay.Protos\OmniRelay.Protos.csproj" />
+    <ProjectReference Include="..\OmniRelay.DataPlane\OmniRelay.DataPlane.csproj" />
   </ItemGroup>
 
 </Project>

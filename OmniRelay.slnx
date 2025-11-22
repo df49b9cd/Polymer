@@ -106,6 +106,8 @@
     <File Path=".editorconfig" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
+    <Project Path="src/OmniRelay.DataPlane/OmniRelay.DataPlane.csproj" />
     <Project Path="src/OmniRelay.Diagnostics.Abstractions/OmniRelay.Diagnostics.Abstractions.csproj" />
     <Project Path="src/OmniRelay.Diagnostics.Alerting/OmniRelay.Diagnostics.Alerting.csproj" />
     <Project Path="src/OmniRelay.Diagnostics.Runtime/OmniRelay.Diagnostics.Runtime.csproj" />
@@ -127,6 +129,7 @@
     <Project Path="src/OmniRelay.ShardStore.Postgres/OmniRelay.ShardStore.Postgres.csproj" />
     <Project Path="src/OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
     <Project Path="src/OmniRelay.ShardStore.Sqlite/OmniRelay.ShardStore.Sqlite.csproj" />
+    <Project Path="src/OmniRelay.Transport.Host/OmniRelay.Transport.Host.csproj" />
     <Project Path="src/OmniRelay/OmniRelay.csproj" />
   </Folder>
   <Folder Name="/tests/">

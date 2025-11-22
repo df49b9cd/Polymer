@@ -8,8 +8,8 @@ namespace OmniRelay.Errors;
 /// </summary>
 public static class OmniRelayErrorAdapter
 {
+    public const string TransportMetadataKey = "omnirelay.transport";
     internal const string StatusMetadataKey = "omnirelay.status";
-    internal const string TransportMetadataKey = "omnirelay.transport";
     internal const string FaultMetadataKey = "omnirelay.faultType";
     internal const string RetryableMetadataKey = "omnirelay.retryable";
     private static readonly ImmutableDictionary<OmniRelayStatusCode, string> StatusCodeNames = new[]

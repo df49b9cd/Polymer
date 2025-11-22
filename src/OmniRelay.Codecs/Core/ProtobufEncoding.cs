@@ -3,7 +3,7 @@ namespace OmniRelay.Core;
 /// <summary>
 /// Helpers for determining Protobuf and JSON encodings and mapping to media types.
 /// </summary>
-internal static class ProtobufEncoding
+public static class ProtobufEncoding
 {
     public const string Protobuf = "protobuf";
     public const string ApplicationProtobuf = "application/x-protobuf";

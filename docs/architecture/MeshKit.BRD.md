@@ -5,7 +5,7 @@
 Capture the business objectives and scope for MeshKit as the control-plane platform that computes, signs, and distributes policy, routing, identity, and extension artifacts to OmniRelay deployments at global scale.
 
 ### 1.2 Scope
-- In scope: control-plane computation, config/watch delivery, identity/CA services, extension registry and rollout, capability negotiation, multi-role topology (centralized, local agent, mesh bridge), observability of data-plane health.
+- In scope: control-plane computation, config/watch delivery, identity/CA services, extension registry and rollout, capability negotiation, multi-role topology (centralized, local agent, mesh bridge), observability of data-plane health. MeshKit consumes shared OmniRelay libraries (Codecs/Protos/Transport.Host) but does not embed the data-plane filter/peer stack.
 - Out of scope: serving application traffic directly; hosting business logic; UI beyond operator/API/CLI surfaces as defined.
 
 ### 1.3 Background

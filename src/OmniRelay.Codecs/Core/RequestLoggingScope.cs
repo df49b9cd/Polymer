@@ -6,7 +6,7 @@ namespace OmniRelay.Core;
 /// <summary>
 /// Utilities for producing structured logging scopes for RPC requests.
 /// </summary>
-internal static class RequestLoggingScope
+public static class RequestLoggingScope
 {
     private static readonly string[] RequestIdHeaderKeys =
     [

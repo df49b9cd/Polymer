@@ -34,9 +34,9 @@ public sealed class StreamCallContext(StreamDirection direction)
         }
     }
 
-    internal void IncrementMessageCount() => Interlocked.Increment(ref _messageCount);
+    public void IncrementMessageCount() => Interlocked.Increment(ref _messageCount);
 
-    internal bool TrySetCompletion(StreamCompletionStatus status, Error? error = null)
+    public bool TrySetCompletion(StreamCompletionStatus status, Error? error = null)
     {
         var previous = (StreamCompletionStatus)Interlocked.CompareExchange(
             ref _completionStatus,

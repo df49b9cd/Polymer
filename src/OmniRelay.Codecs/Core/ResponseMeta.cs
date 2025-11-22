@@ -11,6 +11,7 @@ public sealed record ResponseMeta
         ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase);
 
     internal static ImmutableDictionary<string, string> EmptyHeadersInstance => EmptyHeaders;
+    public static ImmutableDictionary<string, string> EmptyHeadersPublic => EmptyHeaders;
 
     public string? Encoding { get; init; }
     public string? Transport { get; init; }

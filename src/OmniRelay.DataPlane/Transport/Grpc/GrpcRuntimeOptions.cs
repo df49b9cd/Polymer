@@ -57,7 +57,7 @@ public sealed record GrpcServerRuntimeOptions
 
     [UnconditionalSuppressMessage("Trimming", "IL2067", Justification = "Interceptor types are explicitly referenced via typeof() so their constructors remain linked.")]
     [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "Interceptor types are explicitly referenced via typeof() so their constructors remain linked.")]
-    internal IReadOnlyList<AnnotatedServerInterceptorType> AnnotatedInterceptors
+    public IReadOnlyList<AnnotatedServerInterceptorType> AnnotatedInterceptors
     {
         get
         {
@@ -96,7 +96,7 @@ public sealed record GrpcServerRuntimeOptions
         type ?? throw new ArgumentNullException(nameof(type));
 }
 
-internal readonly struct AnnotatedServerInterceptorType(
+public readonly struct AnnotatedServerInterceptorType(
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors |
                                 DynamicallyAccessedMemberTypes.PublicMethods)]
     Type type)

@@ -8,4 +8,6 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("OmniRelay.IntegrationTests")]
 [assembly: InternalsVisibleTo("OmniRelay.FeatureTests")]
 [assembly: InternalsVisibleTo("OmniRelay.HyperscaleFeatureTests")]
+[assembly: InternalsVisibleTo("OmniRelay.DataPlane")]
+[assembly: InternalsVisibleTo("OmniRelay.ControlPlane")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]

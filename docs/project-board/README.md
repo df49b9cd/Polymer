@@ -9,8 +9,8 @@ Use this board with:
 
 | Lane | Focus | Stories (sequence) | Notes |
 | --- | --- | --- | --- |
-| L0 | Shared foundations & OmniRelay core | WORK-023 → WORK-001 → WORK-005 | First refactor shared transport/codec/proto libraries, then ensure mode parity, AOT/perf, extensions, packaging, and CI gating. |
-| L1 | MeshKit control-plane foundation | WORK-006 → WORK-009 | Define control protocol, identity/CA, local agent with LKG cache, and bootstrap/watch harnesses. |
+| L0 | Shared foundations & split layers | WORK-023 → WORK-001 → WORK-005 | First refactor shared libraries (Codecs/Protos/Transport.Host) and establish DataPlane vs ControlPlane split, then ensure mode parity, AOT/perf, extensions, packaging, and CI gating. |
+| L1 | MeshKit control-plane foundation | WORK-006 → WORK-009 | Define control protocol, identity/CA, local agent with LKG cache, and bootstrap/watch harnesses. MeshKit consumes shared libraries/Transport.Host, not DataPlane internals. |
 | L2 | Extensions & rollout | WORK-010 → WORK-011 | Signed extension registry plus rollout/kill-switch machinery for DSL/Wasm/native bundles. |
 | L3 | Federation & capability | WORK-012 → WORK-016 | Telemetry correlation, domain bridging, capability down-leveling, routing/failover orchestration. |
 | L4 | Ops, UX, and resilience | WORK-017 → WORK-022 | Operator UX/CLI, dashboards/alerts, security/audit, probes, chaos automation, samples/docs. |
