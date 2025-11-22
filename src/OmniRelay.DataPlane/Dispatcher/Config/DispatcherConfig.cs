@@ -53,6 +53,7 @@ public sealed class RpcOutboundSet
 public sealed class OutboundTarget
 {
     public string? Key { get; set; }
+    public string? Url { get; set; }
     public List<string> Addresses { get; set; } = new();
     public string? RemoteService { get; set; }
 }

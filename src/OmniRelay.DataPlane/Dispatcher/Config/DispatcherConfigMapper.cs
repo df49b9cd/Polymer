@@ -2,7 +2,9 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Binder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
@@ -12,7 +14,7 @@ using OmniRelay.Transport.Http;
 
 namespace OmniRelay.Dispatcher.Config;
 
-internal static class DispatcherConfigMapper
+internal static partial class DispatcherConfigMapper
 {
     private enum OutboundKind
     {
@@ -131,12 +133,18 @@ internal static class DispatcherConfigMapper
     {
         foreach (var target in targets)
         {
-            if (target.Addresses.Count == 0)
+            var addresses = target.Addresses;
+            if ((addresses is null || addresses.Count == 0) && !string.IsNullOrWhiteSpace(target.Url))
+            {
+                addresses = new List<string> { target.Url };
+            }
+
+            if (addresses is null || addresses.Count == 0)
             {
                 continue;
             }
 
-            var addresses = target.Addresses.Select(a => new Uri(a, UriKind.Absolute)).ToArray();
+            var uriAddresses = addresses.Select(a => new Uri(a, UriKind.Absolute)).ToArray();
 
             if (http)
             {
@@ -144,7 +152,7 @@ internal static class DispatcherConfigMapper
                 if (kind == OutboundKind.Unary || kind == OutboundKind.Oneway)
                 {
                     var client = services.GetService<IHttpClientFactory>()?.CreateClient() ?? new HttpClient();
-                    var outbound = new HttpOutbound(client, addresses[0], disposeClient: services.GetService<IHttpClientFactory>() is null);
+                    var outbound = new HttpOutbound(client, uriAddresses[0], disposeClient: services.GetService<IHttpClientFactory>() is null);
                     if (kind == OutboundKind.Unary)
                     {
                         options.AddUnaryOutbound(service, target.Key, outbound);
@@ -158,7 +166,7 @@ internal static class DispatcherConfigMapper
             else
             {
                 var outbound = new GrpcOutbound(
-                    addresses,
+                    uriAddresses,
                     target.RemoteService ?? service,
                     clientTlsOptions: null,
                     peerChooser: peers => new RoundRobinPeerChooser(peers.ToImmutableArray()),
@@ -294,11 +302,16 @@ public static class DispatcherConfigServiceCollectionExtensions
         services.AddSingleton(sp =>
         {
             var registry = sp.GetRequiredService<DispatcherComponentRegistry>();
-            var dispatcherConfig = sp.GetRequiredService<IOptions<DispatcherConfig>>().Value;
+            // Bind directly from the provided configuration section to avoid surprises with options snapshots.
+            var dispatcherConfig = configuration.Get<DispatcherConfig>() ?? new DispatcherConfig();
+            MergeLegacyOutbounds(configuration, dispatcherConfig);
+            configuration.GetSection("middleware").Bind(dispatcherConfig.Middleware);
+            configuration.GetSection("outbounds").Bind(dispatcherConfig.Outbounds);
             return DispatcherConfigMapper.CreateDispatcher(sp, registry, dispatcherConfig, configureOptions);
         });
 
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
+        services.AddSingleton<IHostedService, DispatcherHostedService>();
 
         return services;
     }
@@ -330,7 +343,88 @@ public static class DispatcherConfigServiceCollectionExtensions
         });
 
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
+        services.AddSingleton<IHostedService, DispatcherHostedService>();
 
         return services;
+    }
+
+    private static void MergeLegacyOutbounds(IConfiguration configuration, DispatcherConfig config)
+    {
+        var outboundsSection = configuration.GetSection("outbounds");
+        if (outboundsSection is not IConfigurationSection section || !section.Exists())
+        {
+            return;
+        }
+
+        foreach (var serviceSection in outboundsSection.GetChildren())
+        {
+            var serviceName = serviceSection.Key;
+            if (!config.Outbounds.TryGetValue(serviceName, out var svc))
+            {
+                svc = new ServiceOutboundsConfig();
+                config.Outbounds[serviceName] = svc;
+            }
+
+            MergeLegacyRpcShape(serviceSection.GetSection("unary"), svc, rpcKind: "unary");
+            MergeLegacyRpcShape(serviceSection.GetSection("oneway"), svc, rpcKind: "oneway");
+            MergeLegacyRpcShape(serviceSection.GetSection("stream"), svc, rpcKind: "stream");
+            MergeLegacyRpcShape(serviceSection.GetSection("clientStream"), svc, rpcKind: "clientStream");
+            MergeLegacyRpcShape(serviceSection.GetSection("duplex"), svc, rpcKind: "duplex");
+        }
+    }
+
+    private static void MergeLegacyRpcShape(IConfiguration rpcSection, ServiceOutboundsConfig target, string rpcKind)
+    {
+        if (rpcSection is not IConfigurationSection section || !section.Exists())
+        {
+            return;
+        }
+
+        var httpTargets = section.GetSection("http").Get<List<OutboundTarget>>() ?? [];
+        var grpcTargets = section.GetSection("grpc").Get<List<OutboundTarget>>() ?? [];
+
+        foreach (var t in httpTargets)
+        {
+            switch (rpcKind)
+            {
+                case "unary": target.Http.Unary.Add(t); break;
+                case "oneway": target.Http.Oneway.Add(t); break;
+                case "stream": target.Http.Stream.Add(t); break;
+                case "clientStream": target.Http.ClientStream.Add(t); break;
+                case "duplex": target.Http.Duplex.Add(t); break;
+            }
+        }
+
+        foreach (var t in grpcTargets)
+        {
+            switch (rpcKind)
+            {
+                case "unary": target.Grpc.Unary.Add(t); break;
+                case "oneway": target.Grpc.Oneway.Add(t); break;
+                case "stream": target.Grpc.Stream.Add(t); break;
+                case "clientStream": target.Grpc.ClientStream.Add(t); break;
+                case "duplex": target.Grpc.Duplex.Add(t); break;
+            }
+        }
+    }
+}
+
+internal sealed class DispatcherHostedService : IHostedService
+{
+    private readonly global::OmniRelay.Dispatcher.Dispatcher _dispatcher;
+
+    public DispatcherHostedService(global::OmniRelay.Dispatcher.Dispatcher dispatcher)
+    {
+        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+    }
+
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        await _dispatcher.StartOrThrowAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await _dispatcher.StopOrThrowAsync(cancellationToken).ConfigureAwait(false);
     }
 }

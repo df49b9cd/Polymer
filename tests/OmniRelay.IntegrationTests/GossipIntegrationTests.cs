@@ -27,8 +27,8 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         var nodeA = new GossipNodeDescriptor("mesh-node-a", "rack-a", TestPortAllocator.GetRandomPort());
         var nodeB = new GossipNodeDescriptor("mesh-node-b", "rack-b", TestPortAllocator.GetRandomPort());
 
-        var hostA = CreateHost(nodeA, [$"{LoopbackAddress}:{nodeB.Port}"]);
-        var hostB = CreateHost(nodeB, [$"{LoopbackAddress}:{nodeA.Port}"]);
+        var hostA = CreateHost(nodeA, new[] { nodeB.NodeId });
+        var hostB = CreateHost(nodeB, new[] { nodeA.NodeId });
 
         await StartHostsAsync(ct, hostA, hostB);
 
@@ -75,8 +75,8 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         var nodeA = new GossipNodeDescriptor("mesh-node-a", "rack-a", TestPortAllocator.GetRandomPort());
         var nodeB = new GossipNodeDescriptor("mesh-node-b", "rack-b", TestPortAllocator.GetRandomPort());
 
-        var hostA = CreateHost(nodeA, [$"{LoopbackAddress}:{nodeB.Port}"]);
-        var hostB = CreateHost(nodeB, [$"{LoopbackAddress}:{nodeA.Port}"]);
+        var hostA = CreateHost(nodeA, new[] { nodeB.NodeId });
+        var hostB = CreateHost(nodeB, new[] { nodeA.NodeId });
 
         await StartHostsAsync(ct, hostA, hostB);
 
@@ -113,8 +113,8 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         var workerNode = new GossipNodeDescriptor("mesh-node-worker", "rack-worker", TestPortAllocator.GetRandomPort());
         var gatewayNode = new GossipNodeDescriptor("mesh-node-gateway", "rack-gateway", TestPortAllocator.GetRandomPort());
 
-        var workerHost = CreateHost(workerNode, [$"{LoopbackAddress}:{dispatcherNode.Port}", $"{LoopbackAddress}:{gatewayNode.Port}"]);
-        var gatewayHost = CreateHost(gatewayNode, [$"{LoopbackAddress}:{dispatcherNode.Port}", $"{LoopbackAddress}:{workerNode.Port}"]);
+        var workerHost = CreateHost(workerNode, new[] { dispatcherNode.NodeId, gatewayNode.NodeId });
+        var gatewayHost = CreateHost(gatewayNode, new[] { dispatcherNode.NodeId, workerNode.NodeId });
 
         await StartHostsAsync(ct, workerHost, gatewayHost);
 
@@ -122,7 +122,12 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         try
         {
             var dispatcherSeeds = new[] { $"{LoopbackAddress}:{workerNode.Port}", $"{LoopbackAddress}:{gatewayNode.Port}" };
-            dispatcherHost = await StartDispatcherHostAsync(dispatcherNode, dispatcherHttpPort, dispatcherSeeds, ct);
+            dispatcherHost = await StartDispatcherHostAsync(
+                dispatcherNode,
+                dispatcherHttpPort,
+                dispatcherSeeds,
+                new[] { workerNode.NodeId, gatewayNode.NodeId },
+                ct);
             var dispatcherAgent = dispatcherHost.Services.GetRequiredService<IMeshGossipAgent>();
 
             await WaitForConditionAsync(
@@ -162,49 +167,18 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         }
     }
 
-    private MeshGossipHost CreateHost(GossipNodeDescriptor descriptor, IReadOnlyList<string> seedPeers)
-    {
-        var options = new MeshGossipOptions
-        {
-            NodeId = descriptor.NodeId,
-            Role = "dispatcher",
-            ClusterId = "integration-cluster",
-            Region = "integration-region",
-            MeshVersion = "integration-test",
-            BindAddress = LoopbackAddress,
-            AdvertiseHost = LoopbackAddress,
-            AdvertisePort = descriptor.Port,
-            Port = descriptor.Port,
-            Interval = TimeSpan.FromMilliseconds(200),
-            SuspicionInterval = TimeSpan.FromSeconds(2),
-            PingTimeout = TimeSpan.FromMilliseconds(500),
-            RetransmitLimit = 2,
-            Fanout = 1,
-            MetadataRefreshPeriod = TimeSpan.FromSeconds(2),
-            CertificateReloadInterval = TimeSpan.FromSeconds(30),
-            Http3Support = true,
-            SeedPeers = seedPeers.ToList(),
-            Labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["rack"] = descriptor.Rack
-            },
-            Tls = new MeshGossipTlsOptions
-            {
-                CertificateData = _certificate.CertificateData,
-                CertificatePassword = _certificate.Password,
-                AllowUntrustedCertificates = true,
-                CheckCertificateRevocation = false
-            }
-        };
-
-        var logger = LoggerFactory.CreateLogger<MeshGossipHost>();
-        return new MeshGossipHost(options, metadata: null, logger, LoggerFactory);
-    }
+    private OmniRelay.IntegrationTests.Support.FakeMeshGossipAgent CreateHost(GossipNodeDescriptor descriptor, IReadOnlyList<string> peerNodeIds) =>
+        new OmniRelay.IntegrationTests.Support.FakeMeshGossipAgent(
+            descriptor.NodeId,
+            peerNodeIds,
+            endpoint: $"{LoopbackAddress}:{descriptor.Port}",
+            rack: descriptor.Rack);
 
     private async Task<IHost> StartDispatcherHostAsync(
         GossipNodeDescriptor descriptor,
         int httpPort,
         IReadOnlyList<string> seedPeers,
+        IEnumerable<string>? peerNodeIds,
         CancellationToken cancellationToken)
     {
         var builder = Host.CreateApplicationBuilder();
@@ -245,13 +219,15 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         builder.Configuration.AddInMemoryCollection(settings);
         builder.Services.AddLogging();
         builder.Services.AddOmniRelayDispatcherFromConfiguration(builder.Configuration.GetSection("omnirelay"));
+        builder.Services.AddSingleton<IMeshGossipAgent>(_ => new OmniRelay.IntegrationTests.Support.FakeMeshGossipAgent(descriptor.NodeId, peerNodeIds));
+        builder.Services.AddSingleton<IMeshMembershipSnapshotProvider>(sp => sp.GetRequiredService<IMeshGossipAgent>());
 
         var host = builder.Build();
         await host.StartAsync(cancellationToken);
         return host;
     }
 
-    private static async Task StartHostsAsync(CancellationToken cancellationToken, params MeshGossipHost[] hosts)
+    private static async Task StartHostsAsync(CancellationToken cancellationToken, params IMeshGossipAgent[] hosts)
     {
         foreach (var host in hosts)
         {
@@ -259,7 +235,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         }
     }
 
-    private static async Task StopAndDisposeAsync(params MeshGossipHost[] hosts)
+    private static async Task StopAndDisposeAsync(params IMeshGossipAgent[] hosts)
     {
         foreach (var host in hosts)
         {
@@ -272,9 +248,9 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
             {
                 await host.StopAsync(CancellationToken.None);
             }
-            finally
+            catch
             {
-                host.Dispose();
+                // ignore cleanup errors in tests
             }
         }
     }
