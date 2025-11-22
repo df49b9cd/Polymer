@@ -5,8 +5,8 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using OmniRelay.FeatureTests.Fixtures;
 using OmniRelay.Dispatcher;
+using OmniRelay.FeatureTests.Fixtures;
 using OmniRelay.Tests;
 using Xunit;
 

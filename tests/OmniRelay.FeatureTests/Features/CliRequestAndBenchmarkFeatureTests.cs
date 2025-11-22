@@ -1,11 +1,11 @@
-using OmniRelay.FeatureTests.Fixtures;
+using System.Net.Mime;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
-using OmniRelay.Transport.Http;
+using OmniRelay.FeatureTests.Fixtures;
 using OmniRelay.Tests;
+using OmniRelay.Transport.Http;
 using Xunit;
 using static Hugo.Go;
-using System.Net.Mime;
 
 namespace OmniRelay.FeatureTests.Features;
 

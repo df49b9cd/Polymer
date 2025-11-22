@@ -7,8 +7,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OmniRelay.Core;
-using OmniRelay.Dispatcher.Config;
 using OmniRelay.Dispatcher;
+using OmniRelay.Dispatcher.Config;
 using Xunit;
 using static Hugo.Go;
 

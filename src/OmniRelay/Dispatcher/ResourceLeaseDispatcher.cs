@@ -788,12 +788,12 @@ public sealed record ResourceLeaseErrorInfo(string Message, string? Code)
         return new ResourceLeaseErrorInfo(error.Message, error.Code);
     }
 
-        public Error ToError()
-        {
-            var code = string.IsNullOrWhiteSpace(Code) ? "error.resourcelease.pending" : Code!;
-            return Error.From(Message, code, cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null);
-        }
+    public Error ToError()
+    {
+        var code = string.IsNullOrWhiteSpace(Code) ? "error.resourcelease.pending" : Code!;
+        return Error.From(Message, code, cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null);
     }
+}
 
 public sealed record ResourceLeaseWorkItem(
     string ResourceType,

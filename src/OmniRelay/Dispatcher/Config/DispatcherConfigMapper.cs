@@ -260,7 +260,7 @@ internal static class DispatcherConfigMapper
 
 public static class DispatcherConfigServiceCollectionExtensions
 {
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "DispatcherConfig is a sealed DTO reachable via source-generated metadata")] 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "DispatcherConfig is a sealed DTO reachable via source-generated metadata")]
     [RequiresDynamicCode("Configuration binding may emit dynamic code; callers should prefer AddOmniRelayDispatcherFromConfig with source-generated JSON context for AOT.")]
     public static IServiceCollection AddOmniRelayDispatcherFromConfiguration(
         this IServiceCollection services,
@@ -278,8 +278,8 @@ public static class DispatcherConfigServiceCollectionExtensions
         {
             var registry = sp.GetRequiredService<DispatcherComponentRegistry>();
             var dispatcherConfig = sp.GetRequiredService<IOptions<DispatcherConfig>>().Value;
-        return DispatcherConfigMapper.CreateDispatcher(sp, registry, dispatcherConfig, configureOptions);
-    });
+            return DispatcherConfigMapper.CreateDispatcher(sp, registry, dispatcherConfig, configureOptions);
+        });
 
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
 

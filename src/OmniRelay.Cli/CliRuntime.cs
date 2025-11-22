@@ -5,9 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using OmniRelay.Dispatcher.Config;
 using OmniRelay.ControlPlane.Clients;
 using OmniRelay.Core;
+using OmniRelay.Dispatcher.Config;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 
