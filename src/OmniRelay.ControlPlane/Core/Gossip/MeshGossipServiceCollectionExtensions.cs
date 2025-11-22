@@ -49,6 +49,7 @@ public static class MeshGossipServiceCollectionExtensions
             var secretProvider = sp.GetService<ISecretProvider>();
             return new MeshGossipHost(options, metadata: null, logger, loggerFactory, timeProvider, tracker, secretProvider: secretProvider);
         });
+        services.AddSingleton<IMeshMembershipSnapshotProvider>(sp => sp.GetRequiredService<IMeshGossipAgent>());
 
         services.AddSingleton<IHostedService>(sp =>
         {

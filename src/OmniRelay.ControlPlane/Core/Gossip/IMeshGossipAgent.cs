@@ -3,11 +3,8 @@ using OmniRelay.Core.Transport;
 namespace OmniRelay.Core.Gossip;
 
 /// <summary>Represents a gossip agent lifecycle + diagnostic surface.</summary>
-public interface IMeshGossipAgent : ILifecycle
+public interface IMeshGossipAgent : ILifecycle, IMeshMembershipSnapshotProvider
 {
-    /// <summary>Returns current cluster snapshot.</summary>
-    MeshGossipClusterView Snapshot();
-
     /// <summary>Gets the advertised metadata for this node.</summary>
     MeshGossipMemberMetadata LocalMetadata { get; }
 

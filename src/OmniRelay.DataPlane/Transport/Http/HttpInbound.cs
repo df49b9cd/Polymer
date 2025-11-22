@@ -1226,10 +1226,10 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         var provider = context.RequestServices.GetService<IPeerDiagnosticsProvider>();
         if (provider is null)
         {
-            var agent = context.RequestServices.GetService<IMeshGossipAgent>();
-            provider = agent is null
+            var membership = context.RequestServices.GetService<IMeshMembershipSnapshotProvider>();
+            provider = membership is null
                 ? NullPeerDiagnosticsProvider.Instance
-                : new MeshPeerDiagnosticsProvider(agent);
+                : new MeshPeerDiagnosticsProvider(membership);
         }
 
         var snapshot = provider.CreateSnapshot();

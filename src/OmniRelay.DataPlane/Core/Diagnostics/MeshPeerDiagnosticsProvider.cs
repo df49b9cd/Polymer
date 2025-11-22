@@ -3,14 +3,14 @@ using OmniRelay.Diagnostics;
 
 namespace OmniRelay.Core.Diagnostics;
 
-/// <summary>Adapts <see cref="IMeshGossipAgent"/> snapshots to the shared peer diagnostics contracts.</summary>
-internal sealed class MeshPeerDiagnosticsProvider(IMeshGossipAgent agent) : IPeerDiagnosticsProvider
+/// <summary>Adapts membership snapshots to the shared peer diagnostics contracts.</summary>
+internal sealed class MeshPeerDiagnosticsProvider(IMeshMembershipSnapshotProvider provider) : IPeerDiagnosticsProvider
 {
-    private readonly IMeshGossipAgent _agent = agent ?? throw new ArgumentNullException(nameof(agent));
+    private readonly IMeshMembershipSnapshotProvider _provider = provider ?? throw new ArgumentNullException(nameof(provider));
 
     public PeerDiagnosticsResponse CreateSnapshot()
     {
-        var snapshot = _agent.Snapshot();
+        var snapshot = _provider.Snapshot();
         var peers = snapshot.Members
             .Select(member => new PeerDiagnosticsPeer(
                 member.NodeId,
