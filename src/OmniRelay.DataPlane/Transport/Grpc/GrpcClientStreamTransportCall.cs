@@ -68,17 +68,8 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
     {
         var group = new ErrGroup(_cts.Token);
 
-        group.Go(async token =>
-        {
-            await RunWritePumpAsync(token).ConfigureAwait(false);
-            return Ok(Unit.Value);
-        });
-
-        group.Go(async token =>
-        {
-            await ObserveResponseAsync(token).ConfigureAwait(false);
-            return Ok(Unit.Value);
-        });
+        group.Go((_, token) => RunWritePumpAsync(token));
+        group.Go((_, token) => ObserveResponseAsync(token));
 
         _pumpGroup = group;
     }
@@ -211,107 +202,123 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         _pendingWrites.Writer.TryComplete();
     }
 
-    private async Task ObserveResponseAsync(CancellationToken cancellationToken)
+    private ValueTask<Result<Unit>> ObserveResponseAsync(CancellationToken cancellationToken)
     {
         StatusCode completionStatus = StatusCode.OK;
 
-        var responseResult = (await Result
-                .TryAsync(
-                    async _ =>
-                    {
-                        var headers = await _call.ResponseHeadersAsync.ConfigureAwait(false);
-                        var payload = await _call.ResponseAsync.ConfigureAwait(false);
-                        var trailers = _call.GetTrailers();
-                        return (headers, payload, trailers);
-                    },
-                    cancellationToken: cancellationToken,
-                    errorFactory: ex =>
-                    {
-                        if (ex is RpcException rpcException)
+        async ValueTask<Result<Unit>> ObserveAsync(CancellationToken token)
+        {
+            var responseResult = (await Result
+                    .TryAsync(
+                        async _ =>
                         {
-                            completionStatus = rpcException.Status.StatusCode;
-                            return MapRpcException(rpcException);
-                        }
+                            var headers = await _call.ResponseHeadersAsync.ConfigureAwait(false);
+                            var payload = await _call.ResponseAsync.ConfigureAwait(false);
+                            var trailers = _call.GetTrailers();
+                            return (headers, payload, trailers);
+                        },
+                        cancellationToken: token,
+                        errorFactory: ex =>
+                        {
+                            if (ex is RpcException rpcException)
+                            {
+                                completionStatus = rpcException.Status.StatusCode;
+                                return MapRpcException(rpcException);
+                            }
 
-                        completionStatus = StatusCode.Unknown;
-                        return MapInternalError(
-                            ex,
-                            "An error occurred while reading the client stream response.");
-                    })
-                .ConfigureAwait(false))
-            .Map(tuple =>
+                            completionStatus = StatusCode.Unknown;
+                            return MapInternalError(
+                                ex,
+                                "An error occurred while reading the client stream response.");
+                        })
+                    .ConfigureAwait(false))
+                .Map(tuple =>
+                {
+                    var (headers, payload, trailers) = tuple;
+                    var meta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
+                    return Response<ReadOnlyMemory<byte>>.Create(payload, meta);
+                });
+
+            responseResult.Tap(response =>
             {
-                var (headers, payload, trailers) = tuple;
-                var meta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
-                return Response<ReadOnlyMemory<byte>>.Create(payload, meta);
+                ResponseMeta = response.Meta;
+                _completion.TrySetResult(Ok(response));
+                RecordCompletion(StatusCode.OK);
+                _pendingWrites.Writer.TryComplete();
             });
 
-        responseResult.Tap(response =>
-        {
-            ResponseMeta = response.Meta;
-            _completion.TrySetResult(Ok(response));
-            RecordCompletion(StatusCode.OK);
-            _pendingWrites.Writer.TryComplete();
-        });
+            if (responseResult.IsFailure && responseResult.Error is { } error)
+            {
+                FailPipeline(error, completionStatus);
+                return Err<Unit>(error);
+            }
 
-        if (responseResult.IsFailure && responseResult.Error is { } error)
-        {
-            FailPipeline(error, completionStatus);
+            return Ok(Unit.Value);
         }
+
+        return ObserveAsync(cancellationToken);
     }
 
-    private async Task RunWritePumpAsync(CancellationToken cancellationToken)
+    private ValueTask<Result<Unit>> RunWritePumpAsync(CancellationToken cancellationToken)
     {
         StatusCode failureStatus = StatusCode.Unknown;
 
-        try
+        async ValueTask<Result<Unit>> PumpAsync(CancellationToken token)
         {
-            var pumpResult = await Result
-                .TryAsync(
-                    async token =>
-                    {
-                        await foreach (var payload in _pendingWrites.Reader.ReadAllAsync(token).ConfigureAwait(false))
+            try
+            {
+                var stream = Result.MapStreamAsync(
+                    _pendingWrites.Reader.ReadAllAsync(token),
+                    (payload, ct) => Result.TryAsync(
+                        async _ =>
                         {
                             if (_writeOptions is not null)
                             {
                                 _call.RequestStream.WriteOptions = _writeOptions;
                             }
 
-                            await _call.RequestStream.WriteAsync(payload, token).ConfigureAwait(false);
+                            await _call.RequestStream.WriteAsync(payload, ct).ConfigureAwait(false);
                             Interlocked.Increment(ref _requestCount);
                             GrpcTransportMetrics.ClientClientStreamRequestMessages.Add(1, _baseTags);
-                        }
-
-                        if (Interlocked.Exchange(ref _completed, 1) == 0)
+                            return Unit.Value;
+                        },
+                        cancellationToken: ct,
+                        errorFactory: ex =>
                         {
-                            await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
-                        }
+                            if (ex is RpcException rpcException)
+                            {
+                                failureStatus = rpcException.Status.StatusCode;
+                                return MapRpcException(rpcException);
+                            }
 
-                        return Unit.Value;
-                    },
-                    cancellationToken: cancellationToken,
-                    errorFactory: ex =>
+                            failureStatus = StatusCode.Unknown;
+                            return MapInternalError(ex, "An error occurred while writing to the client stream.");
+                        }),
+                    token);
+
+                await foreach (var result in stream.ConfigureAwait(false))
+                {
+                    if (result.IsFailure)
                     {
-                        if (ex is RpcException rpcException)
-                        {
-                            failureStatus = rpcException.Status.StatusCode;
-                            return MapRpcException(rpcException);
-                        }
+                        FailPipeline(result.Error!, failureStatus);
+                        return Err<Unit>(result.Error!);
+                    }
+                }
 
-                        failureStatus = StatusCode.Unknown;
-                        return MapInternalError(ex, "An error occurred while writing to the client stream.");
-                    })
-                .ConfigureAwait(false);
+                if (Interlocked.Exchange(ref _completed, 1) == 0)
+                {
+                    await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
+                }
 
-            if (pumpResult.IsFailure && pumpResult.Error is { } error)
+                return Ok(Unit.Value);
+            }
+            finally
             {
-                FailPipeline(error, failureStatus);
+                _writePumpCompletion.TrySetResult(true);
             }
         }
-        finally
-        {
-            _writePumpCompletion.TrySetResult(true);
-        }
+
+        return PumpAsync(cancellationToken);
     }
 
     private void HandlePumpGroupFailure(Error pumpError) =>

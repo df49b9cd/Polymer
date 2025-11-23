@@ -71,17 +71,8 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
     {
         var group = new ErrGroup(_cts.Token);
 
-        group.Go(async token =>
-        {
-            await PumpRequestsAsync(token).ConfigureAwait(false);
-            return Ok(Unit.Value);
-        });
-
-        group.Go(async token =>
-        {
-            await PumpResponsesAsync(token).ConfigureAwait(false);
-            return Ok(Unit.Value);
-        });
+        group.Go((_, token) => PumpRequestsAsync(token));
+        group.Go((_, token) => PumpResponsesAsync(token));
 
         _pumpGroup = group;
     }
@@ -163,85 +154,99 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         _cts.Dispose();
     }
 
-    private async Task PumpRequestsAsync(CancellationToken cancellationToken)
+    private ValueTask<Result<Unit>> PumpRequestsAsync(CancellationToken cancellationToken)
     {
-        try
+        async ValueTask<Result<Unit>> SendAsync(CancellationToken token)
         {
-            await foreach (var payload in _inner.RequestReader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            var stream = Result.MapStreamAsync(
+                _inner.RequestReader.ReadAllAsync(token),
+                (payload, ct) => Result.TryAsync<Unit>(
+                    async _ =>
+                    {
+                        await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestData, payload, ct).ConfigureAwait(false);
+                        return Unit.Value;
+                    },
+                    cancellationToken: ct,
+                    errorFactory: ex => NormalizeResultError(NormalizeTransportException(ex))),
+                token);
+
+            await foreach (var result in stream.ConfigureAwait(false))
             {
-                await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestData, payload, cancellationToken).ConfigureAwait(false);
+                if (result.IsFailure)
+                {
+                    var error = NormalizeResultError(result.Error!);
+                    await HttpDuplexProtocol.SendFrameAsync(
+                            _socket,
+                            HttpDuplexProtocol.FrameType.RequestError,
+                            HttpDuplexProtocol.CreateErrorPayload(error),
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                    await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    return Err<Unit>(error);
+                }
             }
 
             await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestComplete, CancellationToken.None).ConfigureAwait(false);
             await _inner.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
-        catch (OperationCanceledException)
-        {
-            var error = OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.Cancelled,
-                "The request stream was cancelled.",
-                transport: _transport);
-            await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
-            await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            var actual = NormalizeTransportException(ex);
-            var omni = OmniRelayErrors.FromException(actual, _transport);
-            var error = omni.Error;
-            await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestError, HttpDuplexProtocol.CreateErrorPayload(error), CancellationToken.None).ConfigureAwait(false);
-            await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-        }
+
+        return SendAsync(cancellationToken);
     }
 
-    private async Task PumpResponsesAsync(CancellationToken cancellationToken)
+    private ValueTask<Result<Unit>> PumpResponsesAsync(CancellationToken cancellationToken)
     {
         var buffer = new byte[BufferSize];
 
-        try
+        async ValueTask<Result<Unit>> ReceiveAsync(CancellationToken token)
         {
-            while (!cancellationToken.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
-                var frame = await HttpDuplexProtocol.ReceiveFrameAsync(_socket, buffer, BufferSize - 1, cancellationToken).ConfigureAwait(false);
+                var frameResult = await Result.TryAsync<HttpDuplexProtocol.Frame>(
+                        async _ => await HttpDuplexProtocol.ReceiveFrameAsync(_socket, buffer, BufferSize - 1, token).ConfigureAwait(false),
+                        cancellationToken: token,
+                        errorFactory: ex => NormalizeResultError(NormalizeTransportException(ex)))
+                    .ConfigureAwait(false);
+
+            if (frameResult.IsFailure)
+            {
+                var error = frameResult.Error!;
+                await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                return Err<Unit>(error);
+            }
+
+                var frame = frameResult.Value;
 
                 if (frame.MessageType == WebSocketMessageType.Close)
                 {
                     await _inner.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                    return;
+                    return Ok(Unit.Value);
                 }
 
                 switch (frame.Type)
                 {
                     case HttpDuplexProtocol.FrameType.ResponseHeaders:
-                        {
-                            var meta = HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport);
-                            _inner.SetResponseMeta(meta);
-                            break;
-                        }
+                        _inner.SetResponseMeta(HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport));
+                        break;
 
                     case HttpDuplexProtocol.FrameType.ResponseData:
-                        // Copy because ReceiveFrameAsync reuses a shared buffer; retaining the slice would corrupt prior frames.
-                        var responseCopy = CopyFramePayload(frame.Payload);
-                        await _inner.ResponseWriter.WriteAsync(responseCopy, cancellationToken).ConfigureAwait(false);
+                        await _inner.ResponseWriter.WriteAsync(CopyFramePayload(frame.Payload), token).ConfigureAwait(false);
                         break;
 
                     case HttpDuplexProtocol.FrameType.ResponseComplete:
+                        if (!frame.Payload.IsEmpty)
                         {
-                            if (!frame.Payload.IsEmpty)
-                            {
-                                var meta = HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport);
-                                _inner.SetResponseMeta(meta);
-                            }
-
-                            await _inner.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                            return;
+                            _inner.SetResponseMeta(HttpDuplexProtocol.DeserializeResponseMeta(frame.Payload.Span, _transport));
                         }
+
+                        await _inner.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                        return Ok(Unit.Value);
 
                     case HttpDuplexProtocol.FrameType.ResponseError:
                         {
                             var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, _transport);
                             await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                            return;
+                            return Err<Unit>(error);
                         }
 
                     case HttpDuplexProtocol.FrameType.RequestComplete:
@@ -253,30 +258,19 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
                             var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, _transport);
                             await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
                             await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                            return;
+                            return Err<Unit>(error);
                         }
 
                     case HttpDuplexProtocol.FrameType.RequestData:
-                        await _inner.RequestWriter.WriteAsync(frame.Payload, cancellationToken).ConfigureAwait(false);
+                        await _inner.RequestWriter.WriteAsync(frame.Payload, token).ConfigureAwait(false);
                         break;
                 }
             }
 
-            await _inner.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
-        catch (OperationCanceledException)
-        {
-            await _inner.CompleteResponsesAsync(OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.Cancelled,
-                "The response stream was cancelled.",
-                transport: _transport), CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            var actual = NormalizeTransportException(ex);
-            var omni = OmniRelayErrors.FromException(actual, _transport);
-            await _inner.CompleteResponsesAsync(omni.Error, CancellationToken.None).ConfigureAwait(false);
-        }
+
+        return ReceiveAsync(cancellationToken);
     }
 
     private static Exception NormalizeTransportException(Exception exception)
@@ -314,4 +308,7 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         await _inner.CompleteRequestsAsync(pumpError, CancellationToken.None).ConfigureAwait(false);
         await _inner.CompleteResponsesAsync(pumpError, CancellationToken.None).ConfigureAwait(false);
     }
+
+    private Error NormalizeResultError(Error error) =>
+        OmniRelayErrors.FromError(error ?? Error.Unspecified(), _transport).Error;
 }

@@ -56,17 +56,8 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
     {
         var group = new ErrGroup(_cts.Token);
 
-        group.Go(async token =>
-        {
-            await PumpRequestsAsync(token).ConfigureAwait(false);
-            return Ok(Unit.Value);
-        });
-
-        group.Go(async token =>
-        {
-            await PumpResponsesAsync(token).ConfigureAwait(false);
-            return Ok(Unit.Value);
-        });
+        group.Go((_, token) => PumpRequestsAsync(token));
+        group.Go((_, token) => PumpResponsesAsync(token));
 
         _pumpGroup = group;
     }
@@ -177,93 +168,111 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
         RecordCompletion(StatusCode.Cancelled);
     }
 
-    private async ValueTask PumpRequestsAsync(CancellationToken cancellationToken)
+    private ValueTask<Result<Unit>> PumpRequestsAsync(CancellationToken cancellationToken)
     {
-        var requestStatus = StatusCode.OK;
+        StatusCode requestStatus = StatusCode.OK;
 
-        var pumpResult = await Result
-            .TryAsync(
-                async token =>
-                {
-                    await foreach (var payload in _inner.RequestReader.ReadAllAsync(token).ConfigureAwait(false))
+        async ValueTask<Result<Unit>> PumpAsync(CancellationToken token)
+        {
+            var stream = Result.MapStreamAsync(
+                _inner.RequestReader.ReadAllAsync(token),
+                (payload, ct) => Result.TryAsync(
+                    async _ =>
                     {
                         Interlocked.Increment(ref _requestCount);
                         GrpcTransportMetrics.ClientDuplexRequestMessages.Add(1, _baseTags);
+
                         if (MemoryMarshal.TryGetArray(payload, out var segment) &&
                             segment.Array is { } array &&
                             segment.Offset == 0 &&
                             segment.Count == array.Length)
                         {
-                            await _call.RequestStream.WriteAsync(array, token).ConfigureAwait(false);
+                            await _call.RequestStream.WriteAsync(array, ct).ConfigureAwait(false);
+                            return Unit.Value;
                         }
-                        else
+
+                        var rented = ArrayPool<byte>.Shared.Rent(payload.Length);
+                        try
                         {
-                            var rented = ArrayPool<byte>.Shared.Rent(payload.Length);
-                            try
-                            {
-                                payload.Span.CopyTo(rented);
-                                await _call.RequestStream.WriteAsync(rented, token).ConfigureAwait(false);
-                            }
-                            finally
-                            {
-                                ArrayPool<byte>.Shared.Return(rented);
-                            }
+                            payload.Span.CopyTo(rented);
+                            await _call.RequestStream.WriteAsync(rented, ct).ConfigureAwait(false);
+                            return Unit.Value;
                         }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(rented);
+                        }
+                    },
+                    cancellationToken: ct,
+                    errorFactory: ex => MapRequestPumpException(ex, ref requestStatus)),
+                token);
+
+            await foreach (var result in stream.ConfigureAwait(false))
+            {
+                if (result.IsFailure)
+                {
+                    var error = result.Error!;
+                    if (OmniRelayErrorAdapter.ToStatus(error) == OmniRelayStatusCode.Cancelled)
+                    {
+                        await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
+                        CancelCallSilently();
+                        return Err<Unit>(error);
                     }
 
-                    await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
-                    return Unit.Value;
-                },
-                cancellationToken: cancellationToken,
-                errorFactory: ex => MapRequestPumpException(ex, ref requestStatus))
-            .ConfigureAwait(false);
-
-        if (pumpResult.IsFailure && pumpResult.Error is { } error)
-        {
-            if (OmniRelayErrorAdapter.ToStatus(error) == OmniRelayStatusCode.Cancelled)
-            {
-                await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
-                CancelCallSilently();
-                return;
+                    await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    RecordCompletion(requestStatus);
+                    CancelCallSilently();
+                    return Err<Unit>(error);
+                }
             }
 
-            await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-            RecordCompletion(requestStatus);
-            CancelCallSilently();
+            await _call.RequestStream.CompleteAsync().ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
+
+        return PumpAsync(cancellationToken);
     }
 
-    private async Task PumpResponsesAsync(CancellationToken cancellationToken)
+    private ValueTask<Result<Unit>> PumpResponsesAsync(CancellationToken cancellationToken)
     {
         var responseStatus = StatusCode.OK;
 
-        var pumpResult = await Result
-            .TryAsync(
-                async token =>
-                {
-                    await foreach (var payload in _call.ResponseStream.ReadAllAsync(token).ConfigureAwait(false))
+        async ValueTask<Result<Unit>> PumpAsync(CancellationToken token)
+        {
+            var stream = Result.MapStreamAsync(
+                _call.ResponseStream.ReadAllAsync(token),
+                (payload, ct) => Result.TryAsync(
+                    async _ =>
                     {
                         Interlocked.Increment(ref _responseCount);
                         GrpcTransportMetrics.ClientDuplexResponseMessages.Add(1, _baseTags);
-                        await _inner.ResponseWriter.WriteAsync(payload, token).ConfigureAwait(false);
-                    }
+                        await _inner.ResponseWriter.WriteAsync(payload, ct).ConfigureAwait(false);
+                        return Unit.Value;
+                    },
+                    cancellationToken: ct,
+                    errorFactory: ex => MapResponsePumpException(ex, ref responseStatus)),
+                token);
 
-                    var trailers = _call.GetTrailers();
-                    _inner.SetResponseMeta(GrpcMetadataAdapter.CreateResponseMeta(null, trailers));
-                    await _inner.CompleteResponsesAsync(cancellationToken: token).ConfigureAwait(false);
-                    RecordCompletion(StatusCode.OK);
-                    return Unit.Value;
-                },
-                cancellationToken: cancellationToken,
-                errorFactory: ex => MapResponsePumpException(ex, ref responseStatus))
-            .ConfigureAwait(false);
+            await foreach (var result in stream.ConfigureAwait(false))
+            {
+                if (result.IsFailure)
+                {
+                    var error = result.Error!;
+                    await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                    RecordCompletion(responseStatus);
+                    CancelCallSilently();
+                    return Err<Unit>(error);
+                }
+            }
 
-        if (pumpResult.IsFailure && pumpResult.Error is { } error)
-        {
-            await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-            RecordCompletion(responseStatus);
-            CancelCallSilently();
+            var trailers = _call.GetTrailers();
+            _inner.SetResponseMeta(GrpcMetadataAdapter.CreateResponseMeta(null, trailers));
+            await _inner.CompleteResponsesAsync(cancellationToken: token).ConfigureAwait(false);
+            RecordCompletion(StatusCode.OK);
+            return Ok(Unit.Value);
         }
+
+        return PumpAsync(cancellationToken);
     }
 
     private static Error MapRequestPumpException(Exception exception, ref StatusCode completionStatus)
