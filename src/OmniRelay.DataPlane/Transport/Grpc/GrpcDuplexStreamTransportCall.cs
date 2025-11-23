@@ -15,7 +15,7 @@ namespace OmniRelay.Transport.Grpc;
 /// Client-side transport for gRPC bidirectional streaming calls implementing <see cref="IDuplexStreamCall"/>.
 /// Bridges gRPC request/response streams to OmniRelay duplex abstractions and records metrics.
 /// </summary>
-internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
+internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall, IResultDuplexStreamCall
 {
     private readonly AsyncDuplexStreamingCall<byte[], byte[]> _call;
     private readonly DuplexStreamCall _inner;
@@ -130,6 +130,12 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall
     /// <inheritdoc />
     public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteResponsesAsync(fault, cancellationToken);
+
+    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteRequestsResultAsync(Error? fault, CancellationToken cancellationToken) =>
+        _inner.CompleteRequestsAsync(fault, cancellationToken).AsResult();
+
+    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteResponsesResultAsync(Error? fault, CancellationToken cancellationToken) =>
+        _inner.CompleteResponsesAsync(fault, cancellationToken).AsResult();
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()

@@ -1,4 +1,6 @@
+using System.Threading.Channels;
 using Hugo;
+using static Hugo.Go;
 
 namespace OmniRelay.Core.Transport;
 
@@ -53,6 +55,30 @@ public delegate ValueTask<Result<IDuplexStreamCall>> DuplexOutboundHandler(
 public delegate ValueTask<Result<IDuplexStreamCall>> DuplexInboundHandler(
     IRequest<ReadOnlyMemory<byte>> request,
     CancellationToken cancellationToken);
+
+/// <summary>Result-based client-stream transport call (non-throwing writes/completion).</summary>
+public interface IResultClientStreamTransportCall : IAsyncDisposable
+{
+    RequestMeta RequestMeta { get; }
+    ResponseMeta ResponseMeta { get; }
+    ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Response { get; }
+    ValueTask<Result<Unit>> WriteAsyncResult(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default);
+    ValueTask<Result<Unit>> CompleteAsyncResult(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Result-based duplex stream call (non-throwing completion).</summary>
+public interface IResultDuplexStreamCall : IAsyncDisposable
+{
+    RequestMeta RequestMeta { get; }
+    ResponseMeta ResponseMeta { get; }
+    DuplexStreamCallContext Context { get; }
+    ChannelWriter<ReadOnlyMemory<byte>> RequestWriter { get; }
+    ChannelReader<ReadOnlyMemory<byte>> RequestReader { get; }
+    ChannelWriter<ReadOnlyMemory<byte>> ResponseWriter { get; }
+    ChannelReader<ReadOnlyMemory<byte>> ResponseReader { get; }
+    ValueTask<Result<Unit>> CompleteRequestsResultAsync(Error? fault = null, CancellationToken cancellationToken = default);
+    ValueTask<Result<Unit>> CompleteResponsesResultAsync(Error? fault = null, CancellationToken cancellationToken = default);
+}
 
 public interface IClientStreamTransportCall : IAsyncDisposable
 {

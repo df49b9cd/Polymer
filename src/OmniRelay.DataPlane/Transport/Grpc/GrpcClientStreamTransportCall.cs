@@ -14,7 +14,7 @@ namespace OmniRelay.Transport.Grpc;
 /// Client-side transport for gRPC client-streaming calls implementing <see cref="IClientStreamTransportCall"/>.
 /// Manages request writes, observes the single response, and records metrics.
 /// </summary>
-internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
+internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall, IResultClientStreamTransportCall
 {
     private readonly AsyncClientStreamingCall<byte[], byte[]> _call;
     private readonly WriteOptions? _writeOptions;
@@ -123,6 +123,20 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         }
     }
 
+    async ValueTask<Result<Unit>> IResultClientStreamTransportCall.WriteAsyncResult(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (Exception ex)
+        {
+            var error = MapInternalError(ex, "Failed to write client-stream message.");
+            return Err<Unit>(error);
+        }
+    }
+
     /// <inheritdoc />
     public async ValueTask CompleteAsync(CancellationToken cancellationToken = default)
     {
@@ -140,6 +154,19 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         cancellationToken.ThrowIfCancellationRequested();
         _pendingWrites.Writer.TryComplete();
         await _writePumpCompletion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    async ValueTask<Result<Unit>> IResultClientStreamTransportCall.CompleteAsyncResult(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await CompleteAsync(cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(MapInternalError(ex, "Failed to complete client stream."));
+        }
     }
 
     /// <inheritdoc />

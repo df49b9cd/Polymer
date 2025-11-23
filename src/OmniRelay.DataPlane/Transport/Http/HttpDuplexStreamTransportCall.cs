@@ -12,7 +12,7 @@ namespace OmniRelay.Transport.Http;
 /// Transport-specific wrapper for duplex streaming calls over HTTP WebSockets.
 /// Bridges WebSocket frames to the OmniRelay duplex streaming abstractions.
 /// </summary>
-internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
+internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall, IResultDuplexStreamCall
 {
     private const int BufferSize = 32 * 1024;
 
@@ -105,6 +105,12 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
     /// <inheritdoc />
     public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteResponsesAsync(fault, cancellationToken);
+
+    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteRequestsResultAsync(Error? fault, CancellationToken cancellationToken) =>
+        _inner.CompleteRequestsAsync(fault, cancellationToken).AsResult();
+
+    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteResponsesResultAsync(Error? fault, CancellationToken cancellationToken) =>
+        _inner.CompleteResponsesAsync(fault, cancellationToken).AsResult();
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
