@@ -12,6 +12,25 @@ public sealed class TwoRandomPeerChooser : IPeerChooser
     private readonly PeerListCoordinator _coordinator;
     private readonly Random _random;
 
+    public static Result<TwoRandomPeerChooser> TryCreate(IEnumerable<IPeer> peers, Random? random = null, IPeerHealthSnapshotProvider? leaseHealthProvider = null)
+    {
+        if (peers is null)
+        {
+            return Result.Fail<TwoRandomPeerChooser>(
+                Error.From("Peers collection is required.", "peers.argument_missing")
+                    .WithMetadata("argument", nameof(peers)));
+        }
+
+        var snapshot = peers.ToList();
+        if (snapshot.Count == 0)
+        {
+            return Result.Fail<TwoRandomPeerChooser>(
+                Error.From("At least one peer must be provided.", "peers.none_provided"));
+        }
+
+        return Result.Ok(new TwoRandomPeerChooser(snapshot, random, leaseHealthProvider));
+    }
+
     public TwoRandomPeerChooser(params IPeer[] peers)
         : this(peers is null ? throw new ArgumentNullException(nameof(peers)) : peers.AsEnumerable(), random: null, leaseHealthTracker: null)
     {

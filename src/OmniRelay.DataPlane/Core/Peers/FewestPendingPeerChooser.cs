@@ -11,6 +11,25 @@ public sealed class FewestPendingPeerChooser : IPeerChooser
 {
     private readonly PeerListCoordinator _coordinator;
 
+    public static Result<FewestPendingPeerChooser> TryCreate(IEnumerable<IPeer> peers, Random? random = null, IPeerHealthSnapshotProvider? leaseHealthProvider = null)
+    {
+        if (peers is null)
+        {
+            return Result.Fail<FewestPendingPeerChooser>(
+                Error.From("Peers collection is required.", "peers.argument_missing")
+                    .WithMetadata("argument", nameof(peers)));
+        }
+
+        var snapshot = peers.ToList();
+        if (snapshot.Count == 0)
+        {
+            return Result.Fail<FewestPendingPeerChooser>(
+                Error.From("At least one peer must be provided.", "peers.none_provided"));
+        }
+
+        return Result.Ok(new FewestPendingPeerChooser(snapshot, random, leaseHealthProvider));
+    }
+
     public FewestPendingPeerChooser(params IPeer[] peers)
         : this(peers is null ? throw new ArgumentNullException(nameof(peers)) : peers.AsEnumerable(), random: null, leaseHealthTracker: null)
     {

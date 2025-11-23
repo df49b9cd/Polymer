@@ -12,6 +12,25 @@ public sealed class RoundRobinPeerChooser : IPeerChooser
     private readonly PeerListCoordinator _coordinator;
     private long _next = -1;
 
+    public static Result<RoundRobinPeerChooser> TryCreate(IEnumerable<IPeer> peers, IPeerHealthSnapshotProvider? leaseHealthProvider = null)
+    {
+        if (peers is null)
+        {
+            return Result.Fail<RoundRobinPeerChooser>(
+                Error.From("Peers collection is required.", "peers.argument_missing")
+                    .WithMetadata("argument", nameof(peers)));
+        }
+
+        var snapshot = peers.ToList();
+        if (snapshot.Count == 0)
+        {
+            return Result.Fail<RoundRobinPeerChooser>(
+                Error.From("At least one peer must be provided.", "peers.none_provided"));
+        }
+
+        return Result.Ok(new RoundRobinPeerChooser(snapshot, leaseHealthProvider));
+    }
+
     public RoundRobinPeerChooser(params IPeer[] peers)
         : this(peers is null ? throw new ArgumentNullException(nameof(peers)) : peers.AsEnumerable(), leaseHealthProvider: null)
     {
