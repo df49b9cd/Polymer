@@ -13,7 +13,7 @@ Enable loading native plugins via `NativeLibrary.Load` with a stable function-po
 - Watchdog triggers terminate/skip per policy; telemetry emitted.
 
 ## Status
-Open
+Deferred (future phase)
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

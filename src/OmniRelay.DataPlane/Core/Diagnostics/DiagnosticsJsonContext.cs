@@ -8,6 +8,7 @@ namespace OmniRelay.Core.Diagnostics;
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(NodeDrainSnapshot))]
 [JsonSerializable(typeof(PeerDiagnosticsResponse))]
+[JsonSerializable(typeof(ExtensionDiagnosticsResponse))]
 internal sealed partial class DiagnosticsJsonContext : JsonSerializerContext
 {
 }

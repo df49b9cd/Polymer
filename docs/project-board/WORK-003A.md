@@ -14,7 +14,7 @@ Ship the AOT-friendly DSL interpreter with signed package validation, opcode all
 - Unit/integration tests run in all modes; AOT publish passes.
 
 ## Status
-Open
+Done (DSL host delivered; Wasm/native deferred per WORK-003B/003C)
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

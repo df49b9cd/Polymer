@@ -15,4 +15,6 @@ internal sealed class ExtensionTelemetryRecorder
     public void RecordRejected(ExtensionPackage package, string reason) => ExtensionTelemetryLog.ExtensionRejected(_logger, package.Name, package.Version.ToString(), reason);
     public void RecordFailed(ExtensionPackage package, string reason) => ExtensionTelemetryLog.ExtensionFailure(_logger, package.Name, package.Version.ToString(), reason);
     public void RecordWatchdogTrip(ExtensionPackage package, string resource) => ExtensionTelemetryLog.ExtensionWatchdogTrip(_logger, package.Name, package.Version.ToString(), resource);
+    public void RecordExecuted(ExtensionPackage package, double durationMs) => ExtensionTelemetryLog.ExtensionExecuted(_logger, package.Name, package.Version.ToString(), durationMs);
+    public void RecordReloaded(ExtensionPackage package) => ExtensionTelemetryLog.ExtensionReloaded(_logger, package.Name, package.Version.ToString());
 }

@@ -4,12 +4,13 @@ Split into iteration-sized stories (A–D).
 
 ## Child Stories
 - **WORK-003A** – DSL host MVP (signed packages, opcode allowlist)
-- **WORK-003B** – Proxy-Wasm runtime selection & ABI support
-- **WORK-003C** – Native plugin ABI + watchdog policies
-- **WORK-003D** – Extension telemetry & failure policy wiring
+- **WORK-003B** – Proxy-Wasm runtime selection & ABI support _(Deferred)_
+- **WORK-003C** – Native plugin ABI + watchdog policies _(Deferred)_
+- **WORK-003D** – Extension telemetry & failure policy wiring (covers DSL now; will extend to Wasm/native when resumed)
 
 ## Definition of Done (epic)
-- All extension types load safely with quotas, telemetry, and capability signals across deployment modes.
+- Phase 1 (complete): DSL extensions load safely with signatures, opcode allowlist, quotas, telemetry, failure policies, and diagnostics endpoints across deployment modes.
+- Phase 2 (deferred): Proxy-Wasm and native plugin hosts added with equivalent guarantees and telemetry. Re-activate WORK-003B/003C when scheduled.
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

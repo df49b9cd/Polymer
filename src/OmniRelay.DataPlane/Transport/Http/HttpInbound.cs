@@ -17,12 +17,14 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Quic;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core;
 using OmniRelay.Core.Diagnostics;
+using OmniRelay.Core.Extensions;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
@@ -57,6 +59,8 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
     private static readonly HttpInboundJsonContext JsonContext = HttpInboundJsonContext.Default;
     private static readonly PathString ControlPeersPath = new("/control/peers");
     private static readonly PathString ControlPeersAltPath = new("/omnirelay/control/peers");
+    private static readonly PathString ControlExtensionsPath = new("/control/extensions");
+    private static readonly PathString ControlExtensionsAltPath = new("/omnirelay/control/extensions");
     private const string RetryAfterHeaderValue = "1";
     private const int DefaultDuplexFrameBytes = 16 * 1024;
     private const string HttpTransportName = "http";
@@ -330,10 +334,15 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         });
 
         builder.Services.AddRouting();
+        builder.Services.TryAddSingleton<ExtensionRegistry>();
+        builder.Services.TryAddSingleton<IExtensionDiagnosticsProvider>(sp => sp.GetRequiredService<ExtensionRegistry>());
         _configureServices?.Invoke(builder.Services);
         builder.Services.AddSingleton(_dispatcher);
 
         var app = builder.Build();
+
+        app.MapGet(ControlExtensionsPath, HandleExtensionDiagnosticsAsync);
+        app.MapGet(ControlExtensionsAltPath, HandleExtensionDiagnosticsAsync);
 
         if (enableHttp3)
         {
@@ -1234,6 +1243,20 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
 
         var snapshot = provider.CreateSnapshot();
         var result = TypedResults.Json(snapshot, Diagnostics.DiagnosticsJsonContext.Default.PeerDiagnosticsResponse);
+        await result.ExecuteAsync(context).ConfigureAwait(false);
+    }
+
+    private static async Task HandleExtensionDiagnosticsAsync(HttpContext context)
+    {
+        var provider = context.RequestServices.GetService<IExtensionDiagnosticsProvider>();
+        if (provider is null)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        var snapshot = provider.CreateSnapshot();
+        var result = TypedResults.Json(snapshot, ExtensionsJsonContext.Default.ExtensionDiagnosticsResponse);
         await result.ExecuteAsync(context).ConfigureAwait(false);
     }
 

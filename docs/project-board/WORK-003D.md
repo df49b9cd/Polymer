@@ -1,7 +1,7 @@
 # WORK-003D – Extension Telemetry & Failure Policy Wiring
 
 ## Goal
-Provide unified telemetry and failure policy handling across DSL, Wasm, and native hosts.
+Provide unified telemetry and failure policy handling for the DSL host now; extend the same model to Wasm/native when those hosts are reactivated.
 
 ## Scope
 - Metrics/logs for load, instantiation, execution latency, watchdog trips, failures.
@@ -9,12 +9,12 @@ Provide unified telemetry and failure policy handling across DSL, Wasm, and nati
 - Admin endpoint summarizing extension state.
 
 ## Acceptance Criteria
-- Telemetry emitted consistently for all extension types.
-- Failure policies enforce correctly in integration/chaos tests.
-- Admin endpoint shows per-extension status and last error.
+- Telemetry emitted for DSL load/instantiate/execute/watchdog events.
+- Failure policies enforced for DSL (fail-open/closed/reload) and covered by tests.
+- Admin endpoint shows per-extension status/last error for DSL. Wasm/native will be added when those hosts return to scope.
 
 ## Status
-Open
+Done (DSL focus)
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

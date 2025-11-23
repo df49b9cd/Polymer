@@ -437,8 +437,8 @@ internal static partial class DispatcherConfigMapper
 
         var certPassword = section["certificatePassword"];
         var certificate = string.IsNullOrWhiteSpace(certPassword)
-            ? X509CertificateLoader.LoadPkcs12FromFile(certPath, password: (ReadOnlySpan<char>)default)
-            : X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword.AsSpan());
+            ? X509CertificateLoader.LoadPkcs12FromFile(certPath, ReadOnlySpan<char>.Empty, X509KeyStorageFlags.DefaultKeySet)
+            : X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword.AsSpan(), X509KeyStorageFlags.DefaultKeySet);
 
         var checkRevocation = bool.TryParse(section["checkCertificateRevocation"], out var rev) ? rev : (bool?)null;
 
@@ -510,8 +510,8 @@ internal static partial class DispatcherConfigMapper
 
         var certPassword = section["certificatePassword"];
         var certificate = string.IsNullOrWhiteSpace(certPassword)
-            ? X509CertificateLoader.LoadPkcs12FromFile(certPath, password: (ReadOnlySpan<char>)default)
-            : X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword.AsSpan());
+            ? X509CertificateLoader.LoadPkcs12FromFile(certPath, ReadOnlySpan<char>.Empty, X509KeyStorageFlags.DefaultKeySet)
+            : X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword.AsSpan(), X509KeyStorageFlags.DefaultKeySet);
 
         var checkRevocation = bool.TryParse(section["checkCertificateRevocation"], out var rev) ? rev : (bool?)null;
 

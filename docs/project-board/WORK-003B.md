@@ -14,7 +14,7 @@ Support Proxy-Wasm ABI 0.2.x with selectable runtime (V8 default; Wasmtime/WAMR 
 - Watchdog breach enforces configured policy.
 
 ## Status
-Open
+Deferred (future phase)
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

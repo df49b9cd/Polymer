@@ -15,4 +15,10 @@ internal static partial class ExtensionTelemetryLog
 
     [LoggerMessage(EventId = 103, Level = LogLevel.Warning, Message = "extension watchdog trip: {Name} {Version} resource={Resource}")]
     internal static partial void ExtensionWatchdogTrip(ILogger logger, string name, string version, string resource);
+
+    [LoggerMessage(EventId = 104, Level = LogLevel.Information, Message = "extension executed: {Name} {Version} duration_ms={DurationMs}")]
+    internal static partial void ExtensionExecuted(ILogger logger, string name, string version, double durationMs);
+
+    [LoggerMessage(EventId = 105, Level = LogLevel.Information, Message = "extension reloaded: {Name} {Version}")]
+    internal static partial void ExtensionReloaded(ILogger logger, string name, string version);
 }
