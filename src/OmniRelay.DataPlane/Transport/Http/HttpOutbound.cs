@@ -36,6 +36,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
     /// <param name="requestUri">The target URI for outbound RPC requests.</param>
     /// <param name="disposeClient">Whether to dispose the provided client when the transport stops.</param>
     /// <param name="runtimeOptions">Optional per-request protocol negotiation and version policy settings.</param>
+    [Obsolete("Use HttpOutbound.Create or TryCreate to receive result-based validation and avoid exception flow.")]
     public HttpOutbound(HttpClient httpClient, Uri requestUri, bool disposeClient = false, HttpClientRuntimeOptions? runtimeOptions = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));

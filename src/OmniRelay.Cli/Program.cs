@@ -1005,7 +1005,14 @@ public static partial class Program
         }
 
         using var httpClient = CliRuntime.HttpClientFactory.CreateClient();
-        var outbound = new HttpOutbound(httpClient, requestUri, runtimeOptions: runtimeOptions);
+        var outboundResult = HttpOutbound.Create(httpClient, requestUri, runtimeOptions: runtimeOptions);
+        if (outboundResult.IsFailure)
+        {
+            await Console.Error.WriteLineAsync($"HTTP outbound setup failed: {outboundResult.Error?.Message}").ConfigureAwait(false);
+            return 1;
+        }
+
+        var outbound = outboundResult.Value;
 
         try
         {

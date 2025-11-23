@@ -45,7 +45,7 @@ public class HttpOutboundMiddlewareTests
             BaseAddress = new Uri("http://localhost:8080/")
         };
 
-        var outbound = new HttpOutbound(httpClient, new Uri("http://localhost:8080/rpc"), disposeClient: true);
+        var outbound = HttpOutbound.Create(httpClient, new Uri("http://localhost:8080/rpc"), disposeClient: true).ValueOrChecked();
 
         var builder = new HttpOutboundMiddlewareBuilder();
         builder.Use(new RecordingMiddleware("global", callOrder, ctx => ctx.Request.Headers.Add("X-Global", "1")));
@@ -97,7 +97,7 @@ public class HttpOutboundMiddlewareTests
             BaseAddress = new Uri("http://localhost:5050/")
         };
 
-        var outbound = new HttpOutbound(httpClient, new Uri("http://localhost:5050/rpc"), disposeClient: true);
+        var outbound = HttpOutbound.Create(httpClient, new Uri("http://localhost:5050/rpc"), disposeClient: true).ValueOrChecked();
 
         var builder = new HttpOutboundMiddlewareBuilder();
         builder.Use(new RecordingMiddleware("global", callOrder));

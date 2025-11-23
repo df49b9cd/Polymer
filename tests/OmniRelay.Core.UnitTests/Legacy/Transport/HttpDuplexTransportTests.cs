@@ -17,7 +17,7 @@ public class HttpDuplexTransportTests
     {
         var handler = new RecordingHandler();
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
-        var outbound = new HttpOutbound(httpClient, httpClient.BaseAddress!, disposeClient: true);
+        var outbound = HttpOutbound.Create(httpClient, httpClient.BaseAddress!, disposeClient: true).ValueOrChecked();
 
         await outbound.StartAsync(TestContext.Current.CancellationToken);
 

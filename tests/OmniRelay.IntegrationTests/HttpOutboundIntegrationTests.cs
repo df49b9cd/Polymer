@@ -56,11 +56,12 @@ public sealed class HttpOutboundIntegrationTests(ITestOutputHelper output) : Int
 
         using var handler = CreateHttp3SocketsHandler();
         using var httpClient = new HttpClient(handler, disposeHandler: false) { BaseAddress = remoteAddress };
-        var httpOutbound = new HttpOutbound(
-            httpClient,
-            remoteAddress,
-            disposeClient: false,
-            runtimeOptions: new HttpClientRuntimeOptions { EnableHttp3 = true });
+        var httpOutbound = HttpOutbound.Create(
+                httpClient,
+                remoteAddress,
+                disposeClient: false,
+                runtimeOptions: new HttpClientRuntimeOptions { EnableHttp3 = true })
+            .ValueOrChecked();
 
         var clientOptions = new DispatcherOptions("runtime-client");
         clientOptions.AddUnaryOutbound("runtime-remote", null, httpOutbound);
@@ -133,8 +134,8 @@ public sealed class HttpOutboundIntegrationTests(ITestOutputHelper output) : Int
         using var peer1Client = new HttpClient { BaseAddress = peer1Address };
         using var peer2Client = new HttpClient { BaseAddress = peer2Address };
 
-        var outbound1 = new HttpOutbound(peer1Client, peer1Address, disposeClient: false);
-        var outbound2 = new HttpOutbound(peer2Client, peer2Address, disposeClient: false);
+        var outbound1 = HttpOutbound.Create(peer1Client, peer1Address, disposeClient: false).ValueOrChecked();
+        var outbound2 = HttpOutbound.Create(peer2Client, peer2Address, disposeClient: false).ValueOrChecked();
         var failoverOutbound = new FailoverUnaryOutbound(outbound1, outbound2);
 
         var clientOptions = new DispatcherOptions("failover-client");

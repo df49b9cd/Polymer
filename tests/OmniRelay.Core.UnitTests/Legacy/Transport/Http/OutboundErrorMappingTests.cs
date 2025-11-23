@@ -26,7 +26,7 @@ public class OutboundErrorMappingTests
         };
         response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
         using var client = new HttpClient(new StubHandler(response));
-        var outbound = new HttpOutbound(client, new Uri("http://example/yarpc"));
+        var outbound = HttpOutbound.Create(client, new Uri("http://example/yarpc")).ValueOrChecked();
         await outbound.StartAsync(ct);
 
         var meta = new RequestMeta(service: "svc", procedure: "proc::unary", transport: "http");
@@ -47,7 +47,7 @@ public class OutboundErrorMappingTests
             Content = new StringContent("Unavailable")
         };
         using var client = new HttpClient(new StubHandler(response));
-        var outbound = new HttpOutbound(client, new Uri("http://example/yarpc"));
+        var outbound = HttpOutbound.Create(client, new Uri("http://example/yarpc")).ValueOrChecked();
         await outbound.StartAsync(ct);
 
         var meta = new RequestMeta(service: "svc", procedure: "proc::unary", transport: "http");

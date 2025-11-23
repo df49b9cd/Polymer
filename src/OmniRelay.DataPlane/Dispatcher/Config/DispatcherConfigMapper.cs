@@ -180,7 +180,10 @@ internal static partial class DispatcherConfigMapper
                 if (kind == OutboundKind.Unary || kind == OutboundKind.Oneway)
                 {
                     var client = services.GetService<IHttpClientFactory>()?.CreateClient() ?? new HttpClient();
-                    var outbound = new HttpOutbound(client, uriAddresses[0], disposeClient: services.GetService<IHttpClientFactory>() is null);
+                    var outboundResult = HttpOutbound.Create(client, uriAddresses[0], disposeClient: services.GetService<IHttpClientFactory>() is null);
+                    var outbound = outboundResult.IsSuccess
+                        ? outboundResult.Value
+                        : throw new InvalidOperationException($"Failed to create HTTP outbound for service '{service}': {outboundResult.Error?.Message}");
                     if (kind == OutboundKind.Unary)
                     {
                         options.AddUnaryOutbound(service, key, outbound);

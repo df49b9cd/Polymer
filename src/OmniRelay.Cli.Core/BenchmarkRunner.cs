@@ -522,7 +522,14 @@ public static class BenchmarkRunner
         public HttpRequestInvoker(Uri requestUri, HttpClientRuntimeOptions? runtimeOptions, Func<HttpClient> httpClientFactory)
         {
             _httpClient = httpClientFactory();
-            _outbound = new HttpOutbound(_httpClient, requestUri, runtimeOptions: runtimeOptions);
+            var outbound = HttpOutbound.Create(_httpClient, requestUri, runtimeOptions: runtimeOptions);
+            if (outbound.IsFailure)
+            {
+                _httpClient.Dispose();
+                throw new InvalidOperationException(outbound.Error?.Message ?? "Failed to create HttpOutbound.");
+            }
+
+            _outbound = outbound.Value;
             _unaryOutbound = _outbound;
         }
 

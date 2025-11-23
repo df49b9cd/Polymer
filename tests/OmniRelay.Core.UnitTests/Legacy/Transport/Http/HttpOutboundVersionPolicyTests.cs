@@ -46,11 +46,11 @@ public class HttpOutboundVersionPolicyTests
 
         using var handler = CreateHttp3SocketsHandler();
         using var httpClient = new HttpClient(handler, disposeHandler: false);
-        var outbound = new HttpOutbound(httpClient, address, disposeClient: false, runtimeOptions: new HttpClientRuntimeOptions
+        var outbound = HttpOutbound.Create(httpClient, address, disposeClient: false, runtimeOptions: new HttpClientRuntimeOptions
         {
             EnableHttp3 = true,
             VersionPolicy = HttpVersionPolicy.RequestVersionExact
-        });
+        }).ValueOrChecked();
 
         try
         {
@@ -98,11 +98,11 @@ public class HttpOutboundVersionPolicyTests
 
         using var handler = CreateHttp3SocketsHandler();
         using var httpClient = new HttpClient(handler, disposeHandler: false);
-        var outbound = new HttpOutbound(httpClient, address, disposeClient: false, runtimeOptions: new HttpClientRuntimeOptions
+        var outbound = HttpOutbound.Create(httpClient, address, disposeClient: false, runtimeOptions: new HttpClientRuntimeOptions
         {
             EnableHttp3 = true,
             VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
-        });
+        }).ValueOrChecked();
 
         try
         {
@@ -150,12 +150,12 @@ public class HttpOutboundVersionPolicyTests
 
         using var handler = CreateHttp3SocketsHandler();
         using var httpClient = new HttpClient(handler, disposeHandler: false);
-        var outbound = new HttpOutbound(httpClient, address, disposeClient: false, runtimeOptions: new HttpClientRuntimeOptions
+        var outbound = HttpOutbound.Create(httpClient, address, disposeClient: false, runtimeOptions: new HttpClientRuntimeOptions
         {
             EnableHttp3 = true,
             RequestVersion = HttpVersion.Version30,
             VersionPolicy = HttpVersionPolicy.RequestVersionExact
-        });
+        }).ValueOrChecked();
 
         try
         {

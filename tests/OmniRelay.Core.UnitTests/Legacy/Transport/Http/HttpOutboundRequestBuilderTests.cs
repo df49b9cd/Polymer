@@ -55,11 +55,12 @@ public sealed class HttpOutboundRequestBuilderTests
 
         using var client = new HttpClient(handler);
         var requestUri = new Uri("https://example.test/rpc");
-        var outbound = new HttpOutbound(
-            client,
-            requestUri,
-            disposeClient: true,
-            runtimeOptions: new HttpClientRuntimeOptions { EnableHttp3 = true });
+        var outbound = HttpOutbound.Create(
+                client,
+                requestUri,
+                disposeClient: true,
+                runtimeOptions: new HttpClientRuntimeOptions { EnableHttp3 = true })
+            .ValueOrChecked();
 
         var ttl = TimeSpan.FromMilliseconds(1250);
         var deadline = DateTimeOffset.UtcNow.AddMinutes(5);

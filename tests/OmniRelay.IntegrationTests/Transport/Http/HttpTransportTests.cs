@@ -26,7 +26,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
         options.AddLifecycle("http-inbound", httpInbound);
 
         var httpClient = new HttpClient { BaseAddress = baseAddress };
-        var httpOutbound = new HttpOutbound(httpClient, baseAddress, disposeClient: true);
+        var httpOutbound = HttpOutbound.Create(httpClient, baseAddress, disposeClient: true).ValueOrChecked();
         options.AddUnaryOutbound("echo", null, httpOutbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -101,7 +101,7 @@ public sealed class HttpTransportTests(ITestOutputHelper output) : TransportInte
         options.AddLifecycle("http-inbound", httpInbound);
 
         var httpClient = new HttpClient { BaseAddress = baseAddress };
-        var httpOutbound = new HttpOutbound(httpClient, baseAddress, disposeClient: true);
+        var httpOutbound = HttpOutbound.Create(httpClient, baseAddress, disposeClient: true).ValueOrChecked();
         options.AddOnewayOutbound("echo", null, httpOutbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
