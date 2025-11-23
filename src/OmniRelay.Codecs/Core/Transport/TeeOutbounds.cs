@@ -265,12 +265,15 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic, IDis
 
         if (!exceptions.IsEmpty)
         {
-            throw new AggregateException(exceptions);
+            while (exceptions.TryDequeue(out var ex))
+            {
+                _logger.LogWarning(ex, "tee unary stop encountered exception");
+            }
         }
 
         if (waitResult.IsFailure && waitResult.Error is { } error)
         {
-            throw new ResultException(error);
+            _logger.LogWarning("tee unary stop returned failure: {Message}", error.Message);
         }
     }
 
@@ -508,12 +511,15 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic, ID
 
         if (!exceptions.IsEmpty)
         {
-            throw new AggregateException(exceptions);
+            while (exceptions.TryDequeue(out var ex))
+            {
+                _logger.LogWarning(ex, "tee oneway stop encountered exception");
+            }
         }
 
         if (waitResult.IsFailure && waitResult.Error is { } error)
         {
-            throw new ResultException(error);
+            _logger.LogWarning("tee oneway stop returned failure: {Message}", error.Message);
         }
     }
 

@@ -11,6 +11,7 @@ public static class HugoResultExtensions
     /// <summary>
     /// Returns the successful value or throws a <see cref="ResultException"/> when the result is failed.
     /// </summary>
+    [Obsolete("Avoid throwing; prefer Result.ValueOr/Match or propagate the failure Result.")]
     public static T ValueOrThrow<T>(this Result<T> result)
     {
         if (result.IsFailure)
@@ -24,6 +25,7 @@ public static class HugoResultExtensions
     /// <summary>
     /// Throws a <see cref="ResultException"/> when the result is failed.
     /// </summary>
+    [Obsolete("Avoid throwing; prefer checking IsFailure or propagating the Result.")]
     public static void ThrowIfFailure(this Result<Unit> result)
     {
         if (result.IsFailure)

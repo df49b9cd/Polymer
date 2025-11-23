@@ -309,6 +309,6 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall
         await _inner.CompleteResponsesAsync(pumpError, CancellationToken.None).ConfigureAwait(false);
     }
 
-    private Error NormalizeResultError(Error error) =>
+    private Error NormalizeResultError(Error? error) =>
         OmniRelayErrors.FromError(error ?? Error.Unspecified(), _transport).Error;
 }
