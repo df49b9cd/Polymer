@@ -118,9 +118,10 @@ options.AddUnaryOutbound(
 options.AddOnewayOutbound(
     "audit",
     null,
-    new HttpOutbound(
-        new HttpClient { BaseAddress = new Uri("http://audit:8080") },
-        requestUri: new Uri("http://audit:8080/yarpc/v1/billing::record")));
+    HttpOutbound.Create(
+            new HttpClient { BaseAddress = new Uri("http://audit:8080") },
+            requestUri: new Uri("http://audit:8080/yarpc/v1/billing::record"))
+        .ValueOrThrow());
 
 // Global middleware applies to every procedure; builders layer per-procedure middleware.
 options.UnaryInboundMiddleware.Add(new RpcTracingMiddleware());
