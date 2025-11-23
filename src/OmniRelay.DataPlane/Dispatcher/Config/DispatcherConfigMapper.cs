@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Text.Json;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -72,13 +74,14 @@ internal static partial class DispatcherConfigMapper
 
             var name = string.IsNullOrWhiteSpace(http.Name) ? $"http-{i}" : http.Name;
             var runtime = http.Runtime ?? new HttpServerRuntimeOptions();
+            var tls = http.Tls;
 
             var inbound = new HttpInbound(
                 http.Urls.ToArray(),
                 configureServices: null,
                 configureApp: null,
                 serverRuntimeOptions: runtime,
-                serverTlsOptions: null,
+                serverTlsOptions: tls,
                 transportSecurity: null,
                 authorizationEvaluator: null);
 
@@ -115,7 +118,7 @@ internal static partial class DispatcherConfigMapper
                 grpc.Urls.ToArray(),
                 configureServices: null,
                 serverRuntimeOptions: runtime,
-                serverTlsOptions: null,
+                serverTlsOptions: grpc.Tls,
                 telemetryOptions: null,
                 transportSecurity: null,
                 authorizationEvaluator: null);
@@ -294,7 +297,8 @@ internal static partial class DispatcherConfigMapper
             {
                 Name = string.IsNullOrWhiteSpace(http["name"]) ? null : http["name"],
                 Urls = urls,
-                Runtime = runtime
+                Runtime = runtime,
+                Tls = ParseHttpTls(http.GetSection("tls"))
             });
         }
 
@@ -310,7 +314,8 @@ internal static partial class DispatcherConfigMapper
                 Name = string.IsNullOrWhiteSpace(grpc["name"]) ? null : grpc["name"],
                 Urls = urls,
                 EnableDetailedErrors = bool.TryParse(grpc["enableDetailedErrors"], out var b) ? b : (bool?)null,
-                Runtime = ParseGrpcRuntime(grpc.GetSection("runtime"))
+                Runtime = ParseGrpcRuntime(grpc.GetSection("runtime")),
+                Tls = ParseGrpcTls(grpc.GetSection("tls"))
             });
         }
 
@@ -416,6 +421,34 @@ internal static partial class DispatcherConfigMapper
         return runtime;
     }
 
+    private static HttpServerTlsOptions? ParseHttpTls(IConfigurationSection section)
+    {
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        var certPath = section["certificatePath"];
+        if (string.IsNullOrWhiteSpace(certPath))
+        {
+            return null;
+        }
+
+        var certPassword = section["certificatePassword"];
+        var certificate = string.IsNullOrWhiteSpace(certPassword)
+            ? new X509Certificate2(certPath)
+            : new X509Certificate2(certPath, certPassword);
+
+        var checkRevocation = bool.TryParse(section["checkCertificateRevocation"], out var rev) ? rev : (bool?)null;
+
+        return new HttpServerTlsOptions
+        {
+            Certificate = certificate,
+            ClientCertificateMode = ClientCertificateMode.NoCertificate,
+            CheckCertificateRevocation = checkRevocation
+        };
+    }
+
     private static Http3RuntimeOptions? ParseHttp3(IConfigurationSection section)
     {
         if (!section.Exists())
@@ -458,6 +491,33 @@ internal static partial class DispatcherConfigMapper
                 .Select(Type.GetType)
                 .Where(t => t is not null)
                 .ToArray()!
+        };
+    }
+
+    private static GrpcServerTlsOptions? ParseGrpcTls(IConfigurationSection section)
+    {
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        var certPath = section["certificatePath"];
+        if (string.IsNullOrWhiteSpace(certPath))
+        {
+            return null;
+        }
+
+        var certPassword = section["certificatePassword"];
+        var certificate = string.IsNullOrWhiteSpace(certPassword)
+            ? new X509Certificate2(certPath)
+            : new X509Certificate2(certPath, certPassword);
+
+        var checkRevocation = bool.TryParse(section["checkCertificateRevocation"], out var rev) ? rev : (bool?)null;
+
+        return new GrpcServerTlsOptions
+        {
+            Certificate = certificate,
+            CheckCertificateRevocation = checkRevocation
         };
     }
 

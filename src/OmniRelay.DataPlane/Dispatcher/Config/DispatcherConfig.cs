@@ -26,6 +26,7 @@ public sealed class HttpInboundConfig
     public string? Name { get; set; }
     public List<string> Urls { get; set; } = new();
     public HttpServerRuntimeOptions? Runtime { get; set; }
+    public HttpServerTlsOptions? Tls { get; set; }
 }
 
 public sealed class GrpcInboundConfig
@@ -34,6 +35,7 @@ public sealed class GrpcInboundConfig
     public List<string> Urls { get; set; } = new();
     public bool? EnableDetailedErrors { get; set; }
     public GrpcServerRuntimeOptions? Runtime { get; set; }
+    public GrpcServerTlsOptions? Tls { get; set; }
 }
 
 public sealed class OutboundsConfig : Dictionary<string, ServiceOutboundsConfig>
@@ -117,4 +119,8 @@ public sealed class JsonOutboundEncodingConfig
 
 /// <summary>Entry point for JSON source generation.</summary>
 [JsonSerializable(typeof(DispatcherConfig))]
+[JsonSerializable(typeof(HttpServerRuntimeOptions))]
+[JsonSerializable(typeof(HttpServerTlsOptions))]
+[JsonSerializable(typeof(GrpcServerRuntimeOptions))]
+[JsonSerializable(typeof(GrpcServerTlsOptions))]
 internal partial class DispatcherConfigJsonContext : JsonSerializerContext;
