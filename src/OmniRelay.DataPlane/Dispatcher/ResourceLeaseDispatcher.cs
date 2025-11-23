@@ -578,40 +578,45 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         IReadOnlyDictionary<string, string>? additionalMetadata,
         CancellationToken cancellationToken)
     {
-        try
+        var metadata = MergeMetadata(additionalMetadata);
+        var replicationEvent = ResourceLeaseReplicationEvent.Create(
+            eventType,
+            ownership,
+            string.IsNullOrWhiteSpace(peerId) ? null : peerId,
+            payload,
+            error,
+            metadata);
+        ResourceLeaseReplicationMetrics.RecordReplicationEvent(replicationEvent);
+
+        if (_replicator is not null)
         {
-            var metadata = MergeMetadata(additionalMetadata);
-            var replicationEvent = ResourceLeaseReplicationEvent.Create(
-                eventType,
-                ownership,
-                string.IsNullOrWhiteSpace(peerId) ? null : peerId,
-                payload,
-                error,
-                metadata);
-            ResourceLeaseReplicationMetrics.RecordReplicationEvent(replicationEvent);
+            var published = await PublishSafelyAsync(
+                () => _replicator.PublishAsync(replicationEvent, cancellationToken),
+                replicationEvent,
+                "replicator.publish",
+                cancellationToken).ConfigureAwait(false);
 
-            if (_replicator is not null)
+            if (published.IsFailure)
             {
-                await _replicator.PublishAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+                return published;
             }
-
-            if (_deterministicCoordinator is not null)
-            {
-                var deterministic = await _deterministicCoordinator.RecordAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
-                if (deterministic.IsFailure)
-                {
-                    return deterministic;
-                }
-            }
-
-            return Ok(Unit.Value);
         }
-        catch (Exception ex)
+
+        if (_deterministicCoordinator is not null)
         {
-            return Err<Unit>(Error.FromException(ex)
-                .WithMetadata("eventType", eventType.ToString())
-                .WithMetadata("peerId", peerId ?? string.Empty));
+            var deterministic = await PublishSafelyAsync(
+                () => _deterministicCoordinator.RecordAsync(replicationEvent, cancellationToken),
+                replicationEvent,
+                "replicator.deterministic",
+                cancellationToken).ConfigureAwait(false);
+
+            if (deterministic.IsFailure)
+            {
+                return deterministic;
+            }
         }
+
+        return Ok(Unit.Value);
     }
 
     private Dictionary<string, string> MergeMetadata(IReadOnlyDictionary<string, string>? additional)
@@ -631,6 +636,45 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         }
 
         return snapshot;
+    }
+
+    private static async ValueTask<Result<Unit>> PublishSafelyAsync(
+        Func<ValueTask<Result<Unit>>> operation,
+        ResourceLeaseReplicationEvent replicationEvent,
+        string stage,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await operation().ConfigureAwait(false);
+            if (result.IsFailure)
+            {
+                return Err<Unit>(result.Error!
+                    .WithMetadata("replication.stage", stage)
+                    .WithMetadata("replication.eventType", replicationEvent.EventType.ToString())
+                    .WithMetadata("replication.peerId", replicationEvent.PeerId ?? string.Empty)
+                    .WithMetadata("replication.sequenceHint", replicationEvent.SequenceNumber));
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            if (ex is OperationCanceledException oce && oce.CancellationToken == cancellationToken)
+            {
+                return Err<Unit>(Error.Canceled("replication canceled", cancellationToken)
+                    .WithMetadata("replication.stage", stage)
+                    .WithMetadata("replication.eventType", replicationEvent.EventType.ToString())
+                    .WithMetadata("replication.peerId", replicationEvent.PeerId ?? string.Empty)
+                    .WithMetadata("replication.sequenceHint", replicationEvent.SequenceNumber));
+            }
+
+            return Err<Unit>(Error.FromException(ex)
+                .WithMetadata("replication.stage", stage)
+                .WithMetadata("replication.eventType", replicationEvent.EventType.ToString())
+                .WithMetadata("replication.peerId", replicationEvent.PeerId ?? string.Empty)
+                .WithMetadata("replication.sequenceHint", replicationEvent.SequenceNumber));
+        }
     }
 
     private static PeerLeaseHandle ToPeerHandle(ResourceLeaseOwnershipHandle handle) =>

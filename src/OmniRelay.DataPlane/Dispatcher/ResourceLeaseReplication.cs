@@ -1,5 +1,9 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using Hugo;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Dispatcher;
 
@@ -65,13 +69,41 @@ public enum ResourceLeaseReplicationEventType
 /// <summary>Replicates ordered resource lease events to downstream sinks.</summary>
 public interface IResourceLeaseReplicator
 {
-    ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
+    ValueTask<Result<Unit>> PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
 }
 
 /// <summary>Consumers implement this interface to apply ordered replication events and optionally checkpoint progress.</summary>
 public interface IResourceLeaseReplicationSink
 {
-    ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
+    ValueTask<Result<Unit>> ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
+}
+
+public static class ResourceLeaseReplicationErrors
+{
+    public static Error EventRequired(string? stage = null)
+    {
+        IReadOnlyDictionary<string, object?>? metadata = null;
+        if (stage is not null)
+        {
+            metadata = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["replication.stage"] = stage
+            };
+        }
+
+        return Error.From(
+            "Replication event is required.",
+            "error.resourcelease.replication.event_required",
+            cause: null!,
+            metadata: (IReadOnlyDictionary<string, object?>?)metadata);
+    }
+
+    public static Error ShardIdMissing() =>
+        Error.From(
+            "Shard id must be provided.",
+            "error.resourcelease.replication.shard_id_missing",
+            cause: null!,
+            metadata: (IReadOnlyDictionary<string, object?>?)null);
 }
 
 /// <summary>
@@ -100,8 +132,13 @@ public sealed class InMemoryResourceLeaseReplicator : IResourceLeaseReplicator
         }
     }
 
-    public async ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {
+        if (replicationEvent is null)
+        {
+            return Err<Unit>(ResourceLeaseReplicationErrors.EventRequired("inmemory.publish"));
+        }
+
         var ordered = replicationEvent with
         {
             SequenceNumber = Interlocked.Increment(ref _sequenceId),
@@ -116,9 +153,40 @@ public sealed class InMemoryResourceLeaseReplicator : IResourceLeaseReplicator
 
         foreach (var sink in sinks)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await sink.ApplyAsync(ordered, cancellationToken).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Err<Unit>(Error.Canceled("in-memory replication canceled", cancellationToken)
+                    .WithMetadata("replication.stage", "inmemory.publish"));
+            }
+
+            try
+            {
+                var applied = await sink.ApplyAsync(ordered, cancellationToken).ConfigureAwait(false);
+                if (applied.IsFailure)
+                {
+                    return Err<Unit>(applied.Error!
+                        .WithMetadata("replication.stage", "inmemory.sink")
+                        .WithMetadata("replication.sequence", ordered.SequenceNumber)
+                        .WithMetadata("replication.sink", sink.GetType().Name));
+                }
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+            {
+                return Err<Unit>(Error.Canceled("in-memory sink canceled", cancellationToken)
+                    .WithMetadata("replication.stage", "inmemory.sink")
+                    .WithMetadata("replication.sequence", ordered.SequenceNumber)
+                    .WithMetadata("replication.sink", sink.GetType().Name));
+            }
+            catch (Exception ex)
+            {
+                return Err<Unit>(Error.FromException(ex)
+                    .WithMetadata("replication.stage", "inmemory.sink")
+                    .WithMetadata("replication.sequence", ordered.SequenceNumber)
+                    .WithMetadata("replication.sink", sink.GetType().Name));
+            }
         }
+
+        return Ok(Unit.Value);
     }
 }
 
@@ -130,11 +198,16 @@ public abstract class CheckpointingResourceLeaseReplicationSink : IResourceLease
     private readonly ConcurrentDictionary<string, long> _peerCheckpoints = new(StringComparer.Ordinal);
     private long _globalCheckpoint = -1;
 
-    public async ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {
+        if (replicationEvent is null)
+        {
+            return Err<Unit>(ResourceLeaseReplicationErrors.EventRequired("sink.apply"));
+        }
+
         if (replicationEvent.SequenceNumber <= Volatile.Read(ref _globalCheckpoint))
         {
-            return;
+            return Ok(Unit.Value);
         }
 
         if (replicationEvent.PeerId is { Length: > 0 } peer)
@@ -142,21 +215,49 @@ public abstract class CheckpointingResourceLeaseReplicationSink : IResourceLease
             var lastPeerSequence = _peerCheckpoints.GetOrAdd(peer, static _ => -1);
             if (replicationEvent.SequenceNumber <= lastPeerSequence)
             {
-                return;
+                return Ok(Unit.Value);
             }
         }
 
         var lagMilliseconds = (DateTimeOffset.UtcNow - replicationEvent.Timestamp).TotalMilliseconds;
         ResourceLeaseReplicationMetrics.RecordReplicationLag(replicationEvent, lagMilliseconds);
 
-        await ApplyInternalAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+        Result<Unit> applied;
+        try
+        {
+            applied = await ApplyInternalAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+        {
+            return Err<Unit>(Error.Canceled("replication sink canceled", cancellationToken)
+                .WithMetadata("replication.stage", "sink.apply_internal")
+                .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                .WithMetadata("replication.peerId", replicationEvent.PeerId ?? string.Empty));
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(Error.FromException(ex)
+                .WithMetadata("replication.stage", "sink.apply_internal")
+                .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                .WithMetadata("replication.peerId", replicationEvent.PeerId ?? string.Empty));
+        }
+
+        if (applied.IsFailure)
+        {
+            return Err<Unit>(applied.Error!
+                .WithMetadata("replication.stage", "sink.apply_internal")
+                .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                .WithMetadata("replication.peerId", replicationEvent.PeerId ?? string.Empty));
+        }
 
         Interlocked.Exchange(ref _globalCheckpoint, replicationEvent.SequenceNumber);
         if (replicationEvent.PeerId is { Length: > 0 } owner)
         {
             _peerCheckpoints.AddOrUpdate(owner, replicationEvent.SequenceNumber, (_, _) => replicationEvent.SequenceNumber);
         }
+
+        return Ok(Unit.Value);
     }
 
-    protected abstract ValueTask ApplyInternalAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
+    protected abstract ValueTask<Result<Unit>> ApplyInternalAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
 }

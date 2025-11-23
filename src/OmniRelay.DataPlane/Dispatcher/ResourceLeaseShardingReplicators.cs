@@ -1,4 +1,7 @@
 using System.Collections.Immutable;
+using Hugo;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Dispatcher;
 
@@ -23,13 +26,31 @@ public sealed class ShardedResourceLeaseReplicator : IResourceLeaseReplicator
         _shardId = shardId.Trim();
     }
 
-    public ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(replicationEvent);
+        if (replicationEvent is null)
+        {
+            return Err<Unit>(ResourceLeaseReplicationErrors.EventRequired("shard.publish"));
+        }
 
         var metadata = replicationEvent.Metadata.SetItem("shard.id", _shardId);
         var tagged = replicationEvent with { Metadata = metadata };
-        return _inner.PublishAsync(tagged, cancellationToken);
+        try
+        {
+            return await _inner.PublishAsync(tagged, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+        {
+            return Err<Unit>(Error.Canceled("sharded replication canceled", cancellationToken)
+                .WithMetadata("replication.stage", "shard.forward")
+                .WithMetadata("replication.shard", _shardId));
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(Error.FromException(ex)
+                .WithMetadata("replication.stage", "shard.forward")
+                .WithMetadata("replication.shard", _shardId));
+        }
     }
 }
 
@@ -53,14 +74,40 @@ public sealed class CompositeResourceLeaseReplicator : IResourceLeaseReplicator
         _replicators = snapshot;
     }
 
-    public async ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(replicationEvent);
+        if (replicationEvent is null)
+        {
+            return Err<Unit>(ResourceLeaseReplicationErrors.EventRequired("composite.publish"));
+        }
 
         foreach (var replicator in _replicators)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await replicator.PublishAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var published = await replicator.PublishAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+                if (published.IsFailure)
+                {
+                    return Err<Unit>(published.Error!
+                        .WithMetadata("replication.stage", "composite.publish")
+                        .WithMetadata("replication.replicator", replicator.GetType().Name));
+                }
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+            {
+                return Err<Unit>(Error.Canceled("composite replication canceled", cancellationToken)
+                    .WithMetadata("replication.stage", "composite.publish")
+                    .WithMetadata("replication.replicator", replicator.GetType().Name));
+            }
+            catch (Exception ex)
+            {
+                return Err<Unit>(Error.FromException(ex)
+                    .WithMetadata("replication.stage", "composite.publish")
+                    .WithMetadata("replication.replicator", replicator.GetType().Name));
+            }
         }
+
+        return Ok(Unit.Value);
     }
 }

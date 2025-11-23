@@ -1,4 +1,6 @@
 using Hugo;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
@@ -11,8 +13,11 @@ public sealed class ResourceLeaseReplicationTests
         var sink = new RecordingSink();
         var replicator = new InMemoryResourceLeaseReplicator([sink]);
 
-        await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
-        await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
+        var first = await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
+        var second = await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error?.ToString());
+        Assert.True(second.IsSuccess, second.Error?.ToString());
 
         Assert.Equal([1L, 2L], [.. sink.Events.Select(evt => evt.SequenceNumber)]);
     }
@@ -23,8 +28,9 @@ public sealed class ResourceLeaseReplicationTests
         var sink = new RecordingSink();
         var replicator = new InMemoryResourceLeaseReplicator([sink], startingSequence: 10);
 
-        await replicator.PublishAsync(CreateEvent(sequence: 42), CancellationToken.None);
+        var result = await replicator.PublishAsync(CreateEvent(sequence: 42), CancellationToken.None);
 
+        Assert.True(result.IsSuccess, result.Error?.ToString());
         Assert.Single(sink.Events);
         Assert.Equal(11L, sink.Events[0].SequenceNumber);
     }
@@ -34,9 +40,13 @@ public sealed class ResourceLeaseReplicationTests
     {
         var sink = new CountingCheckpointSink();
 
-        await sink.ApplyAsync(CreateEvent(sequence: 5), CancellationToken.None);
-        await sink.ApplyAsync(CreateEvent(sequence: 5), CancellationToken.None);
-        await sink.ApplyAsync(CreateEvent(sequence: 6), CancellationToken.None);
+        var first = await sink.ApplyAsync(CreateEvent(sequence: 5), CancellationToken.None);
+        var duplicate = await sink.ApplyAsync(CreateEvent(sequence: 5), CancellationToken.None);
+        var second = await sink.ApplyAsync(CreateEvent(sequence: 6), CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error?.ToString());
+        Assert.True(duplicate.IsSuccess, duplicate.Error?.ToString());
+        Assert.True(second.IsSuccess, second.Error?.ToString());
 
         Assert.Equal(new[] { 5L, 6L }, sink.AppliedSequences);
     }
@@ -54,8 +64,11 @@ public sealed class ResourceLeaseReplicationTests
 
         var evt = CreateEvent(sequence: 10);
 
-        await coordinator.RecordAsync(evt, CancellationToken.None);
-        await coordinator.RecordAsync(evt, CancellationToken.None); // duplicate should be ignored without throwing
+        var first = await coordinator.RecordAsync(evt, CancellationToken.None);
+        var duplicate = await coordinator.RecordAsync(evt, CancellationToken.None); // duplicate should be ignored without throwing
+
+        Assert.True(first.IsSuccess, first.Error?.ToString());
+        Assert.True(duplicate.IsSuccess, duplicate.Error?.ToString());
     }
 
     private static ResourceLeaseReplicationEvent CreateEvent(long sequence = 0) =>
@@ -73,10 +86,10 @@ public sealed class ResourceLeaseReplicationTests
     {
         public List<ResourceLeaseReplicationEvent> Events { get; } = [];
 
-        public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+        public ValueTask<Result<Unit>> ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {
             Events.Add(replicationEvent);
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(Ok(Unit.Value));
         }
     }
 
@@ -84,10 +97,10 @@ public sealed class ResourceLeaseReplicationTests
     {
         public List<long> AppliedSequences { get; } = [];
 
-        protected override ValueTask ApplyInternalAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+        protected override ValueTask<Result<Unit>> ApplyInternalAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {
             AppliedSequences.Add(replicationEvent.SequenceNumber);
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(Ok(Unit.Value));
         }
     }
 }

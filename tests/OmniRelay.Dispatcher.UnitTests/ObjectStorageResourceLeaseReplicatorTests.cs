@@ -1,4 +1,7 @@
 using System.Text.Json;
+using Hugo;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
@@ -14,7 +17,9 @@ public sealed class ObjectStorageResourceLeaseReplicatorTests
         var replicator = new ObjectStorageResourceLeaseReplicator(store, sinks: [sink]);
 
         var cancellationToken = TestContext.Current.CancellationToken;
-        await replicator.PublishAsync(CreateEvent(), cancellationToken);
+        var result = await replicator.PublishAsync(CreateEvent(), cancellationToken);
+
+        Assert.True(result.IsSuccess, result.Error?.ToString());
 
         Assert.Single(sink.Events);
         Assert.Equal(1, sink.Events[0].SequenceNumber);
@@ -43,10 +48,10 @@ public sealed class ObjectStorageResourceLeaseReplicatorTests
     {
         public List<ResourceLeaseReplicationEvent> Events { get; } = [];
 
-        public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+        public ValueTask<Result<Unit>> ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {
             Events.Add(replicationEvent);
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(Ok(Unit.Value));
         }
     }
 

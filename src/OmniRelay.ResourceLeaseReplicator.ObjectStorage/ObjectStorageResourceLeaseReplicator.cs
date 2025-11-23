@@ -1,5 +1,8 @@
 using System.Collections.Immutable;
 using System.Text.Json;
+using Hugo;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Dispatcher;
 
@@ -28,11 +31,18 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
             : [.. sinks.Where(s => s is not null)];
     }
 
-    public async ValueTask PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> PublishAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(replicationEvent);
+        if (replicationEvent is null)
+        {
+            return Err<Unit>(ResourceLeaseReplicationErrors.EventRequired("objectstorage.publish"));
+        }
 
-        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var initialized = await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        if (initialized.IsFailure)
+        {
+            return initialized;
+        }
 
         var ordered = replicationEvent with
         {
@@ -42,15 +52,20 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
 
         var key = $"{_keyPrefix}{ordered.SequenceNumber:D20}.json";
         var payload = JsonSerializer.SerializeToUtf8Bytes(ordered, ResourceLeaseJsonContext.Default.ResourceLeaseReplicationEvent);
-        await _objectStore.WriteAsync(key, payload, "application/json", cancellationToken).ConfigureAwait(false);
-        await FanOutAsync(ordered, cancellationToken).ConfigureAwait(false);
+        var persisted = await PersistAsync(key, payload, ordered, cancellationToken).ConfigureAwait(false);
+        if (persisted.IsFailure)
+        {
+            return persisted;
+        }
+
+        return await FanOutAsync(ordered, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
+    private async ValueTask<Result<Unit>> EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
         {
-            return;
+            return Ok(Unit.Value);
         }
 
         await _initializationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -58,7 +73,7 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
         {
             if (_initialized)
             {
-                return;
+                return Ok(Unit.Value);
             }
 
             var keys = await _objectStore.ListKeysAsync(_keyPrefix, cancellationToken).ConfigureAwait(false);
@@ -72,6 +87,19 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
             }
 
             _initialized = true;
+            return Ok(Unit.Value);
+        }
+        catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+        {
+            return Err<Unit>(Error.Canceled("object storage replication initialization canceled", cancellationToken)
+                .WithMetadata("replication.stage", "objectstorage.initialize")
+                .WithMetadata("replication.prefix", _keyPrefix));
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(Error.FromException(ex)
+                .WithMetadata("replication.stage", "objectstorage.initialize")
+                .WithMetadata("replication.prefix", _keyPrefix));
         }
         finally
         {
@@ -79,17 +107,70 @@ public sealed class ObjectStorageResourceLeaseReplicator : IResourceLeaseReplica
         }
     }
 
-    private async Task FanOutAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+    private async ValueTask<Result<Unit>> PersistAsync(
+        string key,
+        ReadOnlyMemory<byte> payload,
+        ResourceLeaseReplicationEvent replicationEvent,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _objectStore.WriteAsync(key, payload, "application/json", cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+        {
+            return Err<Unit>(Error.Canceled("object storage replication persist canceled", cancellationToken)
+                .WithMetadata("replication.stage", "objectstorage.persist")
+                .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                .WithMetadata("replication.key", key));
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(Error.FromException(ex)
+                .WithMetadata("replication.stage", "objectstorage.persist")
+                .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                .WithMetadata("replication.key", key));
+        }
+    }
+
+    private async ValueTask<Result<Unit>> FanOutAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {
         if (_sinks.IsDefaultOrEmpty)
         {
-            return;
+            return Ok(Unit.Value);
         }
 
         foreach (var sink in _sinks)
         {
-            await sink.ApplyAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var applied = await sink.ApplyAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+                if (applied.IsFailure)
+                {
+                    return Err<Unit>(applied.Error!
+                        .WithMetadata("replication.stage", "objectstorage.sink")
+                        .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                        .WithMetadata("replication.sink", sink.GetType().Name));
+                }
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+            {
+                return Err<Unit>(Error.Canceled("object storage sink canceled", cancellationToken)
+                    .WithMetadata("replication.stage", "objectstorage.sink")
+                    .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                    .WithMetadata("replication.sink", sink.GetType().Name));
+            }
+            catch (Exception ex)
+            {
+                return Err<Unit>(Error.FromException(ex)
+                    .WithMetadata("replication.stage", "objectstorage.sink")
+                    .WithMetadata("replication.sequence", replicationEvent.SequenceNumber)
+                    .WithMetadata("replication.sink", sink.GetType().Name));
+            }
         }
+
+        return Ok(Unit.Value);
     }
 
     private bool TryParseSequence(string key, out long sequence)

@@ -1,6 +1,9 @@
+using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Dispatcher;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests;
@@ -130,10 +133,10 @@ public sealed class ResourceLeaseIntegrationTests
 
         public IReadOnlyList<ResourceLeaseReplicationEvent> Events => _events;
 
-        public ValueTask ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+        public ValueTask<Result<Unit>> ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
         {
             _events.Add(replicationEvent);
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(Ok(Unit.Value));
         }
     }
 }

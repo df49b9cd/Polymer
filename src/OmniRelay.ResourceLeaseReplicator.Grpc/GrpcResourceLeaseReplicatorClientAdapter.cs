@@ -1,10 +1,14 @@
+using Grpc.Core;
+using Hugo;
 using OmniRelay.Dispatcher.Grpc;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Dispatcher;
 
 public interface IGrpcResourceLeaseReplicatorClient
 {
-    ValueTask PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken);
+    ValueTask<Result<Unit>> PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken);
 }
 
 internal sealed class GrpcResourceLeaseReplicatorClientAdapter(
@@ -13,8 +17,23 @@ internal sealed class GrpcResourceLeaseReplicatorClientAdapter(
 {
     private readonly ResourceLeaseReplicatorGrpc.ResourceLeaseReplicatorGrpcClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
-    public async ValueTask PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> PublishAsync(ResourceLeaseReplicationEventMessage message, CancellationToken cancellationToken)
     {
-        await _client.PublishAsync(message, cancellationToken: cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _client.PublishAsync(message, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (RpcException rpc) when (rpc.StatusCode == StatusCode.Cancelled)
+        {
+            return Err<Unit>(Error.Canceled("gRPC publish canceled", cancellationToken)
+                .WithMetadata("replication.stage", "grpc.client.publish"));
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(Error.FromException(ex)
+                .WithMetadata("replication.stage", "grpc.client.publish")
+                .WithMetadata("replication.grpc.status", ex is RpcException grpc ? grpc.StatusCode.ToString() : string.Empty));
+        }
     }
 }
