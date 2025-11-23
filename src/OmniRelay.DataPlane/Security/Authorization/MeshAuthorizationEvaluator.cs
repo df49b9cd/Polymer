@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Http;
+using Hugo;
+using static Hugo.Go;
 
 namespace OmniRelay.Security.Authorization;
 
@@ -14,9 +16,14 @@ public sealed class MeshAuthorizationEvaluator
 
     public MeshAuthorizationDecision Evaluate(string transport, string endpoint, HttpContext context)
     {
+        return EvaluateResult(transport, endpoint, context).Value;
+    }
+
+    public Result<MeshAuthorizationDecision> EvaluateResult(string transport, string endpoint, HttpContext context)
+    {
         if (_policies.Count == 0)
         {
-            return MeshAuthorizationDecision.Allowed;
+            return Result.Ok(MeshAuthorizationDecision.Allowed);
         }
 
         var headers = context.Request.Headers;
@@ -54,12 +61,12 @@ public sealed class MeshAuthorizationEvaluator
 
             if (policy.RequireMutualTls && context.Connection.ClientCertificate is null)
             {
-                return new MeshAuthorizationDecision(false, $"Client certificate required by policy '{policy.Name}'.");
+                return Result.Ok(new MeshAuthorizationDecision(false, $"Client certificate required by policy '{policy.Name}'."));
             }
 
-            return MeshAuthorizationDecision.Allowed;
+            return Result.Ok(MeshAuthorizationDecision.Allowed);
         }
 
-        return new MeshAuthorizationDecision(false, "Authorization policy did not match.");
+        return Result.Ok(new MeshAuthorizationDecision(false, "Authorization policy did not match."));
     }
 }

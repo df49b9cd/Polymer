@@ -17,10 +17,15 @@ internal sealed class MeshAuthorizationGrpcInterceptor : Interceptor
     private Result<Unit> EnsureAuthorized(ServerCallContext context)
     {
         var httpContext = context.GetHttpContext();
-        var decision = _evaluator.Evaluate("grpc", context.Method ?? string.Empty, httpContext);
-        if (!decision.IsAllowed)
+        var decision = _evaluator.EvaluateResult("grpc", context.Method ?? string.Empty, httpContext);
+        if (decision.IsFailure)
         {
-            var message = decision.Reason ?? "Authorization failed.";
+            return Result.Fail<Unit>(decision.Error!);
+        }
+
+        if (!decision.Value.IsAllowed)
+        {
+            var message = decision.Value.Reason ?? "Authorization failed.";
             var error = Hugo.Error.From(message, "authorization.denied")
                 .WithMetadata("transport", "grpc")
                 .WithMetadata("procedure", context.Method ?? string.Empty);
