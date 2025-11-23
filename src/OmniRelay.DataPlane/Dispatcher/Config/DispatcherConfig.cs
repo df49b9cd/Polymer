@@ -1,3 +1,5 @@
+using OmniRelay.Transport.Http;
+using OmniRelay.Transport.Grpc;
 using System.Text.Json.Serialization;
 
 namespace OmniRelay.Dispatcher.Config;
@@ -23,6 +25,7 @@ public sealed class HttpInboundConfig
 {
     public string? Name { get; set; }
     public List<string> Urls { get; set; } = new();
+    public HttpServerRuntimeOptions? Runtime { get; set; }
 }
 
 public sealed class GrpcInboundConfig
@@ -30,6 +33,7 @@ public sealed class GrpcInboundConfig
     public string? Name { get; set; }
     public List<string> Urls { get; set; } = new();
     public bool? EnableDetailedErrors { get; set; }
+    public GrpcServerRuntimeOptions? Runtime { get; set; }
 }
 
 public sealed class OutboundsConfig : Dictionary<string, ServiceOutboundsConfig>

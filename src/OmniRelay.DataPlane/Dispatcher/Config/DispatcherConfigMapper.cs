@@ -71,12 +71,13 @@ internal static partial class DispatcherConfigMapper
             }
 
             var name = string.IsNullOrWhiteSpace(http.Name) ? $"http-{i}" : http.Name;
+            var runtime = http.Runtime ?? new HttpServerRuntimeOptions();
 
             var inbound = new HttpInbound(
                 http.Urls.ToArray(),
                 configureServices: null,
                 configureApp: null,
-                serverRuntimeOptions: null,
+                serverRuntimeOptions: runtime,
                 serverTlsOptions: null,
                 transportSecurity: null,
                 authorizationEvaluator: null);
@@ -96,7 +97,18 @@ internal static partial class DispatcherConfigMapper
 
             var runtime = new GrpcServerRuntimeOptions
             {
-                EnableDetailedErrors = grpc.EnableDetailedErrors
+                EnableDetailedErrors = grpc.EnableDetailedErrors,
+                EnableHttp3 = grpc.Runtime?.EnableHttp3 ?? false,
+                MaxReceiveMessageSize = grpc.Runtime?.MaxReceiveMessageSize,
+                MaxSendMessageSize = grpc.Runtime?.MaxSendMessageSize,
+                KeepAlivePingDelay = grpc.Runtime?.KeepAlivePingDelay,
+                KeepAlivePingTimeout = grpc.Runtime?.KeepAlivePingTimeout,
+                ServerStreamWriteTimeout = grpc.Runtime?.ServerStreamWriteTimeout,
+                DuplexWriteTimeout = grpc.Runtime?.DuplexWriteTimeout,
+                ServerStreamMaxMessageBytes = grpc.Runtime?.ServerStreamMaxMessageBytes,
+                DuplexMaxMessageBytes = grpc.Runtime?.DuplexMaxMessageBytes,
+                Http3 = grpc.Runtime?.Http3,
+                Interceptors = grpc.Runtime?.Interceptors ?? Array.Empty<Type>()
             };
 
             var inbound = new GrpcInbound(
@@ -273,10 +285,16 @@ internal static partial class DispatcherConfigMapper
             {
                 continue;
             }
+            var runtime = ParseHttpRuntime(http.GetSection("runtime"));
+            if (runtime.EnableHttp3 == false && bool.TryParse(http["enableHttp3"], out var enableHttp3Inline) && enableHttp3Inline)
+            {
+                runtime.EnableHttp3 = true;
+            }
             inbounds.Http.Add(new HttpInboundConfig
             {
                 Name = string.IsNullOrWhiteSpace(http["name"]) ? null : http["name"],
-                Urls = urls
+                Urls = urls,
+                Runtime = runtime
             });
         }
 
@@ -291,7 +309,8 @@ internal static partial class DispatcherConfigMapper
             {
                 Name = string.IsNullOrWhiteSpace(grpc["name"]) ? null : grpc["name"],
                 Urls = urls,
-                EnableDetailedErrors = bool.TryParse(grpc["enableDetailedErrors"], out var b) ? b : (bool?)null
+                EnableDetailedErrors = bool.TryParse(grpc["enableDetailedErrors"], out var b) ? b : (bool?)null,
+                Runtime = ParseGrpcRuntime(grpc.GetSection("runtime"))
             });
         }
 
@@ -344,6 +363,16 @@ internal static partial class DispatcherConfigMapper
                     .Where(v => !string.IsNullOrWhiteSpace(v))
                     .Select(v => v!)
                     .ToList();
+
+                if (addresses.Count == 0)
+                {
+                    addresses = targetSection.GetSection("endpoints").GetChildren()
+                        .Select(ep => ep["address"])
+                        .Where(v => !string.IsNullOrWhiteSpace(v))
+                        .Select(v => v!)
+                        .ToList();
+                }
+
                 t.Addresses = addresses;
             }
 
@@ -365,6 +394,84 @@ internal static partial class DispatcherConfigMapper
         config.Json = ParseJsonEncodings(section.GetSection("json"));
         return config;
     }
+
+    private static HttpServerRuntimeOptions ParseHttpRuntime(IConfigurationSection section)
+    {
+        var runtime = new HttpServerRuntimeOptions
+        {
+            EnableHttp3 = bool.TryParse(section["enableHttp3"], out var http3) && http3,
+            MaxRequestBodySize = TryParseLong(section["maxRequestBodySize"]),
+            MaxInMemoryDecodeBytes = TryParseLong(section["maxInMemoryDecodeBytes"]),
+            MaxRequestLineSize = TryParseInt(section["maxRequestLineSize"]),
+            MaxRequestHeadersTotalSize = TryParseInt(section["maxRequestHeadersTotalSize"]),
+            KeepAliveTimeout = TryParseTimeSpan(section["keepAliveTimeout"]),
+            RequestHeadersTimeout = TryParseTimeSpan(section["requestHeadersTimeout"]),
+            ServerStreamWriteTimeout = TryParseTimeSpan(section["serverStreamWriteTimeout"]),
+            DuplexWriteTimeout = TryParseTimeSpan(section["duplexWriteTimeout"]),
+            ServerStreamMaxMessageBytes = TryParseInt(section["serverStreamMaxMessageBytes"]),
+            DuplexMaxFrameBytes = TryParseInt(section["duplexMaxFrameBytes"]),
+            Http3 = ParseHttp3(section.GetSection("http3"))
+        };
+
+        return runtime;
+    }
+
+    private static Http3RuntimeOptions? ParseHttp3(IConfigurationSection section)
+    {
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        return new Http3RuntimeOptions
+        {
+            EnableAltSvc = TryParseBool(section["enableAltSvc"]),
+            IdleTimeout = TryParseTimeSpan(section["idleTimeout"]),
+            KeepAliveInterval = TryParseTimeSpan(section["keepAliveInterval"]),
+            MaxBidirectionalStreams = TryParseInt(section["maxBidirectionalStreams"]),
+            MaxUnidirectionalStreams = TryParseInt(section["maxUnidirectionalStreams"])
+        };
+    }
+
+    private static GrpcServerRuntimeOptions? ParseGrpcRuntime(IConfigurationSection section)
+    {
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        return new GrpcServerRuntimeOptions
+        {
+            EnableHttp3 = bool.TryParse(section["enableHttp3"], out var enable) && enable,
+            MaxReceiveMessageSize = TryParseInt(section["maxReceiveMessageSize"]),
+            MaxSendMessageSize = TryParseInt(section["maxSendMessageSize"]),
+            KeepAlivePingDelay = TryParseTimeSpan(section["keepAlivePingDelay"]),
+            KeepAlivePingTimeout = TryParseTimeSpan(section["keepAlivePingTimeout"]),
+            ServerStreamWriteTimeout = TryParseTimeSpan(section["serverStreamWriteTimeout"]),
+            DuplexWriteTimeout = TryParseTimeSpan(section["duplexWriteTimeout"]),
+            ServerStreamMaxMessageBytes = TryParseInt(section["serverStreamMaxMessageBytes"]),
+            DuplexMaxMessageBytes = TryParseInt(section["duplexMaxMessageBytes"]),
+            Http3 = ParseHttp3(section.GetSection("http3")),
+            Interceptors = section.GetSection("interceptors").GetChildren()
+                .Select(c => c.Value)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Select(Type.GetType)
+                .Where(t => t is not null)
+                .ToArray()!
+        };
+    }
+
+    private static bool? TryParseBool(string? value) =>
+        bool.TryParse(value, out var parsed) ? parsed : (bool?)null;
+
+    private static int? TryParseInt(string? value) =>
+        int.TryParse(value, out var parsed) ? parsed : (int?)null;
+
+    private static long? TryParseLong(string? value) =>
+        long.TryParse(value, out var parsed) ? parsed : (long?)null;
+
+    private static TimeSpan? TryParseTimeSpan(string? value) =>
+        TimeSpan.TryParse(value, out var parsed) ? parsed : (TimeSpan?)null;
 
     private static JsonEncodingConfig ParseJsonEncodings(IConfigurationSection section)
     {
