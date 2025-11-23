@@ -30,7 +30,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         var healthyPort = TestPortAllocator.GetRandomPort();
         var healthyBase = new Uri($"http://127.0.0.1:{healthyPort}/");
         var healthyOptions = new DispatcherOptions("observability-healthy");
-        var healthyInbound = new HttpInbound([healthyBase.ToString()]);
+        var healthyInbound = HttpInbound.TryCreate([healthyBase.ToString()]).ValueOrChecked();
         healthyOptions.AddLifecycle("observability-healthy-http", healthyInbound);
 
         var healthyDispatcher = new Dispatcher.Dispatcher(healthyOptions);

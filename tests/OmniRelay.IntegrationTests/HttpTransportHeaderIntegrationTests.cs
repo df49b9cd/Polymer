@@ -27,7 +27,7 @@ public class HttpTransportHeaderIntegrationTests
         var protoMetaSource = new TaskCompletionSource<RequestMeta>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var options = new DispatcherOptions("headers-service");
-        var inbound = new HttpInbound([baseAddress.ToString()]);
+        var inbound = HttpInbound.TryCreate([baseAddress.ToString()]).ValueOrChecked();
         options.AddLifecycle("headers-http", inbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -153,7 +153,7 @@ public class HttpTransportHeaderIntegrationTests
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
 
         var options = new DispatcherOptions("headers-errors");
-        var inbound = new HttpInbound([baseAddress.ToString()]);
+        var inbound = HttpInbound.TryCreate([baseAddress.ToString()]).ValueOrChecked();
         options.AddLifecycle("headers-errors-http", inbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);

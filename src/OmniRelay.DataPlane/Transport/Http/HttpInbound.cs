@@ -66,6 +66,45 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
     private const string HttpTransportName = "http";
     private const string Http3ProtocolName = "http3";
 
+    private static readonly Error UrlsRequiredError = Error.From("At least one URL must be provided for the HTTP inbound.", "http.inbound.urls_missing");
+
+    public static Result<HttpInbound> TryCreate(
+        IEnumerable<string> urls,
+        Action<IServiceCollection>? configureServices = null,
+        Action<WebApplication>? configureApp = null,
+        HttpServerRuntimeOptions? serverRuntimeOptions = null,
+        HttpServerTlsOptions? serverTlsOptions = null,
+        TransportSecurityPolicyEvaluator? transportSecurity = null,
+        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+    {
+        if (urls is null)
+        {
+            return Err<HttpInbound>(UrlsRequiredError);
+        }
+
+        var list = urls.ToArray();
+        if (list.Length == 0)
+        {
+            return Err<HttpInbound>(UrlsRequiredError);
+        }
+
+        try
+        {
+            return Ok(new HttpInbound(
+                list,
+                configureServices,
+                configureApp,
+                serverRuntimeOptions,
+                serverTlsOptions,
+                transportSecurity,
+                authorizationEvaluator));
+        }
+        catch (Exception ex)
+        {
+            return Err<HttpInbound>(Error.FromException(ex));
+        }
+    }
+
     [LoggerMessage(
         EventId = 1000,
         Level = LogLevel.Information,

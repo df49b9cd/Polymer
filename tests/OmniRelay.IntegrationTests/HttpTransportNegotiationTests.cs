@@ -163,7 +163,7 @@ public sealed class HttpTransportNegotiationTests(ITestOutputHelper output) : In
         HttpServerTlsOptions tlsOptions)
     {
         var options = new DispatcherOptions(serviceName);
-        var inbound = new HttpInbound([baseAddress.ToString()], serverRuntimeOptions: runtimeOptions, serverTlsOptions: tlsOptions);
+        var inbound = HttpInbound.TryCreate([baseAddress.ToString()], serverRuntimeOptions: runtimeOptions, serverTlsOptions: tlsOptions).ValueOrChecked();
         options.AddLifecycle($"{serviceName}-https", inbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);

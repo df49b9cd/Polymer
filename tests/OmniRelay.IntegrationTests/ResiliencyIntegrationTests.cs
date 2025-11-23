@@ -33,7 +33,7 @@ public class ResiliencyIntegrationTests
         var httpBase = new Uri($"http://127.0.0.1:{httpPort}/");
 
         var options = new DispatcherOptions("resiliency-http-drain");
-        var httpInbound = new HttpInbound([httpBase.ToString()]);
+        var httpInbound = HttpInbound.TryCreate([httpBase.ToString()]).ValueOrChecked();
         options.AddLifecycle("resiliency-http-drain-inbound", httpInbound);
 
         var dispatcher = new Dispatcher.Dispatcher(options);
@@ -98,7 +98,7 @@ public class ResiliencyIntegrationTests
         var grpcAddress = new Uri($"http://127.0.0.1:{grpcPort}");
 
         var options = new DispatcherOptions("resiliency-grpc-drain");
-        var grpcInbound = new GrpcInbound([grpcAddress.ToString()]);
+        var grpcInbound = GrpcInbound.TryCreate([grpcAddress.ToString()]).ValueOrChecked();
         options.AddLifecycle("resiliency-grpc-drain-inbound", grpcInbound);
 
         var dispatcher = new Dispatcher.Dispatcher(options);
@@ -159,12 +159,12 @@ public class ResiliencyIntegrationTests
         var backendPort = TestPortAllocator.GetRandomPort();
         var backendAddress = new Uri($"https://127.0.0.1:{backendPort}");
         var backendOptions = new DispatcherOptions("resiliency-handshake-backend");
-        var backendInbound = new GrpcInbound([backendAddress.ToString()], serverTlsOptions: new GrpcServerTlsOptions
+        var backendInbound = GrpcInbound.TryCreate([backendAddress.ToString()], serverTlsOptions: new GrpcServerTlsOptions
         {
             Certificate = certificate,
             ClientCertificateMode = ClientCertificateMode.RequireCertificate,
             ClientCertificateValidation = static (_, _, _) => true
-        });
+        }).ValueOrChecked();
         backendOptions.AddLifecycle("resiliency-handshake-grpc", backendInbound);
 
         var backendDispatcher = new Dispatcher.Dispatcher(backendOptions);
@@ -230,10 +230,11 @@ public class ResiliencyIntegrationTests
         var address = new Uri($"https://127.0.0.1:{port}");
 
         var backendOptions = new DispatcherOptions("resiliency-h3-backend");
-        var inbound = new GrpcInbound(
-            [address.ToString()],
-            serverTlsOptions: new GrpcServerTlsOptions { Certificate = certificate },
-            serverRuntimeOptions: new GrpcServerRuntimeOptions { EnableHttp3 = false });
+        var inbound = GrpcInbound.TryCreate(
+                [address.ToString()],
+                serverTlsOptions: new GrpcServerTlsOptions { Certificate = certificate },
+                serverRuntimeOptions: new GrpcServerRuntimeOptions { EnableHttp3 = false })
+            .ValueOrChecked();
         backendOptions.AddLifecycle("resiliency-h3-grpc", inbound);
 
         var protocolCapture = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -302,7 +303,7 @@ public class ResiliencyIntegrationTests
         var timeoutBase = new Uri($"http://127.0.0.1:{timeoutPort}/");
 
         var timeoutOptions = new DispatcherOptions("resiliency-deadlines");
-        var timeoutInbound = new HttpInbound([timeoutBase.ToString()]);
+        var timeoutInbound = HttpInbound.TryCreate([timeoutBase.ToString()]).ValueOrChecked();
         timeoutOptions.AddLifecycle("resiliency-deadlines-http", timeoutInbound);
         timeoutOptions.UnaryInboundMiddleware.Add(new DeadlineMiddleware());
 
@@ -320,7 +321,7 @@ public class ResiliencyIntegrationTests
         var cancelAddress = new Uri($"http://127.0.0.1:{cancelPort}");
 
         var cancelOptions = new DispatcherOptions("resiliency-cancel");
-        var cancelInbound = new GrpcInbound([cancelAddress.ToString()]);
+        var cancelInbound = GrpcInbound.TryCreate([cancelAddress.ToString()]).ValueOrChecked();
         cancelOptions.AddLifecycle("resiliency-cancel-grpc", cancelInbound);
 
         var cancelDispatcher = new Dispatcher.Dispatcher(cancelOptions);
@@ -420,7 +421,7 @@ public class ResiliencyIntegrationTests
         var unreachableAddress = new Uri($"http://127.0.0.1:{unreachablePort}");
 
         var clientOptions = new DispatcherOptions("resiliency-peers-client");
-        var httpInbound = new HttpInbound([httpBase.ToString()]);
+        var httpInbound = HttpInbound.TryCreate([httpBase.ToString()]).ValueOrChecked();
         clientOptions.AddLifecycle("resiliency-peers-http", httpInbound);
 
         var grpcOutbound = new GrpcOutbound(

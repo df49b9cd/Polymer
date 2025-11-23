@@ -29,6 +29,7 @@ namespace OmniRelay.Transport.Grpc;
 /// </summary>
 public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcServerInterceptorSink, INodeDrainParticipant
 {
+    private static readonly Error UrlsRequired = Error.From("At least one URL must be provided for the gRPC inbound.", "grpc.inbound.urls_missing");
     private readonly string[] _urls;
     private readonly Action<IServiceCollection>? _configureServices;
     private readonly Action<WebApplication>? _configureApp;
@@ -60,6 +61,47 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
     /// <param name="telemetryOptions">Optional telemetry options such as logging toggles.</param>
     /// <param name="transportSecurity"></param>
     /// <param name="authorizationEvaluator"></param>
+    public static Result<GrpcInbound> TryCreate(
+        IEnumerable<string> urls,
+        Action<IServiceCollection>? configureServices = null,
+        Action<WebApplication>? configureApp = null,
+        GrpcServerTlsOptions? serverTlsOptions = null,
+        GrpcServerRuntimeOptions? serverRuntimeOptions = null,
+        GrpcCompressionOptions? compressionOptions = null,
+        GrpcTelemetryOptions? telemetryOptions = null,
+        TransportSecurityPolicyEvaluator? transportSecurity = null,
+        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+    {
+        if (urls is null)
+        {
+            return Err<GrpcInbound>(UrlsRequired);
+        }
+
+        var list = urls.ToArray();
+        if (list.Length == 0)
+        {
+            return Err<GrpcInbound>(UrlsRequired);
+        }
+
+        try
+        {
+            return Ok(new GrpcInbound(
+                list,
+                configureServices,
+                configureApp,
+                serverTlsOptions,
+                serverRuntimeOptions,
+                compressionOptions,
+                telemetryOptions,
+                transportSecurity,
+                authorizationEvaluator));
+        }
+        catch (Exception ex)
+        {
+            return Err<GrpcInbound>(Error.FromException(ex));
+        }
+    }
+
     public GrpcInbound(
         IEnumerable<string> urls,
         Action<IServiceCollection>? configureServices = null,
