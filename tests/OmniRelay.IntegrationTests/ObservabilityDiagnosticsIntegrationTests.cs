@@ -30,7 +30,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         var healthyPort = TestPortAllocator.GetRandomPort();
         var healthyBase = new Uri($"http://127.0.0.1:{healthyPort}/");
         var healthyOptions = new DispatcherOptions("observability-healthy");
-        var healthyInbound = HttpInbound.TryCreate([healthyBase.ToString()]).ValueOrChecked();
+        var healthyInbound = HttpInbound.TryCreate([healthyBase]).ValueOrChecked();
         healthyOptions.AddLifecycle("observability-healthy-http", healthyInbound);
 
         var healthyDispatcher = new Dispatcher.Dispatcher(healthyOptions);
@@ -251,7 +251,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         var address = new Uri($"http://127.0.0.1:{port}");
 
         var serverOptions = new DispatcherOptions(serviceName);
-        var grpcInbound = GrpcInbound.TryCreate([address.ToString()]).ValueOrChecked();
+        var grpcInbound = GrpcInbound.TryCreate([address]).ValueOrChecked();
         serverOptions.AddLifecycle("observability-grpc-inbound", grpcInbound);
         var serverDispatcher = new Dispatcher.Dispatcher(serverOptions);
         serverDispatcher.RegisterTestService(new StreamingProbeService());

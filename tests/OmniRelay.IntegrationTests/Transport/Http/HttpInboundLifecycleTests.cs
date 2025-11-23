@@ -23,7 +23,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
 
         var options = new DispatcherOptions("lifecycle");
-        var httpInbound = HttpInbound.TryCreate([baseAddress.ToString()]).ValueOrChecked();
+        var httpInbound = HttpInbound.TryCreate([baseAddress]).ValueOrChecked();
         options.AddLifecycle("http-inbound", httpInbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -79,7 +79,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
         var baseAddress = new Uri($"http://127.0.0.1:{port}/");
 
         var options = new DispatcherOptions("lifecycle-restart");
-        var httpInbound = HttpInbound.TryCreate([baseAddress.ToString()]).ValueOrChecked();
+        var httpInbound = HttpInbound.TryCreate([baseAddress]).ValueOrChecked();
         options.AddLifecycle("http-inbound", httpInbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -156,7 +156,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
         var tls = new HttpServerTlsOptions { Certificate = certificate };
 
         var options = new DispatcherOptions("lifecycle-http3");
-        var httpInbound = HttpInbound.TryCreate([baseAddress.ToString()], serverRuntimeOptions: runtime, serverTlsOptions: tls).ValueOrChecked();
+        var httpInbound = HttpInbound.TryCreate([baseAddress], serverRuntimeOptions: runtime, serverTlsOptions: tls).ValueOrChecked();
         options.AddLifecycle("http-inbound-http3", httpInbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
@@ -226,7 +226,7 @@ public sealed class HttpInboundLifecycleTests(ITestOutputHelper output) : Transp
         var tls = new HttpServerTlsOptions { Certificate = certificate };
 
         var options = new DispatcherOptions("lifecycle-http3-fallback");
-        var httpInbound = HttpInbound.TryCreate([baseAddress.ToString()], serverRuntimeOptions: runtime, serverTlsOptions: tls).ValueOrChecked();
+        var httpInbound = HttpInbound.TryCreate([baseAddress], serverRuntimeOptions: runtime, serverTlsOptions: tls).ValueOrChecked();
         options.AddLifecycle("http-inbound-http3-fallback", httpInbound);
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);

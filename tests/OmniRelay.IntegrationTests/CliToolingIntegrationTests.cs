@@ -89,7 +89,7 @@ public sealed class CliToolingIntegrationTests
         var baseAddress = new Uri($"http://127.0.0.1:{httpPort}/");
 
         var options = new DispatcherOptions(serviceName);
-        var httpInbound = HttpInbound.TryCreate([baseAddress.ToString()]).ValueOrChecked();
+        var httpInbound = HttpInbound.TryCreate([baseAddress]).ValueOrChecked();
         options.AddLifecycle("cli-http", httpInbound);
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 
