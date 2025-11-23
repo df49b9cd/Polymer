@@ -39,7 +39,7 @@ COPY global.json Directory.Build.props Directory.Build.targets Directory.Package
 COPY branding ./branding
 COPY eng ./eng
 
-# Copy source + test projects (and samples used in AOT smoke tests)
+# Copy source + test projects (no samples required)
 COPY src ./src
 COPY tests ./tests
 

@@ -39,7 +39,6 @@ WORKDIR /repo
 COPY global.json Directory.Build.props Directory.Packages.props OmniRelay.slnx ./
 COPY src ./src
 COPY tests ./tests
-COPY samples ./samples
 COPY docs ./docs
 COPY branding ./branding
 COPY eng ./eng
