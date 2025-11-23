@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Globalization;
 using Hugo;
+using static Hugo.Go;
 using OmniRelay.ControlPlane.Throttling;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
@@ -115,20 +116,27 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
     private static void ConfigureResourceLeaseCodec<TRequest, TResponse>(JsonCodecBuilder<TRequest, TResponse> builder) =>
         builder.SerializerContext ??= ResourceLeaseJson.Context;
 
-    private async ValueTask<ResourceLeaseEnqueueResponse> HandleEnqueue(JsonUnaryContext context, ResourceLeaseEnqueueRequest request)
+    private async ValueTask<Result<ResourceLeaseEnqueueResponse>> HandleEnqueue(JsonUnaryContext context, ResourceLeaseEnqueueRequest request)
     {
         await WaitForBackpressureAsync(context.CancellationToken).ConfigureAwait(false);
 
         if (request.Payload is null)
         {
-            throw new ResultException(Error.From("resource lease payload is required", "error.resourcelease.payload_missing", cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null));
+            return Err<ResourceLeaseEnqueueResponse>(Error.From(
+                "resource lease payload is required",
+                "error.resourcelease.payload_missing",
+                cause: null!,
+                metadata: (IReadOnlyDictionary<string, object?>?)null));
         }
 
         var workItem = ResourceLeaseWorkItem.FromPayload(request.Payload);
         var enqueue = await _safeQueue.EnqueueAsync(workItem, context.CancellationToken).ConfigureAwait(false);
-        enqueue.ThrowIfFailure();
+        if (enqueue.IsFailure)
+        {
+            return Err<ResourceLeaseEnqueueResponse>(enqueue.Error!);
+        }
 
-        await PublishReplicationAsync(
+        var replicationResult = await PublishReplicationAsync(
             ResourceLeaseReplicationEventType.Enqueue,
             ownership: null,
             ResolvePeerId(context.RequestMeta, null),
@@ -136,15 +144,24 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             error: null,
             additionalMetadata: null,
             context.CancellationToken).ConfigureAwait(false);
+        if (replicationResult.IsFailure)
+        {
+            return replicationResult.CastFailure<ResourceLeaseEnqueueResponse>();
+        }
 
         EvaluateBackpressure();
-        return new ResourceLeaseEnqueueResponse(GetStats());
+        return Ok(new ResourceLeaseEnqueueResponse(GetStats()));
     }
 
-    private async ValueTask<ResourceLeaseLeaseResponse> HandleLease(JsonUnaryContext context, ResourceLeaseLeaseRequest request)
+    private async ValueTask<Result<ResourceLeaseLeaseResponse>> HandleLease(JsonUnaryContext context, ResourceLeaseLeaseRequest request)
     {
         var leaseResult = await _safeQueue.LeaseAsync(context.CancellationToken).ConfigureAwait(false);
-        var lease = leaseResult.ValueOrThrow();
+        if (leaseResult.IsFailure)
+        {
+            return Err<ResourceLeaseLeaseResponse>(leaseResult.Error!);
+        }
+
+        var lease = leaseResult.Value;
 
         if (!_leases.TryAdd(lease.OwnershipToken, lease))
         {
@@ -154,7 +171,11 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
                 requeue: true,
                 context.CancellationToken).ConfigureAwait(false);
 
-            throw new ResultException(Error.From("duplicate ownership token detected", "error.resourcelease.duplicate_token", cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null));
+            return Err<ResourceLeaseLeaseResponse>(Error.From(
+                "duplicate ownership token detected",
+                "error.resourcelease.duplicate_token",
+                cause: null!,
+                metadata: (IReadOnlyDictionary<string, object?>?)null));
         }
 
         var ownerPeerId = ResolvePeerId(context.RequestMeta, request?.PeerId);
@@ -171,7 +192,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             }
         }
 
-        await PublishReplicationAsync(
+        var replicationResult = await PublishReplicationAsync(
             ResourceLeaseReplicationEventType.LeaseGranted,
             leaseHandle,
             ownerPeerId,
@@ -179,16 +200,24 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             ResourceLeaseErrorInfo.FromError(lease.LastError),
             additionalMetadata: null,
             context.CancellationToken).ConfigureAwait(false);
+        if (replicationResult.IsFailure)
+        {
+            return replicationResult.CastFailure<ResourceLeaseLeaseResponse>();
+        }
 
         EvaluateBackpressure();
-        return ResourceLeaseLeaseResponse.FromLease(lease, ownerPeerId);
+        return Ok(ResourceLeaseLeaseResponse.FromLease(lease, ownerPeerId));
     }
 
-    private async ValueTask<ResourceLeaseAcknowledgeResponse> HandleComplete(JsonUnaryContext context, ResourceLeaseCompleteRequest request)
+    private async ValueTask<Result<ResourceLeaseAcknowledgeResponse>> HandleComplete(JsonUnaryContext context, ResourceLeaseCompleteRequest request)
     {
         if (!TryGetLease(request.OwnershipToken, out var lease))
         {
-            return ResourceLeaseAcknowledgeResponse.NotFound("error.resourcelease.unknown_token", "Lease token was not found.");
+            return Err<ResourceLeaseAcknowledgeResponse>(Error.From(
+                "Lease token was not found.",
+                "error.resourcelease.unknown_token",
+                cause: null!,
+                metadata: (IReadOnlyDictionary<string, object?>?)null));
         }
 
         var ownerId = TryGetLeaseOwner(request.OwnershipToken, out var resolvedOwner) ? resolvedOwner : null;
@@ -196,12 +225,12 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         var complete = await lease!.CompleteAsync(context.CancellationToken).ConfigureAwait(false);
         if (complete.IsFailure)
         {
-            return ResourceLeaseAcknowledgeResponse.FromError(complete.Error!);
+            return Err<ResourceLeaseAcknowledgeResponse>(complete.Error!);
         }
 
         CleanupLease(request.OwnershipToken, ownerId, requeued: false);
 
-        await PublishReplicationAsync(
+        var completionReplication = await PublishReplicationAsync(
             ResourceLeaseReplicationEventType.Completed,
             request.OwnershipToken,
             ownerId,
@@ -209,8 +238,12 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             error: null,
             additionalMetadata: null,
             context.CancellationToken).ConfigureAwait(false);
+        if (completionReplication.IsFailure)
+        {
+            return completionReplication.CastFailure<ResourceLeaseAcknowledgeResponse>();
+        }
 
-        await PublishReplicationAsync(
+        var heartbeatReplication = await PublishReplicationAsync(
             ResourceLeaseReplicationEventType.Heartbeat,
             request.OwnershipToken,
             ownerId,
@@ -218,22 +251,30 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             error: null,
             additionalMetadata: null,
             context.CancellationToken).ConfigureAwait(false);
+        if (heartbeatReplication.IsFailure)
+        {
+            return heartbeatReplication.CastFailure<ResourceLeaseAcknowledgeResponse>();
+        }
 
         EvaluateBackpressure();
-        return ResourceLeaseAcknowledgeResponse.Ack();
+        return Ok(ResourceLeaseAcknowledgeResponse.Ack());
     }
 
-    private async ValueTask<ResourceLeaseAcknowledgeResponse> HandleHeartbeat(JsonUnaryContext context, ResourceLeaseHeartbeatRequest request)
+    private async ValueTask<Result<ResourceLeaseAcknowledgeResponse>> HandleHeartbeat(JsonUnaryContext context, ResourceLeaseHeartbeatRequest request)
     {
         if (!TryGetLease(request.OwnershipToken, out var lease))
         {
-            return ResourceLeaseAcknowledgeResponse.NotFound("error.resourcelease.unknown_token", "Lease token was not found.");
+            return Err<ResourceLeaseAcknowledgeResponse>(Error.From(
+                "Lease token was not found.",
+                "error.resourcelease.unknown_token",
+                cause: null!,
+                metadata: (IReadOnlyDictionary<string, object?>?)null));
         }
 
         var heartbeat = await lease!.HeartbeatAsync(context.CancellationToken).ConfigureAwait(false);
         if (heartbeat.IsFailure)
         {
-            return ResourceLeaseAcknowledgeResponse.FromError(heartbeat.Error!);
+            return Err<ResourceLeaseAcknowledgeResponse>(heartbeat.Error!);
         }
 
         if (TryGetLeaseOwner(request.OwnershipToken, out var resolvedHeartbeatOwner) && resolvedHeartbeatOwner is not null)
@@ -241,14 +282,18 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             _leaseHealthTracker?.RecordLeaseHeartbeat(resolvedHeartbeatOwner, ToPeerHandle(request.OwnershipToken), _queue.PendingCount);
         }
 
-        return ResourceLeaseAcknowledgeResponse.Ack();
+        return Ok(ResourceLeaseAcknowledgeResponse.Ack());
     }
 
-    private async ValueTask<ResourceLeaseAcknowledgeResponse> HandleFail(JsonUnaryContext context, ResourceLeaseFailRequest request)
+    private async ValueTask<Result<ResourceLeaseAcknowledgeResponse>> HandleFail(JsonUnaryContext context, ResourceLeaseFailRequest request)
     {
         if (!TryGetLease(request.OwnershipToken, out var lease))
         {
-            return ResourceLeaseAcknowledgeResponse.NotFound("error.resourcelease.unknown_token", "Lease token was not found.");
+            return Err<ResourceLeaseAcknowledgeResponse>(Error.From(
+                "Lease token was not found.",
+                "error.resourcelease.unknown_token",
+                cause: null!,
+                metadata: (IReadOnlyDictionary<string, object?>?)null));
         }
 
         var error = request.ToError();
@@ -257,7 +302,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         var fail = await lease!.FailAsync(error, request.Requeue, context.CancellationToken).ConfigureAwait(false);
         if (fail.IsFailure)
         {
-            return ResourceLeaseAcknowledgeResponse.FromError(fail.Error!);
+            return Err<ResourceLeaseAcknowledgeResponse>(fail.Error!);
         }
 
         CleanupLease(request.OwnershipToken, ownerId, requeued: request.Requeue);
@@ -266,7 +311,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             _leaseHealthTracker?.RecordDisconnect(ownerId, request.Reason);
         }
 
-        await PublishReplicationAsync(
+        var replicationResult = await PublishReplicationAsync(
             ResourceLeaseReplicationEventType.Failed,
             request.OwnershipToken,
             ownerId,
@@ -277,12 +322,16 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
                 { "failure.requeued", request.Requeue.ToString(CultureInfo.InvariantCulture) }
             },
             context.CancellationToken).ConfigureAwait(false);
+        if (replicationResult.IsFailure)
+        {
+            return replicationResult.CastFailure<ResourceLeaseAcknowledgeResponse>();
+        }
 
         EvaluateBackpressure();
-        return ResourceLeaseAcknowledgeResponse.Ack();
+        return Ok(ResourceLeaseAcknowledgeResponse.Ack());
     }
 
-    private async ValueTask<ResourceLeaseDrainResponse> HandleDrain(JsonUnaryContext context, ResourceLeaseDrainRequest request)
+    private async ValueTask<Result<ResourceLeaseDrainResponse>> HandleDrain(JsonUnaryContext context, ResourceLeaseDrainRequest request)
     {
         var drained = await _queue.DrainPendingItemsAsync(context.CancellationToken).ConfigureAwait(false);
         var payloads = drained
@@ -295,7 +344,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             { "drain.count", payloads.Length.ToString(CultureInfo.InvariantCulture) }
         };
 
-        await PublishReplicationAsync(
+        var replicationResult = await PublishReplicationAsync(
             ResourceLeaseReplicationEventType.DrainSnapshot,
             ownership: null,
             peerId: null,
@@ -303,16 +352,20 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             error: null,
             drainMetadata,
             context.CancellationToken).ConfigureAwait(false);
+        if (replicationResult.IsFailure)
+        {
+            return replicationResult.CastFailure<ResourceLeaseDrainResponse>();
+        }
 
         EvaluateBackpressure();
-        return new ResourceLeaseDrainResponse(payloads);
+        return Ok(new ResourceLeaseDrainResponse(payloads));
     }
 
-    private async ValueTask<ResourceLeaseRestoreResponse> HandleRestore(JsonUnaryContext context, ResourceLeaseRestoreRequest request)
+    private async ValueTask<Result<ResourceLeaseRestoreResponse>> HandleRestore(JsonUnaryContext context, ResourceLeaseRestoreRequest request)
     {
         if (request.Items is null || request.Items.Count == 0)
         {
-            return new ResourceLeaseRestoreResponse(0);
+            return Ok(new ResourceLeaseRestoreResponse(0));
         }
 
         var pending = request.Items
@@ -325,7 +378,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             { "restore.count", pending.Count.ToString(CultureInfo.InvariantCulture) }
         };
 
-        await PublishReplicationAsync(
+        var replicationResult = await PublishReplicationAsync(
             ResourceLeaseReplicationEventType.RestoreSnapshot,
             ownership: null,
             peerId: null,
@@ -333,9 +386,13 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
             error: null,
             restoreMetadata,
             context.CancellationToken).ConfigureAwait(false);
+        if (replicationResult.IsFailure)
+        {
+            return replicationResult.CastFailure<ResourceLeaseRestoreResponse>();
+        }
 
         EvaluateBackpressure();
-        return new ResourceLeaseRestoreResponse(pending.Count);
+        return Ok(new ResourceLeaseRestoreResponse(pending.Count));
     }
 
     private ResourceLeaseQueueStats GetStats()
@@ -512,7 +569,7 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         }
     }
 
-    private async ValueTask PublishReplicationAsync(
+    private async ValueTask<Result<Unit>> PublishReplicationAsync(
         ResourceLeaseReplicationEventType eventType,
         ResourceLeaseOwnershipHandle? ownership,
         string? peerId,
@@ -521,24 +578,39 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         IReadOnlyDictionary<string, string>? additionalMetadata,
         CancellationToken cancellationToken)
     {
-        var metadata = MergeMetadata(additionalMetadata);
-        var replicationEvent = ResourceLeaseReplicationEvent.Create(
-            eventType,
-            ownership,
-            string.IsNullOrWhiteSpace(peerId) ? null : peerId,
-            payload,
-            error,
-            metadata);
-        ResourceLeaseReplicationMetrics.RecordReplicationEvent(replicationEvent);
-
-        if (_replicator is not null)
+        try
         {
-            await _replicator.PublishAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+            var metadata = MergeMetadata(additionalMetadata);
+            var replicationEvent = ResourceLeaseReplicationEvent.Create(
+                eventType,
+                ownership,
+                string.IsNullOrWhiteSpace(peerId) ? null : peerId,
+                payload,
+                error,
+                metadata);
+            ResourceLeaseReplicationMetrics.RecordReplicationEvent(replicationEvent);
+
+            if (_replicator is not null)
+            {
+                await _replicator.PublishAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (_deterministicCoordinator is not null)
+            {
+                var deterministic = await _deterministicCoordinator.RecordAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+                if (deterministic.IsFailure)
+                {
+                    return deterministic;
+                }
+            }
+
+            return Ok(Unit.Value);
         }
-
-        if (_deterministicCoordinator is not null)
+        catch (Exception ex)
         {
-            await _deterministicCoordinator.RecordAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
+            return Err<Unit>(Error.FromException(ex)
+                .WithMetadata("eventType", eventType.ToString())
+                .WithMetadata("peerId", peerId ?? string.Empty));
         }
     }
 

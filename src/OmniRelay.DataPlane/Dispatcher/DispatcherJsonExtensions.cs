@@ -75,6 +75,69 @@ public static class DispatcherJsonExtensions
     }
 
     /// <summary>
+    /// Registers a JSON unary procedure with a typed handler that returns a Hugo <see cref="Result{T}"/> to avoid exception-based failures.
+    /// </summary>
+    public static void RegisterJsonUnary<TRequest, TResponse>(
+        this Dispatcher dispatcher,
+        string name,
+        Func<JsonUnaryContext, TRequest, ValueTask<Result<TResponse>>> handler,
+        Action<JsonCodecBuilder<TRequest, TResponse>>? configureCodec = null,
+        Action<UnaryProcedureBuilder>? configureProcedure = null)
+    {
+        ArgumentNullException.ThrowIfNull(dispatcher);
+        ArgumentNullException.ThrowIfNull(handler);
+
+        var codec = BuildCodec(configureCodec);
+
+        async ValueTask<Result<Response<ReadOnlyMemory<byte>>>> Wrapper(IRequest<ReadOnlyMemory<byte>> rawRequest, CancellationToken cancellationToken)
+        {
+            var decode = codec.DecodeRequest(rawRequest.Body, rawRequest.Meta);
+
+            var handlerResult = await decode
+                .ThenValueTaskAsync(
+                    async (typedRequest, token) =>
+                    {
+                        try
+                        {
+                            var context = new JsonUnaryContext(dispatcher, rawRequest.Meta, token);
+                            return await handler(context, typedRequest).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            return OmniRelayErrors.ToResult<TResponse>(ex, rawRequest.Meta.Transport ?? "json");
+                        }
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            return handlerResult.Then(typedResponse =>
+            {
+                var response = Response<TResponse>.Create(typedResponse, new ResponseMeta());
+                var responseMeta = EnsureEncoding(response.Meta, codec.Encoding);
+                return codec.EncodeResponse(response.Body, responseMeta)
+                    .Map(payload => Response<ReadOnlyMemory<byte>>.Create(payload, responseMeta));
+            });
+        }
+
+        dispatcher.RegisterUnary(name, builder =>
+        {
+            builder.Handle(Wrapper);
+            builder.WithEncoding(codec.Encoding);
+            configureProcedure?.Invoke(builder);
+        }).ThrowIfFailure();
+
+        if (dispatcher.TryGetProcedure(name, ProcedureKind.Unary, out var spec) &&
+            spec is UnaryProcedureSpec unarySpec)
+        {
+            dispatcher.Codecs.RegisterInbound(unarySpec.Name, ProcedureKind.Unary, codec, unarySpec.Aliases);
+        }
+        else
+        {
+            dispatcher.Codecs.RegisterInbound(name, ProcedureKind.Unary, codec);
+        }
+    }
+
+    /// <summary>
     /// Registers a JSON unary procedure with a typed handler that returns a response body only.
     /// </summary>
     public static void RegisterJsonUnary<TRequest, TResponse>(

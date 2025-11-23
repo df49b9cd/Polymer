@@ -126,7 +126,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
         var http3Validation = ValidateHttp3Options(enableHttp3, http3RuntimeOptions);
         if (http3Validation.IsFailure)
         {
-            throw new ResultException(http3Validation.Error!);
+            throw new InvalidOperationException(http3Validation.Error?.Message ?? "Invalid HTTP/3 configuration for gRPC inbound.");
         }
 
         if (enableHttp3)
@@ -195,7 +195,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
                         var endpointCheck = ValidateHttp3Endpoint(url);
                         if (endpointCheck.IsFailure)
                         {
-                            throw new ResultException(endpointCheck.Error!);
+                            throw new InvalidOperationException(endpointCheck.Error?.Message ?? "Invalid HTTP/3 endpoint configuration.");
                         }
 
                         Http3RuntimeGuards.EnsureServerSupport(url, _serverTlsOptions?.Certificate);
@@ -220,10 +220,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
                         var enabledProtocols = _serverTlsOptions.EnabledProtocols;
                         if (enableHttp3 && enabledProtocols is { } specifiedProtocols && (specifiedProtocols & SslProtocols.Tls13) == 0)
                         {
-                            throw new ResultException(OmniRelayErrorAdapter.FromStatus(
-                                OmniRelayStatusCode.InvalidArgument,
-                                $"HTTP/3 requires TLS 1.3 but the configured protocol set for '{url}' excludes it.",
-                                transport: GrpcTransportConstants.TransportName));
+                            throw new InvalidOperationException($"HTTP/3 requires TLS 1.3 but the configured protocol set for '{url}' excludes it.");
                         }
 
                         var httpsOptions = new HttpsConnectionAdapterOptions

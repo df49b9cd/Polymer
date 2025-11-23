@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text.Json;
 using Hugo;
+using static Hugo.Go;
 using Microsoft.AspNetCore.Http;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
@@ -44,10 +45,9 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
 
         if (_runtimeOptions?.EnableHttp3 == true && !_requestUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
         {
-            throw new ResultException(OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.InvalidArgument,
+            throw new ArgumentException(
                 "HTTP/3 requests require HTTPS endpoints. Update the request URI or disable HTTP/3 for this outbound.",
-                transport: HttpTransportHeaders.Transport));
+                nameof(requestUri));
         }
     }
 
@@ -362,7 +362,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         IRequest<ReadOnlyMemory<byte>> request,
         HttpOutboundCallKind callKind,
         HttpCompletionOption completionOption,
-        Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, Task<T>> handler,
+        Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, Task<Result<T>>> handler,
         CancellationToken cancellationToken)
     {
         return Go.Ok(request)
@@ -378,27 +378,28 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         IRequest<ReadOnlyMemory<byte>> request,
         HttpOutboundCallKind callKind,
         HttpCompletionOption completionOption,
-        Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, Task<T>> handler,
+        Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, Task<Result<T>>> handler,
         CancellationToken cancellationToken)
     {
         async ValueTask<Result<T>> InvokeAsync(CancellationToken token)
         {
-            return await Result.TryAsync(
-                async innerToken =>
-                {
-                    using var httpRequest = BuildHttpRequest(request);
-                    using var response = await SendWithMiddlewareAsync(
-                            httpRequest,
-                            request.Meta,
-                            callKind,
-                            completionOption,
-                            innerToken)
-                        .ConfigureAwait(false);
+            try
+            {
+                using var httpRequest = BuildHttpRequest(request);
+                using var response = await SendWithMiddlewareAsync(
+                        httpRequest,
+                        request.Meta,
+                        callKind,
+                        completionOption,
+                        token)
+                    .ConfigureAwait(false);
 
-                    return await handler(httpRequest, response, innerToken).ConfigureAwait(false);
-                },
-                errorFactory: NormalizeHttpOutboundException,
-                cancellationToken: token).ConfigureAwait(false);
+                return await handler(httpRequest, response, token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return Err<T>(NormalizeHttpOutboundException(ex));
+            }
         }
 
         var timeout = ResolveRequestTimeout(request.Meta);
@@ -419,7 +420,7 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         return InvokeAsync(cancellationToken);
     }
 
-    private async Task<Response<ReadOnlyMemory<byte>>> HandleUnaryResponseAsync(
+    private async Task<Result<Response<ReadOnlyMemory<byte>>>> HandleUnaryResponseAsync(
         HttpRequestMessage httpRequest,
         HttpResponseMessage response,
         RequestMeta requestMeta,
@@ -432,14 +433,14 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
 
         if (response.IsSuccessStatusCode)
         {
-            return Response<ReadOnlyMemory<byte>>.Create(payload, responseMeta);
+            return Ok(Response<ReadOnlyMemory<byte>>.Create(payload, responseMeta));
         }
 
         var error = await ReadErrorAsync(response, "http", cancellationToken, payload).ConfigureAwait(false);
-        throw new ResultException(error);
+        return Err<Response<ReadOnlyMemory<byte>>>(error);
     }
 
-    private async Task<OnewayAck> HandleOnewayResponseAsync(
+    private async Task<Result<OnewayAck>> HandleOnewayResponseAsync(
         HttpRequestMessage httpRequest,
         HttpResponseMessage response,
         RequestMeta requestMeta,
@@ -451,11 +452,11 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         if (response.StatusCode == HttpStatusCode.Accepted ||
             response.StatusCode == (HttpStatusCode)StatusCodes.Status202Accepted)
         {
-            return OnewayAck.Ack(responseMeta);
+            return Ok(OnewayAck.Ack(responseMeta));
         }
 
         var error = await ReadErrorAsync(response, "http", cancellationToken).ConfigureAwait(false);
-        throw new ResultException(error);
+        return Err<OnewayAck>(error);
     }
 
     private void RecordHttp3Fallback(

@@ -136,10 +136,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var invalidEndpoint = _addresses.FirstOrDefault(static uri => !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
             if (invalidEndpoint is not null)
             {
-                throw new ResultException(OmniRelayErrorAdapter.FromStatus(
-                    OmniRelayStatusCode.InvalidArgument,
+                throw new ArgumentException(
                     $"HTTP/3 enabled for gRPC outbound '{remoteService}' but address '{invalidEndpoint}' is not HTTPS. Update configuration or disable HTTP/3.",
-                    transport: GrpcTransportConstants.TransportName));
+                    nameof(addresses));
             }
         }
         _compressionOptions = compressionOptions;
@@ -160,7 +159,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var validation = compression.Validate();
             if (validation.IsFailure)
             {
-                throw new ResultException(validation.Error!);
+                var message = validation.Error?.Message ?? "Compression options are invalid.";
+                throw new ArgumentException(message, nameof(compressionOptions));
             }
 
             var providers = compression.Providers.Count > 0
@@ -326,15 +326,22 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var payload = GetCachedArray(request.Body);
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Response<ReadOnlyMemory<byte>>>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<Response<ReadOnlyMemory<byte>>>>>(
                     async (invoker, options, innerToken) =>
                     {
-                        var call = invoker.AsyncUnaryCall(method, null, options, payload);
-                        var body = await call.ResponseAsync.ConfigureAwait(false);
-                        var headers = await call.ResponseHeadersAsync.ConfigureAwait(false);
-                        var trailers = call.GetTrailers();
-                        var responseMeta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
-                        return Response<ReadOnlyMemory<byte>>.Create(body, responseMeta);
+                        try
+                        {
+                            var call = invoker.AsyncUnaryCall(method, null, options, payload);
+                            var body = await call.ResponseAsync.ConfigureAwait(false);
+                            var headers = await call.ResponseHeadersAsync.ConfigureAwait(false);
+                            var trailers = call.GetTrailers();
+                            var responseMeta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
+                            return Ok(Response<ReadOnlyMemory<byte>>.Create(body, responseMeta));
+                        }
+                        catch (Exception ex)
+                        {
+                            return Err<Response<ReadOnlyMemory<byte>>>(NormalizeCallException(ex));
+                        }
                     });
 
                 var callResult = await ExecuteGrpcCallAsync(context, request.Meta, callOptions, operation, token).ConfigureAwait(false);
@@ -378,15 +385,22 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var payload = GetCachedArray(request.Body);
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<OnewayAck>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<OnewayAck>>>(
                     async (invoker, options, innerToken) =>
                     {
-                        var call = invoker.AsyncUnaryCall(method, null, options, payload);
-                        await call.ResponseAsync.ConfigureAwait(false);
-                        var headers = await call.ResponseHeadersAsync.ConfigureAwait(false);
-                        var trailers = call.GetTrailers();
-                        var responseMeta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
-                        return OnewayAck.Ack(responseMeta);
+                        try
+                        {
+                            var call = invoker.AsyncUnaryCall(method, null, options, payload);
+                            await call.ResponseAsync.ConfigureAwait(false);
+                            var headers = await call.ResponseHeadersAsync.ConfigureAwait(false);
+                            var trailers = call.GetTrailers();
+                            var responseMeta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
+                            return Ok(OnewayAck.Ack(responseMeta));
+                        }
+                        catch (Exception ex)
+                        {
+                            return Err<OnewayAck>(NormalizeCallException(ex));
+                        }
                     });
 
                 var callResult = await ExecuteGrpcCallAsync(context, request.Meta, callOptions, operation, token).ConfigureAwait(false);
@@ -446,19 +460,26 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var payload = GetCachedArray(request.Body);
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<IStreamCall>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<IStreamCall>>>(
                     async (invoker, options, innerToken) =>
                     {
-                        var call = invoker.AsyncServerStreamingCall(method, null, options, payload);
-                        var streamCallResult = await GrpcClientStreamCall.CreateAsync(request.Meta, call, innerToken).ConfigureAwait(false);
-
-                        if (streamCallResult.IsFailure)
+                        try
                         {
-                            call.Dispose();
-                            throw new ResultException(streamCallResult.Error!);
-                        }
+                            var call = invoker.AsyncServerStreamingCall(method, null, options, payload);
+                            var streamCallResult = await GrpcClientStreamCall.CreateAsync(request.Meta, call, innerToken).ConfigureAwait(false);
 
-                        return streamCallResult.Value;
+                            if (streamCallResult.IsFailure)
+                            {
+                                call.Dispose();
+                                return streamCallResult.CastFailure<IStreamCall>();
+                            }
+
+                            return Ok((IStreamCall)streamCallResult.Value);
+                        }
+                        catch (Exception ex)
+                        {
+                            return Err<IStreamCall>(NormalizeCallException(ex));
+                        }
                     });
 
                 var streamResult = await ExecuteGrpcCallAsync(context, request.Meta, callOptions, operation, token).ConfigureAwait(false);
@@ -520,12 +541,19 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var callCts = CancellationTokenSource.CreateLinkedTokenSource(token, cancellationToken);
                 var callOptions = CreateCallOptions(requestMeta, callCts.Token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<IClientStreamTransportCall>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<IClientStreamTransportCall>>>(
                     (invoker, options, innerToken) =>
                     {
-                        var call = invoker.AsyncClientStreamingCall(method, null, options);
-                        IClientStreamTransportCall transportCall = new GrpcClientStreamTransportCall(requestMeta, call, null, callCts);
-                        return ValueTask.FromResult(transportCall);
+                        try
+                        {
+                            var call = invoker.AsyncClientStreamingCall(method, null, options);
+                            IClientStreamTransportCall transportCall = new GrpcClientStreamTransportCall(requestMeta, call, null, callCts);
+                            return ValueTask.FromResult(Ok(transportCall));
+                        }
+                        catch (Exception ex)
+                        {
+                            return ValueTask.FromResult(Err<IClientStreamTransportCall>(NormalizeCallException(ex)));
+                        }
                     });
 
                 var clientResult = await ExecuteGrpcCallAsync(context, requestMeta, callOptions, operation, token).ConfigureAwait(false);
@@ -581,19 +609,26 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 var method = _duplexMethods.GetOrAdd(procedure, CreateDuplexStreamingMethod);
                 var callOptions = CreateCallOptions(request.Meta, token);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<IDuplexStreamCall>>(
+                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<IDuplexStreamCall>>>(
                     async (invoker, options, innerToken) =>
                     {
-                        var call = invoker.AsyncDuplexStreamingCall(method, null, options);
-                        var duplexResult = await GrpcDuplexStreamTransportCall.CreateAsync(request.Meta, call, innerToken).ConfigureAwait(false);
-
-                        if (duplexResult.IsFailure)
+                        try
                         {
-                            call.Dispose();
-                            throw new ResultException(duplexResult.Error!);
-                        }
+                            var call = invoker.AsyncDuplexStreamingCall(method, null, options);
+                            var duplexResult = await GrpcDuplexStreamTransportCall.CreateAsync(request.Meta, call, innerToken).ConfigureAwait(false);
 
-                        return duplexResult.Value;
+                            if (duplexResult.IsFailure)
+                            {
+                                call.Dispose();
+                                return duplexResult.CastFailure<IDuplexStreamCall>();
+                            }
+
+                            return Ok((IDuplexStreamCall)duplexResult.Value);
+                        }
+                        catch (Exception ex)
+                        {
+                            return Err<IDuplexStreamCall>(NormalizeCallException(ex));
+                        }
                     });
 
                 var duplexResult = await ExecuteGrpcCallAsync(context, request.Meta, callOptions, operation, token).ConfigureAwait(false);
@@ -1274,10 +1309,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (channelOptions.HttpClient is not null)
         {
-            throw new ResultException(OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.FailedPrecondition,
-                "Cannot apply gRPC client TLS options when a custom HttpClient is provided.",
-                transport: GrpcTransportConstants.TransportName));
+            throw new InvalidOperationException("Cannot apply gRPC client TLS options when a custom HttpClient is provided.");
         }
 
         var handler = GetOrCreateSocketsHandler(channelOptions);
@@ -1330,10 +1362,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         if (channelOptions.HttpClient is not null)
         {
-            throw new ResultException(OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.FailedPrecondition,
-                "Cannot apply gRPC client runtime options when a custom HttpClient is provided.",
-                transport: GrpcTransportConstants.TransportName));
+            throw new InvalidOperationException("Cannot apply gRPC client runtime options when a custom HttpClient is provided.");
         }
 
         var handler = GetOrCreateSocketsHandler(channelOptions);
@@ -1437,7 +1466,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         PeerInvocationContext context,
         RequestMeta requestMeta,
         CallOptions callOptions,
-        Func<CallInvoker, CallOptions, CancellationToken, ValueTask<T>> operation,
+        Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<T>>> operation,
         CancellationToken cancellationToken)
     {
         var callInvokerResult = context.Peer.TryGetCallInvoker();
@@ -1448,10 +1477,15 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         var callInvoker = callInvokerResult.Value;
 
-        var result = await Result.TryAsync(
-            token => operation(callInvoker, callOptions, token),
-            cancellationToken: cancellationToken,
-            errorFactory: ex => NormalizeCallException(ex)).ConfigureAwait(false);
+        Result<T> result;
+        try
+        {
+            result = await operation(callInvoker, callOptions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            result = Err<T>(NormalizeCallException(ex));
+        }
 
         if (!result.IsFailure || result.Error is null)
         {
@@ -1465,7 +1499,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         PeerInvocationContext context,
         RequestMeta requestMeta,
         CallOptions callOptions,
-        Func<CallInvoker, CallOptions, CancellationToken, ValueTask<T>> operation,
+        Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<T>>> operation,
         Error originalError,
         CancellationToken cancellationToken)
     {
@@ -1484,11 +1518,17 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
                 GrpcTransportMetrics.RecordClientFallback(requestMeta, http3Desired: true);
             }
 
-            return await Result.TryAsync(
-                    token => operation(fallbackInvoker, callOptions, token),
-                    cancellationToken: cancellationToken,
-                    errorFactory: ex => NormalizeCallException(ex, annotateFallback: false))
-                .ConfigureAwait(false);
+            Result<T> result;
+            try
+            {
+                result = await operation(fallbackInvoker, callOptions, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                result = Err<T>(NormalizeCallException(ex, annotateFallback: false));
+            }
+
+            return result;
         }
         catch (Exception ex)
         {

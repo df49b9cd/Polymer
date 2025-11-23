@@ -3,13 +3,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Hugo;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Dispatcher;
 
 /// <summary>Coordinates deterministic capture of resource lease replication events.</summary>
 public interface IResourceLeaseDeterministicCoordinator
 {
-    ValueTask RecordAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
+    ValueTask<Result<Unit>> RecordAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken);
 }
 
 /// <summary>Options needed to wire a <see cref="DeterministicResourceLeaseCoordinator"/>.</summary>
@@ -75,7 +76,7 @@ public sealed class DeterministicResourceLeaseCoordinator : IResourceLeaseDeterm
         _effectIdFactory = options.EffectIdFactory ?? (evt => $"{_changeId}/seq/{evt.SequenceNumber}");
     }
 
-    public async ValueTask RecordAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> RecordAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
     {
         var changeScope = $"{_changeId}.{replicationEvent.SequenceNumber}";
         var effectId = _effectIdFactory(replicationEvent);
@@ -87,11 +88,7 @@ public sealed class DeterministicResourceLeaseCoordinator : IResourceLeaseDeterm
             (_, ct) => CaptureEffectAsync(effectId, replicationEvent, ct),
             _ => _maxVersion,
             cancellationToken).ConfigureAwait(false);
-
-        if (result.IsFailure)
-        {
-            throw new ResultException(result.Error!);
-        }
+        return result.Map(_ => Unit.Value);
     }
 
     private async ValueTask<Result<long>> CaptureEffectAsync(string effectId, ResourceLeaseReplicationEvent evt, CancellationToken cancellationToken) =>

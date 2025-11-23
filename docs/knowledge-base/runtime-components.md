@@ -2,6 +2,7 @@
 
 ## Dispatcher (`src/OmniRelay`)
 - **Transports**: `Transport.Http` and `Transport.Grpc` expose unary, oneway, and streaming RPC shapes. HTTP inbound also serves `/omnirelay/introspect`, `/healthz`, `/readyz`.
+- **Hugo results/concurrency**: Data plane transports and resource lease flows return `Result<T>` end-to-end (no business-logic throws). Streaming loops use Hugo `ErrGroup`, bounded channels, and `Result` streaming helpers so failures/cancellations surface as structured `Error` values that compose cleanly in Functional pipelines.
 - **Codecs**: JSON (`JsonCodec`), Protobuf, and raw codecs plug into dispatcher registrations; custom codecs implement encode/decode helpers returning `Result<T>`.
 - **Middleware**: Logging, tracing (`RpcTracingMiddleware`), metrics, retry/deadline enforcement, panic recovery, rate limiting, chaos toggles, and peer circuit breakers all live under `Core/Middleware` and can be applied globally or per procedure.
 - **Hot-path dispatch**: Inbound pipelines are now composed and cached per procedure at registration time to keep per-request dispatch allocation-free and Native AOT friendly (aligns with `dotnet-performance-guidelines.md` R14).
