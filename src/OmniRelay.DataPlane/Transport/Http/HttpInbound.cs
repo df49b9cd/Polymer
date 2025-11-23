@@ -401,6 +401,16 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                     var decision = decisionResult.IsFailure
                         ? new TransportSecurityDecision(false, decisionResult.Error?.Message)
                         : decisionResult.Value;
+
+                    if (decisionResult.IsFailure && decisionResult.Error is not null)
+                    {
+                        context.Response.Headers.Append("omnirelay-error-code", decisionResult.Error.Code ?? string.Empty);
+                        foreach (var (key, value) in decisionResult.Error.Metadata)
+                        {
+                            context.Response.Headers.Append($"omnirelay-error-{key}", value?.ToString());
+                        }
+                    }
+
                     await HttpJsonWriter.WriteAsync(
                         context.Response,
                         decision.ToPayload(HttpTransportName, host),
