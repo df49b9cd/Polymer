@@ -29,7 +29,7 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         };
 
         var decision = evaluator.Evaluate(context);
-        decision.IsAllowed.ShouldBeFalse();
+        decision.Value.IsAllowed.ShouldBeFalse();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -54,7 +54,8 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         };
 
         var decision = evaluator.Evaluate(context);
-        decision.IsAllowed.ShouldBeTrue();
+        decision.IsFailure.ShouldBeTrue();
+        decision.Value.IsAllowed.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -77,7 +78,7 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         };
 
         var decision = evaluator.Evaluate(context);
-        decision.IsAllowed.ShouldBeFalse();
+        decision.Value.IsAllowed.ShouldBeFalse();
     }
 }
 #pragma warning restore SYSLIB0058
