@@ -1,3 +1,4 @@
+using Hugo;
 using Microsoft.Extensions.Primitives;
 
 namespace OmniRelay.Security.Secrets;
@@ -8,6 +9,32 @@ public sealed class CompositeSecretProvider : ISecretProvider, IDisposable
     private readonly ISecretProvider[] _providers;
     private readonly ISecretAccessAuditor _auditor;
     private bool _disposed;
+
+    public static Result<CompositeSecretProvider> TryCreate(
+        IEnumerable<ISecretProvider> providers,
+        ISecretAccessAuditor auditor)
+    {
+        if (providers is null)
+        {
+            return Result.Fail<CompositeSecretProvider>(
+                Error.From("Providers collection is required.", "secrets.composite.providers_missing"));
+        }
+
+        if (auditor is null)
+        {
+            return Result.Fail<CompositeSecretProvider>(
+                Error.From("Auditor is required for CompositeSecretProvider.", "secrets.composite.auditor_missing"));
+        }
+
+        var array = providers.ToArray();
+        if (array.Length == 0)
+        {
+            return Result.Fail<CompositeSecretProvider>(
+                Error.From("At least one secret provider must be supplied.", "secrets.composite.none_provided"));
+        }
+
+        return Result.Ok(new CompositeSecretProvider(array, auditor));
+    }
 
     public CompositeSecretProvider(
         IEnumerable<ISecretProvider> providers,
@@ -29,7 +56,7 @@ public sealed class CompositeSecretProvider : ISecretProvider, IDisposable
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Secret name cannot be null or whitespace.", nameof(name));
+            return null;
         }
 
         foreach (var provider in _providers)
@@ -42,7 +69,7 @@ public sealed class CompositeSecretProvider : ISecretProvider, IDisposable
             catch (Exception ex)
             {
                 _auditor.RecordAccess(provider.GetType().Name, name, SecretAccessOutcome.Failed, ex);
-                throw;
+                return null;
             }
 
             if (value is null)

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Hugo;
 using Microsoft.Extensions.Primitives;
 
 namespace OmniRelay.Security.Secrets;
@@ -9,6 +10,17 @@ public sealed class InMemorySecretProvider : ISecretProvider
     private readonly ConcurrentDictionary<string, byte[]> _secrets = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _watchers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISecretAccessAuditor _auditor;
+
+    public static Result<InMemorySecretProvider> TryCreate(ISecretAccessAuditor auditor)
+    {
+        if (auditor is null)
+        {
+            return Result.Fail<InMemorySecretProvider>(
+                Error.From("Auditor is required for InMemorySecretProvider.", "secrets.inline.auditor_missing"));
+        }
+
+        return Result.Ok(new InMemorySecretProvider(auditor));
+    }
 
     public InMemorySecretProvider(ISecretAccessAuditor auditor)
     {

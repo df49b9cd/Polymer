@@ -46,6 +46,31 @@ public sealed class TransportTlsManager : IDisposable
         _secretProvider = secretProvider;
     }
 
+    /// <summary>
+    /// Tries to create a manager without throwing on validation errors.
+    /// </summary>
+    public static Result<TransportTlsManager> TryCreate(
+        TransportTlsOptions options,
+        ILogger<TransportTlsManager> logger,
+        ISecretProvider? secretProvider = null)
+    {
+        if (options is null)
+        {
+            return Result.Fail<TransportTlsManager>(
+                Error.From("TransportTlsOptions are required.", "transport.tls.options_missing")
+                    .WithMetadata("argument", nameof(options)));
+        }
+
+        if (logger is null)
+        {
+            return Result.Fail<TransportTlsManager>(
+                Error.From("Logger is required.", "transport.tls.logger_missing")
+                    .WithMetadata("argument", nameof(logger)));
+        }
+
+        return Result.Ok(new TransportTlsManager(options, logger, secretProvider));
+    }
+
     /// <summary>Returns true when a certificate source was configured.</summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(_options.CertificatePath) ||

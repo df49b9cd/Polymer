@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Hugo;
 using Microsoft.Extensions.Primitives;
 
 namespace OmniRelay.Security.Secrets;
@@ -10,6 +11,29 @@ public sealed class FileSecretProvider : ISecretProvider, IDisposable
     private readonly ISecretAccessAuditor _auditor;
     private readonly ConcurrentDictionary<string, FileWatchRegistration> _watchers = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
+
+    public static Result<FileSecretProvider> TryCreate(FileSecretProviderOptions options, ISecretAccessAuditor auditor)
+    {
+        if (options is null)
+        {
+            return Result.Fail<FileSecretProvider>(
+                Error.From("FileSecretProviderOptions are required.", "secrets.file.options_missing"));
+        }
+
+        if (auditor is null)
+        {
+            return Result.Fail<FileSecretProvider>(
+                Error.From("Auditor is required for FileSecretProvider.", "secrets.file.auditor_missing"));
+        }
+
+        if (string.IsNullOrWhiteSpace(options.BaseDirectory))
+        {
+            return Result.Fail<FileSecretProvider>(
+                Error.From("BaseDirectory is required for FileSecretProvider.", "secrets.file.base_directory_missing"));
+        }
+
+        return Result.Ok(new FileSecretProvider(options, auditor));
+    }
 
     public FileSecretProvider(FileSecretProviderOptions options, ISecretAccessAuditor auditor)
     {

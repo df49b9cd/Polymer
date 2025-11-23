@@ -3,6 +3,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using Hugo;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -858,17 +859,50 @@ public static class DispatcherConfigServiceCollectionExtensions
         services.AddSingleton(sp =>
         {
             var registry = sp.GetRequiredService<DispatcherComponentRegistry>();
-            var json = File.ReadAllText(configPath);
-            var config = JsonSerializer.Deserialize(json, DispatcherConfigJsonContext.Default.DispatcherConfig)
-                         ?? throw new InvalidOperationException($"Failed to deserialize dispatcher config from {configPath}.");
+            var loadResult = LoadDispatcherConfig(configPath);
+            if (loadResult.IsFailure)
+            {
+                throw OmniRelay.Errors.OmniRelayErrors.FromError(loadResult.Error!, "dispatcher-config");
+            }
 
-            return DispatcherConfigMapper.CreateDispatcher(sp, registry, config, configureOptions);
+            return DispatcherConfigMapper.CreateDispatcher(sp, registry, loadResult.Value, configureOptions);
         });
 
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
         services.AddSingleton<IHostedService, DispatcherHostedService>();
 
         return services;
+    }
+
+    private static Result<DispatcherConfig> LoadDispatcherConfig(string configPath)
+    {
+        return Result.Try(() =>
+            {
+                var json = File.ReadAllText(configPath);
+                return json;
+            })
+            .Then(json =>
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize(json, DispatcherConfigJsonContext.Default.DispatcherConfig);
+                    if (config is null)
+                    {
+                        return Result.Fail<DispatcherConfig>(
+                            Error.From($"Failed to deserialize dispatcher config from {configPath}.", "dispatcher.config.deserialization_failed")
+                                 .WithMetadata("path", configPath));
+                    }
+
+                    return Result.Ok(config);
+                }
+                catch (JsonException ex)
+                {
+                    return Result.Fail<DispatcherConfig>(
+                        Error.FromException(ex)
+                            .WithMetadata("path", configPath)
+                            .WithMetadata("code", "dispatcher.config.invalid_json"));
+                }
+            });
     }
 
 }
@@ -901,4 +935,9 @@ internal sealed class DispatcherHostedService : IHostedService
             throw exception;
         }
     }
+}
+
+internal static class DispatcherConfigMapperResultExtensions
+{
+    public static Result<T> ToResult<T>(this T value) => Result.Ok(value);
 }

@@ -1,4 +1,5 @@
 using System.Text;
+using Hugo;
 using Microsoft.Extensions.Primitives;
 
 namespace OmniRelay.Security.Secrets;
@@ -8,6 +9,17 @@ public sealed class EnvironmentSecretProvider : ISecretProvider
 {
     private readonly string? _prefix;
     private readonly ISecretAccessAuditor _auditor;
+
+    public static Result<EnvironmentSecretProvider> TryCreate(ISecretAccessAuditor auditor, string? prefix = null)
+    {
+        if (auditor is null)
+        {
+            return Result.Fail<EnvironmentSecretProvider>(
+                Error.From("Auditor is required for EnvironmentSecretProvider.", "secrets.env.auditor_missing"));
+        }
+
+        return Result.Ok(new EnvironmentSecretProvider(auditor, prefix));
+    }
 
     public EnvironmentSecretProvider(ISecretAccessAuditor auditor, string? prefix = null)
     {
@@ -19,7 +31,8 @@ public sealed class EnvironmentSecretProvider : ISecretProvider
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Secret name cannot be null or whitespace.", nameof(name));
+            return ValueTask.FromResult<SecretValue?>(
+                null);
         }
 
         var candidate = BuildVariableName(name);
