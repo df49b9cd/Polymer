@@ -884,11 +884,21 @@ internal sealed class DispatcherHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await _dispatcher.StartOrThrowAsync(cancellationToken).ConfigureAwait(false);
+        var startResult = await _dispatcher.StartAsync(cancellationToken).ConfigureAwait(false);
+        if (startResult.IsFailure && startResult.Error is { } error)
+        {
+            var exception = OmniRelay.Errors.OmniRelayErrors.FromError(error, "host");
+            throw exception;
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        await _dispatcher.StopOrThrowAsync(cancellationToken).ConfigureAwait(false);
+        var stopResult = await _dispatcher.StopAsync(cancellationToken).ConfigureAwait(false);
+        if (stopResult.IsFailure && stopResult.Error is { } error)
+        {
+            var exception = OmniRelay.Errors.OmniRelayErrors.FromError(error, "host");
+            throw exception;
+        }
     }
 }

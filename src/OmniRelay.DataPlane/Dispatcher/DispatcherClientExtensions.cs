@@ -1,3 +1,4 @@
+using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Clients;
 
@@ -21,7 +22,12 @@ public static class DispatcherClientExtensions
 
         ArgumentNullException.ThrowIfNull(codec);
 
-        var configuration = dispatcher.ClientConfigOrThrow(service);
+        var configurationResult = dispatcher.ClientConfig(service);
+        if (configurationResult.IsFailure)
+        {
+            throw new ResultException(configurationResult.Error!);
+        }
+        var configuration = configurationResult.Value;
         var outbound = ResolveOutbound(
             configuration,
             service,
@@ -68,7 +74,12 @@ public static class DispatcherClientExtensions
 
         ArgumentNullException.ThrowIfNull(codec);
 
-        var configuration = dispatcher.ClientConfigOrThrow(service);
+        var configurationResult = dispatcher.ClientConfig(service);
+        if (configurationResult.IsFailure)
+        {
+            throw new ResultException(configurationResult.Error!);
+        }
+        var configuration = configurationResult.Value;
         var outbound = ResolveOutbound(
             configuration,
             service,
@@ -115,7 +126,12 @@ public static class DispatcherClientExtensions
 
         ArgumentNullException.ThrowIfNull(codec);
 
-        var configuration = dispatcher.ClientConfigOrThrow(service);
+        var configurationResult = dispatcher.ClientConfig(service);
+        if (configurationResult.IsFailure)
+        {
+            throw new ResultException(configurationResult.Error!);
+        }
+        var configuration = configurationResult.Value;
         var outbound = ResolveOutbound(
             configuration,
             service,
@@ -162,7 +178,12 @@ public static class DispatcherClientExtensions
 
         ArgumentNullException.ThrowIfNull(codec);
 
-        var configuration = dispatcher.ClientConfigOrThrow(service);
+        var configurationResult = dispatcher.ClientConfig(service);
+        if (configurationResult.IsFailure)
+        {
+            throw new ResultException(configurationResult.Error!);
+        }
+        var configuration = configurationResult.Value;
         var outbound = ResolveOutbound(
             configuration,
             service,
