@@ -56,12 +56,17 @@ public static class DispatcherJsonExtensions
             });
         }
 
-        dispatcher.RegisterUnary(name, builder =>
+        var registrationResult = dispatcher.RegisterUnary(name, builder =>
         {
             builder.Handle(Wrapper);
             builder.WithEncoding(codec.Encoding);
             configureProcedure?.Invoke(builder);
-        }).ThrowIfFailure();
+        });
+
+        if (registrationResult.IsFailure)
+        {
+            return;
+        }
 
         if (dispatcher.TryGetProcedure(name, ProcedureKind.Unary, out var spec) &&
             spec is UnaryProcedureSpec unarySpec)
@@ -119,12 +124,17 @@ public static class DispatcherJsonExtensions
             });
         }
 
-        dispatcher.RegisterUnary(name, builder =>
+        var registrationResult = dispatcher.RegisterUnary(name, builder =>
         {
             builder.Handle(Wrapper);
             builder.WithEncoding(codec.Encoding);
             configureProcedure?.Invoke(builder);
-        }).ThrowIfFailure();
+        });
+
+        if (registrationResult.IsFailure)
+        {
+            return;
+        }
 
         if (dispatcher.TryGetProcedure(name, ProcedureKind.Unary, out var spec) &&
             spec is UnaryProcedureSpec unarySpec)

@@ -66,6 +66,16 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic, IDis
             LogLevel.Warning,
             new EventId(1001, "ShadowUnaryException"),
             "Shadow unary call threw for {Service}::{Procedure}");
+    private static readonly Action<ILogger, string> ShadowUnaryStopFailureLog =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(1002, "ShadowUnaryStopFailure"),
+            "tee unary stop returned failure: {Message}");
+    private static readonly Action<ILogger, Exception?> ShadowUnaryStopExceptionLog =
+        LoggerMessage.Define<Exception?>(
+            LogLevel.Warning,
+            new EventId(1003, "ShadowUnaryStopException"),
+            "tee unary stop encountered exception: {Exception}");
 
     /// <summary>
     /// Creates a tee unary outbound given primary and shadow outbounds.
@@ -267,13 +277,13 @@ public sealed class TeeUnaryOutbound : IUnaryOutbound, IOutboundDiagnostic, IDis
         {
             while (exceptions.TryDequeue(out var ex))
             {
-                _logger.LogWarning(ex, "tee unary stop encountered exception");
+                ShadowUnaryStopExceptionLog(_logger, ex);
             }
         }
 
         if (waitResult.IsFailure && waitResult.Error is { } error)
         {
-            _logger.LogWarning("tee unary stop returned failure: {Message}", error.Message);
+            ShadowUnaryStopFailureLog(_logger, error.Message ?? "unknown", null);
         }
     }
 
@@ -312,6 +322,16 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic, ID
             LogLevel.Warning,
             new EventId(2001, "ShadowOnewayException"),
             "Shadow oneway call threw for {Service}::{Procedure}");
+    private static readonly Action<ILogger, string> ShadowOnewayStopFailureLog =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(2002, "ShadowOnewayStopFailure"),
+            "tee oneway stop returned failure: {Message}");
+    private static readonly Action<ILogger, Exception?> ShadowOnewayStopExceptionLog =
+        LoggerMessage.Define<Exception?>(
+            LogLevel.Warning,
+            new EventId(2003, "ShadowOnewayStopException"),
+            "tee oneway stop encountered exception: {Exception}");
 
     /// <summary>
     /// Creates a tee oneway outbound given primary and shadow outbounds.
@@ -513,13 +533,13 @@ public sealed class TeeOnewayOutbound : IOnewayOutbound, IOutboundDiagnostic, ID
         {
             while (exceptions.TryDequeue(out var ex))
             {
-                _logger.LogWarning(ex, "tee oneway stop encountered exception");
+                ShadowOnewayStopExceptionLog(_logger, ex);
             }
         }
 
         if (waitResult.IsFailure && waitResult.Error is { } error)
         {
-            _logger.LogWarning("tee oneway stop returned failure: {Message}", error.Message);
+            ShadowOnewayStopFailureLog(_logger, error.Message ?? "unknown", null);
         }
     }
 
