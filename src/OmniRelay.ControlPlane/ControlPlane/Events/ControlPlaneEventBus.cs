@@ -30,13 +30,13 @@ public sealed partial class ControlPlaneEventBus : IControlPlaneEventBus, IDispo
         if (_disposed)
         {
             return ValueTask.FromResult(Result.Fail<ControlPlaneEventSubscription>(
-                Error.From("Control-plane event bus was disposed.", DisposedErrorCode, cause: null!, metadata: null)));
+                Error.From("Control-plane event bus was disposed.", DisposedErrorCode, cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null)));
         }
 
         if (capacity <= 0)
         {
             return ValueTask.FromResult(Result.Fail<ControlPlaneEventSubscription>(
-                Error.From("Subscription capacity must be at least 1.", CapacityErrorCode, cause: null!, metadata: null)));
+                Error.From("Subscription capacity must be at least 1.", CapacityErrorCode, cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null)));
         }
 
         if (cancellationToken.IsCancellationRequested)
@@ -65,7 +65,7 @@ public sealed partial class ControlPlaneEventBus : IControlPlaneEventBus, IDispo
         ArgumentNullException.ThrowIfNull(message);
         if (_disposed)
         {
-            return ValueTask.FromResult(Result.Fail<Unit>(Error.From("Control-plane event bus was disposed.", DisposedErrorCode, cause: null!, metadata: null)));
+            return ValueTask.FromResult(Result.Fail<Unit>(Error.From("Control-plane event bus was disposed.", DisposedErrorCode, cause: null!, metadata: (IReadOnlyDictionary<string, object?>?)null)));
         }
 
         if (_subscribers.IsEmpty)
@@ -73,18 +73,18 @@ public sealed partial class ControlPlaneEventBus : IControlPlaneEventBus, IDispo
             return ValueTask.FromResult(Ok(Unit.Value));
         }
 
-        return ValueTask.FromResult(Result.Try(() =>
+        try
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                return Result.Fail<Unit>(Error.Canceled("Event publish canceled", cancellationToken));
+                return ValueTask.FromResult<Result<Unit>>(Err<Unit>(Error.Canceled("Event publish canceled", cancellationToken)));
             }
 
             foreach (var (id, subscriber) in _subscribers)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    return Result.Fail<Unit>(Error.Canceled("Event publish canceled", cancellationToken));
+                    return ValueTask.FromResult<Result<Unit>>(Err<Unit>(Error.Canceled("Event publish canceled", cancellationToken)));
                 }
 
                 if (!subscriber.ShouldDeliver(message))
@@ -98,8 +98,13 @@ public sealed partial class ControlPlaneEventBus : IControlPlaneEventBus, IDispo
                 }
             }
 
-            return Unit.Value;
-        }));
+            return ValueTask.FromResult<Result<Unit>>(Ok(Unit.Value));
+        }
+        catch (Exception ex)
+        {
+            return ValueTask.FromResult<Result<Unit>>(Err<Unit>(Error.FromException(ex)
+                .WithMetadata("eventType", message.EventType ?? string.Empty)));
+        }
     }
 
     internal void Unsubscribe(long subscriptionId)

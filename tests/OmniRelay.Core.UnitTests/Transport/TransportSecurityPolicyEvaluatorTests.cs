@@ -29,7 +29,8 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         };
 
         var decision = evaluator.Evaluate(context);
-        decision.Value.IsAllowed.ShouldBeFalse();
+        decision.IsFailure.ShouldBeTrue();
+        decision.Error?.Message.ShouldContain("Protocol");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -54,7 +55,7 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         };
 
         var decision = evaluator.Evaluate(context);
-        decision.IsFailure.ShouldBeTrue();
+        decision.IsSuccess.ShouldBeTrue();
         decision.Value.IsAllowed.ShouldBeTrue();
     }
 
@@ -78,7 +79,8 @@ public sealed class TransportSecurityPolicyEvaluatorTests
         };
 
         var decision = evaluator.Evaluate(context);
-        decision.Value.IsAllowed.ShouldBeFalse();
+        decision.IsFailure.ShouldBeTrue();
+        decision.Error?.Message.ShouldContain("Client certificate required");
     }
 }
 #pragma warning restore SYSLIB0058

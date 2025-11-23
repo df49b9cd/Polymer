@@ -42,13 +42,6 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         _requestUri = requestUri ?? throw new ArgumentNullException(nameof(requestUri));
         _disposeClient = disposeClient;
         _runtimeOptions = runtimeOptions;
-
-        if (_runtimeOptions?.EnableHttp3 == true && !_requestUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                "HTTP/3 requests require HTTPS endpoints. Update the request URI or disable HTTP/3 for this outbound.",
-                nameof(requestUri));
-        }
     }
 
     /// <summary>
@@ -86,6 +79,16 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
 
         return Ok(new HttpOutbound(httpClient, requestUri, disposeClient, runtimeOptions));
     }
+
+    /// <summary>
+    /// Preferred factory for creating an outbound using result pipelines.
+    /// </summary>
+    public static Result<HttpOutbound> Create(
+        HttpClient httpClient,
+        Uri requestUri,
+        bool disposeClient = false,
+        HttpClientRuntimeOptions? runtimeOptions = null) =>
+        TryCreate(httpClient, requestUri, disposeClient, runtimeOptions);
 
     /// <summary>
     /// Starts the outbound transport. No-op for the HTTP client implementation.

@@ -12,15 +12,17 @@ namespace OmniRelay.Tests.Transport.Http;
 public sealed class HttpOutboundRequestBuilderTests
 {
     [Fact(Timeout = TestTimeouts.Default)]
-    public void Constructor_WithHttp3EnabledOnHttpScheme_Throws()
+    public void Constructor_WithHttp3EnabledOnHttpScheme_ReturnsFailure()
     {
         using var client = new HttpClient(new HttpClientHandler());
-        Should.Throw<InvalidOperationException>(() =>
-            new HttpOutbound(
-                client,
-                new Uri("http://example.test/rpc"),
-                disposeClient: false,
-                runtimeOptions: new HttpClientRuntimeOptions { EnableHttp3 = true }));
+        var outbound = HttpOutbound.Create(
+            client,
+            new Uri("http://example.test/rpc"),
+            disposeClient: false,
+            runtimeOptions: new HttpClientRuntimeOptions { EnableHttp3 = true });
+
+        outbound.IsFailure.ShouldBeTrue();
+        outbound.Error?.Code.ShouldBe("http.outbound.h3_requires_https");
     }
 
     [Fact(Timeout = 30_000)]
