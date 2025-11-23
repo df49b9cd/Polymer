@@ -13,11 +13,13 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core.Transport;
+using OmniRelay.Errors;
 using OmniRelay.Dispatcher;
 using OmniRelay.Security.Authorization;
 using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http;
 using OmniRelay.Transport.Security;
+using static Hugo.Go;
 
 namespace OmniRelay.Transport.Grpc;
 
@@ -121,9 +123,10 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
         var idleTimeoutUnsupported = false;
         var keepAliveUnsupported = false;
 
-        if (enableHttp3 && _serverTlsOptions?.Certificate is null)
+        var http3Validation = ValidateHttp3Options(enableHttp3, http3RuntimeOptions);
+        if (http3Validation.IsFailure)
         {
-            throw new InvalidOperationException("HTTP/3 requires TLS. Configure a server certificate for the gRPC inbound or disable HTTP/3.");
+            throw new ResultException(http3Validation.Error!);
         }
 
         if (enableHttp3)
@@ -132,11 +135,6 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
             {
                 if (http3RuntimeOptions?.IdleTimeout is { } idleTimeout)
                 {
-                    if (idleTimeout <= TimeSpan.Zero)
-                    {
-                        throw new InvalidOperationException("HTTP/3 IdleTimeout must be greater than zero for the gRPC inbound.");
-                    }
-
                     if (!TrySetQuicOption(quicOptions, "IdleTimeout", idleTimeout))
                     {
                         idleTimeoutUnsupported = true;
@@ -145,11 +143,6 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
 
                 if (http3RuntimeOptions?.KeepAliveInterval is { } keepAliveInterval)
                 {
-                    if (keepAliveInterval <= TimeSpan.Zero)
-                    {
-                        throw new InvalidOperationException("HTTP/3 KeepAliveInterval must be greater than zero for the gRPC inbound.");
-                    }
-
                     if (!TrySetQuicOption(quicOptions, "KeepAliveInterval", keepAliveInterval))
                     {
                         keepAliveUnsupported = true;
@@ -158,11 +151,6 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
 
                 if (http3RuntimeOptions?.MaxBidirectionalStreams is { } maxBidirectionalStreams)
                 {
-                    if (maxBidirectionalStreams <= 0)
-                    {
-                        throw new InvalidOperationException("HTTP/3 MaxBidirectionalStreams must be greater than zero for the gRPC inbound.");
-                    }
-
                     if (!TrySetQuicOption(quicOptions, "MaxBidirectionalStreamCount", maxBidirectionalStreams))
                     {
                         streamLimitUnsupported = true;
@@ -171,11 +159,6 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
 
                 if (http3RuntimeOptions?.MaxUnidirectionalStreams is { } maxUnidirectionalStreams)
                 {
-                    if (maxUnidirectionalStreams <= 0)
-                    {
-                        throw new InvalidOperationException("HTTP/3 MaxUnidirectionalStreams must be greater than zero for the gRPC inbound.");
-                    }
-
                     if (!TrySetQuicOption(quicOptions, "MaxUnidirectionalStreamCount", maxUnidirectionalStreams))
                     {
                         streamLimitUnsupported = true;
@@ -209,9 +192,10 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
                     {
                         listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
 
-                        if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                        var endpointCheck = ValidateHttp3Endpoint(url);
+                        if (endpointCheck.IsFailure)
                         {
-                            throw new InvalidOperationException($"HTTP/3 requires HTTPS. Update inbound URL '{url}' to use https:// or disable HTTP/3 for this listener.");
+                            throw new ResultException(endpointCheck.Error!);
                         }
 
                         Http3RuntimeGuards.EnsureServerSupport(url, _serverTlsOptions?.Certificate);
@@ -236,7 +220,10 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
                         var enabledProtocols = _serverTlsOptions.EnabledProtocols;
                         if (enableHttp3 && enabledProtocols is { } specifiedProtocols && (specifiedProtocols & SslProtocols.Tls13) == 0)
                         {
-                            throw new InvalidOperationException($"HTTP/3 requires TLS 1.3 but the configured protocol set for '{url}' excludes it.");
+                            throw new ResultException(OmniRelayErrorAdapter.FromStatus(
+                                OmniRelayStatusCode.InvalidArgument,
+                                $"HTTP/3 requires TLS 1.3 but the configured protocol set for '{url}' excludes it.",
+                                transport: GrpcTransportConstants.TransportName));
                         }
 
                         var httpsOptions = new HttpsConnectionAdapterOptions
@@ -557,6 +544,77 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
         {
             return false;
         }
+    }
+
+    private Result<Unit> ValidateHttp3Options(bool enableHttp3, Http3RuntimeOptions? runtime)
+    {
+        if (!enableHttp3)
+        {
+            return Ok(Unit.Value);
+        }
+
+        if (_serverTlsOptions?.Certificate is null)
+        {
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                "HTTP/3 requires TLS. Configure a server certificate for the gRPC inbound or disable HTTP/3.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        if (runtime?.IdleTimeout is { } idle && idle <= TimeSpan.Zero)
+        {
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                "HTTP/3 IdleTimeout must be greater than zero for the gRPC inbound.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        if (runtime?.KeepAliveInterval is { } keepAlive && keepAlive <= TimeSpan.Zero)
+        {
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                "HTTP/3 KeepAliveInterval must be greater than zero for the gRPC inbound.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        if (runtime?.MaxBidirectionalStreams is { } maxBi && maxBi <= 0)
+        {
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                "HTTP/3 MaxBidirectionalStreams must be greater than zero for the gRPC inbound.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        if (runtime?.MaxUnidirectionalStreams is { } maxUni && maxUni <= 0)
+        {
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                "HTTP/3 MaxUnidirectionalStreams must be greater than zero for the gRPC inbound.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        return Ok(Unit.Value);
+    }
+
+    private static Result<Unit> ValidateHttp3Endpoint(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                "HTTP/3 endpoint URL was empty.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                $"HTTP/3 requires HTTPS. Update inbound URL '{url}' to use https:// or disable HTTP/3 for this listener.",
+                transport: GrpcTransportConstants.TransportName));
+        }
+
+        return Ok(Unit.Value);
     }
 
     private static RpcException CreateShutdownException()
