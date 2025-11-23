@@ -12,14 +12,14 @@ certificate. When bootstrapping manually, pass `HttpServerTlsOptions` with a
 populated `Certificate`:
 
 ```csharp
-var inbound = new HttpInbound(
-    new[] { "https://0.0.0.0:8443" },
+var inbound = HttpInbound.TryCreate(
+    new[] { new Uri("https://0.0.0.0:8443") },
     serverTlsOptions: new HttpServerTlsOptions
     {
         Certificate = LoadCertificate(),
         ClientCertificateMode = ClientCertificateMode.NoCertificate,
         CheckCertificateRevocation = true
-    });
+    }).ValueOrThrow();
 ```
 
 Configuration hosts wire the same structure via the `inbounds.http[].tls`
