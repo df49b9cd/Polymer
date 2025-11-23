@@ -251,7 +251,7 @@ public class ObservabilityDiagnosticsIntegrationTests
         var address = new Uri($"http://127.0.0.1:{port}");
 
         var serverOptions = new DispatcherOptions(serviceName);
-        var grpcInbound = new GrpcInbound([address.ToString()]);
+        var grpcInbound = GrpcInbound.TryCreate([address.ToString()]).ValueOrChecked();
         serverOptions.AddLifecycle("observability-grpc-inbound", grpcInbound);
         var serverDispatcher = new Dispatcher.Dispatcher(serverOptions);
         serverDispatcher.RegisterTestService(new StreamingProbeService());

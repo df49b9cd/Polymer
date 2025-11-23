@@ -42,7 +42,7 @@ namespace OmniRelay.Transport.Http;
 /// </summary>
 public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDrainParticipant
 {
-    private readonly string[] _urls;
+    private readonly Uri[] _urls;
     private readonly Action<IServiceCollection>? _configureServices;
     private readonly Action<WebApplication>? _configureApp;
     private readonly HttpServerTlsOptions? _serverTlsOptions;
@@ -91,7 +91,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         try
         {
             return Ok(new HttpInbound(
-                list,
+                list.Select(u => new Uri(u, UriKind.Absolute)),
                 configureServices,
                 configureApp,
                 serverRuntimeOptions,
@@ -147,10 +147,22 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
         MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        : this(urls.Select(u => new Uri(u, UriKind.Absolute)), configureServices, configureApp, serverRuntimeOptions, serverTlsOptions, transportSecurity, authorizationEvaluator)
+    {
+    }
+
+    public HttpInbound(
+        IEnumerable<Uri> urls,
+        Action<IServiceCollection>? configureServices = null,
+        Action<WebApplication>? configureApp = null,
+        HttpServerRuntimeOptions? serverRuntimeOptions = null,
+        HttpServerTlsOptions? serverTlsOptions = null,
+        TransportSecurityPolicyEvaluator? transportSecurity = null,
+        MeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         ArgumentNullException.ThrowIfNull(urls);
 
-        _urls = [.. urls];
+        _urls = urls.Select(u => u ?? throw new ArgumentException("Inbound URL cannot be null.", nameof(urls))).ToArray();
         if (_urls.Length == 0)
         {
             throw new ArgumentException("At least one URL must be provided for the HTTP inbound.", nameof(urls));
@@ -312,9 +324,8 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                 options.Limits.RequestHeadersTimeout = requestHeadersTimeout;
             }
 
-            foreach (var url in _urls)
+            foreach (var uri in _urls)
             {
-                var uri = new Uri(url, UriKind.Absolute);
                 var host = string.Equals(uri.Host, "*", StringComparison.Ordinal) ? System.Net.IPAddress.Any : System.Net.IPAddress.Parse(uri.Host);
                 options.Listen(host, uri.Port, listenOptions =>
                 {
@@ -322,7 +333,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                     {
                         if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                         {
-                            throw new InvalidOperationException($"HTTP/3 requires HTTPS. Update inbound URL '{url}' to use https:// or disable HTTP/3 for this listener.");
+                            throw new InvalidOperationException($"HTTP/3 requires HTTPS. Update inbound URL '{uri}' to use https:// or disable HTTP/3 for this listener.");
                         }
 
                         Http3RuntimeGuards.EnsureServerSupport(url, _serverTlsOptions?.Certificate);
