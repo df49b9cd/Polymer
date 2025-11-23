@@ -136,7 +136,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             var invalidEndpoint = _addresses.FirstOrDefault(static uri => !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
             if (invalidEndpoint is not null)
             {
-                throw new InvalidOperationException($"HTTP/3 enabled for gRPC outbound '{remoteService}' but address '{invalidEndpoint}' is not HTTPS. Update configuration or disable HTTP/3.");
+            return Err<GrpcOutbound>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.InvalidArgument,
+                $"HTTP/3 enabled for gRPC outbound '{remoteService}' but address '{invalidEndpoint}' is not HTTPS. Update configuration or disable HTTP/3.",
+                transport: GrpcTransportConstants.TransportName));
             }
         }
         _compressionOptions = compressionOptions;
@@ -293,7 +296,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (!_started)
         {
-            throw new InvalidOperationException("gRPC outbound has not been started.");
+            return Err<Response<ReadOnlyMemory<byte>>>(
+                OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.FailedPrecondition,
+                    "gRPC outbound not started.",
+                    transport: GrpcTransportConstants.TransportName));
         }
 
         if (string.IsNullOrEmpty(request.Meta.Procedure))
@@ -341,7 +348,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (!_started)
         {
-            throw new InvalidOperationException("gRPC outbound has not been started.");
+            return Err<OnewayAck>(
+                OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.FailedPrecondition,
+                    "gRPC outbound not started.",
+                    transport: GrpcTransportConstants.TransportName));
         }
 
         if (string.IsNullOrEmpty(request.Meta.Procedure))
@@ -397,7 +408,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (!_started)
         {
-            throw new InvalidOperationException("gRPC outbound has not been started.");
+            return Err<IStreamCall>(
+                OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.FailedPrecondition,
+                    "gRPC outbound not started.",
+                    transport: GrpcTransportConstants.TransportName));
         }
 
         if (options.Direction != StreamDirection.Server)
@@ -470,7 +485,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (!_started)
         {
-            throw new InvalidOperationException("gRPC outbound has not been started.");
+            return Err<IClientStreamTransportCall>(
+                OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.FailedPrecondition,
+                    "gRPC outbound not started.",
+                    transport: GrpcTransportConstants.TransportName));
         }
 
         ArgumentNullException.ThrowIfNull(requestMeta);
@@ -529,7 +548,11 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (!_started)
         {
-            throw new InvalidOperationException("gRPC outbound has not been started.");
+            return Err<IDuplexStreamCall>(
+                OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.FailedPrecondition,
+                    "gRPC outbound not started.",
+                    transport: GrpcTransportConstants.TransportName));
         }
 
         ArgumentNullException.ThrowIfNull(request);
@@ -852,7 +875,18 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return new PeerSubscription(this, subscriber);
         }
 
-        public CallInvoker CallInvoker => _callInvoker ?? throw new InvalidOperationException("Peer has not been started.");
+        public Result<CallInvoker> TryGetCallInvoker()
+        {
+            if (_callInvoker is null)
+            {
+                return Err<CallInvoker>(OmniRelayErrorAdapter.FromStatus(
+                    OmniRelayStatusCode.FailedPrecondition,
+                    "Peer has not been started.",
+                    transport: GrpcTransportConstants.TransportName));
+            }
+
+            return Ok(_callInvoker);
+        }
 
         public void Start()
         {
@@ -1236,7 +1270,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     {
         if (channelOptions.HttpClient is not null)
         {
-            throw new InvalidOperationException("Cannot apply gRPC client TLS options when a custom HttpClient is provided.");
+            throw new ResultException(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.FailedPrecondition,
+                "Cannot apply gRPC client TLS options when a custom HttpClient is provided.",
+                transport: GrpcTransportConstants.TransportName));
         }
 
         var handler = GetOrCreateSocketsHandler(channelOptions);
@@ -1289,7 +1326,10 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         if (channelOptions.HttpClient is not null)
         {
-            throw new InvalidOperationException("Cannot apply gRPC client runtime options when a custom HttpClient is provided.");
+            throw new ResultException(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.FailedPrecondition,
+                "Cannot apply gRPC client runtime options when a custom HttpClient is provided.",
+                transport: GrpcTransportConstants.TransportName));
         }
 
         var handler = GetOrCreateSocketsHandler(channelOptions);
@@ -1396,11 +1436,18 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         Func<CallInvoker, CallOptions, CancellationToken, ValueTask<T>> operation,
         CancellationToken cancellationToken)
     {
+        var callInvokerResult = context.Peer.TryGetCallInvoker();
+        if (callInvokerResult.IsFailure)
+        {
+            return Err<T>(callInvokerResult.Error!);
+        }
+
+        var callInvoker = callInvokerResult.Value;
+
         var result = await Result.TryAsync(
-                token => operation(context.Peer.CallInvoker, callOptions, token),
-                cancellationToken: cancellationToken,
-                errorFactory: ex => NormalizeCallException(ex))
-            .ConfigureAwait(false);
+            token => operation(callInvoker, callOptions, token),
+            cancellationToken: cancellationToken,
+            errorFactory: ex => NormalizeCallException(ex)).ConfigureAwait(false);
 
         if (!result.IsFailure || result.Error is null)
         {
