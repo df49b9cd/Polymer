@@ -1,5 +1,3 @@
-using OmniRelay.Dispatcher.Grpc;
-
 namespace OmniRelay.Dispatcher;
 
 public interface IGrpcResourceLeaseReplicatorClient

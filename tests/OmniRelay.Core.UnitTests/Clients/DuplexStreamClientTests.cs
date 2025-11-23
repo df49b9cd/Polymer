@@ -2,7 +2,6 @@ using Hugo;
 using NSubstitute;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;

@@ -1,6 +1,5 @@
 using System.Globalization;
 using Grpc.Core;
-using OmniRelay.Core;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 

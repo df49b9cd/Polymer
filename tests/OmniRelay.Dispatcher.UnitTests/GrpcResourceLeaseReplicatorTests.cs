@@ -1,4 +1,3 @@
-using OmniRelay.Dispatcher.Grpc;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;

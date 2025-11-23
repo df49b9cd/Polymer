@@ -1,4 +1,3 @@
-using System.Linq;
 using Hugo;
 using Xunit;
 

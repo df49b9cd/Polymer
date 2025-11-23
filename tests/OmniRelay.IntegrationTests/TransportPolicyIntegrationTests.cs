@@ -1,5 +1,4 @@
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.Tests.Support;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests;

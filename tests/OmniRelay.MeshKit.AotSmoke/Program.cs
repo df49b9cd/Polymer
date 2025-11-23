@@ -1,8 +1,5 @@
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Leadership;
 using OmniRelay.Core.Shards;

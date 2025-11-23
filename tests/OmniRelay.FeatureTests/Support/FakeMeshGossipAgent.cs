@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using OmniRelay.Core.Gossip;
-using OmniRelay.Core.Transport;
 
 namespace OmniRelay.FeatureTests.Support;
 

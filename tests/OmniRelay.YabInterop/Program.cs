@@ -8,7 +8,6 @@ using OmniRelay.Errors;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using OmniRelay.YabInterop;
-using OmniRelay.YabInterop.Protos;
 using static Hugo.Go;
 
 var httpPort = 8080;

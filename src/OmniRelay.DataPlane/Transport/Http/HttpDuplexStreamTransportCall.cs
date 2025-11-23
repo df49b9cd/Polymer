@@ -107,10 +107,10 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall, IResult
         _inner.CompleteResponsesAsync(fault, cancellationToken);
 
     ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteRequestsResultAsync(Error? fault, CancellationToken cancellationToken) =>
-        _inner.CompleteRequestsAsync(fault, cancellationToken).AsResult();
+        _inner.CompleteRequestsAsync(fault, cancellationToken).AsResult(ex => OmniRelayErrors.FromException(ex, _transport));
 
     ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteResponsesResultAsync(Error? fault, CancellationToken cancellationToken) =>
-        _inner.CompleteResponsesAsync(fault, cancellationToken).AsResult();
+        _inner.CompleteResponsesAsync(fault, cancellationToken).AsResult(ex => OmniRelayErrors.FromException(ex, _transport));
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()

@@ -10,7 +10,6 @@ using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core.Gossip;
 using OmniRelay.FeatureTests.Fixtures;
 using OmniRelay.Tests;
-using OmniRelay.Tests.Support;
 using Xunit;
 
 namespace OmniRelay.FeatureTests.Features;

@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.IO;
 using OmniRelay.Cli.Modules;
 using OmniRelay.Dispatcher;
 

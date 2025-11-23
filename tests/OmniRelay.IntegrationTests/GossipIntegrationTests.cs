@@ -4,7 +4,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Dispatcher.Config;
 using OmniRelay.IntegrationTests.Support;

@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using OmniRelay.Dispatcher.Grpc;
 
 namespace OmniRelay.Dispatcher;
 

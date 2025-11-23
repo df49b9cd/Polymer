@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using OmniRelay.Core;
 using OmniRelay.Dispatcher;
 using OmniRelay.Tests.Protos;
-using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 using Xunit.Sdk;

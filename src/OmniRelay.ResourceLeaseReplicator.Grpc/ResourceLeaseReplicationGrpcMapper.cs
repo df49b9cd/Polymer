@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Globalization;
 using Google.Protobuf;
-using OmniRelay.Dispatcher.Grpc;
 
 namespace OmniRelay.Dispatcher;
 

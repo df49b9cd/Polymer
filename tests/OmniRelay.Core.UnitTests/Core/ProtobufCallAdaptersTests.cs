@@ -1,7 +1,6 @@
 using System.Threading.Channels;
 using Google.Protobuf.WellKnownTypes;
 using OmniRelay.Core.Transport;
-using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
 using Xunit;
 

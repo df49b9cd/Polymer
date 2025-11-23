@@ -1,6 +1,5 @@
 using System.Net;
 using Hugo;
-using static Hugo.Go;
 using Microsoft.Extensions.Logging;
 
 namespace OmniRelay.Transport.Security;

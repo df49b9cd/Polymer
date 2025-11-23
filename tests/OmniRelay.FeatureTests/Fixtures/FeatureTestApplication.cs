@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OmniRelay.Core.Gossip;
-using OmniRelay.Dispatcher;
 using OmniRelay.Dispatcher.Config;
 using OmniRelay.FeatureTests.Support;
 using OmniRelay.Tests;

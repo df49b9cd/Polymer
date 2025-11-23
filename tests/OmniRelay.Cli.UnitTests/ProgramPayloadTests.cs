@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using OmniRelay.Cli.UnitTests.Infrastructure;
 
 namespace OmniRelay.Cli.UnitTests;

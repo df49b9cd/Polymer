@@ -1,6 +1,5 @@
 using AwesomeAssertions;
 using OmniRelay.Core;
-using OmniRelay.Dispatcher;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;

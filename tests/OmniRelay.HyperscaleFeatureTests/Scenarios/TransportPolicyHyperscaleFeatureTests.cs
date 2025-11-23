@@ -1,5 +1,4 @@
 using OmniRelay.Dispatcher.Config;
-using OmniRelay.Tests.Support;
 using Xunit;
 
 namespace OmniRelay.HyperscaleFeatureTests.Scenarios;

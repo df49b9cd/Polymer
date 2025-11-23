@@ -1,4 +1,3 @@
-using OmniRelay.Cli.Modules;
 using OmniRelay.Cli.UnitTests.Infrastructure;
 
 namespace OmniRelay.Cli.UnitTests;

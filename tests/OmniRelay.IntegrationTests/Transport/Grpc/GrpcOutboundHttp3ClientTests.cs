@@ -8,7 +8,6 @@ using OmniRelay.Core.Clients;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
-using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using Xunit;
 using static Hugo.Go;

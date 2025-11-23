@@ -11,7 +11,6 @@ using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.ControlPlane;
 using OmniRelay.Core.Shards.Hashing;
-using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
 using OmniRelay.ShardStore.Relational;
 

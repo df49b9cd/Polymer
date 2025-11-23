@@ -1,5 +1,4 @@
 using OmniRelay.Core;
-using OmniRelay.Dispatcher;
 using OmniRelay.Tests.Protos;
 
 namespace OmniRelay.IntegrationTests.Support;

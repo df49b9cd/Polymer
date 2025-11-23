@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -7,7 +6,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using OmniRelay.Dispatcher;
 using OmniRelay.IntegrationTests.Support;
-using OmniRelay.Tests;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests.Cli;

@@ -1,5 +1,4 @@
 using OmniRelay.FeatureTests.Fixtures;
-using OmniRelay.Tests;
 using Xunit;
 
 namespace OmniRelay.FeatureTests.Features;

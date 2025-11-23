@@ -131,11 +131,31 @@ internal sealed class GrpcDuplexStreamTransportCall : IDuplexStreamCall, IResult
     public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteResponsesAsync(fault, cancellationToken);
 
-    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteRequestsResultAsync(Error? fault, CancellationToken cancellationToken) =>
-        _inner.CompleteRequestsAsync(fault, cancellationToken).AsResult();
+    async ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteRequestsResultAsync(Error? fault, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _inner.CompleteRequestsAsync(fault, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName));
+        }
+    }
 
-    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteResponsesResultAsync(Error? fault, CancellationToken cancellationToken) =>
-        _inner.CompleteResponsesAsync(fault, cancellationToken).AsResult();
+    async ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteResponsesResultAsync(Error? fault, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _inner.CompleteResponsesAsync(fault, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (Exception ex)
+        {
+            return Err<Unit>(OmniRelayErrors.FromException(ex, GrpcTransportConstants.TransportName));
+        }
+    }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()

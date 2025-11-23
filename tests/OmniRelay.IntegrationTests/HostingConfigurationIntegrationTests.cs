@@ -9,7 +9,6 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Dispatcher.Config;
 using OmniRelay.IntegrationTests.Codecs;
-using OmniRelay.TestSupport;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using Xunit;

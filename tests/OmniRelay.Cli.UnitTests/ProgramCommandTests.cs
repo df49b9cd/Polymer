@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using OmniRelay.Cli;
 using OmniRelay.Cli.UnitTests.Infrastructure;
 using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.ControlPlane;

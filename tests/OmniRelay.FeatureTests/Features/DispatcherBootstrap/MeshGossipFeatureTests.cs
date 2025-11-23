@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
-using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Gossip;
 using OmniRelay.FeatureTests.Fixtures;
 using OmniRelay.Tests;
