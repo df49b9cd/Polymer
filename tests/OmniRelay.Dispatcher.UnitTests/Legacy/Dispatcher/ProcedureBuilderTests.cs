@@ -15,16 +15,20 @@ public class ProcedureBuilderTests
     public void UnaryBuilder_HandleRequired()
     {
         var builder = new UnaryProcedureBuilder();
-        Invoking(() => builder.Build("svc", "proc"))
-            .Should().Throw<InvalidOperationException>();
+        var result = builder.Build("svc", "proc");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("dispatcher.procedure.handler_missing");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
     public void OnewayBuilder_HandleRequired()
     {
         var builder = new OnewayProcedureBuilder();
-        Invoking(() => builder.Build("svc", "proc"))
-            .Should().Throw<InvalidOperationException>();
+        var result = builder.Build("svc", "proc");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("dispatcher.procedure.handler_missing");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

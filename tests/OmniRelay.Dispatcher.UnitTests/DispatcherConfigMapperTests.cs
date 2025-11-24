@@ -33,7 +33,7 @@ public class DispatcherConfigMapperTests
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
-    public void CreateDispatcher_WithInvalidHttpOutboundUrl_ReturnsFailureWithServiceMetadata()
+    public void CreateDispatcher_WithInvalidHttpOutboundUrl_ReturnsFailureWithExceptionMetadata()
     {
         var services = new ServiceCollection().BuildServiceProvider();
         var registry = new DispatcherComponentRegistry();
@@ -56,8 +56,10 @@ public class DispatcherConfigMapperTests
         var result = DispatcherConfigMapper.CreateDispatcher(services, registry, config, configureOptions: null);
 
         result.IsFailure.ShouldBeTrue();
-        result.Error!.Metadata.TryGetValue("service", out var serviceName).ShouldBeTrue();
-        serviceName.ShouldBe("svc");
+        var error = result.Error!;
+        var metadataDump = string.Join(", ", error.Metadata.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+        error.TryGetMetadata("exceptionType", out string? exceptionType).ShouldBeTrue(metadataDump);
+        exceptionType.ShouldBe(typeof(UriFormatException).FullName);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

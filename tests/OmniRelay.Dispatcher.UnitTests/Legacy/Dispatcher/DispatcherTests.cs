@@ -261,7 +261,9 @@ public class DispatcherTests
         var result = dispatcher.RegisterUnary("missing", builder => builder.WithEncoding("json"));
 
         result.IsFailure.Should().BeTrue();
-        result.Error?.Message.Should().Contain("Handle");
+        result.Error!.Code.Should().Be("dispatcher.procedure.handler_missing");
+        result.Error.TryGetMetadata("procedure", out string? procedure).Should().BeTrue();
+        procedure.Should().Be("missing");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

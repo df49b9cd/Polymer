@@ -3,6 +3,7 @@ using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
+using OmniRelay.Errors;
 using Xunit;
 using static Hugo.Go;
 
@@ -19,7 +20,7 @@ public class DispatcherClientExtensionsTests
         var result = dispatcher.CreateUnaryClient("remote", codec);
 
         result.IsFailure.Should().BeTrue();
-        result.Error?.Code.Should().Be("dispatcher.outbound.not_found");
+        OmniRelayErrorAdapter.ToStatus(result.Error!).Should().Be(OmniRelayStatusCode.NotFound);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -50,7 +51,7 @@ public class DispatcherClientExtensionsTests
         var result = dispatcher.CreateStreamClient("remote", codec);
 
         result.IsFailure.Should().BeTrue();
-        result.Error?.Code.Should().Be("dispatcher.outbound.not_found");
+        OmniRelayErrorAdapter.ToStatus(result.Error!).Should().Be(OmniRelayStatusCode.NotFound);
     }
 
     private sealed class PassthroughCodec : ICodec<int, int>

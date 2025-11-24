@@ -3,6 +3,7 @@ using Hugo;
 using NSubstitute;
 using OmniRelay.Core.Clients;
 using OmniRelay.Core.Transport;
+using OmniRelay.Errors;
 using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
@@ -47,7 +48,7 @@ public class DispatcherClientExtensionsTests
         var result = dispatcher.CreateDuplexStreamClient<string, string>("remote", new TestHelpers.TestCodec<string, string>());
 
         result.IsFailure.Should().BeTrue();
-        result.Error?.Code.Should().Be("dispatcher.outbound.not_found");
+        OmniRelayErrorAdapter.ToStatus(result.Error!).Should().Be(OmniRelayStatusCode.NotFound);
     }
 
     private static Dispatcher CreateDispatcher(out IUnaryOutbound unaryOutbound)
