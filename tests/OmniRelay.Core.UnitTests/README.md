@@ -19,7 +19,7 @@ Guidance for designing, extending, and running the Core unit-test suite.
 
 ## Methodology
 - Prefer plain xUnit facts with minimal fixtures; share setup via helper builders only when unavoidable.
-- Prefer [AwesomeAssertions](https://github.com/iamoldli/AwesomeAssertions) fluent assertions for readability (e.g., `result.Should().BeTrue();`) while keeping `Assert.*` only when the test framework requires it.
+- Prefer [AwesomeAssertions](https://github.com/iamoldli/AwesomeAssertions) fluent assertions for readability (e.g., `result.Should().BeTrue();`).
 - Use [NSubstitute](https://nsubstitute.github.io/) for mocks/fakes when the dependency surface is large or behavior-driven — otherwise, inline hand-written stubs are still encouraged for clarity.
 - Leverage `TestContext.Current.CancellationToken` for deterministic cancellation and `TaskCompletionSource` or channels to assert asynchronous behavior.
 - Assert both state and side effects (e.g., completion statuses, emitted errors, metrics counters) to capture the full contract of each component.
