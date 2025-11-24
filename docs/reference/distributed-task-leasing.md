@@ -18,6 +18,22 @@ Use `ResourceLeaseDispatcherOptions.QueueOptions` to align lease duration, heart
 
 Validation follows the same Result-based pipeline as other dispatcher components. Payload/restore failures return structured error codes (see `docs/reference/errors.md` → ResourceLease) such as `resourcelease.payload.required` or `resourcelease.restore.pending_item_required`, enabling transport layers to return 400/InvalidArgument without throwing.
 
+Create the component through the Result-based factory to surface deterministic wiring errors safely:
+
+```csharp
+var componentResult = ResourceLeaseDispatcherComponent.Create(dispatcher, new ResourceLeaseDispatcherOptions
+{
+    Namespace = "resourcelease",
+    Replicator = replicator,
+    DeterministicOptions = new ResourceLeaseDeterministicOptions
+    {
+        StateStore = FileSystemDeterministicStateStore.Create("/var/lib/omnirelay/lease-effects").Value
+    }
+});
+
+var component = componentResult.Value; // check IsSuccess before using
+```
+
 ### Peer health + membership gossip
 
 - `ResourceLeaseDispatcherOptions.LeaseHealthTracker` accepts a shared `PeerLeaseHealthTracker` (under `Core.Peers`). When supplied, the dispatcher emits lease assignments, heartbeats, disconnects, and requeue signals into the tracker so peer choosers can filter unhealthy owners.

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Hugo;
+using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher;
 
@@ -18,15 +19,29 @@ public sealed partial class FileSystemDeterministicStateStore : IDeterministicSt
     private readonly ReaderWriterLockSlim _lock = new();
     private static readonly FileSystemDeterministicStateStoreJsonContext JsonContext = FileSystemDeterministicStateStoreJsonContext.Default;
 
-    public FileSystemDeterministicStateStore(string rootDirectory)
+    private FileSystemDeterministicStateStore(string rootDirectory)
+    {
+        _root = rootDirectory;
+    }
+
+    public static Result<FileSystemDeterministicStateStore> Create(string rootDirectory)
     {
         if (string.IsNullOrWhiteSpace(rootDirectory))
         {
-            throw new ArgumentException("Root directory is required.", nameof(rootDirectory));
+            return Err<FileSystemDeterministicStateStore>(ResourceLeaseDeterministicErrors.RootDirectoryRequired());
         }
 
-        _root = Path.GetFullPath(rootDirectory);
-        Directory.CreateDirectory(_root);
+        try
+        {
+            var fullPath = Path.GetFullPath(rootDirectory);
+            Directory.CreateDirectory(fullPath);
+            return Ok(new FileSystemDeterministicStateStore(fullPath));
+        }
+        catch (Exception ex)
+        {
+            return Err<FileSystemDeterministicStateStore>(Error.FromException(ex)
+                .WithMetadata("rootDirectory", rootDirectory));
+        }
     }
 
     public bool TryGet(string key, out DeterministicRecord record)

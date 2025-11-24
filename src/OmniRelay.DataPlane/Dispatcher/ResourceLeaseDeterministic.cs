@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Hugo;
+using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Dispatcher;
@@ -51,21 +52,18 @@ public sealed class DeterministicResourceLeaseCoordinator : IResourceLeaseDeterm
     private readonly int _maxVersion;
     private readonly Func<ResourceLeaseReplicationEvent, string> _effectIdFactory;
 
-    public DeterministicResourceLeaseCoordinator(ResourceLeaseDeterministicOptions options)
+    private DeterministicResourceLeaseCoordinator(ResourceLeaseDeterministicOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
-        var stateStore = options.StateStore ?? throw new ArgumentException("StateStore is required for deterministic coordination.", nameof(options));
-
         var serializerOptions = CreateSerializerOptions(options);
         var serializerContext = ResolveSerializerContext(options, serializerOptions);
 
         _effectStore = new DeterministicEffectStore(
-            stateStore,
+            options.StateStore!,
             serializerOptions: serializerOptions,
             serializerContext: serializerContext);
 
         var versionGate = new VersionGate(
-            stateStore,
+            options.StateStore!,
             serializerOptions: serializerOptions,
             serializerContext: serializerContext);
 
@@ -74,6 +72,29 @@ public sealed class DeterministicResourceLeaseCoordinator : IResourceLeaseDeterm
         _minVersion = Math.Max(1, options.MinVersion);
         _maxVersion = Math.Max(_minVersion, options.MaxVersion);
         _effectIdFactory = options.EffectIdFactory ?? (evt => $"{_changeId}/seq/{evt.SequenceNumber}");
+    }
+
+    public static Result<DeterministicResourceLeaseCoordinator> Create(ResourceLeaseDeterministicOptions options)
+    {
+        if (options is null)
+        {
+            return Err<DeterministicResourceLeaseCoordinator>(ResourceLeaseDeterministicErrors.OptionsRequired());
+        }
+
+        if (options.StateStore is null)
+        {
+            return Err<DeterministicResourceLeaseCoordinator>(ResourceLeaseDeterministicErrors.StateStoreRequired());
+        }
+
+        try
+        {
+            return Ok(new DeterministicResourceLeaseCoordinator(options));
+        }
+        catch (Exception ex)
+        {
+            return Err<DeterministicResourceLeaseCoordinator>(Error.FromException(ex)
+                .WithMetadata("changeId", options.ChangeId ?? string.Empty));
+        }
     }
 
     public async ValueTask<Result<Unit>> RecordAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)

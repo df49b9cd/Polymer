@@ -9,7 +9,9 @@ public sealed class FileSystemDeterministicStateStoreTests
     public void Set_OverwritesExistingRecords()
     {
         using var temp = new TempDirectory();
-        var store = new FileSystemDeterministicStateStore(temp.Path);
+        var storeResult = FileSystemDeterministicStateStore.Create(temp.Path);
+        Assert.True(storeResult.IsSuccess, storeResult.Error?.ToString());
+        var store = storeResult.Value;
 
         var record1 = new DeterministicRecord("kind", 1, [1], DateTimeOffset.UtcNow);
         store.Set("key", record1);
@@ -25,7 +27,9 @@ public sealed class FileSystemDeterministicStateStoreTests
     public void TryAdd_ReturnsFalseWhenFileExists()
     {
         using var temp = new TempDirectory();
-        var store = new FileSystemDeterministicStateStore(temp.Path);
+        var storeResult = FileSystemDeterministicStateStore.Create(temp.Path);
+        Assert.True(storeResult.IsSuccess, storeResult.Error?.ToString());
+        var store = storeResult.Value;
         var record = new DeterministicRecord("kind", 1, [1], DateTimeOffset.UtcNow);
 
         Assert.True(store.TryAdd("key", record));
@@ -36,7 +40,9 @@ public sealed class FileSystemDeterministicStateStoreTests
     public void Set_And_Get_Handle_Long_Keys()
     {
         using var temp = new TempDirectory();
-        var store = new FileSystemDeterministicStateStore(temp.Path);
+        var storeResult = FileSystemDeterministicStateStore.Create(temp.Path);
+        Assert.True(storeResult.IsSuccess, storeResult.Error?.ToString());
+        var store = storeResult.Value;
 
         var longKey = new string('k', 2_048);
         var payload = Enumerable.Range(0, 256).Select(static i => (byte)i).ToArray();

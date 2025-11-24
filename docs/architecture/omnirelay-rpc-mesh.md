@@ -337,13 +337,13 @@ Tracking these TODO items will take the existing ResourceLease + health + replic
      ```csharp
      var globalReplicator = new InMemoryResourceLeaseReplicator(new[] { auditSink, checkpointSink });
 
-     var usersShard = new ResourceLeaseDispatcherComponent(dispatcher, new ResourceLeaseDispatcherOptions
+     var usersShard = ResourceLeaseDispatcherComponent.Create(dispatcher, new ResourceLeaseDispatcherOptions
      {
          Namespace = "resourcelease.users",
          Replicator = new ShardedResourceLeaseReplicator(globalReplicator, shardId: "users"),
          LeaseHealthTracker = sharedTracker,
          QueueOptions = usersQueueOptions
-     });
+     }).Value; // Result-based creation surfaces validation errors without throwing by default
      ```
    - Need to fan events out to multiple downstream hubs (for example, a per-region durable log plus a central observability sink)? Wrap them with `CompositeResourceLeaseReplicator` so each shard publishes once but multiple replicators receive the same ordered stream.
 4. **Share monitoring + control planes**

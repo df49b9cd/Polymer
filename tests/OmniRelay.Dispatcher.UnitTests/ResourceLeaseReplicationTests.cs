@@ -54,13 +54,15 @@ public sealed class ResourceLeaseReplicationTests
     [Fact(Timeout = TestTimeouts.Default)]
     public async ValueTask DeterministicCoordinator_IgnoresDuplicateEffects()
     {
-        var coordinator = new DeterministicResourceLeaseCoordinator(new ResourceLeaseDeterministicOptions
+        var coordinatorResult = DeterministicResourceLeaseCoordinator.Create(new ResourceLeaseDeterministicOptions
         {
             ChangeId = "leases",
             MinVersion = 1,
             MaxVersion = 1,
             StateStore = new InMemoryDeterministicStateStore()
         });
+        Assert.True(coordinatorResult.IsSuccess, coordinatorResult.Error?.ToString());
+        var coordinator = coordinatorResult.Value;
 
         var evt = CreateEvent(sequence: 10);
 

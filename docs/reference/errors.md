@@ -108,3 +108,13 @@ ResourceLease endpoints surface validation failures through `Error.Code` instead
 | `resourcelease.restore.pending_item_required` | Null entry in restore batch | `resourcelease::restore` |
 
 Downstream replication/deterministic components continue to return structured `Error` values (e.g., `replication.stage`, `replication.eventType`) so callers can aggregate failures without exceptions.
+
+### Deterministic coordinator / state-store wiring
+
+| Code | Meaning | Typical Surface |
+| --- | --- | --- |
+| `resourcelease.deterministic.options_required` | `ResourceLeaseDeterministicOptions` missing | Deterministic coordinator creation |
+| `resourcelease.deterministic.state_store_required` | `StateStore` missing on options | Deterministic coordinator creation |
+| `resourcelease.deterministic.root_required` | Root path missing/whitespace for file-system state store | `FileSystemDeterministicStateStore.Create` |
+| `resourcelease.dispatcher.dispatcher_required` | Dispatcher instance missing | `ResourceLeaseDispatcherComponent.Create` |
+| `resourcelease.dispatcher.options_required` | Dispatcher options missing | `ResourceLeaseDispatcherComponent.Create` |

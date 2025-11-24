@@ -43,6 +43,14 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
     /// Creates a resource lease component and immediately registers the standard procedures on the supplied dispatcher.
     /// </summary>
     public ResourceLeaseDispatcherComponent(Dispatcher dispatcher, ResourceLeaseDispatcherOptions options)
+        : this(dispatcher, options, ResolveDeterministicCoordinatorOrThrow(options))
+    {
+    }
+
+    private ResourceLeaseDispatcherComponent(
+        Dispatcher dispatcher,
+        ResourceLeaseDispatcherOptions options,
+        IResourceLeaseDeterministicCoordinator? deterministicCoordinator)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -68,11 +76,30 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         _leaseHealthTracker = _options.LeaseHealthTracker;
         _replicator = _options.Replicator;
         _backpressureListener = _options.BackpressureListener;
-        _deterministicCoordinator = _options.DeterministicCoordinator ?? (_options.DeterministicOptions is not null
-            ? new DeterministicResourceLeaseCoordinator(_options.DeterministicOptions!)
-            : null);
+        _deterministicCoordinator = deterministicCoordinator;
 
         RegisterProcedures();
+    }
+
+    public static Result<ResourceLeaseDispatcherComponent> Create(Dispatcher dispatcher, ResourceLeaseDispatcherOptions options)
+    {
+        if (dispatcher is null)
+        {
+            return Err<ResourceLeaseDispatcherComponent>(ResourceLeaseDeterministicErrors.DispatcherRequired());
+        }
+
+        if (options is null)
+        {
+            return Err<ResourceLeaseDispatcherComponent>(ResourceLeaseDeterministicErrors.DispatcherOptionsRequired());
+        }
+
+        var deterministicCoordinator = ResolveDeterministicCoordinator(options);
+        if (deterministicCoordinator.IsFailure)
+        {
+            return Err<ResourceLeaseDispatcherComponent>(deterministicCoordinator.Error!);
+        }
+
+        return Ok(new ResourceLeaseDispatcherComponent(dispatcher, options, deterministicCoordinator.Value));
     }
 
     private void RegisterProcedures()
@@ -720,6 +747,33 @@ public sealed class ResourceLeaseDispatcherComponent : IAsyncDisposable
         }
 
         return string.Empty;
+    }
+
+    private static Result<IResourceLeaseDeterministicCoordinator?> ResolveDeterministicCoordinator(ResourceLeaseDispatcherOptions options)
+    {
+        if (options.DeterministicCoordinator is not null)
+        {
+            return Ok<IResourceLeaseDeterministicCoordinator?>(options.DeterministicCoordinator);
+        }
+
+        if (options.DeterministicOptions is null)
+        {
+            return Ok<IResourceLeaseDeterministicCoordinator?>(null);
+        }
+
+        return DeterministicResourceLeaseCoordinator.Create(options.DeterministicOptions)
+            .Map(coordinator => (IResourceLeaseDeterministicCoordinator?)coordinator);
+    }
+
+    private static IResourceLeaseDeterministicCoordinator? ResolveDeterministicCoordinatorOrThrow(ResourceLeaseDispatcherOptions options)
+    {
+        var result = ResolveDeterministicCoordinator(options);
+        if (result.IsFailure)
+        {
+            throw new ResultException(result.Error!);
+        }
+
+        return result.Value;
     }
 
     /// <inheritdoc />

@@ -27,10 +27,12 @@ public sealed class ResourceLeaseIntegrationTests
         var replicationSink = new RecordingReplicationSink();
         var replicator = new InMemoryResourceLeaseReplicator([replicationSink]);
 
-        await using var component = new ResourceLeaseDispatcherComponent(dispatcher, new ResourceLeaseDispatcherOptions
+        var componentResult = ResourceLeaseDispatcherComponent.Create(dispatcher, new ResourceLeaseDispatcherOptions
         {
             Replicator = replicator
         });
+        Assert.True(componentResult.IsSuccess, componentResult.Error?.ToString());
+        await using var component = componentResult.Value;
 
         var cancellationToken = TestContext.Current.CancellationToken;
         var headers = new Dictionary<string, string>
