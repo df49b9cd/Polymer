@@ -39,9 +39,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          cache: true
           global-json-file: global.json
-          dotnet-quality: 'preview'
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
