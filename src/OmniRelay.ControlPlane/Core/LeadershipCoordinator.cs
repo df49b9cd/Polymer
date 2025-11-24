@@ -4,6 +4,7 @@ using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
 using OmniRelay.ControlPlane.Primitives;
+using Hugo.Policies;
 
 namespace OmniRelay.Core.Leadership;
 
@@ -18,6 +19,12 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
     private readonly ILogger<LeadershipCoordinator> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, ScopeState> _scopes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ResultExecutionPolicy _storePolicy = ResultExecutionPolicy.None.WithRetry(
+        ResultRetryPolicy.Exponential(
+            maxAttempts: 3,
+            baseDelay: TimeSpan.FromMilliseconds(100),
+            factor: 2.0,
+            maxDelay: TimeSpan.FromSeconds(1)));
     private readonly object _lifecycleLock = new();
     private CancellationTokenSource? _cts;
     private Task? _loop;
@@ -296,7 +303,23 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
         state.LastElectionStart = startedAt;
         var correlationId = Guid.NewGuid();
 
-        var result = await _store.TryAcquireAsync(state.Scope.ScopeId, NodeId, _options.LeaseDuration, cancellationToken).ConfigureAwait(false);
+        var acquireResult = await Result.RetryWithPolicyAsync(
+            async (_, ct) =>
+            {
+                var res = await _store.TryAcquireAsync(state.Scope.ScopeId, NodeId, _options.LeaseDuration, ct).ConfigureAwait(false);
+                return Ok(res);
+            },
+            _storePolicy,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
+
+        if (acquireResult.IsFailure)
+        {
+            state.LastFailure = startedAt;
+            return;
+        }
+
+        var result = acquireResult.Value;
         if (result.Succeeded && result.Lease is { } lease)
         {
             state.Lease = lease;
@@ -328,8 +351,22 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
 
         cancellationToken.ThrowIfCancellationRequested();
         var correlationId = Guid.NewGuid();
-        var result = await _store.TryRenewAsync(state.Scope.ScopeId, state.Lease, _options.LeaseDuration, cancellationToken).ConfigureAwait(false);
+        var renewResult = await Result.RetryWithPolicyAsync(
+            async (_, ct) =>
+            {
+                var res = await _store.TryRenewAsync(state.Scope.ScopeId, state.Lease, _options.LeaseDuration, ct).ConfigureAwait(false);
+                return Ok(res);
+            },
+            _storePolicy,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
 
+        if (renewResult.IsFailure)
+        {
+            return;
+        }
+
+        var result = renewResult.Value;
         if (result.Succeeded && result.Lease is { } renewed)
         {
             state.Lease = renewed;

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Hugo.Policies;
 using OmniRelay.ControlPlane.Primitives;
 using OmniRelay.ControlPlane.Security;
 using OmniRelay.Diagnostics;
@@ -35,6 +36,12 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
     private readonly List<MeshGossipPeerEndpoint> _seedPeers;
     private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
     private readonly MeshGossipPeerView _peerView = new();
+    private readonly ResultExecutionPolicy _gossipSendPolicy = ResultExecutionPolicy.None.WithRetry(
+        ResultRetryPolicy.Exponential(
+            maxAttempts: 3,
+            baseDelay: TimeSpan.FromMilliseconds(50),
+            factor: 2.0,
+            maxDelay: TimeSpan.FromMilliseconds(500)));
     private readonly ConcurrentDictionary<string, MeshGossipMemberStatus> _peerStatuses = new(StringComparer.Ordinal);
     private HttpClient? _httpClient;
     private WebApplication? _app;
@@ -370,7 +377,20 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                     continue;
                 }
 
-                await ExecuteRoundAsync(cancellationToken).ConfigureAwait(false);
+                var round = await Result.RetryWithPolicyAsync<Unit>(
+                    async (_, ct) =>
+                    {
+                        await ExecuteRoundAsync(ct).ConfigureAwait(false);
+                        return Ok(Unit.Value);
+                    },
+                    _gossipSendPolicy,
+                    _timeProvider,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (round.IsFailure && !round.IsCanceled)
+                {
+                    MeshGossipHostLog.GossipRoundFailed(_logger, round.Error?.Cause ?? new InvalidOperationException(round.Error?.Message ?? "gossip round failed"));
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Google.Protobuf;
 using Hugo;
+using Hugo.Policies;
 using Microsoft.Extensions.Logging;
 using OmniRelay.ControlPlane.ControlProtocol;
 using OmniRelay.Protos.Control;
@@ -22,8 +23,7 @@ public sealed class WatchHarness
     private readonly LkgCache _cache;
     private readonly TelemetryForwarder _telemetry;
     private readonly ILogger<WatchHarness> _logger;
-    private readonly TimeSpan _backoffStart = TimeSpan.FromSeconds(1);
-    private readonly TimeSpan _backoffMax = TimeSpan.FromSeconds(30);
+    private readonly ResultExecutionPolicy _watchPolicy;
 
     private byte[]? _resumeToken;
 
@@ -41,6 +41,12 @@ public sealed class WatchHarness
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _watchPolicy = ResultExecutionPolicy.None.WithRetry(
+            ResultRetryPolicy.Exponential(
+                maxAttempts: int.MaxValue,
+                baseDelay: TimeSpan.FromSeconds(1),
+                factor: 2.0,
+                maxDelay: TimeSpan.FromSeconds(30)));
     }
 
     public async ValueTask<Result<Unit>> RunAsync(ControlWatchRequest request, CancellationToken cancellationToken)
@@ -51,26 +57,23 @@ public sealed class WatchHarness
             return bootstrap.CastFailure<Unit>();
         }
 
-        var backoff = _backoffStart;
-
         while (!cancellationToken.IsCancellationRequested)
         {
-            var loopResult = await RunWatchLoopAsync(request, backoff, cancellationToken).ConfigureAwait(false);
+            var attempt = await Result.RetryWithPolicyAsync<Unit>(
+                async (_, ct) => await RunWatchLoopAsync(request, ct).ConfigureAwait(false),
+                _watchPolicy,
+                TimeProvider.System,
+                cancellationToken).ConfigureAwait(false);
 
-            if (cancellationToken.IsCancellationRequested)
+            if (attempt.IsCanceled)
             {
-                return Err<Unit>(Error.Canceled("Control watch canceled", cancellationToken));
+                return attempt.CastFailure<Unit>();
             }
 
-            backoff = loopResult.IsSuccess ? loopResult.Value : backoff;
-
-            var backoffResult = await ApplyBackoffAsync(backoff, cancellationToken).ConfigureAwait(false);
-            if (backoffResult.IsFailure)
+            if (attempt.IsFailure)
             {
-                return backoffResult.CastFailure<Unit>();
+                AgentLog.ControlWatchFailed(_logger, attempt.Error?.Cause ?? new InvalidOperationException(attempt.Error?.Message ?? "control watch failed"));
             }
-
-            backoff = backoffResult.Value;
         }
 
         return Ok(Unit.Value);
@@ -103,7 +106,7 @@ public sealed class WatchHarness
         return Ok(Unit.Value);
     }
 
-    private async ValueTask<Result<TimeSpan>> RunWatchLoopAsync(ControlWatchRequest template, TimeSpan currentBackoff, CancellationToken cancellationToken)
+    private async ValueTask<Result<Unit>> RunWatchLoopAsync(ControlWatchRequest template, CancellationToken cancellationToken)
     {
         try
         {
@@ -112,8 +115,7 @@ public sealed class WatchHarness
                 if (update.Error is not null && !string.IsNullOrWhiteSpace(update.Error.Code))
                 {
                     AgentLog.ControlWatchError(_logger, update.Error.Code, update.Error.Message);
-                    var hint = update.Backoff?.Millis is > 0 ? TimeSpan.FromMilliseconds(update.Backoff.Millis) : currentBackoff;
-                    return Ok(hint);
+                    return Err<Unit>(Error.From(update.Error.Message ?? "control watch error", update.Error.Code));
                 }
 
                 AgentLog.ControlWatchResume(_logger, update.ResumeToken?.Version ?? update.Version, update.ResumeToken?.Epoch ?? 0);
@@ -121,23 +123,21 @@ public sealed class WatchHarness
                 var applyResult = await ProcessUpdateAsync(update, cancellationToken).ConfigureAwait(false);
                 if (applyResult.IsFailure)
                 {
-                    var hint = update.Backoff?.Millis is > 0 ? TimeSpan.FromMilliseconds(update.Backoff.Millis) : currentBackoff;
-                    return Ok(hint);
+                    return applyResult;
                 }
 
-                currentBackoff = _backoffStart; // reset on success
             }
 
-            return Ok(currentBackoff);
+            return Err<Unit>(Error.From("control watch stream ended", "control.watch.ended"));
         }
         catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
         {
-            return Err<TimeSpan>(Error.Canceled("Control watch canceled", cancellationToken));
+            return Err<Unit>(Error.Canceled("Control watch canceled", cancellationToken));
         }
         catch (Exception ex)
         {
             AgentLog.ControlWatchFailed(_logger, ex);
-            return Err<TimeSpan>(Error.FromException(ex));
+            return Err<Unit>(Error.FromException(ex));
         }
     }
 
@@ -150,22 +150,6 @@ public sealed class WatchHarness
         }
 
         return request;
-    }
-
-    private async ValueTask<Result<TimeSpan>> ApplyBackoffAsync(TimeSpan hint, CancellationToken cancellationToken)
-    {
-        var millis = (long)Math.Max(hint.TotalMilliseconds, _backoffStart.TotalMilliseconds);
-        AgentLog.ControlBackoffApplied(_logger, millis);
-        var delay = TimeSpan.FromMilliseconds(millis);
-
-        var sleep = await Primitives.AsyncDelay.DelayAsync(delay, cancellationToken).ConfigureAwait(false);
-        if (sleep.IsFailure)
-        {
-            return sleep.CastFailure<TimeSpan>();
-        }
-
-        var next = TimeSpan.FromMilliseconds(Math.Min(_backoffMax.TotalMilliseconds, Math.Max(delay.TotalMilliseconds * 2, _backoffStart.TotalMilliseconds)));
-        return Ok(next);
     }
 
     private Result<Unit> ValidatePayload(byte[] payload)
