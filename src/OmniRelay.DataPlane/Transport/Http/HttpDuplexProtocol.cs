@@ -82,6 +82,7 @@ internal static partial class HttpDuplexProtocol
     /// <param name="socket">The WebSocket connection.</param>
     /// <param name="buffer">The buffer to receive into.</param>
     /// <param name="maxPayloadBytes">Maximum allowed payload size.</param>
+    /// <param name="transport">Transport name used for error attribution.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The received frame.</returns>
     internal static async ValueTask<Result<Frame>> ReceiveFrameAsync(

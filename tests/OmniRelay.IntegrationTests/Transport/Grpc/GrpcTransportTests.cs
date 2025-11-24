@@ -2664,19 +2664,19 @@ internal sealed record AggregateResponse(int TotalAmount)
     public int TotalAmount { get; init; } = TotalAmount;
 }
 
-    internal sealed record ChatMessage(string Message)
-    {
-        public string Message { get; init; } = Message;
-    }
+internal sealed record ChatMessage(string Message)
+{
+    public string Message { get; init; } = Message;
+}
 
-    [JsonSourceGenerationOptions(
-        GenerationMode = JsonSourceGenerationMode.Metadata,
-        PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-    [JsonSerializable(typeof(EchoRequest))]
-    [JsonSerializable(typeof(EchoResponse))]
-    private sealed partial class GrpcTransportJsonContext : JsonSerializerContext;
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Metadata,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(EchoRequest))]
+[JsonSerializable(typeof(EchoResponse))]
+internal sealed partial class GrpcTransportJsonContext : JsonSerializerContext;
 
-    private sealed class DummyCompressionProvider : ICompressionProvider
+internal sealed class DummyCompressionProvider : ICompressionProvider
     {
         public DummyCompressionProvider(string encodingName)
         {
@@ -2694,4 +2694,3 @@ internal sealed record AggregateResponse(int TotalAmount)
 
         public Stream CreateDecompressionStream(Stream stream) => stream;
     }
-}

@@ -62,6 +62,46 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
     /// <param name="transportSecurity"></param>
     /// <param name="authorizationEvaluator"></param>
     public static Result<GrpcInbound> TryCreate(
+        IEnumerable<Uri> urls,
+        Action<IServiceCollection>? configureServices = null,
+        Action<WebApplication>? configureApp = null,
+        GrpcServerTlsOptions? serverTlsOptions = null,
+        GrpcServerRuntimeOptions? serverRuntimeOptions = null,
+        GrpcCompressionOptions? compressionOptions = null,
+        GrpcTelemetryOptions? telemetryOptions = null,
+        TransportSecurityPolicyEvaluator? transportSecurity = null,
+        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+    {
+        if (urls is null)
+        {
+            return Err<GrpcInbound>(UrlsRequired);
+        }
+
+        return TryCreate(
+            urls.Select(static uri => uri?.ToString() ?? string.Empty),
+            configureServices,
+            configureApp,
+            serverTlsOptions,
+            serverRuntimeOptions,
+            compressionOptions,
+            telemetryOptions,
+            transportSecurity,
+            authorizationEvaluator);
+    }
+
+    /// <summary>
+    /// Creates a new gRPC inbound server with optional DI and app configuration hooks.
+    /// </summary>
+    /// <param name="urls">The URLs to bind (https required for HTTP/3).</param>
+    /// <param name="configureServices">Optional service collection configuration.</param>
+    /// <param name="configureApp">Optional application pipeline configuration.</param>
+    /// <param name="serverTlsOptions">TLS options including certificate for HTTPS/HTTP/3.</param>
+    /// <param name="serverRuntimeOptions">gRPC server runtime options and HTTP/3 settings.</param>
+    /// <param name="compressionOptions">Optional compression providers and defaults.</param>
+    /// <param name="telemetryOptions">Optional telemetry options such as logging toggles.</param>
+    /// <param name="transportSecurity"></param>
+    /// <param name="authorizationEvaluator"></param>
+    public static Result<GrpcInbound> TryCreate(
         IEnumerable<string> urls,
         Action<IServiceCollection>? configureServices = null,
         Action<WebApplication>? configureApp = null,
