@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OmniRelay.IntegrationTests.Support;
 using Xunit;
 
@@ -37,10 +38,10 @@ public sealed class TransportPolicyIntegrationTests
             ["mesh", "config", "validate", "--config", configPath],
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, result.ExitCode);
-        Assert.DoesNotContain("policy violations", result.StandardError, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Transport policy satisfied", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Summary:", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+        result.ExitCode.Should().Be(0);
+        result.StandardError.Should().NotContain("policy violations");
+        result.StandardOutput.Should().Contain("Transport policy satisfied");
+        result.StandardOutput.Should().Contain("Summary:");
     }
 
     [Fact(Timeout = 120_000)]
@@ -65,9 +66,9 @@ public sealed class TransportPolicyIntegrationTests
 
         var result = await OmniRelayCliTestHelper.RunAsync(args, TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Transport policy satisfied", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Summary:", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Downgrade ratio", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+        result.ExitCode.Should().Be(0);
+        result.StandardOutput.Should().Contain("Transport policy satisfied");
+        result.StandardOutput.Should().Contain("Summary:");
+        result.StandardOutput.Should().Contain("Downgrade ratio");
     }
 }
