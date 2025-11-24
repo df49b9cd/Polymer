@@ -1767,7 +1767,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         // Ensure the server observed the cancellation before asserting on the outcome to avoid racey reads.
         await serverCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
 
-        await using var enumerator = session.ReadResponsesAsync(ct).GetAsyncEnumerator(ct);
+        var enumerator = session.ReadResponsesAsync(ct).GetAsyncEnumerator(ct);
         Result<Response<ChatMessage>>? terminal = null;
 
         while (await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10), ct))
