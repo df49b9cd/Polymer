@@ -4,7 +4,10 @@ using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
 using OmniRelay.ControlPlane.Primitives;
+using Hugo;
 using Hugo.Policies;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Core.Leadership;
 
@@ -22,9 +25,9 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
     private readonly ResultExecutionPolicy _storePolicy = ResultExecutionPolicy.None.WithRetry(
         ResultRetryPolicy.Exponential(
             maxAttempts: 3,
-            baseDelay: TimeSpan.FromMilliseconds(100),
-            factor: 2.0,
-            maxDelay: TimeSpan.FromSeconds(1)));
+            TimeSpan.FromMilliseconds(100),
+            2.0,
+            TimeSpan.FromSeconds(1)));
     private readonly object _lifecycleLock = new();
     private CancellationTokenSource? _cts;
     private Task? _loop;
@@ -207,10 +210,10 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
             }
 
             var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(25, 125));
-            var delayResult = await Primitives.AsyncDelay.DelayAsync(_options.EvaluationInterval + jitter, cancellationToken).ConfigureAwait(false);
+            var delayResult = await AsyncDelay.DelayAsync(_options.EvaluationInterval + jitter, cancellationToken).ConfigureAwait(false);
             if (delayResult.IsFailure)
             {
-                if (delayResult.Error?.IsCanceled ?? false)
+                if (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }

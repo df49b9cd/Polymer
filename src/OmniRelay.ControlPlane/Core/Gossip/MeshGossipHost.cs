@@ -20,6 +20,8 @@ using OmniRelay.ControlPlane.Primitives;
 using OmniRelay.ControlPlane.Security;
 using OmniRelay.Diagnostics;
 using OmniRelay.Security.Secrets;
+using static Hugo.Go;
+using Hugo;
 
 namespace OmniRelay.Core.Gossip;
 
@@ -39,9 +41,9 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
     private readonly ResultExecutionPolicy _gossipSendPolicy = ResultExecutionPolicy.None.WithRetry(
         ResultRetryPolicy.Exponential(
             maxAttempts: 3,
-            baseDelay: TimeSpan.FromMilliseconds(50),
-            factor: 2.0,
-            maxDelay: TimeSpan.FromMilliseconds(500)));
+            TimeSpan.FromMilliseconds(50),
+            2.0,
+            TimeSpan.FromMilliseconds(500)));
     private readonly ConcurrentDictionary<string, MeshGossipMemberStatus> _peerStatuses = new(StringComparer.Ordinal);
     private HttpClient? _httpClient;
     private WebApplication? _app;
@@ -368,7 +370,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 var delayResult = await AsyncDelay.DelayAsync(_options.Interval, cancellationToken).ConfigureAwait(false);
                 if (delayResult.IsFailure)
                 {
-                    if (delayResult.Error?.IsCanceled ?? false)
+                    if (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
@@ -387,8 +389,13 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                     _timeProvider,
                     cancellationToken).ConfigureAwait(false);
 
-                if (round.IsFailure && !round.IsCanceled)
+                if (round.IsFailure)
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
                     MeshGossipHostLog.GossipRoundFailed(_logger, round.Error?.Cause ?? new InvalidOperationException(round.Error?.Message ?? "gossip round failed"));
                 }
             }
@@ -440,19 +447,26 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 
         foreach (var target in targets)
         {
-            var envelope = BuildEnvelope(snapshot);
-            using var request = new HttpRequestMessage(HttpMethod.Post, target.BuildRequestUri());
-            request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope);
-
             try
             {
-                var start = Stopwatch.GetTimestamp();
-                var sendResult = await Result.RetryWithPolicyAsync<Unit>(
+                var envelope = BuildEnvelope(snapshot);
+
+                var sendResult = await Result.RetryWithPolicyAsync<(MeshGossipEnvelope? Response, double ElapsedMs)>(
                     async (_, ct) =>
                     {
+                        var start = Stopwatch.GetTimestamp();
+                        using var request = new HttpRequestMessage(HttpMethod.Post, target.BuildRequestUri());
+                        request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope);
+
                         var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
-                        return Ok(Unit.Value);
+
+                        var responseEnvelope = await response.Content.ReadFromJsonAsync(
+                            MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope,
+                            ct).ConfigureAwait(false);
+
+                        var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+                        return Ok((responseEnvelope, elapsed));
                     },
                     _gossipSendPolicy,
                     _timeProvider,
@@ -464,17 +478,16 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                     continue;
                 }
 
-                var responseEnvelope = await response.Content.ReadFromJsonAsync(MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope, cancellationToken).ConfigureAwait(false);
+                var (responseEnvelope, elapsedMs) = sendResult.Value;
                 if (responseEnvelope is not null)
                 {
-                    var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-                    _membership.MarkSender(responseEnvelope, elapsed);
+                    _membership.MarkSender(responseEnvelope, elapsedMs);
                     foreach (var member in responseEnvelope.Members)
                     {
                         _membership.MarkObserved(member);
                     }
 
-                    MeshGossipMetrics.RecordRoundTrip(responseEnvelope.Sender.NodeId, elapsed);
+                    MeshGossipMetrics.RecordRoundTrip(responseEnvelope.Sender.NodeId, elapsedMs);
                     membershipChanged = true;
                 }
 
@@ -521,7 +534,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 var delayResult = await AsyncDelay.DelayAsync(_options.SuspicionInterval, cancellationToken).ConfigureAwait(false);
                 if (delayResult.IsFailure)
                 {
-                    if (delayResult.Error?.IsCanceled ?? false)
+                    if (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
@@ -557,7 +570,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 var delayResult = await AsyncDelay.DelayAsync(_options.ShuffleInterval, cancellationToken).ConfigureAwait(false);
                 if (delayResult.IsFailure)
                 {
-                    if (delayResult.Error?.IsCanceled ?? false)
+                    if (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
@@ -579,14 +592,33 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 }
 
                 var envelope = new MeshGossipShuffleEnvelope(GetLocalEndpoint(), payload.Select(static p => p.ToString()).ToArray());
-                using var request = new HttpRequestMessage(HttpMethod.Post, target.Value.BuildShuffleUri());
-                request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope);
-                var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
 
-                var responseEnvelope = await response.Content.ReadFromJsonAsync(
-                    MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope,
+                var sendResult = await Result.RetryWithPolicyAsync<MeshGossipShuffleEnvelope?>(
+                    async (_, ct) =>
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Post, target.Value.BuildShuffleUri());
+                        request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope);
+
+                        var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+                        response.EnsureSuccessStatusCode();
+
+                        var payloadResponse = await response.Content.ReadFromJsonAsync(
+                            MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope,
+                            ct).ConfigureAwait(false);
+
+                        return Ok(payloadResponse);
+                    },
+                    _gossipSendPolicy,
+                    _timeProvider,
                     cancellationToken).ConfigureAwait(false);
+
+                if (sendResult.IsFailure)
+                {
+                    MeshGossipHostLog.GossipRoundFailed(_logger, sendResult.Error?.Cause ?? new InvalidOperationException(sendResult.Error?.Message ?? "shuffle send failed"));
+                    continue;
+                }
+
+                var responseEnvelope = sendResult.Value;
 
                 if (responseEnvelope is not null)
                 {

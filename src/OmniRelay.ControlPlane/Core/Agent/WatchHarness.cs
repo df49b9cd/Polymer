@@ -44,9 +44,9 @@ public sealed class WatchHarness
         _watchPolicy = ResultExecutionPolicy.None.WithRetry(
             ResultRetryPolicy.Exponential(
                 maxAttempts: int.MaxValue,
-                baseDelay: TimeSpan.FromSeconds(1),
-                factor: 2.0,
-                maxDelay: TimeSpan.FromSeconds(30)));
+                TimeSpan.FromSeconds(1),
+                2.0,
+                TimeSpan.FromSeconds(30)));
     }
 
     public async ValueTask<Result<Unit>> RunAsync(ControlWatchRequest request, CancellationToken cancellationToken)
@@ -65,9 +65,14 @@ public sealed class WatchHarness
                 TimeProvider.System,
                 cancellationToken).ConfigureAwait(false);
 
-            if (attempt.IsCanceled)
+            if (attempt.IsSuccess)
             {
-                return attempt.CastFailure<Unit>();
+                return attempt;
+            }
+
+            if (attempt.IsFailure && cancellationToken.IsCancellationRequested)
+            {
+                return Ok(Unit.Value);
             }
 
             if (attempt.IsFailure)
@@ -128,7 +133,7 @@ public sealed class WatchHarness
 
             }
 
-            return Err<Unit>(Error.From("control watch stream ended", "control.watch.ended"));
+            return Ok(Unit.Value);
         }
         catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
         {
