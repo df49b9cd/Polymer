@@ -25,7 +25,8 @@ Status legend: Open / In design / In progress / Needs re-scope / Done. Epics are
 
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
-| WORK-001 | OmniRelay transport/pipeline parity (in-proc, sidecar, edge) | Needs re-scope | Ensure identical behavior & perf targets across deployment modes with AOT-safe pipelines; now runs atop the split `OmniRelay.DataPlane` runtime. |
+| WORK-023 | Shared transport/codec/proto packages | Done | Data-plane split complete; shared packages packed with SBOMs; MeshKit consumes ControlPlane + shared packages (no duplicated transport/codec code). |
+| WORK-001 | OmniRelay transport/pipeline parity (in-proc, sidecar, edge) | Done | Mode parity, admin/introspection alignment, and cross-mode validation baseline complete across in-proc/sidecar/edge. |
 | WORK-002 | Native AOT perf & compliance baseline | Needs re-scope | Apply dotnet-performance-guidelines; measure/watch p99; enforce no reflection/JIT in hot paths. |
 | WORK-003 | Extension hosts (DSL, Proxy-Wasm, native) + watchdogs | Needs re-scope | Sandbox, quotas, failure policies, and capability flags per runtime. |
 | WORK-004 | Deployment packaging (per-RID, in-proc host, sidecar, headless edge) | Needs re-scope | Signed artifacts, slim images, host wrappers. |

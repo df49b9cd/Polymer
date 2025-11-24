@@ -19,6 +19,10 @@ Validate routing/policy/filter behavior and latency/throughput SLOs across in-pr
 ## Status
 Done — Cross-mode feature surface validated via dispatcher introspection (mode + capabilities) and unit coverage; baseline perf/parity hooks ready. Further perf automation can extend from current test harness if needed.
 
+## Validation & CI
+- Feature/parity: exercised in `tests/OmniRelay.Dispatcher.UnitTests/DispatcherConfigMapperTests.cs` and `DispatcherIntrospectionModeTests.cs` (single schema boots all modes; introspection emits mode/capabilities).
+- Perf smoke: tracked via `tests/OmniRelay.Dispatcher.UnitTests/TestResults` artifacts; rerun through `./eng/run-ci.sh` (invokes dispatcher unit tests) and extend with `./eng/run-aot-publish.sh` when perf-sensitive changes land.
+
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.

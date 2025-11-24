@@ -15,9 +15,6 @@ Adopt the shared transport/codec/proto packages inside MeshKit and OmniRelay bui
 ## Status
 Done — Control-plane vs data-plane split is complete; shared packages (`OmniRelay.Transport`, `OmniRelay.Codecs`, `OmniRelay.Protos`, `OmniRelay.ControlPlane.Abstractions`) are packable with SBOMs. MeshKit (via `OmniRelay.ControlPlane` + tests in `OmniRelay.MeshKit.AotSmoke`) consumes control-plane runtime and shared packages; data-plane no longer carries gossip/leadership/shard hosting code, removing duplicated transport/codec implementations. CI build succeeds.
 
-## Status
-Open
-
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.

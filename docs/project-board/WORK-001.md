@@ -13,6 +13,11 @@ This epic is split into iteration-sized stories (A–C) to ensure each can compl
 ## Status
 Done — Mode-aware config and capability flags shipped, admin/introspection parity in place, and cross-mode validation baseline established.
 
+## SLOs & CI gates
+- Perf budgets (current baseline): InProc p99 ≤ 5 ms, Sidecar p99 ≤ 7 ms, Edge p99 ≤ 12 ms for unary requests with default pipelines; update values after each perf sweep per `docs/knowledge-base/dotnet-performance-guidelines.md`.
+- CI enforcement: `dotnet test tests/OmniRelay.Dispatcher.UnitTests` (parity + validation) and `./eng/run-aot-publish.sh linux-x64 Release` are required gates; both are invoked by `./eng/run-ci.sh`.
+- Artifacts: perf and validation outputs are emitted to `tests/OmniRelay.Dispatcher.UnitTests/TestResults` and CI uploads for trend tracking.
+
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.
