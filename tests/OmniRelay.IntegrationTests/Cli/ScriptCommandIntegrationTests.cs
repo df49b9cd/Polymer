@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -53,9 +54,9 @@ public class ScriptCommandIntegrationTests
                 ["script", "run", "--file", scriptPath],
                 TestContext.Current.CancellationToken);
 
-            Assert.True(result.ExitCode == 0, $"Exit:{result.ExitCode}\nStdOut:\n{result.StandardOutput}\nStdErr:\n{result.StandardError}");
-            Assert.Contains("Loaded script", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("script-int", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+            result.ExitCode.Should().Be(0, $"Exit:{result.ExitCode}\nStdOut:\n{result.StandardOutput}\nStdErr:\n{result.StandardError}");
+            result.StandardOutput.Should().Contain("Loaded script", StringComparison.OrdinalIgnoreCase);
+            result.StandardOutput.Should().Contain("script-int", StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

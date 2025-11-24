@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests.Support;
@@ -31,6 +32,6 @@ internal static class DockerHelper
             Assert.Skip($"Docker daemon unavailable: {ex.Message}");
         }
 
-        return dockerPath;
+        return dockerPath.Should().NotBeNull()!;
     }
 }

@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests.Support;
@@ -12,7 +13,7 @@ internal static class ExternalTool
             Assert.Skip(skipReason ?? $"Tool '{toolName}' was not found on PATH.");
         }
 
-        return path;
+        return path.Should().NotBeNull()!;
     }
 
     public static string? Locate(string toolName)

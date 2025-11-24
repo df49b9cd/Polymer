@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AwesomeAssertions;
 using Xunit;
 
 namespace OmniRelay.IntegrationTests.Cli;
@@ -24,37 +25,37 @@ public class ConfigScaffoldTests
             "--outbound-service", "ledger"
         ]);
 
-        Assert.Equal(0, exit);
-        Assert.True(File.Exists(output), $"Expected scaffold file at '{output}'.");
+        exit.Should().Be(0);
+        File.Exists(output).Should().BeTrue($"Expected scaffold file at '{output}'.");
 
         var json = await File.ReadAllTextAsync(output, TestContext.Current.CancellationToken);
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        Assert.True(root.TryGetProperty("omnirelay", out var omnirelay));
-        Assert.True(omnirelay.TryGetProperty("inbounds", out var inbounds));
+        root.TryGetProperty("omnirelay", out var omnirelay).Should().BeTrue();
+        omnirelay.TryGetProperty("inbounds", out var inbounds).Should().BeTrue();
 
         // HTTP inbound contains an HTTPS entry with enableHttp3
         var http = inbounds.GetProperty("http");
-        Assert.True(http.GetArrayLength() >= 2);
+        http.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
         var httpsEntry = http.EnumerateArray().FirstOrDefault(e => e.TryGetProperty("runtime", out var rt) && rt.TryGetProperty("enableHttp3", out var enabled) && enabled.GetBoolean());
-        Assert.True(httpsEntry.ValueKind != JsonValueKind.Undefined, "HTTPS HTTP inbound with enableHttp3 missing.");
+        (httpsEntry.ValueKind != JsonValueKind.Undefined).Should().BeTrue("HTTPS HTTP inbound with enableHttp3 missing.");
 
         // gRPC inbound contains an HTTPS entry with enableHttp3
         var grpc = inbounds.GetProperty("grpc");
-        Assert.True(grpc.GetArrayLength() >= 2);
+        grpc.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
         var grpcHttps = grpc.EnumerateArray().FirstOrDefault(e => e.TryGetProperty("runtime", out var rt) && rt.TryGetProperty("enableHttp3", out var enabled) && enabled.GetBoolean());
-        Assert.True(grpcHttps.ValueKind != JsonValueKind.Undefined, "HTTPS gRPC inbound with enableHttp3 missing.");
+        (grpcHttps.ValueKind != JsonValueKind.Undefined).Should().BeTrue("HTTPS gRPC inbound with enableHttp3 missing.");
 
         // Outbound section includes endpoints with supportsHttp3 markers
-        Assert.True(omnirelay.TryGetProperty("outbounds", out var outbounds));
+        omnirelay.TryGetProperty("outbounds", out var outbounds).Should().BeTrue();
         var ledger = outbounds.GetProperty("ledger");
         var unary = ledger.GetProperty("unary");
         var grpcOut = unary.GetProperty("grpc");
-        Assert.True(grpcOut.GetArrayLength() >= 1);
+        grpcOut.GetArrayLength().Should().BeGreaterThanOrEqualTo(1);
         var first = grpcOut[0];
         var endpoints = first.GetProperty("endpoints");
-        Assert.True(endpoints.GetArrayLength() >= 2);
+        endpoints.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
         var anyH3 = endpoints.EnumerateArray().Any(e => e.TryGetProperty("supportsHttp3", out var flag) && flag.GetBoolean());
-        Assert.True(anyH3, "No outbound endpoint marked supportsHttp3=true.");
+        anyH3.Should().BeTrue("No outbound endpoint marked supportsHttp3=true.");
     }
 }

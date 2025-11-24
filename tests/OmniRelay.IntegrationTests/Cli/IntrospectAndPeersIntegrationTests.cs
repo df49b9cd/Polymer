@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AwesomeAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -42,9 +43,9 @@ public class IntrospectAndPeersIntegrationTests
                 new[] { "introspect", "--url", $"http://127.0.0.1:{port}/omnirelay/introspect", "--format", "text" },
                 TestContext.Current.CancellationToken);
 
-            Assert.Equal(0, result.ExitCode);
-            Assert.Contains("Service: demo-int", result.StandardOutput);
-            Assert.Contains("Status: Running", result.StandardOutput);
+            result.ExitCode.Should().Be(0);
+            result.StandardOutput.Should().Contain("Service: demo-int");
+            result.StandardOutput.Should().Contain("Status: Running");
         }
         finally
         {
@@ -116,9 +117,9 @@ public class IntrospectAndPeersIntegrationTests
                 new[] { "mesh", "peers", "list", "--url", $"http://127.0.0.1:{port}", "--format", "json" },
                 TestContext.Current.CancellationToken);
 
-            Assert.Equal(0, result.ExitCode);
-            Assert.Contains("node-b", result.StandardOutput);
-            Assert.Contains("schemaVersion", result.StandardOutput, StringComparison.OrdinalIgnoreCase);
+            result.ExitCode.Should().Be(0);
+            result.StandardOutput.Should().Contain("node-b");
+            result.StandardOutput.Should().Contain("schemaVersion", StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
