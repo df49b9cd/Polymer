@@ -6,6 +6,7 @@ using System.Net.Quic;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using AwesomeAssertions;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Hugo.Policies;
@@ -20,6 +21,7 @@ using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static AwesomeAssertions.FluentActions;
 using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
@@ -73,18 +75,18 @@ public class ResiliencyIntegrationTests
         using (var rejectedRequest = CreateHttpRequest("resiliency::slow"))
         using (var rejectedResponse = await httpClient.SendAsync(rejectedRequest, ct))
         {
-            Assert.Equal(HttpStatusCode.ServiceUnavailable, rejectedResponse.StatusCode);
+            rejectedResponse.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
             AssertRetryAfter(rejectedResponse.Headers);
             await rejectedResponse.Content.ReadAsByteArrayAsync(ct);
         }
 
-        Assert.False(stopTask.IsCompleted);
+        stopTask.IsCompleted.Should().BeFalse();
 
         releaseSignal.TrySetResult();
 
         using (var response = await inflight)
         {
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
             await response.Content.ReadAsByteArrayAsync(ct);
         }
 
@@ -136,17 +138,17 @@ public class ResiliencyIntegrationTests
         await Task.Delay(100, ct);
 
         var rejectedCall = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
-        var rejection = await Assert.ThrowsAsync<RpcException>(() => rejectedCall.ResponseAsync);
+        var rejection = await Invoking(() => rejectedCall.ResponseAsync).Should().ThrowAsync<RpcException>();
         rejectedCall.Dispose();
-        Assert.Equal(StatusCode.Unavailable, rejection.StatusCode);
-        Assert.Equal("1", rejection.Trailers.GetValue("retry-after"));
+        rejection.Which.StatusCode.Should().Be(StatusCode.Unavailable);
+        rejection.Which.Trailers.GetValue("retry-after").Should().Be("1");
 
-        Assert.False(stopTask.IsCompleted);
+        stopTask.IsCompleted.Should().BeFalse();
 
         releaseSignal.TrySetResult();
 
         var inflightResponse = await inflight.ResponseAsync.WaitAsync(ct);
-        Assert.Empty(inflightResponse);
+        inflightResponse.Should().BeEmpty();
 
         await stopTask;
     }
@@ -200,14 +202,14 @@ public class ResiliencyIntegrationTests
                 []);
 
             var result = await client.CallAsync(request, ct);
-            Assert.True(result.IsFailure);
+            result.IsFailure.Should().BeTrue();
 
             var error = result.Error!;
-            Assert.Equal("unavailable", error.Code);
-            Assert.True(error.TryGetMetadata(TransportMetadataKey, out string? transport));
-            Assert.Equal(GrpcTransport, transport);
-            Assert.True(error.TryGetMetadata(RetryableMetadataKey, out bool retryable));
-            Assert.True(retryable);
+            error.Code.Should().Be("unavailable");
+            error.TryGetMetadata(TransportMetadataKey, out string? transport).Should().BeTrue();
+            transport.Should().Be(GrpcTransport);
+            error.TryGetMetadata(RetryableMetadataKey, out bool retryable).Should().BeTrue();
+            retryable.Should().BeTrue();
         }
         finally
         {
@@ -284,10 +286,10 @@ public class ResiliencyIntegrationTests
                 []);
 
             var result = await client.CallAsync(request, ct);
-            Assert.True(result.IsSuccess);
+            result.IsSuccess.Should().BeTrue();
 
             var observed = await protocolCapture.Task.WaitAsync(ct);
-            Assert.Equal("HTTP/2", observed);
+            observed.Should().Be("HTTP/2");
         }
         finally
         {
@@ -358,7 +360,7 @@ public class ResiliencyIntegrationTests
             using (var request = CreateHttpRequest("resiliency::timeout", ttlMs: 50))
             using (var response = await httpClient.SendAsync(request, ct))
             {
-                Assert.Equal(HttpStatusCode.GatewayTimeout, response.StatusCode);
+                response.StatusCode.Should().Be(HttpStatusCode.GatewayTimeout);
                 AssertHeader(response.Headers, HttpTransportHeaders.Status, OmniRelayStatusCode.DeadlineExceeded.ToString());
 
                 var json = await response.Content.ReadAsStringAsync(ct);
@@ -372,7 +374,7 @@ public class ResiliencyIntegrationTests
                     JsonValueKind.String => bool.TryParse(retryElement.GetString(), out var parsed) && parsed,
                     _ => false
                 };
-                Assert.True(retryable);
+                retryable.Should().BeTrue();
             }
 
             using var channel = GrpcChannel.ForAddress(cancelAddress);
@@ -386,8 +388,8 @@ public class ResiliencyIntegrationTests
 
             using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
             var call = invoker.AsyncUnaryCall(method, null, new CallOptions(cancellationToken: cts.Token), []);
-            var rpcException = await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
-            Assert.Equal(StatusCode.Cancelled, rpcException.StatusCode);
+            var rpcException = await Invoking(() => call.ResponseAsync).Should().ThrowAsync<RpcException>();
+            rpcException.Which.StatusCode.Should().Be(StatusCode.Cancelled);
         }
         finally
         {
@@ -484,20 +486,20 @@ public class ResiliencyIntegrationTests
             using var httpClient = new HttpClient { BaseAddress = httpBase };
             using var request = CreateHttpRequest("resiliency::proxy", payload: "hello"u8.ToArray());
             using var response = await httpClient.SendAsync(request, ct);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
             var bodyBytes = await response.Content.ReadAsByteArrayAsync(ct);
-            Assert.Equal("hello", Encoding.UTF8.GetString(bodyBytes));
+            Encoding.UTF8.GetString(bodyBytes).Should().Be("hello");
 
-            var snapshot = Assert.IsType<GrpcOutboundSnapshot>(grpcOutbound.GetOutboundDiagnostics());
-            Assert.Equal(2, snapshot.PeerSummaries.Count);
+            var snapshot = grpcOutbound.GetOutboundDiagnostics().Should().BeOfType<GrpcOutboundSnapshot>().Subject;
+            snapshot.PeerSummaries.Count.Should().Be(2);
 
             var failingPeer = snapshot.PeerSummaries.Single(summary => summary.Address == unreachableAddress);
-            Assert.True(failingPeer.FailureCount >= 1);
-            Assert.Equal(PeerState.Unavailable, failingPeer.State);
+            failingPeer.FailureCount.Should().BeGreaterThanOrEqualTo(1);
+            failingPeer.State.Should().Be(PeerState.Unavailable);
 
             var healthyPeer = snapshot.PeerSummaries.Single(summary => summary.Address == backendAddress);
-            Assert.True(healthyPeer.SuccessCount >= 1);
-            Assert.Equal(PeerState.Available, healthyPeer.State);
+            healthyPeer.SuccessCount.Should().BeGreaterThanOrEqualTo(1);
+            healthyPeer.State.Should().Be(PeerState.Available);
         }
         finally
         {
@@ -534,14 +536,14 @@ public class ResiliencyIntegrationTests
 
     private static void AssertRetryAfter(HttpResponseHeaders headers)
     {
-        Assert.True(headers.TryGetValues("Retry-After", out var values));
-        Assert.Contains("1", values);
+        headers.TryGetValues("Retry-After", out var values).Should().BeTrue();
+        values.Should().Contain("1");
     }
 
     private static void AssertHeader(HttpResponseHeaders headers, string name, string expected)
     {
-        Assert.True(headers.TryGetValues(name, out var values));
-        Assert.Contains(expected, values);
+        headers.TryGetValues(name, out var values).Should().BeTrue();
+        values.Should().Contain(expected);
     }
 
     private static async Task WaitForHttpReadyAsync(Uri baseAddress, CancellationToken cancellationToken)

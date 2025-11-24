@@ -1,6 +1,7 @@
 using System.Net.Mime;
 using System.Net.Sockets;
 using System.Text;
+using AwesomeAssertions;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
@@ -62,7 +63,7 @@ public class GrpcDispatcherHostIntegrationTests
 
             var call = invoker.AsyncUnaryCall(method, null, new CallOptions(cancellationToken: ct), "ping"u8.ToArray());
             var payload = await call.ResponseAsync.WaitAsync(ct);
-            Assert.Equal("ping-grpc-response", Encoding.UTF8.GetString(payload));
+            Encoding.UTF8.GetString(payload).Should().Be("ping-grpc-response");
         }
         finally
         {

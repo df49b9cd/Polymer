@@ -10,7 +10,7 @@ internal static class DockerHelper
         var dockerPath = ExternalTool.Locate("docker");
         if (dockerPath is null)
         {
-            Assert.Skip("Docker CLI not found. Envoy proxy scenarios are skipped.");
+            Skip.If(true, "Docker CLI not found. Envoy proxy scenarios are skipped.");
         }
 
         try
@@ -24,12 +24,12 @@ internal static class DockerHelper
 
             if (info.ExitCode != 0)
             {
-                Assert.Skip($"Docker daemon unavailable: {info.StandardError}");
+                Skip.If(true, $"Docker daemon unavailable: {info.StandardError}");
             }
         }
         catch (Exception ex) when (ex is InvalidOperationException or TimeoutException)
         {
-            Assert.Skip($"Docker daemon unavailable: {ex.Message}");
+            Skip.If(true, $"Docker daemon unavailable: {ex.Message}");
         }
 
         return dockerPath.Should().NotBeNull()!;

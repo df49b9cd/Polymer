@@ -6,6 +6,7 @@ using System.Net.Mime;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
@@ -164,7 +165,7 @@ public class ObservabilityDiagnosticsIntegrationTests
             httpRequest.Content = new StringContent("""{"message":"ping"}""", Encoding.UTF8, "application/json");
 
             using var response = await httpClient.SendAsync(httpRequest, ct);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
 
             var outboundMeta = new RequestMeta(
                 service: serviceName,
@@ -209,7 +210,7 @@ public class ObservabilityDiagnosticsIntegrationTests
             };
 
             using var fakeResponse = await httpClientLogging.InvokeAsync(middlewareContext, terminal, ct);
-            Assert.Equal(HttpStatusCode.OK, fakeResponse.StatusCode);
+            fakeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         }
         finally
         {
@@ -217,15 +218,15 @@ public class ObservabilityDiagnosticsIntegrationTests
         }
 
         var inboundLog = logProvider.Entries.FirstOrDefault(entry => entry.Message.StartsWith("rpc inbound unary completed", StringComparison.OrdinalIgnoreCase));
-        Assert.NotNull(inboundLog);
+        inboundLog.Should().NotBeNull();
         AssertScopeContains(inboundLog!, "rpc.transport", "http");
         AssertScopeContains(inboundLog!, "rpc.peer", "client-edge");
 
         var outboundLog = logProvider.Entries.FirstOrDefault(entry => entry.Message.StartsWith("rpc outbound unary completed", StringComparison.OrdinalIgnoreCase));
-        Assert.NotNull(outboundLog);
+        outboundLog.Should().NotBeNull();
         AssertScopeContains(outboundLog!, "rpc.peer", "backend-primary");
 
-        Assert.Contains(logProvider.Entries, entry =>
+        logProvider.Entries.Should().Contain(entry =>
             entry.Category == typeof(HttpClientLoggingMiddleware).FullName &&
             entry.Message.Contains("Sending HTTP outbound request", StringComparison.OrdinalIgnoreCase));
 
@@ -235,9 +236,9 @@ public class ObservabilityDiagnosticsIntegrationTests
                 HasTag(measurement, "rpc.service", serviceName))
             .ToArray();
 
-        Assert.NotEmpty(requestMetrics);
-        Assert.Contains(requestMetrics, measurement => HasTag(measurement, "rpc.protocol", "HTTP/1.1"));
-        Assert.Contains(requestMetrics, measurement => HasTag(measurement, "network.transport", "tcp"));
+        requestMetrics.Should().NotBeEmpty();
+        requestMetrics.Should().Contain(measurement => HasTag(measurement, "rpc.protocol", "HTTP/1.1"));
+        requestMetrics.Should().Contain(measurement => HasTag(measurement, "network.transport", "tcp"));
     }
 
     [Fact(Timeout = 90_000)]

@@ -10,7 +10,7 @@ internal static class ExternalTool
         var path = Locate(toolName);
         if (path is null)
         {
-            Assert.Skip(skipReason ?? $"Tool '{toolName}' was not found on PATH.");
+            Skip.If(true, skipReason ?? $"Tool '{toolName}' was not found on PATH.");
         }
 
         return path.Should().NotBeNull()!;

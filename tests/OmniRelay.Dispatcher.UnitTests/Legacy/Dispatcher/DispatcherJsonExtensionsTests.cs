@@ -68,7 +68,7 @@ public class DispatcherJsonExtensionsTests
             "echo",
             "echo::greet",
             ProcedureKind.Unary,
-            out var inboundCodec)).Should().BeTrue();
+            out var inboundCodec).Should().BeTrue();
         inboundCodec.Encoding.Should().Be("application/json");
 
         dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
@@ -114,7 +114,7 @@ public class DispatcherJsonExtensionsTests
             "remote",
             "echo::greet",
             ProcedureKind.Unary,
-            out var outboundCodec)).Should().BeTrue();
+            out var outboundCodec).Should().BeTrue();
         outboundCodec.Encoding.Should().Be("application/json");
     }
 
@@ -168,7 +168,7 @@ public class DispatcherJsonExtensionsTests
             "remote",
             "svc::op",
             ProcedureKind.Unary,
-            out var resolved)).Should().BeTrue();
+            out var resolved).Should().BeTrue();
         resolved.Should().BeSameAs(codec);
     }
 
