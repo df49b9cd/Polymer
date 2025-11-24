@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OmniRelay.ControlPlane.Upgrade;
 using Xunit;
 
@@ -13,14 +14,14 @@ public sealed class NodeDrainCoordinatorTests
         coordinator.RegisterParticipant("http", participant);
 
         var snapshot = await coordinator.BeginDrainAsync("rolling upgrade", CancellationToken.None);
-        Assert.Equal(NodeDrainState.Drained, snapshot.State);
-        Assert.Single(snapshot.Participants);
-        Assert.Equal(NodeDrainParticipantState.Drained, snapshot.Participants[0].State);
+        snapshot.State.Should().Be(NodeDrainState.Drained);
+        snapshot.Participants.Should().HaveCount(1);
+        snapshot.Participants[0].State.Should().Be(NodeDrainParticipantState.Drained);
 
         var resumed = await coordinator.ResumeAsync(CancellationToken.None);
-        Assert.Equal(NodeDrainState.Active, resumed.State);
-        Assert.Single(resumed.Participants);
-        Assert.Equal(NodeDrainParticipantState.Active, resumed.Participants[0].State);
+        resumed.State.Should().Be(NodeDrainState.Active);
+        resumed.Participants.Should().HaveCount(1);
+        resumed.Participants[0].State.Should().Be(NodeDrainParticipantState.Active);
     }
 
     private sealed class FakeParticipant : INodeDrainParticipant
