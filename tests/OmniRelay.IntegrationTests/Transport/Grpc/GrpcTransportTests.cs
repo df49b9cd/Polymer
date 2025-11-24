@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AwesomeAssertions;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Health.V1;
@@ -24,6 +25,7 @@ using OmniRelay.IntegrationTests.Support;
 using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using Xunit;
+using static AwesomeAssertions.FluentActions;
 using static Hugo.Go;
 using static OmniRelay.IntegrationTests.Support.TransportTestHelper;
 
@@ -52,7 +54,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
             DefaultAlgorithm = "gzip"
         };
 
-        Assert.Throws<InvalidOperationException>(() => options.Validate());
+        Invoking(() => options.Validate())
+            .Should().Throw<InvalidOperationException>();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -75,7 +78,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         var headers = callOptions.Headers ?? [];
         var acceptEncoding = headers.GetValue(GrpcTransportConstants.GrpcAcceptEncodingHeader);
 
-        Assert.Equal(provider.EncodingName, acceptEncoding);
+        acceptEncoding.Should().Be(provider.EncodingName);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -102,7 +105,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         var callHeaders = callOptions.Headers ?? [];
         var acceptEncoding = callHeaders.GetValue(GrpcTransportConstants.GrpcAcceptEncodingHeader);
 
-        Assert.Equal("identity", acceptEncoding);
+        acceptEncoding.Should().Be("identity");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -112,7 +115,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         var requestMeta = new RequestMeta(service: "echo", procedure: "echo::ping", transport: TransportName);
         var request = new Request<ReadOnlyMemory<byte>>(requestMeta, ReadOnlyMemory<byte>.Empty);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await outbound.CallAsync(request, CancellationToken.None));
+        await Invoking(async () => await outbound.CallAsync(request, CancellationToken.None))
+            .Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact(Timeout = 30_000)]
@@ -192,7 +196,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
             responses.Add(response.ValueOrChecked().Body.Message);
         }
 
-        Assert.Equal(new[] { "event-0", "event-1", "event-2" }, responses);
+        responses.Should().Equal("event-0", "event-1", "event-2");
     }
 
     [Fact(Timeout = 30_000)]
@@ -226,23 +230,22 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
                 service: "binding",
                 procedure: "binding::ping",
                 transport: TransportName);
-            var request = new Request<ReadOnlyMemory<byte>>(requestMeta, ReadOnlyMemory<byte>.Empty);
-            var response = await outbound.CallAsync(request, ct);
-            Assert.True(response.IsSuccess, response.Error?.Message);
+        var request = new Request<ReadOnlyMemory<byte>>(requestMeta, ReadOnlyMemory<byte>.Empty);
+        var response = await outbound.CallAsync(request, ct);
+        response.IsSuccess.Should().BeTrue(response.Error?.Message);
 
-            var exception = await Assert.ThrowsAnyAsync<Exception>(async () =>
-            {
-                var unusedPort = TestPortAllocator.GetRandomPort();
-                using var unusedClient = new TcpClient();
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(200));
-                await unusedClient.ConnectAsync("127.0.0.1", unusedPort, timeoutCts.Token);
-            });
+        var exception = await Invoking(async () =>
+        {
+            var unusedPort = TestPortAllocator.GetRandomPort();
+            using var unusedClient = new TcpClient();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(200));
+            await unusedClient.ConnectAsync("127.0.0.1", unusedPort, timeoutCts.Token);
+        }).Should().ThrowAsync<Exception>();
 
-            Assert.True(
-                exception is SocketException or OperationCanceledException,
-                $"Expected connection failure but observed {exception.GetType().FullName}.");
-        }
+        exception.Which.Should().Match<Exception>(ex => ex is SocketException or OperationCanceledException,
+            $"Expected connection failure but observed {exception.Which.GetType().FullName}.");
+    }
         finally
         {
             await outbound.StopAsync(ct);

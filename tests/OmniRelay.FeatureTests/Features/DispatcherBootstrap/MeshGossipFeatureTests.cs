@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using System.Text.Json;
+using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.Core.Gossip;
 using OmniRelay.FeatureTests.Fixtures;
@@ -22,13 +23,13 @@ public sealed class MeshGossipFeatureTests(FeatureTestApplication application) :
         using var metrics = new GossipMetricsListener();
 
         var dispatcherAgent = _application.Services.GetRequiredService<IMeshGossipAgent>();
-        Assert.True(dispatcherAgent.IsEnabled, "Feature test dispatcher gossip agent is not enabled.");
+        dispatcherAgent.IsEnabled.Should().BeTrue("Feature test dispatcher gossip agent is not enabled.");
         var convergenceSucceeded = await WaitForConditionAsync(
             () => dispatcherAgent.Snapshot().Members.Any(m => m.NodeId == dispatcherAgent.LocalMetadata.NodeId && m.Status == MeshGossipMemberStatus.Alive),
             TimeSpan.FromSeconds(10),
             ct);
 
-        Assert.True(convergenceSucceeded, $"Dispatcher gossip agent did not report itself alive.{Environment.NewLine}{DescribeSnapshots(dispatcherAgent)}");
+        convergenceSucceeded.Should().BeTrue($"Dispatcher gossip agent did not report itself alive.{Environment.NewLine}{DescribeSnapshots(dispatcherAgent)}");
 
         // Metrics are validated in dispatcher unit/integration suites; here we only
         // ensure the fixture gossip agent starts without crashing.
@@ -110,12 +111,12 @@ public sealed class MeshGossipFeatureTests(FeatureTestApplication application) :
 
     private static void AssertViewsMatch(Dictionary<string, PeerView> diagnostics, Dictionary<string, PeerView> cli)
     {
-        Assert.Equal(diagnostics.Count, cli.Count);
+        cli.Count.Should().Be(diagnostics.Count);
 
         foreach (var (nodeId, diagView) in diagnostics)
         {
-            Assert.True(cli.TryGetValue(nodeId, out var cliView), $"CLI output missing node '{nodeId}'.");
-            Assert.Equal(diagView, cliView);
+            cli.TryGetValue(nodeId, out var cliView).Should().BeTrue($"CLI output missing node '{nodeId}'.");
+            cliView.Should().Be(diagView);
         }
     }
 

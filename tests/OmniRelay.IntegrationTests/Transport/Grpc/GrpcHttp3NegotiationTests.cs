@@ -7,6 +7,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography;
+using AwesomeAssertions;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
@@ -99,23 +100,23 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
         {
             var call = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
             var response = await call.ResponseAsync.WaitAsync(ct);
-            Assert.Empty(response);
+            response.Should().BeEmpty();
         }
         finally
         {
         }
 
-        Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the interceptor.");
-        Assert.StartsWith("HTTP/3", protocol, StringComparison.Ordinal);
+        observedProtocols.TryDequeue(out var protocol).Should().BeTrue("No HTTP protocol was observed by the interceptor.");
+        protocol.Should().StartWithEquivalentOf("HTTP/3");
 
-        Assert.True(requestMetaProtocols.TryDequeue(out var metaProtocol), "No HTTP protocol was captured in request metadata.");
-        Assert.StartsWith("HTTP/3", metaProtocol, StringComparison.Ordinal);
+        requestMetaProtocols.TryDequeue(out var metaProtocol).Should().BeTrue("No HTTP protocol was captured in request metadata.");
+        metaProtocol.Should().StartWithEquivalentOf("HTTP/3");
 
         var recordedActivity = activities.LastOrDefault(activity => string.Equals(activity.OperationName, "grpc.server.unary", StringComparison.Ordinal));
-        Assert.NotNull(recordedActivity);
-        Assert.Equal("http", recordedActivity!.GetTagItem("network.protocol.name"));
-        Assert.StartsWith("3", recordedActivity.GetTagItem("network.protocol.version")?.ToString(), StringComparison.Ordinal);
-        Assert.StartsWith("HTTP/3", recordedActivity.GetTagItem("rpc.protocol")?.ToString(), StringComparison.Ordinal);
+        recordedActivity.Should().NotBeNull();
+        recordedActivity!.GetTagItem("network.protocol.name").Should().Be("http");
+        recordedActivity.GetTagItem("network.protocol.version")?.ToString().Should().StartWith("3");
+        recordedActivity.GetTagItem("rpc.protocol")?.ToString().Should().StartWithEquivalentOf("HTTP/3");
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -187,16 +188,16 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
 
         var call = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
         var response = await call.ResponseAsync.WaitAsync(ct);
-        Assert.Empty(response);
+        response.Should().BeEmpty();
 
-        Assert.True(runtimeProtocols.TryDequeue(out var runtimeProtocol), "No HTTP protocol was observed by the runtime interceptor.");
-        Assert.StartsWith("HTTP/3", runtimeProtocol, StringComparison.Ordinal);
+        runtimeProtocols.TryDequeue(out var runtimeProtocol).Should().BeTrue("No HTTP protocol was observed by the runtime interceptor.");
+        runtimeProtocol.Should().StartWithEquivalentOf("HTTP/3");
 
-        Assert.True(transportProtocols.TryDequeue(out var transportProtocol), "No HTTP protocol was observed by the transport interceptor.");
-        Assert.StartsWith("HTTP/3", transportProtocol, StringComparison.Ordinal);
+        transportProtocols.TryDequeue(out var transportProtocol).Should().BeTrue("No HTTP protocol was observed by the transport interceptor.");
+        transportProtocol.Should().StartWithEquivalentOf("HTTP/3");
 
-        Assert.True(requestMetaProtocols.TryDequeue(out var metaProtocol), "No HTTP protocol was captured in request metadata.");
-        Assert.StartsWith("HTTP/3", metaProtocol, StringComparison.Ordinal);
+        requestMetaProtocols.TryDequeue(out var metaProtocol).Should().BeTrue("No HTTP protocol was captured in request metadata.");
+        metaProtocol.Should().StartWithEquivalentOf("HTTP/3");
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -267,22 +268,22 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
 
         try
         {
-            var call = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
-            var response = await call.ResponseAsync.WaitAsync(ct);
-            Assert.Empty(response);
+        var call = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
+        var response = await call.ResponseAsync.WaitAsync(ct);
+        response.Should().BeEmpty();
         }
         finally
         {
         }
 
-        Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the interceptor.");
-        Assert.StartsWith("HTTP/2", protocol, StringComparison.Ordinal);
+        observedProtocols.TryDequeue(out var protocol).Should().BeTrue("No HTTP protocol was observed by the interceptor.");
+        protocol.Should().StartWithEquivalentOf("HTTP/2");
 
-        Assert.True(transportProtocols.TryDequeue(out var transportProtocol), "No HTTP protocol was observed by the transport interceptor.");
-        Assert.StartsWith("HTTP/2", transportProtocol, StringComparison.Ordinal);
+        transportProtocols.TryDequeue(out var transportProtocol).Should().BeTrue("No HTTP protocol was observed by the transport interceptor.");
+        transportProtocol.Should().StartWithEquivalentOf("HTTP/2");
 
-        Assert.True(requestMetaProtocols.TryDequeue(out var metaProtocol), "No HTTP protocol was captured in request metadata.");
-        Assert.StartsWith("HTTP/2", metaProtocol, StringComparison.Ordinal);
+        requestMetaProtocols.TryDequeue(out var metaProtocol).Should().BeTrue("No HTTP protocol was captured in request metadata.");
+        metaProtocol.Should().StartWithEquivalentOf("HTTP/2");
     }
 
     [Http3Fact(Timeout = 45_000)]

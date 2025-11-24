@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.Core.Gossip;
@@ -29,7 +30,7 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
             TimeSpan.FromSeconds(60),
             ct);
 
-        Assert.True(convergence, $"Hyperscale cluster failed to converge.{Environment.NewLine}{DescribeSnapshots(_hosts)}");
+        convergence.Should().BeTrue($"Hyperscale cluster failed to converge.{Environment.NewLine}{DescribeSnapshots(_hosts)}");
 
         AssertMetadataConsistency(_hosts, _nodes);
 
@@ -55,7 +56,7 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
             TimeSpan.FromSeconds(45),
             ct);
 
-        Assert.True(leftObserved, $"Departed nodes were not marked left within timeout.{Environment.NewLine}{DescribeSnapshots(_hosts)}");
+        leftObserved.Should().BeTrue($"Departed nodes were not marked left within timeout.{Environment.NewLine}{DescribeSnapshots(_hosts)}");
     }
 
     public ValueTask InitializeAsync() => ValueTask.CompletedTask;
@@ -139,12 +140,12 @@ public sealed class HyperscaleGossipHyperscaleTests : IAsyncLifetime
             foreach (var member in snapshot.Members.Where(member => expected.ContainsKey(member.NodeId)))
             {
                 var descriptor = expected[member.NodeId];
-                Assert.Equal(descriptor.Version, member.Metadata.MeshVersion);
-                Assert.Equal(descriptor.Region, member.Metadata.Region);
-                Assert.Equal(descriptor.Cluster, member.Metadata.ClusterId);
-                Assert.Equal(descriptor.Http3Support, member.Metadata.Http3Support);
-                Assert.Equal(descriptor.Rack, member.Metadata.Labels["rack"]);
-                Assert.Equal(descriptor.Zone, member.Metadata.Labels["zone"]);
+                member.Metadata.MeshVersion.Should().Be(descriptor.Version);
+                member.Metadata.Region.Should().Be(descriptor.Region);
+                member.Metadata.ClusterId.Should().Be(descriptor.Cluster);
+                member.Metadata.Http3Support.Should().Be(descriptor.Http3Support);
+                member.Metadata.Labels["rack"].Should().Be(descriptor.Rack);
+                member.Metadata.Labels["zone"].Should().Be(descriptor.Zone);
             }
         }
     }

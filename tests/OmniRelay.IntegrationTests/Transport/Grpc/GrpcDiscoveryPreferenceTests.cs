@@ -1,4 +1,5 @@
 using System.Net.Quic;
+using AwesomeAssertions;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Microsoft.Extensions.DependencyInjection;
@@ -108,7 +109,7 @@ public sealed class GrpcDiscoveryPreferenceTests(ITestOutputHelper output) : Tra
             var client = new UnaryClient<byte[], byte[]>(outbound, codec, dispatcher.ClientConfigChecked("grpc-discovery-pref").UnaryMiddleware);
             var request = new Request<byte[]>(new RequestMeta("grpc-discovery-pref", "grpc-discovery-pref::ping"), []);
             var result = await client.CallAsync(request, ct);
-            Assert.True(result.IsSuccess, result.Error?.ToString() ?? "Result was not successful.");
+            result.IsSuccess.Should().BeTrue(result.Error?.ToString() ?? "Result was not successful.");
         }
         finally
         {
@@ -116,8 +117,8 @@ public sealed class GrpcDiscoveryPreferenceTests(ITestOutputHelper output) : Tra
             await dispatcher.StopAsyncChecked(ct);
         }
 
-        Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the server interceptor.");
-        Assert.StartsWith("HTTP/3", protocol, StringComparison.Ordinal);
+        observedProtocols.TryDequeue(out var protocol).Should().BeTrue("No HTTP protocol was observed by the server interceptor.");
+        protocol.Should().StartWithEquivalentOf("HTTP/3");
     }
 
     private sealed class ProtocolCaptureInterceptor(System.Collections.Concurrent.ConcurrentQueue<string> observed) : Interceptor
