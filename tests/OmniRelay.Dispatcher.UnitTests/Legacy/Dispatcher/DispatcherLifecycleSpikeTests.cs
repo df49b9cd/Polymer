@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Hugo;
 using OmniRelay.Dispatcher;
 using Xunit;
@@ -43,16 +44,16 @@ public class DispatcherLifecycleSpikeTests
             stopSteps,
             CancellationToken.None);
 
-        Assert.True(result.IsSuccess, result.Error?.Message);
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
 
         var (started, stopped) = result.Value;
 
-        Assert.Equal(startSteps.Count, started.Count);
-        Assert.All(Enumerable.Range(0, startSteps.Count), index =>
-            Assert.Contains($"start:{index}", started));
+        started.Should().HaveCount(startSteps.Count);
+        Enumerable.Range(0, startSteps.Count).Should().AllSatisfy(index =>
+            started.Should().Contain($"start:{index}"));
 
-        Assert.Equal(stopSteps.Count, stopped.Count);
-        Assert.Equal(["stop:0", "stop:1"], stopped);
+        stopped.Should().HaveCount(stopSteps.Count);
+        stopped.Should().Equal("stop:0", "stop:1");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -73,7 +74,7 @@ public class DispatcherLifecycleSpikeTests
 
         var result = await DispatcherLifecycleSpike.RunAsync(startSteps, stopSteps, cts.Token);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(Error.Canceled().Code, result.Error?.Code);
+        result.IsFailure.Should().BeTrue();
+        result.Error?.Code.Should().Be(Error.Canceled().Code);
     }
 }

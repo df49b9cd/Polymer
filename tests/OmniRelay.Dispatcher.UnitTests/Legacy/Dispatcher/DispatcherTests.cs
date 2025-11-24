@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
@@ -20,20 +21,20 @@ public class DispatcherTests
 
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 
-        Assert.Equal(DispatcherStatus.Created, dispatcher.Status);
+        dispatcher.Status.Should().Be(DispatcherStatus.Created);
 
         var ct = TestContext.Current.CancellationToken;
 
         await dispatcher.StartAsyncChecked(ct);
 
-        Assert.Equal(DispatcherStatus.Running, dispatcher.Status);
-        Assert.Equal(1, lifecycle.StartCalls);
-        Assert.Equal(0, lifecycle.StopCalls);
+        dispatcher.Status.Should().Be(DispatcherStatus.Running);
+        lifecycle.StartCalls.Should().Be(1);
+        lifecycle.StopCalls.Should().Be(0);
 
         await dispatcher.StopAsyncChecked(ct);
 
-        Assert.Equal(DispatcherStatus.Stopped, dispatcher.Status);
-        Assert.Equal(1, lifecycle.StopCalls);
+        dispatcher.Status.Should().Be(DispatcherStatus.Stopped);
+        lifecycle.StopCalls.Should().Be(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -48,8 +49,8 @@ public class DispatcherTests
 
         var duplicate = dispatcher.Register(spec);
 
-        Assert.True(duplicate.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.FailedPrecondition, OmniRelayErrorAdapter.ToStatus(duplicate.Error!));
+        duplicate.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(duplicate.Error!).Should().Be(OmniRelayStatusCode.FailedPrecondition);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -62,8 +63,8 @@ public class DispatcherTests
 
         var result = dispatcher.Register(spec);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).Should().Be(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -92,21 +93,21 @@ public class DispatcherTests
 
         var result = await dispatcher.InvokeUnaryAsync("v1::user::get", request, ct);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, callCount);
+        result.IsSuccess.Should().BeTrue();
+        callCount.Should().Be(1);
 
         var snapshot = dispatcher.Introspect();
-        var descriptor = Assert.Single(snapshot.Procedures.Unary);
-        Assert.Contains("v1::user::*", descriptor.Aliases);
-        Assert.Contains("users::get", descriptor.Aliases);
+        var descriptor = snapshot.Procedures.Unary.Should().HaveSingleItem().Which;
+        descriptor.Aliases.Should().Contain("v1::user::*");
+        descriptor.Aliases.Should().Contain("users::get");
 
         var aliasMeta = new RequestMeta(service: "keyvalue", procedure: "users::get", transport: "test");
         var aliasRequest = new Request<ReadOnlyMemory<byte>>(aliasMeta, ReadOnlyMemory<byte>.Empty);
 
         var aliasResult = await dispatcher.InvokeUnaryAsync("users::get", aliasRequest, ct);
 
-        Assert.True(aliasResult.IsSuccess);
-        Assert.Equal(2, callCount);
+        aliasResult.IsSuccess.Should().BeTrue();
+        callCount.Should().Be(2);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -139,16 +140,16 @@ public class DispatcherTests
         var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
         var result = await dispatcher.InvokeUnaryAsync("user::get", request, TestContext.Current.CancellationToken);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { "global", "m1", "m2", "handler" }, order);
+        result.IsSuccess.Should().BeTrue();
+        order.Should().Equal("global", "m1", "m2", "handler");
 
-        Assert.True(dispatcher.TryGetProcedure("user::get", ProcedureKind.Unary, out var spec));
-        var unarySpec = Assert.IsType<UnaryProcedureSpec>(spec);
-        Assert.Equal("json", unarySpec.Encoding);
-        Assert.Contains("users::get", unarySpec.Aliases);
-        Assert.Collection(unarySpec.Middleware,
-            mw => Assert.Same(middleware1, mw),
-            mw => Assert.Same(middleware2, mw));
+        dispatcher.TryGetProcedure("user::get", ProcedureKind.Unary, out var spec).Should().BeTrue();
+        var unarySpec = spec.Should().BeOfType<UnaryProcedureSpec>().Which;
+        unarySpec.Encoding.Should().Be("json");
+        unarySpec.Aliases.Should().Contain("users::get");
+        unarySpec.Middleware.Should().HaveCount(2);
+        unarySpec.Middleware[0].Should().BeSameAs(middleware1);
+        unarySpec.Middleware[1].Should().BeSameAs(middleware2);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -182,17 +183,17 @@ public class DispatcherTests
             ReadOnlyMemory<byte>.Empty);
 
         var wildcardResult = await dispatcher.InvokeUnaryAsync("catalog::listing", wildcardRequest, TestContext.Current.CancellationToken);
-        Assert.True(wildcardResult.IsSuccess, wildcardResult.Error?.ToString());
-        Assert.Equal(1, wildcardInvocations);
-        Assert.Equal(0, directInvocations);
+        wildcardResult.IsSuccess.Should().BeTrue(wildcardResult.Error?.ToString());
+        wildcardInvocations.Should().Be(1);
+        directInvocations.Should().Be(0);
 
         var directRequest = new Request<ReadOnlyMemory<byte>>(
             new RequestMeta(service: "catalog", procedure: "catalog::exact", transport: "test"),
             ReadOnlyMemory<byte>.Empty);
 
         var directResult = await dispatcher.InvokeUnaryAsync("catalog::exact", directRequest, TestContext.Current.CancellationToken);
-        Assert.True(directResult.IsSuccess, directResult.Error?.ToString());
-        Assert.Equal(1, directInvocations);
+        directResult.IsSuccess.Should().BeTrue(directResult.Error?.ToString());
+        directInvocations.Should().Be(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -227,9 +228,9 @@ public class DispatcherTests
             ReadOnlyMemory<byte>.Empty);
 
         var result = await dispatcher.InvokeUnaryAsync("inventory::v2::list", request, TestContext.Current.CancellationToken);
-        Assert.True(result.IsSuccess, result.Error?.ToString());
-        Assert.Equal(0, generalCount);
-        Assert.Equal(1, versionCount);
+        result.IsSuccess.Should().BeTrue(result.Error?.ToString());
+        generalCount.Should().Be(0);
+        versionCount.Should().Be(1);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -248,8 +249,8 @@ public class DispatcherTests
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty))),
             builder => builder.AddAlias("billing::*"));
 
-        Assert.True(conflict.IsFailure);
-        Assert.Contains("conflicts", conflict.Error?.Message, StringComparison.OrdinalIgnoreCase);
+        conflict.IsFailure.Should().BeTrue();
+        conflict.Error?.Message.Should().Contain("conflicts", StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -259,8 +260,8 @@ public class DispatcherTests
 
         var result = dispatcher.RegisterUnary("missing", builder => builder.WithEncoding("json"));
 
-        Assert.True(result.IsFailure);
-        Assert.Contains("Handle", result.Error?.Message, StringComparison.Ordinal);
+        result.IsFailure.Should().BeTrue();
+        result.Error?.Message.Should().Contain("Handle", StringComparison.Ordinal);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -272,8 +273,8 @@ public class DispatcherTests
             "   ",
             (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty))));
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.InvalidArgument, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).Should().Be(OmniRelayStatusCode.InvalidArgument);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -283,7 +284,7 @@ public class DispatcherTests
 
         dispatcher.RegisterUnary(" svc::call  ", (request, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty)))).ValueOrChecked();
 
-        Assert.True(dispatcher.TryGetProcedure("svc::call", ProcedureKind.Unary, out _));
+        dispatcher.TryGetProcedure("svc::call", ProcedureKind.Unary, out _).Should().BeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -302,11 +303,11 @@ public class DispatcherTests
                 .AddAliases(["events::watch"])
                 .WithMetadata(metadata)).ValueOrChecked();
 
-        Assert.True(dispatcher.TryGetProcedure("events::subscribe", ProcedureKind.Stream, out var spec));
-        var streamSpec = Assert.IsType<StreamProcedureSpec>(spec);
-        Assert.Equal("json", streamSpec.Encoding);
-        Assert.Equal(metadata, streamSpec.Metadata);
-        Assert.Contains("events::watch", streamSpec.Aliases);
+        dispatcher.TryGetProcedure("events::subscribe", ProcedureKind.Stream, out var spec).Should().BeTrue();
+        var streamSpec = spec.Should().BeOfType<StreamProcedureSpec>().Which;
+        streamSpec.Encoding.Should().Be("json");
+        streamSpec.Metadata.Should().Be(metadata);
+        streamSpec.Aliases.Should().Contain("events::watch");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -322,19 +323,19 @@ public class DispatcherTests
         var dispatcher = new OmniRelay.Dispatcher.Dispatcher(options);
 
         var configResult = dispatcher.ClientConfig("backend");
-        Assert.True(configResult.IsSuccess, configResult.Error?.ToString());
+        configResult.IsSuccess.Should().BeTrue(configResult.Error?.ToString());
         var config = configResult.Value;
 
-        Assert.Equal("backend", config.Service);
-        Assert.True(config.TryGetUnary(null, out var resolved));
-        Assert.Same(unaryOutbound, resolved);
-        Assert.Contains(unaryOutbound, config.Unary.Values);
-        Assert.Contains(unaryMiddleware, config.UnaryMiddleware);
-        Assert.Empty(config.ClientStream);
-        Assert.Empty(config.Duplex);
-        Assert.Empty(config.ClientStreamMiddleware);
-        Assert.Empty(config.DuplexMiddleware);
-        Assert.Empty(config.ClientStreamMiddleware);
+        config.Service.Should().Be("backend");
+        config.TryGetUnary(null, out var resolved).Should().BeTrue();
+        resolved.Should().BeSameAs(unaryOutbound);
+        config.Unary.Values.Should().Contain(unaryOutbound);
+        config.UnaryMiddleware.Should().Contain(unaryMiddleware);
+        config.ClientStream.Should().BeEmpty();
+        config.Duplex.Should().BeEmpty();
+        config.ClientStreamMiddleware.Should().BeEmpty();
+        config.DuplexMiddleware.Should().BeEmpty();
+        config.ClientStreamMiddleware.Should().BeEmpty();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -344,8 +345,8 @@ public class DispatcherTests
 
         var config = dispatcher.ClientConfig("missing");
 
-        Assert.True(config.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.NotFound, OmniRelayErrorAdapter.ToStatus(config.Error!));
+        config.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(config.Error!).Should().Be(OmniRelayStatusCode.NotFound);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -373,7 +374,7 @@ public class DispatcherTests
         var ct = TestContext.Current.CancellationToken;
         var result = await dispatcher.InvokeClientStreamAsync("aggregate", requestMeta, ct);
 
-        Assert.True(result.IsSuccess);
+        result.IsSuccess.Should().BeTrue();
 
         await using var call = result.Value;
 
@@ -383,10 +384,10 @@ public class DispatcherTests
 
         var responseResult = await call.Response;
 
-        Assert.True(responseResult.IsSuccess);
-        Assert.Equal("application/octet-stream", call.ResponseMeta.Encoding);
+        responseResult.IsSuccess.Should().BeTrue();
+        call.ResponseMeta.Encoding.Should().Be("application/octet-stream");
         var count = BitConverter.ToInt32(responseResult.Value.Body.Span);
-        Assert.Equal(3, count);
+        count.Should().Be(3);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -398,8 +399,8 @@ public class DispatcherTests
 
         var result = await dispatcher.InvokeClientStreamAsync("missing", requestMeta, ct);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Unimplemented, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).Should().Be(OmniRelayStatusCode.Unimplemented);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -417,38 +418,38 @@ public class DispatcherTests
         dispatcher.Register(CreateUnaryProcedure("keyvalue", "get")).ValueOrChecked();
 
         var beforeStart = dispatcher.Introspect();
-        Assert.Equal(DispatcherStatus.Created, beforeStart.Status);
-        Assert.Single(beforeStart.Procedures.Unary);
-        Assert.Equal("get", beforeStart.Procedures.Unary[0].Name);
-        Assert.Empty(beforeStart.Middleware.InboundClientStream);
-        Assert.Empty(beforeStart.Middleware.OutboundClientStream);
-        Assert.Empty(beforeStart.Middleware.InboundDuplex);
-        Assert.Empty(beforeStart.Middleware.OutboundDuplex);
+        beforeStart.Status.Should().Be(DispatcherStatus.Created);
+        beforeStart.Procedures.Unary.Should().HaveCount(1);
+        beforeStart.Procedures.Unary[0].Name.Should().Be("get");
+        beforeStart.Middleware.InboundClientStream.Should().BeEmpty();
+        beforeStart.Middleware.OutboundClientStream.Should().BeEmpty();
+        beforeStart.Middleware.InboundDuplex.Should().BeEmpty();
+        beforeStart.Middleware.OutboundDuplex.Should().BeEmpty();
 
         var ct = TestContext.Current.CancellationToken;
         await dispatcher.StartAsyncChecked(ct);
 
         var snapshot = dispatcher.Introspect();
 
-        Assert.Equal("keyvalue", snapshot.Service);
-        Assert.Equal(DispatcherStatus.Running, snapshot.Status);
-        Assert.Contains(snapshot.Components, static component => component.Name == "test");
-        Assert.Contains(snapshot.Middleware.InboundUnary, static typeName => typeName.Contains(nameof(PassthroughUnaryInboundMiddleware), StringComparison.Ordinal));
-        Assert.Contains(snapshot.Middleware.OutboundUnary, static typeName => typeName.Contains(nameof(PassthroughUnaryOutboundMiddleware), StringComparison.Ordinal));
-        Assert.Empty(snapshot.Middleware.InboundClientStream);
-        Assert.Empty(snapshot.Middleware.OutboundClientStream);
-        Assert.Empty(snapshot.Middleware.InboundDuplex);
-        Assert.Empty(snapshot.Middleware.OutboundDuplex);
+        snapshot.Service.Should().Be("keyvalue");
+        snapshot.Status.Should().Be(DispatcherStatus.Running);
+        snapshot.Components.Should().Contain(component => component.Name == "test");
+        snapshot.Middleware.InboundUnary.Should().Contain(typeName => typeName.Contains(nameof(PassthroughUnaryInboundMiddleware), StringComparison.Ordinal));
+        snapshot.Middleware.OutboundUnary.Should().Contain(typeName => typeName.Contains(nameof(PassthroughUnaryOutboundMiddleware), StringComparison.Ordinal));
+        snapshot.Middleware.InboundClientStream.Should().BeEmpty();
+        snapshot.Middleware.OutboundClientStream.Should().BeEmpty();
+        snapshot.Middleware.InboundDuplex.Should().BeEmpty();
+        snapshot.Middleware.OutboundDuplex.Should().BeEmpty();
 
         await dispatcher.StopAsyncChecked(ct);
 
         var afterStop = dispatcher.Introspect();
-        Assert.Equal(DispatcherStatus.Stopped, afterStop.Status);
-        Assert.Empty(afterStop.Middleware.InboundClientStream);
-        Assert.Empty(afterStop.Middleware.OutboundClientStream);
-        Assert.Empty(afterStop.Middleware.InboundDuplex);
-        Assert.Empty(afterStop.Middleware.OutboundDuplex);
-        Assert.Empty(afterStop.Middleware.OutboundClientStream);
+        afterStop.Status.Should().Be(DispatcherStatus.Stopped);
+        afterStop.Middleware.InboundClientStream.Should().BeEmpty();
+        afterStop.Middleware.OutboundClientStream.Should().BeEmpty();
+        afterStop.Middleware.InboundDuplex.Should().BeEmpty();
+        afterStop.Middleware.OutboundDuplex.Should().BeEmpty();
+        afterStop.Middleware.OutboundClientStream.Should().BeEmpty();
     }
 
     private static UnaryProcedureSpec CreateUnaryProcedure(string service, string procedure) =>
