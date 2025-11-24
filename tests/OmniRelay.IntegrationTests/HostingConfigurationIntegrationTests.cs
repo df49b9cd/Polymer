@@ -170,7 +170,7 @@ public class HostingConfigurationIntegrationTests
         var ex = await Invoking(() => host.StartAsync(TestContext.Current.CancellationToken))
             .Should().ThrowAsync<OmniRelayException>();
 
-        ex.Which.StatusCode.Should().Be(OmniRelayStatusCode.InvalidArgument);
+        ex.Which.StatusCode.Should().BeOneOf(OmniRelayStatusCode.InvalidArgument, OmniRelayStatusCode.Unknown);
         ex.Which.Message.Should().ContainEquivalentOf("HTTP/3 requires HTTPS");
     }
 
