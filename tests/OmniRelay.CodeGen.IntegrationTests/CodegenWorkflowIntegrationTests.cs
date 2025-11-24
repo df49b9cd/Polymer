@@ -113,12 +113,15 @@ public class CodegenWorkflowIntegrationTests
         }
 
         serviceImpl.UnaryMetas.TryDequeue(out var unaryMeta).Should().BeTrue("Unary metadata not captured.");
-        unaryMeta.Service.Should().Be("codegen-host-http3");
-        unaryMeta.Procedure.Should().Be("UnaryCall");
-        unaryMeta.Encoding.Should().Be(EncodingName);
+        unaryMeta.Should().NotBeNull();
+        var http3Meta = unaryMeta!;
+        http3Meta.Service.Should().Be("codegen-host-http3");
+        http3Meta.Procedure.Should().Be("UnaryCall");
+        http3Meta.Encoding.Should().Be(EncodingName);
 
         protocols.TryDequeue(out var observed).Should().BeTrue("No protocol captured.");
-        observed.Should().StartWithEquivalentOf("HTTP/3");
+        observed.Should().NotBeNull();
+        observed!.Should().StartWithEquivalentOf("HTTP/3");
     }
 
     [Http3Fact(Timeout = 90_000)]
@@ -217,12 +220,15 @@ public class CodegenWorkflowIntegrationTests
         }
 
         serviceImpl.UnaryMetas.TryDequeue(out var unaryMeta).Should().BeTrue("Unary metadata not captured.");
-        unaryMeta.Service.Should().Be("codegen-host-http2");
-        unaryMeta.Procedure.Should().Be("UnaryCall");
-        unaryMeta.Encoding.Should().Be(EncodingName);
+        unaryMeta.Should().NotBeNull();
+        var http2Meta = unaryMeta!;
+        http2Meta.Service.Should().Be("codegen-host-http2");
+        http2Meta.Procedure.Should().Be("UnaryCall");
+        http2Meta.Encoding.Should().Be(EncodingName);
 
         protocols.TryDequeue(out var observed).Should().BeTrue("No protocol captured.");
-        observed.Should().StartWithEquivalentOf("HTTP/2");
+        observed.Should().NotBeNull();
+        observed!.Should().StartWithEquivalentOf("HTTP/2");
     }
 
     [Fact(Timeout = 90_000)]
@@ -324,19 +330,25 @@ public class CodegenWorkflowIntegrationTests
         }
 
         serviceImpl.ServerStreamMetas.TryDequeue(out var serverStreamMeta).Should().BeTrue("Server stream metadata missing.");
-        serverStreamMeta.Service.Should().Be("codegen-host-streams");
-        serverStreamMeta.Procedure.Should().Be("ServerStream");
-        serverStreamMeta.Encoding.Should().Be(EncodingName);
+        serverStreamMeta.Should().NotBeNull();
+        var serverMeta = serverStreamMeta!;
+        serverMeta.Service.Should().Be("codegen-host-streams");
+        serverMeta.Procedure.Should().Be("ServerStream");
+        serverMeta.Encoding.Should().Be(EncodingName);
 
         serviceImpl.ClientStreamMetas.TryDequeue(out var clientStreamMeta).Should().BeTrue("Client stream metadata missing.");
-        clientStreamMeta.Service.Should().Be("codegen-host-streams");
-        clientStreamMeta.Procedure.Should().Be("ClientStream");
-        clientStreamMeta.Encoding.Should().Be(EncodingName);
+        clientStreamMeta.Should().NotBeNull();
+        var clientMeta = clientStreamMeta!;
+        clientMeta.Service.Should().Be("codegen-host-streams");
+        clientMeta.Procedure.Should().Be("ClientStream");
+        clientMeta.Encoding.Should().Be(EncodingName);
 
         serviceImpl.DuplexStreamMetas.TryDequeue(out var duplexMeta).Should().BeTrue("Duplex stream metadata missing.");
-        duplexMeta.Service.Should().Be("codegen-host-streams");
-        duplexMeta.Procedure.Should().Be("DuplexStream");
-        duplexMeta.Encoding.Should().Be(EncodingName);
+        duplexMeta.Should().NotBeNull();
+        var duplexStreamMeta = duplexMeta!;
+        duplexStreamMeta.Service.Should().Be("codegen-host-streams");
+        duplexStreamMeta.Procedure.Should().Be("DuplexStream");
+        duplexStreamMeta.Encoding.Should().Be(EncodingName);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

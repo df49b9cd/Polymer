@@ -230,22 +230,23 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
                 service: "binding",
                 procedure: "binding::ping",
                 transport: TransportName);
-        var request = new Request<ReadOnlyMemory<byte>>(requestMeta, ReadOnlyMemory<byte>.Empty);
-        var response = await outbound.CallAsync(request, ct);
-        response.IsSuccess.Should().BeTrue(response.Error?.Message);
+            var request = new Request<ReadOnlyMemory<byte>>(requestMeta, ReadOnlyMemory<byte>.Empty);
+            var response = await outbound.CallAsync(request, ct);
+            response.IsSuccess.Should().BeTrue(response.Error?.Message);
 
-        var exception = await Invoking(async () =>
-        {
-            var unusedPort = TestPortAllocator.GetRandomPort();
-            using var unusedClient = new TcpClient();
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(200));
-            await unusedClient.ConnectAsync("127.0.0.1", unusedPort, timeoutCts.Token);
-        }).Should().ThrowAsync<Exception>();
+            var exception = await Invoking(async () =>
+            {
+                var unusedPort = TestPortAllocator.GetRandomPort();
+                using var unusedClient = new TcpClient();
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(200));
+                await unusedClient.ConnectAsync("127.0.0.1", unusedPort, timeoutCts.Token);
+            }).Should().ThrowAsync<Exception>();
 
-        exception.Which.Should().Match<Exception>(ex => ex is SocketException or OperationCanceledException,
-            $"Expected connection failure but observed {exception.Which.GetType().FullName}.");
-    }
+            var exceptionType = exception.Which.GetType();
+            (exceptionType == typeof(SocketException) || exceptionType == typeof(OperationCanceledException))
+                .Should().BeTrue($"Expected connection failure but observed {exceptionType.FullName}.");
+        }
         finally
         {
             await outbound.StopAsync(ct);
@@ -554,7 +555,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         await enumerator.DisposeAsync();
 
         exception.Which.StatusCode.Should().Be(OmniRelayStatusCode.Internal);
-        exception.Which.Message.Should().Contain("stream failure", StringComparison.OrdinalIgnoreCase);
+        exception.Which.Message.Should().ContainEquivalentOf("stream failure");
     }
 
     [Fact(Timeout = 30_000)]
@@ -1949,8 +1950,9 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         serverMeta.RoutingDelegate.Should().Be(requestMeta.RoutingDelegate);
         serverMeta.TimeToLive.Should().Be(requestMeta.TimeToLive);
 
-        serverMeta.Deadline.HasValue.Should().BeTrue();
-        (serverMeta.Deadline.Value - deadline).Duration().Should().BeInRange(TimeSpan.Zero, TimeSpan.FromMilliseconds(5));
+        serverMeta.Deadline.Should().HaveValue();
+        var deadlineDelta = (serverMeta.Deadline!.Value - deadline).Duration();
+        deadlineDelta.Should().BeLessThanOrEqualTo(TimeSpan.FromMilliseconds(5));
 
         serverMeta.Headers["x-trace-id"].Should().Be("trace-abc");
         serverMeta.Headers["x-feature"].Should().Be("beta");
@@ -2060,8 +2062,9 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
             var serverMeta = await observedMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
             serverMeta.Caller.Should().Be("stream-caller");
             serverMeta.TimeToLive.Should().Be(TimeSpan.FromSeconds(10));
-            serverMeta.Deadline.HasValue.Should().BeTrue();
-            (serverMeta.Deadline.Value - deadline).Duration().Should().BeInRange(TimeSpan.Zero, TimeSpan.FromMilliseconds(5));
+            serverMeta.Deadline.Should().HaveValue();
+            var deadlineDelta = (serverMeta.Deadline!.Value - deadline).Duration();
+            deadlineDelta.Should().BeLessThanOrEqualTo(TimeSpan.FromMilliseconds(5));
             serverMeta.Headers["x-meta"].Should().Be("value");
 
             foreach (var response in responses)

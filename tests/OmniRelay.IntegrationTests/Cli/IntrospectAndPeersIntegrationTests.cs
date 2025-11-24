@@ -119,7 +119,7 @@ public class IntrospectAndPeersIntegrationTests
 
             result.ExitCode.Should().Be(0);
             result.StandardOutput.Should().Contain("node-b");
-            result.StandardOutput.Should().Contain("schemaVersion", StringComparison.OrdinalIgnoreCase);
+            result.StandardOutput.Should().ContainEquivalentOf("schemaVersion");
         }
         finally
         {

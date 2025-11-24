@@ -13,6 +13,7 @@ public class CodecRegistryTests
     {
         var result = CodecRegistry.Create(" ", []);
         result.IsFailure.Should().BeTrue();
+        result.Error.Should().NotBeNull();
         result.Error!.Code.Should().Be("dispatcher.codec.local_service_required");
     }
 
@@ -25,9 +26,11 @@ public class CodecRegistryTests
         registry.RegisterInbound("proc", ProcedureKind.Unary, codec).IsSuccess.Should().BeTrue();
 
         registry.TryResolve(ProcedureCodecScope.Inbound, "svc", "proc", ProcedureKind.Unary, out var descriptor).Should().BeTrue();
-        descriptor.Codec.Should().BeSameAs(codec);
+        descriptor.Should().NotBeNull();
+        descriptor!.Codec.Should().BeSameAs(codec);
         registry.TryResolve<string, string>(ProcedureCodecScope.Inbound, "svc", "proc", ProcedureKind.Unary, out var typed).Should().BeTrue();
-        typed.Should().BeSameAs(codec);
+        typed.Should().NotBeNull();
+        typed!.Should().BeSameAs(codec);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -53,8 +56,10 @@ public class CodecRegistryTests
 
         registry.TryResolve(ProcedureCodecScope.Inbound, "svc", "alias-1", ProcedureKind.Unary, out var first).Should().BeTrue();
         registry.TryResolve(ProcedureCodecScope.Inbound, "svc", "alias-2", ProcedureKind.Unary, out var second).Should().BeTrue();
-        first.Codec.Should().BeSameAs(codec);
-        second.Codec.Should().BeSameAs(codec);
+        first.Should().NotBeNull();
+        second.Should().NotBeNull();
+        first!.Codec.Should().BeSameAs(codec);
+        second!.Codec.Should().BeSameAs(codec);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

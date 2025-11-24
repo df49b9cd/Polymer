@@ -97,7 +97,7 @@ public class DispatcherTests
         callCount.Should().Be(1);
 
         var snapshot = dispatcher.Introspect();
-        var descriptor = snapshot.Procedures.Unary.Should().HaveSingleItem().Which;
+        var descriptor = snapshot.Procedures.Unary.Should().ContainSingle().Which;
         descriptor.Aliases.Should().Contain("v1::user::*");
         descriptor.Aliases.Should().Contain("users::get");
 
@@ -250,7 +250,7 @@ public class DispatcherTests
             builder => builder.AddAlias("billing::*"));
 
         conflict.IsFailure.Should().BeTrue();
-        conflict.Error?.Message.Should().Contain("conflicts", StringComparison.OrdinalIgnoreCase);
+        conflict.Error?.Message.Should().ContainEquivalentOf("conflicts");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -261,7 +261,7 @@ public class DispatcherTests
         var result = dispatcher.RegisterUnary("missing", builder => builder.WithEncoding("json"));
 
         result.IsFailure.Should().BeTrue();
-        result.Error?.Message.Should().Contain("Handle", StringComparison.Ordinal);
+        result.Error?.Message.Should().Contain("Handle");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

@@ -175,7 +175,7 @@ public class DispatcherTests
 
         var startResult = await dispatcher.StartAsync(TestContext.Current.CancellationToken);
         startResult.IsFailure.Should().BeTrue();
-        startResult.Error!.Message.Should().Contain("start failure", StringComparison.OrdinalIgnoreCase);
+        startResult.Error!.Message.Should().ContainEquivalentOf("start failure");
         first.Events.Should().Contain("stop");
         dispatcher.Status.Should().Be(DispatcherStatus.Stopped);
     }

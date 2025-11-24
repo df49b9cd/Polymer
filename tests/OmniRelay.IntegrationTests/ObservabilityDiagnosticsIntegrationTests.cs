@@ -416,10 +416,14 @@ public class ObservabilityDiagnosticsIntegrationTests
         throw new TimeoutException($"HTTP inbound at {baseAddress} failed to respond to /healthz.");
     }
 
-    private static void AssertScopeContains(LogEntry entry, string key, string expected) =>
-        entry.Scope.Should().Contain(pair =>
+    private static void AssertScopeContains(LogEntry entry, string key, string expected)
+    {
+        var hasMatch = entry.Scope.Any(pair =>
             string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(pair.Value?.ToString(), expected, StringComparison.OrdinalIgnoreCase));
+
+        hasMatch.Should().BeTrue($"Expected scope to contain '{key}={expected}'.");
+    }
 
     private static bool HasTag(MeasurementRecord measurement, string key, object expected)
     {

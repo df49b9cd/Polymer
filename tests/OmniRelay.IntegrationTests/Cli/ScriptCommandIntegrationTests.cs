@@ -55,8 +55,8 @@ public class ScriptCommandIntegrationTests
                 TestContext.Current.CancellationToken);
 
             result.ExitCode.Should().Be(0, $"Exit:{result.ExitCode}\nStdOut:\n{result.StandardOutput}\nStdErr:\n{result.StandardError}");
-            result.StandardOutput.Should().Contain("Loaded script", StringComparison.OrdinalIgnoreCase);
-            result.StandardOutput.Should().Contain("script-int", StringComparison.OrdinalIgnoreCase);
+            result.StandardOutput.Should().ContainEquivalentOf("Loaded script");
+            result.StandardOutput.Should().ContainEquivalentOf("script-int");
         }
         finally
         {
