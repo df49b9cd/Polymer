@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AwesomeAssertions;
 using Hugo;
 using Json.Schema;
 using OmniRelay.Core;
@@ -49,33 +50,33 @@ public class DispatcherJsonExtensionsTests
         var request = new Request<ReadOnlyMemory<byte>>(requestMeta, payload);
 
         var result = await dispatcher.InvokeUnaryAsync("echo::greet", request, CancellationToken.None);
-        Assert.True(result.IsSuccess, result.Error?.ToString() ?? "unknown error");
+        result.IsSuccess.Should().BeTrue(result.Error?.ToString() ?? "unknown error");
 
         var decoded = JsonSerializer.Deserialize(
             result.Value.Body.Span,
             OmniRelayTestsJsonContext.Default.JsonEchoResponse);
-        Assert.Equal("SANDY", decoded?.Message);
-        Assert.Equal("application/json", result.Value.Meta.Encoding);
+        decoded?.Message.Should().Be("SANDY");
+        result.Value.Meta.Encoding.Should().Be("application/json");
 
         var aliasMeta = requestMeta with { Procedure = "v1::greet" };
         var aliasRequest = new Request<ReadOnlyMemory<byte>>(aliasMeta, payload);
         var aliasResult = await dispatcher.InvokeUnaryAsync("v1::greet", aliasRequest, CancellationToken.None);
-        Assert.True(aliasResult.IsSuccess);
+        aliasResult.IsSuccess.Should().BeTrue();
 
-        Assert.True(dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
+        dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
             ProcedureCodecScope.Inbound,
             "echo",
             "echo::greet",
             ProcedureKind.Unary,
-            out var inboundCodec));
-        Assert.Equal("application/json", inboundCodec.Encoding);
+            out var inboundCodec)).Should().BeTrue();
+        inboundCodec.Encoding.Should().Be("application/json");
 
-        Assert.True(dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
+        dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
             ProcedureCodecScope.Inbound,
             "echo",
             "v1::greet",
             ProcedureKind.Unary,
-            out _));
+            out _).Should().BeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -91,30 +92,30 @@ public class DispatcherJsonExtensionsTests
             "echo::greet",
             codec => codec.Encoding = "application/json");
 
-        Assert.True(clientResult.IsSuccess, clientResult.Error?.Message);
+        clientResult.IsSuccess.Should().BeTrue(clientResult.Error?.Message);
         var client = clientResult.Value;
 
         var meta = new RequestMeta(service: "remote", procedure: "echo::greet", transport: "test");
         var request = new Request<JsonEchoRequest>(meta, new JsonEchoRequest("sally"));
         var callResult = await client.CallAsync(request, CancellationToken.None);
 
-        Assert.True(callResult.IsSuccess);
-        Assert.Equal("hello sally", callResult.Value.Body.Message);
+        callResult.IsSuccess.Should().BeTrue();
+        callResult.Value.Body.Message.Should().Be("hello sally");
 
-        Assert.Single(outbound.Requests);
+        outbound.Requests.Should().HaveCount(1);
         var recorded = outbound.Requests[0];
-        Assert.Equal("application/json", recorded.Meta.Encoding);
+        recorded.Meta.Encoding.Should().Be("application/json");
 
         using var document = JsonDocument.Parse(recorded.Body.ToArray());
-        Assert.Equal("sally", document.RootElement.GetProperty("name").GetString());
+        document.RootElement.GetProperty("name").GetString().Should().Be("sally");
 
-        Assert.True(dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
+        dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
             ProcedureCodecScope.Outbound,
             "remote",
             "echo::greet",
             ProcedureKind.Unary,
-            out var outboundCodec));
-        Assert.Equal("application/json", outboundCodec.Encoding);
+            out var outboundCodec)).Should().BeTrue();
+        outboundCodec.Encoding.Should().Be("application/json");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -134,8 +135,8 @@ public class DispatcherJsonExtensionsTests
         var request = new Request<ReadOnlyMemory<byte>>(meta, payload);
 
         var result = await dispatcher.InvokeUnaryAsync("svc::fail", request, TestContext.Current.CancellationToken);
-        Assert.True(result.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Internal, OmniRelayErrorAdapter.ToStatus(result.Error!));
+        result.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(result.Error!).Should().Be(OmniRelayStatusCode.Internal);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -155,20 +156,20 @@ public class DispatcherJsonExtensionsTests
             "remote",
             "svc::op",
             configureCodec: null);
-        Assert.True(clientResult.IsSuccess, clientResult.Error?.Message);
+        clientResult.IsSuccess.Should().BeTrue(clientResult.Error?.Message);
         var client = clientResult.Value;
 
         var meta = new RequestMeta(service: "remote", procedure: "svc::op", transport: "test");
         var response = await client.CallAsync(new Request<JsonEchoRequest>(meta, new JsonEchoRequest("lane")), TestContext.Current.CancellationToken);
-        Assert.True(response.IsSuccess);
+        response.IsSuccess.Should().BeTrue();
 
-        Assert.True(dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
+        dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
             ProcedureCodecScope.Outbound,
             "remote",
             "svc::op",
             ProcedureKind.Unary,
-            out var resolved));
-        Assert.Same(codec, resolved);
+            out var resolved)).Should().BeTrue();
+        resolved.Should().BeSameAs(codec);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -190,15 +191,15 @@ public class DispatcherJsonExtensionsTests
             outboundKey: null,
             aliases: ["svc::alias"]);
 
-        Assert.True(clientResult.IsSuccess, clientResult.Error?.Message);
-        Assert.NotNull(clientResult.Value);
+        clientResult.IsSuccess.Should().BeTrue(clientResult.Error?.Message);
+        clientResult.Value.Should().NotBeNull();
 
-        Assert.True(dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
+        dispatcher.Codecs.TryResolve<JsonEchoRequest, JsonEchoResponse>(
             ProcedureCodecScope.Outbound,
             "remote",
             "svc::alias",
             ProcedureKind.Unary,
-            out _));
+            out _).Should().BeTrue();
     }
 
     private sealed class RecordingUnaryOutbound : IUnaryOutbound

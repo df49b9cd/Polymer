@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AwesomeAssertions;
 using NSubstitute;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
@@ -23,12 +24,13 @@ public class DispatcherJsonExtensionsTests
             configureCodec: builder => builder.Encoding = "custom/json",
             configureProcedure: builder => builder.AddAlias("alias"));
 
-        Assert.True(dispatcher.TryGetProcedure("echo", ProcedureKind.Unary, out var spec));
-        var unary = Assert.IsType<UnaryProcedureSpec>(spec);
-        Assert.Contains("alias", unary.Aliases);
+        dispatcher.TryGetProcedure("echo", ProcedureKind.Unary, out var spec).Should().BeTrue();
+        var unary = spec.Should().BeOfType<UnaryProcedureSpec>().Which;
+        unary.Aliases.Should().Contain("alias");
 
-        Assert.True(dispatcher.Codecs.TryResolve<JsonDocument, JsonDocument>(ProcedureCodecScope.Inbound, "svc", "echo", ProcedureKind.Unary, out var codec));
-        Assert.Equal("custom/json", codec.Encoding);
+        dispatcher.Codecs.TryResolve<JsonDocument, JsonDocument>(ProcedureCodecScope.Inbound, "svc", "echo", ProcedureKind.Unary, out var codec)
+            .Should().BeTrue();
+        codec.Encoding.Should().Be("custom/json");
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -43,12 +45,14 @@ public class DispatcherJsonExtensionsTests
             "echo",
             aliases: ["alias"]);
 
-        Assert.True(clientResult.IsSuccess, clientResult.Error?.Message);
+        clientResult.IsSuccess.Should().BeTrue(clientResult.Error?.Message);
         var client = clientResult.Value;
 
-        Assert.IsType<Core.Clients.UnaryClient<JsonDocument, JsonDocument>>(client);
-        Assert.True(dispatcher.Codecs.TryResolve<JsonDocument, JsonDocument>(ProcedureCodecScope.Outbound, "downstream", "echo", ProcedureKind.Unary, out _));
-        Assert.True(dispatcher.Codecs.TryResolve<JsonDocument, JsonDocument>(ProcedureCodecScope.Outbound, "downstream", "alias", ProcedureKind.Unary, out _));
+        client.Should().BeOfType<Core.Clients.UnaryClient<JsonDocument, JsonDocument>>();
+        dispatcher.Codecs.TryResolve<JsonDocument, JsonDocument>(ProcedureCodecScope.Outbound, "downstream", "echo", ProcedureKind.Unary, out _)
+            .Should().BeTrue();
+        dispatcher.Codecs.TryResolve<JsonDocument, JsonDocument>(ProcedureCodecScope.Outbound, "downstream", "alias", ProcedureKind.Unary, out _)
+            .Should().BeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -62,10 +66,10 @@ public class DispatcherJsonExtensionsTests
 
         var clientResult = dispatcher.CreateJsonClient<JsonDocument, JsonDocument>("downstream", "echo");
 
-        Assert.True(clientResult.IsSuccess, clientResult.Error?.Message);
+        clientResult.IsSuccess.Should().BeTrue(clientResult.Error?.Message);
         var client = clientResult.Value;
 
-        Assert.IsType<Core.Clients.UnaryClient<JsonDocument, JsonDocument>>(client);
+        client.Should().BeOfType<Core.Clients.UnaryClient<JsonDocument, JsonDocument>>();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -84,11 +88,11 @@ public class DispatcherJsonExtensionsTests
         var first = dispatcher.CreateJsonClient<JsonDocument, JsonDocument>("downstream", "echo", configure);
         var second = dispatcher.CreateJsonClient<JsonDocument, JsonDocument>("downstream", "echo", configure);
 
-        Assert.True(first.IsSuccess, first.Error?.Message);
-        Assert.True(second.IsSuccess, second.Error?.Message);
+        first.IsSuccess.Should().BeTrue(first.Error?.Message);
+        second.IsSuccess.Should().BeTrue(second.Error?.Message);
 
-        Assert.NotNull(first.Value);
-        Assert.NotNull(second.Value);
-        Assert.Equal(1, configureInvocations);
+        first.Value.Should().NotBeNull();
+        second.Value.Should().NotBeNull();
+        configureInvocations.Should().Be(1);
     }
 }
