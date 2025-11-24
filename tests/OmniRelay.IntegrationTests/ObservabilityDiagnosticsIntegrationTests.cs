@@ -48,28 +48,28 @@ public class ObservabilityDiagnosticsIntegrationTests
             using (var introspection = await ReadJsonDocumentAsync(client, "omnirelay/introspect", ct))
             {
                 var root = introspection.RootElement;
-                Assert.Equal("observability-healthy", root.GetProperty("service").GetString());
-                Assert.Equal("Running", root.GetProperty("status").GetString());
+                root.GetProperty("service").GetString().Should().Be("observability-healthy");
+                root.GetProperty("status").GetString().Should().Be("Running");
 
                 var components = root.GetProperty("components").EnumerateArray().Select(component => component.GetProperty("name").GetString()).ToArray();
-                Assert.Contains("observability-healthy-http", components);
+                components.Should().Contain("observability-healthy-http");
             }
 
             using (var healthz = await ReadJsonDocumentAsync(client, "healthz", ct))
             {
                 var root = healthz.RootElement;
-                Assert.Equal("ok", root.GetProperty("status").GetString());
-                Assert.Equal("live", root.GetProperty("mode").GetString());
-                Assert.Equal(0, root.GetProperty("issues").GetArrayLength());
-                Assert.False(root.GetProperty("draining").GetBoolean());
+                root.GetProperty("status").GetString().Should().Be("ok");
+                root.GetProperty("mode").GetString().Should().Be("live");
+                root.GetProperty("issues").GetArrayLength().Should().Be(0);
+                root.GetProperty("draining").GetBoolean().Should().BeFalse();
             }
 
             using (var readyz = await ReadJsonDocumentAsync(client, "readyz", ct))
             {
                 var root = readyz.RootElement;
-                Assert.Equal("ok", root.GetProperty("status").GetString());
-                Assert.Equal("ready", root.GetProperty("mode").GetString());
-                Assert.Equal(0, root.GetProperty("issues").GetArrayLength());
+                root.GetProperty("status").GetString().Should().Be("ok");
+                root.GetProperty("mode").GetString().Should().Be("ready");
+                root.GetProperty("issues").GetArrayLength().Should().Be(0);
             }
         }
         finally
@@ -101,14 +101,14 @@ public class ObservabilityDiagnosticsIntegrationTests
                     .Select(issue => issue.GetString())
                     .ToArray();
 
-                Assert.Equal(HttpStatusCode.ServiceUnavailable, readyResponse.StatusCode);
-                Assert.Equal("unavailable", readyz.RootElement.GetProperty("status").GetString());
-                Assert.Contains("dispatcher-status:Created", issues);
+                readyResponse.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+                readyz.RootElement.GetProperty("status").GetString().Should().Be("unavailable");
+                issues.Should().Contain("dispatcher-status:Created");
             }
 
             using (var healthz = await ReadJsonDocumentAsync(client, "healthz", ct))
             {
-                Assert.Equal("ok", healthz.RootElement.GetProperty("status").GetString());
+                healthz.RootElement.GetProperty("status").GetString().Should().Be("ok");
             }
         }
         finally
@@ -190,7 +190,7 @@ public class ObservabilityDiagnosticsIntegrationTests
                     return ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(request.Body, meta)));
                 });
 
-            Assert.True(outboundResult.IsSuccess);
+            outboundResult.IsSuccess.Should().BeTrue();
 
             var middlewareContext = new HttpClientMiddlewareContext(
                 new HttpRequestMessage(HttpMethod.Post, "https://backend.example/omnirelay"),
@@ -281,7 +281,7 @@ public class ObservabilityDiagnosticsIntegrationTests
                 payloads.Add(response.ValueOrChecked().Body.Value);
             }
 
-            Assert.Equal(new[] { "probe-0", "probe-1", "probe-2" }, payloads);
+            payloads.Should().Equal("probe-0", "probe-1", "probe-2");
         }
         finally
         {
@@ -291,22 +291,22 @@ public class ObservabilityDiagnosticsIntegrationTests
 
         var serverSpan = activities.FirstOrDefault(activity =>
             string.Equals(activity.DisplayName, "grpc.server.server_stream", StringComparison.Ordinal));
-        Assert.NotNull(serverSpan);
-        Assert.Equal(ActivityKind.Server, serverSpan!.Kind);
-        Assert.Equal("HTTP/2", serverSpan.GetTagItem("rpc.protocol"));
-        Assert.Equal("http", serverSpan.GetTagItem("network.protocol.name"));
-        Assert.Equal("2", serverSpan.GetTagItem("network.protocol.version"));
-        Assert.Equal("tcp", serverSpan.GetTagItem("network.transport"));
-        Assert.False(string.IsNullOrWhiteSpace(serverSpan.GetTagItem("net.peer.ip") as string));
-        Assert.True(serverSpan.Duration > TimeSpan.Zero);
+        serverSpan.Should().NotBeNull();
+        serverSpan!.Kind.Should().Be(ActivityKind.Server);
+        serverSpan.GetTagItem("rpc.protocol").Should().Be("HTTP/2");
+        serverSpan.GetTagItem("network.protocol.name").Should().Be("http");
+        serverSpan.GetTagItem("network.protocol.version").Should().Be("2");
+        serverSpan.GetTagItem("network.transport").Should().Be("tcp");
+        (serverSpan.GetTagItem("net.peer.ip") as string).Should().NotBeNullOrWhiteSpace();
+        serverSpan.Duration.Should().BeGreaterThan(TimeSpan.Zero);
 
         var clientSpan = activities.FirstOrDefault(activity =>
             string.Equals(activity.DisplayName, "grpc.client.server_stream", StringComparison.Ordinal));
-        Assert.NotNull(clientSpan);
-        Assert.Equal(ActivityKind.Client, clientSpan!.Kind);
-        Assert.Equal("grpc", clientSpan.GetTagItem("rpc.system"));
-        Assert.False(string.IsNullOrWhiteSpace(clientSpan.GetTagItem("net.peer.ip") as string));
-        Assert.True(clientSpan.Duration > TimeSpan.Zero);
+        clientSpan.Should().NotBeNull();
+        clientSpan!.Kind.Should().Be(ActivityKind.Client);
+        clientSpan.GetTagItem("rpc.system").Should().Be("grpc");
+        (clientSpan.GetTagItem("net.peer.ip") as string).Should().NotBeNullOrWhiteSpace();
+        clientSpan.Duration.Should().BeGreaterThan(TimeSpan.Zero);
     }
 
     private static void RegisterPingProcedure(Dispatcher.Dispatcher dispatcher)
@@ -416,12 +416,10 @@ public class ObservabilityDiagnosticsIntegrationTests
         throw new TimeoutException($"HTTP inbound at {baseAddress} failed to respond to /healthz.");
     }
 
-    private static void AssertScopeContains(LogEntry entry, string key, string expected)
-    {
-        Assert.Contains(entry.Scope, pair =>
+    private static void AssertScopeContains(LogEntry entry, string key, string expected) =>
+        entry.Scope.Should().Contain(pair =>
             string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(pair.Value?.ToString(), expected, StringComparison.OrdinalIgnoreCase));
-    }
 
     private static bool HasTag(MeasurementRecord measurement, string key, object expected)
     {
