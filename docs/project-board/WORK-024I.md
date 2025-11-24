@@ -13,7 +13,12 @@ Use Hugo error aggregation helpers (`CollectErrorsAsync`, tap-each aggregate) in
 - Tests assert aggregation over multiple failures and keep success path allocation-lean.
 
 ## Status
-Planned
+Done
+
+## Completion Notes
+- Streaming codec contexts now expose `CollectAllAsync` for client- and duplex-streams, wrapping frames with `Result.CollectErrorsAsync` so handlers can opt into aggregated failures instead of first-error short-circuit.
+- Added unit coverage for mixed-valid/invalid client stream payloads to ensure aggregated error surfaces invalid payloads.
+- Transport/dispatcher streaming continue to short-circuit by default; aggregation can be opted into per-handler via the new helpers.
 
 ## SLOs & CI gates
 - No hot-path allocation regression; validate with unit perf guards or counters.
