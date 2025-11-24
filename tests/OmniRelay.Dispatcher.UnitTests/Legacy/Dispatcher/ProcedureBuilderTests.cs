@@ -37,7 +37,9 @@ public class ProcedureBuilderTests
             .WithEncoding("json")
             .WithMetadata(metadata);
 
-        var spec = builder.Build("svc", "name");
+        var specResult = builder.Build("svc", "name");
+        specResult.IsSuccess.ShouldBeTrue();
+        var spec = specResult.Value;
 
         Assert.Equal("json", spec.Encoding);
         Assert.Same(middleware, Assert.Single(spec.Middleware));

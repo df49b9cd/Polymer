@@ -199,7 +199,7 @@ public sealed class Dispatcher
 
         var builder = new UnaryProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -211,7 +211,7 @@ public sealed class Dispatcher
 
         var builder = new UnaryProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -223,7 +223,7 @@ public sealed class Dispatcher
 
         var builder = new OnewayProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -235,7 +235,7 @@ public sealed class Dispatcher
 
         var builder = new OnewayProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -247,7 +247,7 @@ public sealed class Dispatcher
 
         var builder = new StreamProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -259,7 +259,7 @@ public sealed class Dispatcher
 
         var builder = new StreamProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -271,7 +271,7 @@ public sealed class Dispatcher
 
         var builder = new ClientStreamProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -283,7 +283,7 @@ public sealed class Dispatcher
 
         var builder = new ClientStreamProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -295,7 +295,7 @@ public sealed class Dispatcher
 
         var builder = new DuplexProcedureBuilder(handler);
         configure?.Invoke(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>
@@ -307,7 +307,7 @@ public sealed class Dispatcher
 
         var builder = new DuplexProcedureBuilder();
         configure(builder);
-        return RegisterProcedure(name, trimmed => builder.Build(ServiceName, trimmed));
+        return RegisterProcedure(name, trimmed => ToProcedureSpec(builder.Build(ServiceName, trimmed)));
     }
 
     /// <summary>Attempts to get a procedure by name and kind.</summary>
@@ -964,34 +964,24 @@ public sealed class Dispatcher
         return combined;
     }
 
-    private Result<Unit> RegisterProcedure(string name, Func<string, ProcedureSpec> builder)
+    private Result<Unit> RegisterProcedure(string name, Func<string, Result<ProcedureSpec>> builder)
     {
         return EnsureProcedureName(name)
-            .Then(trimmed => BuildProcedureSpec(() => builder(trimmed)))
+            .Then(trimmed => builder(trimmed))
             .Then(Register);
     }
 
-    private static Result<ProcedureSpec> BuildProcedureSpec(Func<ProcedureSpec> build)
+    private static Result<ProcedureSpec> ToProcedureSpec<TSpec>(Result<TSpec> result)
+        where TSpec : ProcedureSpec
     {
-        try
-        {
-            return Ok(build());
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Err<ProcedureSpec>(CreateDispatcherError(ex.Message, OmniRelayStatusCode.InvalidArgument));
-        }
+        return result.IsSuccess
+            ? Ok<ProcedureSpec>(result.Value)
+            : Err<ProcedureSpec>(result.Error);
     }
 
-    private static Result<string> EnsureProcedureName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return Err<string>(CreateDispatcherError(
+    private static Result<string> EnsureProcedureName(string name) => string.IsNullOrWhiteSpace(name)
+            ? Err<string>(CreateDispatcherError(
                 "Procedure name cannot be null or whitespace.",
-                OmniRelayStatusCode.InvalidArgument));
-        }
-
-        return Ok(name.Trim());
-    }
+                OmniRelayStatusCode.InvalidArgument))
+            : Ok(name.Trim());
 }

@@ -20,7 +20,9 @@ public class ProcedureBuildersTests
             .AddAlias("alias-one")
             .AddAliases(["alias-two", "alias-three"]);
 
-        var spec = builder.Build("svc", "proc");
+        var specResult = builder.Build("svc", "proc");
+        specResult.IsSuccess.ShouldBeTrue();
+        var spec = specResult.Value;
 
         Assert.Equal("svc", spec.Service);
         Assert.Equal("proc", spec.Name);
@@ -34,7 +36,8 @@ public class ProcedureBuildersTests
     {
         var builder = new OnewayProcedureBuilder();
 
-        Assert.Throws<InvalidOperationException>(() => builder.Build("svc", "name"));
+        var result = builder.Build("svc", "name");
+        result.IsFailure.ShouldBeTrue();
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -42,12 +45,12 @@ public class ProcedureBuildersTests
     {
         var metadata = new StreamIntrospectionMetadata(new StreamChannelMetadata(StreamDirection.Server, "bounded", 5, true));
 
-        var spec = new StreamProcedureBuilder()
+        var specResult = new StreamProcedureBuilder()
             .Handle((_, _, _) => ValueTask.FromResult(Ok<IStreamCall>(new TestHelpers.DummyStreamCall())))
             .WithMetadata(metadata)
             .Build("svc", "stream");
-
-        Assert.Equal(metadata, spec.Metadata);
+        specResult.IsSuccess.ShouldBeTrue();
+        Assert.Equal(metadata, specResult.Value.Metadata);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -55,12 +58,12 @@ public class ProcedureBuildersTests
     {
         var metadata = new ClientStreamIntrospectionMetadata(new StreamChannelMetadata(StreamDirection.Client, "bounded", 10, false), false);
 
-        var spec = new ClientStreamProcedureBuilder()
+        var specResult = new ClientStreamProcedureBuilder()
             .Handle((_, _) => ValueTask.FromResult(Ok(Response<ReadOnlyMemory<byte>>.Create(ReadOnlyMemory<byte>.Empty))))
             .WithMetadata(metadata)
             .Build("svc", "client");
-
-        Assert.Equal(metadata, spec.Metadata);
+        specResult.IsSuccess.ShouldBeTrue();
+        Assert.Equal(metadata, specResult.Value.Metadata);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -70,11 +73,11 @@ public class ProcedureBuildersTests
             new StreamChannelMetadata(StreamDirection.Client, "bounded", 1, true),
             new StreamChannelMetadata(StreamDirection.Server, "bounded", 1, true));
 
-        var spec = new DuplexProcedureBuilder()
+        var specResult = new DuplexProcedureBuilder()
             .Handle((_, _) => ValueTask.FromResult(Ok<IDuplexStreamCall>(new TestHelpers.DummyDuplexStreamCall())))
             .WithMetadata(metadata)
             .Build("svc", "duplex");
-
-        Assert.Equal(metadata, spec.Metadata);
+        specResult.IsSuccess.ShouldBeTrue();
+        Assert.Equal(metadata, specResult.Value.Metadata);
     }
 }

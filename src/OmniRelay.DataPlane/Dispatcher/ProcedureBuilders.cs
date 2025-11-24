@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
+using Hugo;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
+using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher;
 
@@ -75,8 +77,16 @@ public abstract class ProcedureBuilderBase<TBuilder, TMiddleware>
     internal IReadOnlyList<TMiddleware> GetMiddlewareSnapshot() =>
         _middleware.Count == 0 ? Array.Empty<TMiddleware>() : _middleware.ToImmutableArray();
 
-    internal IReadOnlyList<string> GetAliasSnapshot() =>
-        _aliases.Count == 0 ? Array.Empty<string>() : _aliases.ToImmutableArray();
+    internal Result<ImmutableArray<string>> GetAliasSnapshot()
+    {
+        if (_aliases.Count == 0)
+        {
+            return Ok(ImmutableArray<string>.Empty);
+        }
+
+        var aliases = ProcedureSpec.ValidateAliases(_aliases);
+        return aliases;
+    }
 }
 
 /// <summary>
@@ -104,21 +114,33 @@ public sealed class UnaryProcedureBuilder : ProcedureBuilderBase<UnaryProcedureB
         return this;
     }
 
-    internal UnaryProcedureSpec Build(string service, string name)
+    internal Result<UnaryProcedureSpec> Build(string service, string name)
     {
         if (_handler is null)
         {
-            throw new InvalidOperationException(
-                $"Unary procedure '{name}' requires a handler. Call {nameof(Handle)}(...) during registration.");
+            return Err<UnaryProcedureSpec>(ProcedureErrors.HandlerMissing(service, name, ProcedureKind.Unary.ToString()));
         }
 
-        return new UnaryProcedureSpec(
-            service,
+        var aliases = GetAliasSnapshot();
+        if (aliases.IsFailure)
+        {
+            return Err<UnaryProcedureSpec>(aliases.Error);
+        }
+
+        var specResult = ProcedureSpec.Create(
             name,
-            _handler,
-            GetEncoding(),
-            GetMiddlewareSnapshot(),
-            GetAliasSnapshot());
+            aliases.Value,
+            validatedAliases => new UnaryProcedureSpec(
+                service,
+                name,
+                _handler,
+                GetEncoding(),
+                GetMiddlewareSnapshot(),
+                validatedAliases));
+
+        return specResult.IsSuccess
+            ? Ok((UnaryProcedureSpec)specResult.Value)
+            : Err<UnaryProcedureSpec>(specResult.Error);
     }
 }
 
@@ -147,21 +169,33 @@ public sealed class OnewayProcedureBuilder : ProcedureBuilderBase<OnewayProcedur
         return this;
     }
 
-    internal OnewayProcedureSpec Build(string service, string name)
+    internal Result<OnewayProcedureSpec> Build(string service, string name)
     {
         if (_handler is null)
         {
-            throw new InvalidOperationException(
-                $"Oneway procedure '{name}' requires a handler. Call {nameof(Handle)}(...) during registration.");
+            return Err<OnewayProcedureSpec>(ProcedureErrors.HandlerMissing(service, name, ProcedureKind.Oneway.ToString()));
         }
 
-        return new OnewayProcedureSpec(
-            service,
+        var aliases = GetAliasSnapshot();
+        if (aliases.IsFailure)
+        {
+            return Err<OnewayProcedureSpec>(aliases.Error);
+        }
+
+        var specResult = ProcedureSpec.Create(
             name,
-            _handler,
-            GetEncoding(),
-            GetMiddlewareSnapshot(),
-            GetAliasSnapshot());
+            aliases.Value,
+            validatedAliases => new OnewayProcedureSpec(
+                service,
+                name,
+                _handler,
+                GetEncoding(),
+                GetMiddlewareSnapshot(),
+                validatedAliases));
+
+        return specResult.IsSuccess
+            ? Ok((OnewayProcedureSpec)specResult.Value)
+            : Err<OnewayProcedureSpec>(specResult.Error);
     }
 }
 
@@ -200,22 +234,34 @@ public sealed class StreamProcedureBuilder : ProcedureBuilderBase<StreamProcedur
         return this;
     }
 
-    internal StreamProcedureSpec Build(string service, string name)
+    internal Result<StreamProcedureSpec> Build(string service, string name)
     {
         if (_handler is null)
         {
-            throw new InvalidOperationException(
-                $"Stream procedure '{name}' requires a handler. Call {nameof(Handle)}(...) during registration.");
+            return Err<StreamProcedureSpec>(ProcedureErrors.HandlerMissing(service, name, ProcedureKind.Stream.ToString()));
         }
 
-        return new StreamProcedureSpec(
-            service,
+        var aliases = GetAliasSnapshot();
+        if (aliases.IsFailure)
+        {
+            return Err<StreamProcedureSpec>(aliases.Error);
+        }
+
+        var specResult = ProcedureSpec.Create(
             name,
-            _handler,
-            GetEncoding(),
-            GetMiddlewareSnapshot(),
-            _metadata,
-            GetAliasSnapshot());
+            aliases.Value,
+            validatedAliases => new StreamProcedureSpec(
+                service,
+                name,
+                _handler,
+                GetEncoding(),
+                GetMiddlewareSnapshot(),
+                _metadata,
+                validatedAliases));
+
+        return specResult.IsSuccess
+            ? Ok((StreamProcedureSpec)specResult.Value)
+            : Err<StreamProcedureSpec>(specResult.Error);
     }
 }
 
@@ -254,22 +300,34 @@ public sealed class ClientStreamProcedureBuilder : ProcedureBuilderBase<ClientSt
         return this;
     }
 
-    internal ClientStreamProcedureSpec Build(string service, string name)
+    internal Result<ClientStreamProcedureSpec> Build(string service, string name)
     {
         if (_handler is null)
         {
-            throw new InvalidOperationException(
-                $"Client stream procedure '{name}' requires a handler. Call {nameof(Handle)}(...) during registration.");
+            return Err<ClientStreamProcedureSpec>(ProcedureErrors.HandlerMissing(service, name, ProcedureKind.ClientStream.ToString()));
         }
 
-        return new ClientStreamProcedureSpec(
-            service,
+        var aliases = GetAliasSnapshot();
+        if (aliases.IsFailure)
+        {
+            return Err<ClientStreamProcedureSpec>(aliases.Error);
+        }
+
+        var specResult = ProcedureSpec.Create(
             name,
-            _handler,
-            GetEncoding(),
-            GetMiddlewareSnapshot(),
-            _metadata,
-            GetAliasSnapshot());
+            aliases.Value,
+            validatedAliases => new ClientStreamProcedureSpec(
+                service,
+                name,
+                _handler,
+                GetEncoding(),
+                GetMiddlewareSnapshot(),
+                _metadata,
+                validatedAliases));
+
+        return specResult.IsSuccess
+            ? Ok((ClientStreamProcedureSpec)specResult.Value)
+            : Err<ClientStreamProcedureSpec>(specResult.Error);
     }
 }
 
@@ -308,21 +366,33 @@ public sealed class DuplexProcedureBuilder : ProcedureBuilderBase<DuplexProcedur
         return this;
     }
 
-    internal DuplexProcedureSpec Build(string service, string name)
+    internal Result<DuplexProcedureSpec> Build(string service, string name)
     {
         if (_handler is null)
         {
-            throw new InvalidOperationException(
-                $"Duplex stream procedure '{name}' requires a handler. Call {nameof(Handle)}(...) during registration.");
+            return Err<DuplexProcedureSpec>(ProcedureErrors.HandlerMissing(service, name, ProcedureKind.Duplex.ToString()));
         }
 
-        return new DuplexProcedureSpec(
-            service,
+        var aliases = GetAliasSnapshot();
+        if (aliases.IsFailure)
+        {
+            return Err<DuplexProcedureSpec>(aliases.Error);
+        }
+
+        var specResult = ProcedureSpec.Create(
             name,
-            _handler,
-            GetEncoding(),
-            GetMiddlewareSnapshot(),
-            _metadata,
-            GetAliasSnapshot());
+            aliases.Value,
+            validatedAliases => new DuplexProcedureSpec(
+                service,
+                name,
+                _handler,
+                GetEncoding(),
+                GetMiddlewareSnapshot(),
+                _metadata,
+                validatedAliases));
+
+        return specResult.IsSuccess
+            ? Ok((DuplexProcedureSpec)specResult.Value)
+            : Err<DuplexProcedureSpec>(specResult.Error);
     }
 }

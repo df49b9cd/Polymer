@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
+using Hugo;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
+using static Hugo.Go;
 
 namespace OmniRelay.Dispatcher;
 
@@ -17,22 +19,12 @@ public abstract record ProcedureSpec
         IReadOnlyList<string>? aliases = null)
     {
         Service = service ?? throw new ArgumentNullException(nameof(service));
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentException("Procedure name cannot be null or whitespace.", nameof(name));
-        }
-
         Name = name;
         Kind = kind;
         Encoding = encoding;
         Aliases = aliases is null
             ? []
             : [.. aliases];
-
-        if (Aliases.Any(static alias => string.IsNullOrWhiteSpace(alias)))
-        {
-            throw new ArgumentException("Aliases cannot contain null or whitespace entries.", nameof(aliases));
-        }
     }
 
     /// <summary>Gets the service name.</summary>
@@ -52,6 +44,45 @@ public abstract record ProcedureSpec
 
     /// <summary>Gets the fully qualified procedure name in the form service::name.</summary>
     public string FullName => $"{Service}::{Name}";
+
+    internal static Result<ProcedureSpec> Create(
+        string name,
+        IReadOnlyList<string>? aliases,
+        Func<ImmutableArray<string>, ProcedureSpec> factory)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return Err<ProcedureSpec>(ProcedureErrors.NameRequired());
+        }
+
+        var validatedAliases = ValidateAliases(aliases);
+        if (validatedAliases.IsFailure)
+        {
+            return Err<ProcedureSpec>(validatedAliases.Error);
+        }
+
+        return Ok(factory(validatedAliases.Value));
+    }
+    internal static Result<ImmutableArray<string>> ValidateAliases(IReadOnlyList<string>? aliases)
+    {
+        if (aliases is null)
+        {
+            return Ok(ImmutableArray<string>.Empty);
+        }
+
+        var builder = ImmutableArray.CreateBuilder<string>(aliases.Count);
+        foreach (var alias in aliases)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+            {
+                return Err<ImmutableArray<string>>(ProcedureErrors.AliasInvalid());
+            }
+
+            builder.Add(alias.Trim());
+        }
+
+        return Ok(builder.ToImmutable());
+    }
 }
 
 /// <summary>Descriptor for a unary procedure.</summary>
