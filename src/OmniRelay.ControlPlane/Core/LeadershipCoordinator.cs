@@ -210,7 +210,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
             }
 
             var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(25, 125));
-            var delayResult = await AsyncDelay.DelayAsync(_options.EvaluationInterval + jitter, cancellationToken).ConfigureAwait(false);
+            var delayResult = await AsyncDelay.DelayAsync(_options.EvaluationInterval + jitter, _timeProvider, cancellationToken).ConfigureAwait(false);
             if (delayResult.IsFailure)
             {
                 if (cancellationToken.IsCancellationRequested)

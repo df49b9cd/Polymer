@@ -2,25 +2,27 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Hugo;
-using static Hugo.Go;
-using Unit = Hugo.Go.Unit;
+using Hugo.Policies;
 
 namespace OmniRelay.ControlPlane.Primitives;
 
 /// <summary>Lightweight delay helper that routes through Hugo ResultPipelineTimers for AOT-safe, exception-free delays.</summary>
 internal static class AsyncDelay
 {
-    public static ValueTask<Result<Unit>> DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+    public static ValueTask<Result<Go.Unit>> DelayAsync(TimeSpan delay, CancellationToken cancellationToken) =>
+        DelayAsync(delay, TimeProvider.System, cancellationToken);
+
+    public static ValueTask<Result<Go.Unit>> DelayAsync(TimeSpan delay, TimeProvider timeProvider, CancellationToken cancellationToken)
     {
         if (delay <= TimeSpan.Zero)
         {
-            return ValueTask.FromResult(Ok(Unit.Value));
+            return ValueTask.FromResult(Result.Ok(Go.Unit.Value));
         }
 
-        return Result.TryAsync<Unit>(async ct =>
-        {
-            await Task.Delay(delay, ct).ConfigureAwait(false);
-            return Unit.Value;
-        }, cancellationToken: cancellationToken);
+        return Result.RetryWithPolicyAsync<Go.Unit>(
+            (ctx, ct) => ResultPipelineTimers.DelayAsync(ctx, delay, ct),
+            ResultExecutionPolicy.None,
+            timeProvider,
+            cancellationToken);
     }
 }

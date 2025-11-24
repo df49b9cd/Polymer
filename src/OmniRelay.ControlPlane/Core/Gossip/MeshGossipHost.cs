@@ -529,7 +529,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
             try
             {
-                var delayResult = await AsyncDelay.DelayAsync(_options.Interval, cancellationToken).ConfigureAwait(false);
+                var delayResult = await AsyncDelay.DelayAsync(_options.Interval, _timeProvider, cancellationToken).ConfigureAwait(false);
                 if (delayResult.IsFailure)
                 {
                     if (cancellationToken.IsCancellationRequested)
@@ -641,7 +641,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
             try
             {
-                var delayResult = await AsyncDelay.DelayAsync(_options.SuspicionInterval, cancellationToken).ConfigureAwait(false);
+                var delayResult = await AsyncDelay.DelayAsync(_options.SuspicionInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
                 if (delayResult.IsFailure)
                 {
                     if (cancellationToken.IsCancellationRequested)
@@ -677,7 +677,7 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
             try
             {
-                var delayResult = await AsyncDelay.DelayAsync(_options.ShuffleInterval, cancellationToken).ConfigureAwait(false);
+                var delayResult = await AsyncDelay.DelayAsync(_options.ShuffleInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
                 if (delayResult.IsFailure)
                 {
                     if (cancellationToken.IsCancellationRequested)
