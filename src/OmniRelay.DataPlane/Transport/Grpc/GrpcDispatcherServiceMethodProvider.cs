@@ -250,11 +250,8 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         return new RpcException(status, trailers);
                     }
 
-                    Result<Unit> pumpResult;
-
-                    try
-                    {
-                        var responseStreamPipeline = Result.MapStreamAsync(
+                    var pumpResult = await Result.ForEachLinkedCancellationAsync(
+                        Result.MapStreamAsync(
                             streamCall.Responses.ReadAllAsync(cancellationToken),
                             (payload, token) =>
                             {
@@ -269,29 +266,28 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                                 return new ValueTask<Result<ReadOnlyMemory<byte>>>(Ok(payload));
                             },
-                            cancellationToken);
-
-                        pumpResult = await responseStreamPipeline
-                            .TapSuccessEachAsync(async (payload, token) =>
-                            {
-                                await EnsureHeadersAsync().ConfigureAwait(false);
-                                token.ThrowIfCancellationRequested();
-                                await WriteGrpcMessageAsync(responseStream, payload, writeTimeout, token).ConfigureAwait(false);
-                                Interlocked.Increment(ref responseCount);
-                                GrpcTransportMetrics.ServerServerStreamResponseMessages.Add(1, metricTags);
-                            }, cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (pumpResult.IsSuccess)
+                            cancellationToken),
+                        async (payloadResult, token) =>
                         {
+                            if (payloadResult.IsFailure)
+                            {
+                                return payloadResult.CastFailure<Unit>();
+                            }
+
                             await EnsureHeadersAsync().ConfigureAwait(false);
-                            ApplySuccessTrailers(callContext, streamCall.ResponseMeta);
-                            RecordServerStreamMetrics(StatusCode.OK);
-                        }
-                    }
-                    catch (Exception ex)
+                            token.ThrowIfCancellationRequested();
+                            await WriteGrpcMessageAsync(responseStream, payloadResult.Value, writeTimeout, token).ConfigureAwait(false);
+                            Interlocked.Increment(ref responseCount);
+                            GrpcTransportMetrics.ServerServerStreamResponseMessages.Add(1, metricTags);
+                            return Ok(Unit.Value);
+                        },
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (pumpResult.IsSuccess)
                     {
-                        pumpResult = Err<Unit>(MapServerStreamPumpError(ex));
+                        await EnsureHeadersAsync().ConfigureAwait(false);
+                        ApplySuccessTrailers(callContext, streamCall.ResponseMeta);
+                        RecordServerStreamMetrics(StatusCode.OK);
                     }
 
                     if (pumpResult.IsFailure && pumpResult.Error is { } pumpError)

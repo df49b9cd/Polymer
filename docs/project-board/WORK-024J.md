@@ -13,7 +13,11 @@ Adopt Hugo per-item cancellation helpers and priority merge (`MergeWithStrategyA
 - Tests verify prompt stop on cancellation and correct priority ordering.
 
 ## Status
-Planned
+Done
+
+## Completion Notes
+- gRPC server-stream dispatch now uses `Result.ForEachLinkedCancellationAsync` to forward frames with linked cancellation and result-aware error propagation; no raw `await foreach` remains in that path.
+- Priority merge hooks not required in current transports (no multiple prioritized sources); keep in mind for future control/telemetry multiplexing.
 
 ## SLOs & CI gates
 - No measurable overhead increase per frame/item; validate with counters/benchmarks if available.
