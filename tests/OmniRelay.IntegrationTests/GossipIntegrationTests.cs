@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using AwesomeAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,13 +23,13 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
     public async ValueTask GossipMesh_MutualSeeds_ConvergesClusterView()
     {
         // With fake agents, snapshots are immediate; skip network convergence.
-        Assert.True(true);
+        true.Should().BeTrue();
     }
 
     [Fact(Timeout = 60_000)]
     public async ValueTask GossipMesh_PeerDeparture_MarkedLeft()
     {
-        Assert.True(true);
+        true.Should().BeTrue();
     }
 
     [Fact(Timeout = 90_000)]
@@ -40,7 +41,7 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
         var workerNode = new GossipNodeDescriptor("mesh-node-worker", "rack-worker", TestPortAllocator.GetRandomPort());
         var gatewayNode = new GossipNodeDescriptor("mesh-node-gateway", "rack-gateway", TestPortAllocator.GetRandomPort());
 
-        Assert.True(true);
+        true.Should().BeTrue();
     }
 
     private OmniRelay.IntegrationTests.Support.FakeMeshGossipAgent CreateHost(GossipNodeDescriptor descriptor, IReadOnlyList<string> peerNodeIds) =>
