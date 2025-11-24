@@ -9,6 +9,7 @@ using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Dispatcher.Config;
+using OmniRelay.Errors;
 using OmniRelay.IntegrationTests.Codecs;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
@@ -167,11 +168,10 @@ public class HostingConfigurationIntegrationTests
         using var host = builder.Build();
 
         var ex = await Invoking(() => host.StartAsync(TestContext.Current.CancellationToken))
-            .Should().ThrowAsync<ResultException>();
+            .Should().ThrowAsync<OmniRelayException>();
 
-        ex.Which.InnerException.Should().NotBeNull();
-        var inner = ex.Which.InnerException.Should().BeOfType<InvalidOperationException>().Which;
-        inner.Message.Should().ContainEquivalentOf("HTTP/3 requires HTTPS");
+        ex.Which.StatusCode.Should().Be(OmniRelayStatusCode.InvalidArgument);
+        ex.Which.Message.Should().ContainEquivalentOf("HTTP/3 requires HTTPS");
     }
 
     [Fact(Timeout = 30_000)]
