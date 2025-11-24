@@ -4,8 +4,10 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Hugo;
+using static Hugo.Go;
 using OmniRelay.Core;
 using OmniRelay.Errors;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Transport.Http;
 
@@ -82,52 +84,130 @@ internal static partial class HttpDuplexProtocol
     /// <param name="maxPayloadBytes">Maximum allowed payload size.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The received frame.</returns>
+    internal static async ValueTask<Result<Frame>> ReceiveFrameAsync(
+        WebSocket socket,
+        byte[] buffer,
+        int maxPayloadBytes,
+        string transport,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(socket);
+        ArgumentNullException.ThrowIfNull(buffer);
+
+        var position = 0;
+
+        try
+        {
+            WebSocketReceiveResult result;
+            do
+            {
+                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer, position, buffer.Length - position), cancellationToken).ConfigureAwait(false);
+
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    return Ok(new Frame(WebSocketMessageType.Close, default, ReadOnlyMemory<byte>.Empty));
+                }
+
+                position += result.Count;
+
+                if (position > buffer.Length)
+                {
+                    return Err<Frame>(CreateFrameSizeError(maxPayloadBytes, transport));
+                }
+
+                if (position > 0 && (position - 1) > maxPayloadBytes)
+                {
+                    return Err<Frame>(CreateFrameSizeError(maxPayloadBytes, transport));
+                }
+            }
+            while (!result.EndOfMessage && position < buffer.Length);
+
+            if (!result.EndOfMessage && position >= buffer.Length)
+            {
+                return Err<Frame>(CreateFrameSizeError(maxPayloadBytes, transport));
+            }
+
+            if (position == 0)
+            {
+                return Ok(new Frame(result.MessageType, default, ReadOnlyMemory<byte>.Empty));
+            }
+
+            var span = buffer.AsSpan(0, position);
+            var type = (FrameType)span[0];
+            var payload = span.Length > 1 ? new ReadOnlyMemory<byte>(buffer, 1, span.Length - 1) : ReadOnlyMemory<byte>.Empty;
+            return Ok(new Frame(result.MessageType, type, payload));
+        }
+        catch (OperationCanceledException canceled)
+        {
+            return Err<Frame>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
+                string.IsNullOrWhiteSpace(canceled.Message) ? "The duplex frame read was cancelled." : canceled.Message,
+                transport,
+                inner: Error.Canceled().WithCause(canceled)));
+        }
+        catch (WebSocketException socketException) when (socketException.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
+        {
+            return Err<Frame>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
+                "The WebSocket connection closed prematurely.",
+                transport,
+                inner: Error.FromException(socketException)));
+        }
+        catch (Exception ex)
+        {
+            return OmniRelayErrors.ToResult<Frame>(ex, transport);
+        }
+    }
+
+    [Obsolete("Use overload with transport and Result return to avoid throwing in business logic.")]
     internal static async ValueTask<Frame> ReceiveFrameAsync(
         WebSocket socket,
         byte[] buffer,
         int maxPayloadBytes,
+        CancellationToken cancellationToken) =>
+        (await ReceiveFrameAsync(socket, buffer, maxPayloadBytes, transport: "http", cancellationToken).ConfigureAwait(false))
+            .ValueOrThrow();
+
+    internal static async ValueTask<Result<Unit>> SendFrameResultAsync(
+        WebSocket socket,
+        FrameType frameType,
+        ReadOnlyMemory<byte> payload,
+        string transport,
         CancellationToken cancellationToken)
     {
-        var position = 0;
-        WebSocketReceiveResult result;
-        do
+        try
         {
-            result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer, position, buffer.Length - position), cancellationToken).ConfigureAwait(false);
-
-            if (result.MessageType == WebSocketMessageType.Close)
-            {
-                return new Frame(WebSocketMessageType.Close, default, ReadOnlyMemory<byte>.Empty);
-            }
-
-            position += result.Count;
-
-            if (position > buffer.Length)
-            {
-                throw new InvalidOperationException("Duplex frame exceeds the configured maximum size.");
-            }
-
-            if (position > 0 && (position - 1) > maxPayloadBytes)
-            {
-                throw new InvalidOperationException("Duplex frame exceeds the configured maximum size.");
-            }
+            await SendFrameAsync(socket, frameType, payload, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
         }
-        while (!result.EndOfMessage && position < buffer.Length);
-
-        if (!result.EndOfMessage && position >= buffer.Length)
+        catch (OperationCanceledException canceled)
         {
-            throw new InvalidOperationException("Duplex frame exceeds the configured maximum size.");
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
+                string.IsNullOrWhiteSpace(canceled.Message) ? "The duplex frame send was cancelled." : canceled.Message,
+                transport,
+                inner: Error.Canceled().WithCause(canceled)));
         }
-
-        if (position == 0)
+        catch (WebSocketException socketException) when (socketException.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
         {
-            return new Frame(result.MessageType, default, ReadOnlyMemory<byte>.Empty);
+            return Err<Unit>(OmniRelayErrorAdapter.FromStatus(
+                OmniRelayStatusCode.Cancelled,
+                "The WebSocket connection closed prematurely.",
+                transport,
+                inner: Error.FromException(socketException)));
         }
-
-        var span = buffer.AsSpan(0, position);
-        var type = (FrameType)span[0];
-        var payload = span.Length > 1 ? new ReadOnlyMemory<byte>(buffer, 1, span.Length - 1) : ReadOnlyMemory<byte>.Empty;
-        return new Frame(result.MessageType, type, payload);
+        catch (Exception ex)
+        {
+            return OmniRelayErrors.ToResult<Unit>(ex, transport);
+        }
     }
+
+    internal static ValueTask<Result<Unit>> SendFrameResultAsync(
+        WebSocket socket,
+        FrameType frameType,
+        string transport,
+        CancellationToken cancellationToken) =>
+        SendFrameResultAsync(socket, frameType, ReadOnlyMemory<byte>.Empty, transport, cancellationToken);
 
     /// <summary>
     /// Serializes an OmniRelay error to a JSON envelope payload.
@@ -300,4 +380,10 @@ internal static partial class HttpDuplexProtocol
 
         return copy;
     }
+
+    private static Error CreateFrameSizeError(int maxPayloadBytes, string transport) =>
+        OmniRelayErrorAdapter.FromStatus(
+            OmniRelayStatusCode.ResourceExhausted,
+            $"Duplex frame exceeds the configured maximum size ({maxPayloadBytes} bytes).",
+            transport);
 }

@@ -186,33 +186,46 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall, IResult
         {
             var stream = Result.MapStreamAsync(
                 _inner.RequestReader.ReadAllAsync(token),
-                (payload, ct) => Result.TryAsync<Unit>(
-                    async _ =>
-                    {
-                        await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestData, payload, ct).ConfigureAwait(false);
-                        return Unit.Value;
-                    },
-                    cancellationToken: ct,
-                    errorFactory: ex => NormalizeResultError(NormalizeTransportException(ex))),
+                (payload, ct) => HttpDuplexProtocol.SendFrameResultAsync(
+                    _socket,
+                    HttpDuplexProtocol.FrameType.RequestData,
+                    payload,
+                    _transport,
+                    ct),
                 token);
 
             await foreach (var result in stream.ConfigureAwait(false))
             {
                 if (result.IsFailure)
                 {
-                    var error = NormalizeResultError(result.Error!);
-                    await HttpDuplexProtocol.SendFrameAsync(
+                    var normalized = NormalizeResultError(result.Error);
+                    var errorPayload = HttpDuplexProtocol.CreateErrorPayload(normalized);
+                    await HttpDuplexProtocol.SendFrameResultAsync(
                             _socket,
                             HttpDuplexProtocol.FrameType.RequestError,
-                            HttpDuplexProtocol.CreateErrorPayload(error),
+                            errorPayload,
+                            _transport,
                             CancellationToken.None)
                         .ConfigureAwait(false);
-                    await _inner.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-                    return Err<Unit>(error);
+                    await _inner.CompleteRequestsAsync(normalized, CancellationToken.None).ConfigureAwait(false);
+                    return Err<Unit>(normalized);
                 }
             }
 
-            await HttpDuplexProtocol.SendFrameAsync(_socket, HttpDuplexProtocol.FrameType.RequestComplete, CancellationToken.None).ConfigureAwait(false);
+            var completionResult = await HttpDuplexProtocol.SendFrameResultAsync(
+                    _socket,
+                    HttpDuplexProtocol.FrameType.RequestComplete,
+                    _transport,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            if (completionResult.IsFailure)
+            {
+                var completionError = NormalizeResultError(completionResult.Error);
+                await _inner.CompleteRequestsAsync(completionError, CancellationToken.None).ConfigureAwait(false);
+                return Err<Unit>(completionError);
+            }
+
             await _inner.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
             return Ok(Unit.Value);
         }
@@ -228,15 +241,17 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall, IResult
         {
             while (!token.IsCancellationRequested)
             {
-                var frameResult = await Result.TryAsync<HttpDuplexProtocol.Frame>(
-                        async _ => await HttpDuplexProtocol.ReceiveFrameAsync(_socket, buffer, BufferSize - 1, token).ConfigureAwait(false),
-                        cancellationToken: token,
-                        errorFactory: ex => NormalizeResultError(NormalizeTransportException(ex)))
+                var frameResult = await HttpDuplexProtocol.ReceiveFrameAsync(
+                        _socket,
+                        buffer,
+                        BufferSize - 1,
+                        _transport,
+                        token)
                     .ConfigureAwait(false);
 
                 if (frameResult.IsFailure)
                 {
-                    var error = frameResult.Error!;
+                    var error = NormalizeResultError(frameResult.Error);
                     await _inner.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
                     return Err<Unit>(error);
                 }
@@ -297,24 +312,6 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall, IResult
         }
 
         return ReceiveAsync(cancellationToken);
-    }
-
-    private static Exception NormalizeTransportException(Exception exception)
-    {
-        if (exception is ChannelClosedException channelClosed)
-        {
-            return channelClosed.InnerException is { } inner
-                ? NormalizeTransportException(inner)
-                : new OperationCanceledException("The channel was closed.", channelClosed);
-        }
-
-        if (exception is WebSocketException webSocketException &&
-            webSocketException.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
-        {
-            return new OperationCanceledException("The WebSocket connection closed prematurely.", webSocketException);
-        }
-
-        return exception;
     }
 
     private static byte[] CopyFramePayload(ReadOnlyMemory<byte> payload)
