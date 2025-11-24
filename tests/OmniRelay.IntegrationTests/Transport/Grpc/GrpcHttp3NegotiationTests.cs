@@ -21,6 +21,7 @@ using OmniRelay.Tests.Support;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Grpc.Interceptors;
 using Xunit;
+using static AwesomeAssertions.FluentActions;
 using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests.Transport.Grpc;
@@ -349,18 +350,18 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
         try
         {
             var streamingCall = invoker.AsyncServerStreamingCall(method, null, new CallOptions(), []);
-            Assert.True(await streamingCall.ResponseStream.MoveNext(ct));
+            (await streamingCall.ResponseStream.MoveNext(ct)).Should().BeTrue();
             var message = streamingCall.ResponseStream.Current;
-            Assert.Equal(payload.Length, message.Length);
-            Assert.True(message.SequenceEqual(payload));
-            Assert.False(await streamingCall.ResponseStream.MoveNext(ct));
+            message.Length.Should().Be(payload.Length);
+            message.SequenceEqual(payload).Should().BeTrue();
+            (await streamingCall.ResponseStream.MoveNext(ct)).Should().BeFalse();
         }
         finally
         {
         }
 
-        Assert.True(acceptEncodings.TryDequeue(out var negotiatedEncoding), "No grpc-accept-encoding header was observed.");
-        Assert.False(string.IsNullOrWhiteSpace(negotiatedEncoding));
+        acceptEncodings.TryDequeue(out var negotiatedEncoding).Should().BeTrue("No grpc-accept-encoding header was observed.");
+        negotiatedEncoding.Should().NotBeNullOrWhiteSpace();
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -429,11 +430,11 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
             await call.RequestStream.WriteAsync(payload, cancellationToken: ct);
             await call.RequestStream.CompleteAsync().WaitAsync(ct);
 
-            Assert.True(await call.ResponseStream.MoveNext(ct));
+            (await call.ResponseStream.MoveNext(ct)).Should().BeTrue();
             var echo = call.ResponseStream.Current;
-            Assert.Equal(payload.Length, echo.Length);
-            Assert.True(echo.SequenceEqual(payload));
-            Assert.False(await call.ResponseStream.MoveNext(ct));
+            echo.Length.Should().Be(payload.Length);
+            echo.SequenceEqual(payload).Should().BeTrue();
+            (await call.ResponseStream.MoveNext(ct)).Should().BeFalse();
         }
         finally
         {
@@ -516,13 +517,13 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
             await call.RequestStream.WriteAsync(payload2, cancellationToken: ct);
             await call.RequestStream.CompleteAsync().WaitAsync(ct);
 
-            Assert.True(await call.ResponseStream.MoveNext(ct));
-            Assert.Equal(payload1.Length, call.ResponseStream.Current.Length);
+            (await call.ResponseStream.MoveNext(ct)).Should().BeTrue();
+            call.ResponseStream.Current.Length.Should().Be(payload1.Length);
 
-            Assert.True(await call.ResponseStream.MoveNext(ct));
-            Assert.Equal(payload2.Length, call.ResponseStream.Current.Length);
+            (await call.ResponseStream.MoveNext(ct)).Should().BeTrue();
+            call.ResponseStream.Current.Length.Should().Be(payload2.Length);
 
-            Assert.False(await call.ResponseStream.MoveNext(ct));
+            (await call.ResponseStream.MoveNext(ct)).Should().BeFalse();
         }
         finally
         {
@@ -597,13 +598,14 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
             await Task.Delay(100, ct);
 
             var rejectedCall = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
-            var rejection = await Assert.ThrowsAsync<RpcException>(() => rejectedCall.ResponseAsync);
-            Assert.Equal(StatusCode.Unavailable, rejection.StatusCode);
-            Assert.Equal("1", rejection.Trailers.GetValue("retry-after"));
+            var rejection = await Invoking(() => rejectedCall.ResponseAsync)
+                .Should().ThrowAsync<RpcException>();
+            rejection.Which.StatusCode.Should().Be(StatusCode.Unavailable);
+            rejection.Which.Trailers.GetValue("retry-after").Should().Be("1");
 
             releaseRequest.TrySetResult();
             var response = await inFlightCall.ResponseAsync.WaitAsync(ct);
-            Assert.Empty(response);
+            response.Should().BeEmpty();
 
             await stopTask;
         }
@@ -619,8 +621,8 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
             }
         }
 
-        Assert.True(observedProtocols.TryDequeue(out var protocol), "No HTTP protocol was observed by the interceptor.");
-        Assert.StartsWith("HTTP/3", protocol, StringComparison.Ordinal);
+        observedProtocols.TryDequeue(out var protocol).Should().BeTrue("No HTTP protocol was observed by the interceptor.");
+        protocol.Should().StartWithEquivalentOf("HTTP/3");
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -693,23 +695,24 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
         {
             using var call = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
             var response = await call.ResponseAsync.WaitAsync(ct);
-            Assert.Equal(payload.Length, response.Length);
+            response.Length.Should().Be(payload.Length);
 
             var headers = await call.ResponseHeadersAsync.WaitAsync(ct);
             var encoding = headers.GetValue("grpc-encoding") ?? call.GetTrailers().GetValue("grpc-encoding");
             if (encoding is not null)
             {
-                Assert.Equal("gzip", encoding);
+                encoding.Should().Be("gzip");
             }
         }
         finally
         {
         }
 
-        Assert.True(acceptEncodings.TryDequeue(out var negotiated), "No grpc-accept-encoding header was observed.");
-        Assert.Contains(
-            negotiated.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
-            value => value.Equals("gzip", StringComparison.OrdinalIgnoreCase));
+        acceptEncodings.TryDequeue(out var negotiated).Should().BeTrue("No grpc-accept-encoding header was observed.");
+        negotiated.Should().NotBeNullOrWhiteSpace();
+        negotiated
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Should().Contain(value => value.Equals("gzip", StringComparison.OrdinalIgnoreCase));
     }
 
     [Http3Fact(Timeout = 45_000)]
@@ -777,23 +780,24 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
         {
             using var call = invoker.AsyncUnaryCall(method, null, new CallOptions(), []);
             var response = await call.ResponseAsync.WaitAsync(ct);
-            Assert.Equal(payload.Length, response.Length);
+            response.Length.Should().Be(payload.Length);
 
             var headers = await call.ResponseHeadersAsync.WaitAsync(ct);
             var encoding = headers.GetValue("grpc-encoding") ?? call.GetTrailers().GetValue("grpc-encoding");
             if (encoding is not null)
             {
-                Assert.Equal("gzip", encoding);
+                encoding.Should().Be("gzip");
             }
         }
         finally
         {
         }
 
-        Assert.True(acceptEncodings.TryDequeue(out var negotiated), "No grpc-accept-encoding header was observed.");
-        Assert.Contains(
-            negotiated.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
-            value => value.Equals("gzip", StringComparison.OrdinalIgnoreCase));
+        acceptEncodings.TryDequeue(out var negotiated).Should().BeTrue("No grpc-accept-encoding header was observed.");
+        negotiated.Should().NotBeNullOrWhiteSpace();
+        negotiated
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Should().Contain(value => value.Equals("gzip", StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task WaitForGrpcReadyAsync(Uri address, CancellationToken cancellationToken)

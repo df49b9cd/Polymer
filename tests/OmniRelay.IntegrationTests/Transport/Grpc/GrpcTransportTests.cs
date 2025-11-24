@@ -883,8 +883,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         var responseResult = await stream.Response;
         var response = responseResult.ValueOrChecked();
 
-        Assert.Equal(7, response.Body.TotalAmount);
-        Assert.Equal(codec.Encoding, stream.ResponseMeta.Encoding);
+        response.Body.TotalAmount.Should().Be(7);
+        stream.ResponseMeta.Encoding.Should().Be(codec.Encoding);
     }
 
     [Fact(Timeout = 30_000)]
@@ -930,10 +930,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
 
         await cts.CancelAsync();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-        {
-            await stream.WriteAsync(new AggregateChunk(Amount: 1), cts.Token);
-        });
+        await Invoking(async () => await stream.WriteAsync(new AggregateChunk(Amount: 1), cts.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact(Timeout = 30_000)]
@@ -957,7 +955,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
             "stream::deadline",
             async (context, cancellationToken) =>
             {
-                Assert.True(context.Meta.Deadline.HasValue);
+                context.Meta.Deadline.HasValue.Should().BeTrue();
                 await foreach (var _ in context.Requests.ReadAllAsync(cancellationToken))
                 {
                 }
@@ -984,8 +982,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         await stream.CompleteAsync(ct);
 
         var responseResult = await stream.Response;
-        Assert.True(responseResult.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.DeadlineExceeded, OmniRelayErrorAdapter.ToStatus(responseResult.Error!));
+        responseResult.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(responseResult.Error!).Should().Be(OmniRelayStatusCode.DeadlineExceeded);
     }
 
     [Fact(Timeout = 30_000)]
@@ -1053,7 +1051,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
 
         var responseResult = await stream.Response;
         var response = responseResult.ValueOrChecked();
-        Assert.Equal(chunkCount, response.Body.TotalAmount);
+        response.Body.TotalAmount.Should().Be(chunkCount);
     }
 
     [Fact(Timeout = 30_000)]
@@ -1121,9 +1119,9 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         await stream.CompleteAsync(ct);
 
         var responseResult = await stream.Response;
-        Assert.True(responseResult.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Unavailable, OmniRelayErrorAdapter.ToStatus(responseResult.Error!));
-        Assert.Contains("service unavailable", responseResult.Error!.Message, StringComparison.OrdinalIgnoreCase);
+        responseResult.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(responseResult.Error!).Should().Be(OmniRelayStatusCode.Unavailable);
+        responseResult.Error!.Message.Should().ContainEquivalentOf("service unavailable");
     }
 
     [Fact(Timeout = 30_000)]
@@ -1190,9 +1188,9 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         var request = new Request<EchoRequest>(requestMeta, new EchoRequest("payload"));
         var response = await client.CallAsync(request, ct);
 
-        Assert.True(response.IsSuccess, response.Error?.Message);
-        Assert.Equal("true", (await observedClientHeader.Task).ToLowerInvariant());
-        Assert.Equal(1, clientInterceptor.UnaryCallCount);
+        response.IsSuccess.Should().BeTrue(response.Error?.Message);
+        (await observedClientHeader.Task).ToLowerInvariant().Should().Be("true");
+        clientInterceptor.UnaryCallCount.Should().Be(1);
     }
 
     [Fact(Timeout = 30_000)]
@@ -1251,8 +1249,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
 
         var response = await client.CallAsync(request, ct);
 
-        Assert.True(response.IsSuccess, response.Error?.Message);
-        Assert.Equal(1, serverInterceptor.UnaryCallCount);
+        response.IsSuccess.Should().BeTrue(response.Error?.Message);
+        serverInterceptor.UnaryCallCount.Should().Be(1);
     }
 
     [Fact(Timeout = 30_000)]
@@ -1308,8 +1306,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
 
         var result = await client.CallAsync(request, ct);
 
-        Assert.True(result.IsSuccess, result.Error?.Message);
-        Assert.Equal("hello-grpc", result.Value.Body.Message);
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        result.Value.Body.Message.Should().Be("hello-grpc");
     }
 
     [Fact(Timeout = 30_000)]
@@ -1358,8 +1356,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
 
         var ackResult = await client.CallAsync(request, ct);
 
-        Assert.True(ackResult.IsSuccess, ackResult.Error?.Message);
-        Assert.Equal("ping", await received.Task.WaitAsync(TimeSpan.FromSeconds(2), ct));
+        ackResult.IsSuccess.Should().BeTrue(ackResult.Error?.Message);
+        (await received.Task.WaitAsync(TimeSpan.FromSeconds(2), ct)).Should().Be("ping");
     }
 
     [Fact(Timeout = 30_000)]
@@ -1462,8 +1460,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
             responses.Add(response.ValueOrChecked().Body.Message);
         }
 
-        Assert.Equal(new[] { "ready", "echo:hello", "echo:world" }, responses);
-        Assert.Equal("application/json", session.ResponseMeta.Encoding);
+        responses.Should().Equal("ready", "echo:hello", "echo:world");
+        session.ResponseMeta.Encoding.Should().Be("application/json");
     }
 
     [Fact(Timeout = 30_000)]
@@ -1521,9 +1519,9 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         await using var call = callResult.ValueOrChecked();
 
         await using var enumerator = call.ReadResponsesAsync(ct).GetAsyncEnumerator(ct);
-        Assert.True(await enumerator.MoveNextAsync());
-        Assert.True(enumerator.Current.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.ResourceExhausted, OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!));
+        (await enumerator.MoveNextAsync()).Should().BeTrue();
+        enumerator.Current.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!).Should().Be(OmniRelayStatusCode.ResourceExhausted);
 
     }
 
@@ -1613,18 +1611,18 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         await session.CompleteRequestsAsync(cancellationToken: ct);
 
         var enumerator = session.ReadResponsesAsync(ct).GetAsyncEnumerator(ct);
-        Assert.True(await enumerator.MoveNextAsync());
-        Assert.Equal("ready", enumerator.Current.ValueOrChecked().Body.Message);
+        (await enumerator.MoveNextAsync()).Should().BeTrue();
+        enumerator.Current.ValueOrChecked().Body.Message.Should().Be("ready");
 
-        Assert.True(await enumerator.MoveNextAsync());
-        Assert.Equal("ack:first", enumerator.Current.ValueOrChecked().Body.Message);
+        (await enumerator.MoveNextAsync()).Should().BeTrue();
+        enumerator.Current.ValueOrChecked().Body.Message.Should().Be("ack:first");
 
-        Assert.True(await enumerator.MoveNextAsync());
-        Assert.True(enumerator.Current.IsFailure);
-        Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!));
-        Assert.Contains("server cancelled", enumerator.Current.Error!.Message, StringComparison.OrdinalIgnoreCase);
+        (await enumerator.MoveNextAsync()).Should().BeTrue();
+        enumerator.Current.IsFailure.Should().BeTrue();
+        OmniRelayErrorAdapter.ToStatus(enumerator.Current.Error!).Should().Be(OmniRelayStatusCode.Cancelled);
+        enumerator.Current.Error!.Message.Should().ContainEquivalentOf("server cancelled");
 
-        Assert.False(await enumerator.MoveNextAsync());
+        (await enumerator.MoveNextAsync()).Should().BeFalse();
         await enumerator.DisposeAsync();
     }
 
@@ -1751,8 +1749,8 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
             }
         }
 
-        Assert.NotNull(terminal);
-        Assert.Equal(OmniRelayStatusCode.Cancelled, OmniRelayErrorAdapter.ToStatus(terminal!.Value.Error!));
+        terminal.Should().NotBeNull();
+        OmniRelayErrorAdapter.ToStatus(terminal!.Value.Error!).Should().Be(OmniRelayStatusCode.Cancelled);
     }
 
     [Fact(Timeout = 30_000)]
@@ -1863,11 +1861,11 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
                 responses.Add(response.ValueOrChecked().Body.Message);
             }
 
-            Assert.Equal(messageCount + 1, responses.Count);
-            Assert.Equal("ready", responses[0]);
+            responses.Count.Should().Be(messageCount + 1);
+            responses[0].Should().Be("ready");
             for (var i = 0; i < messageCount; i++)
             {
-                Assert.Equal($"ack-{i + 1}:msg-{i}", responses[i + 1]);
+                responses[i + 1].Should().Be($"ack-{i + 1}:msg-{i}");
             }
         }
     }
@@ -1942,25 +1940,25 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
         var request = new Request<EchoRequest>(requestMeta, new EchoRequest("payload"));
 
         var result = await client.CallAsync(request, ct);
-        Assert.True(result.IsSuccess, result.Error?.Message);
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
 
         var serverMeta = await observedMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-        Assert.Equal(requestMeta.Caller, serverMeta.Caller);
-        Assert.Equal(requestMeta.ShardKey, serverMeta.ShardKey);
-        Assert.Equal(requestMeta.RoutingKey, serverMeta.RoutingKey);
-        Assert.Equal(requestMeta.RoutingDelegate, serverMeta.RoutingDelegate);
-        Assert.Equal(requestMeta.TimeToLive, serverMeta.TimeToLive);
+        serverMeta.Caller.Should().Be(requestMeta.Caller);
+        serverMeta.ShardKey.Should().Be(requestMeta.ShardKey);
+        serverMeta.RoutingKey.Should().Be(requestMeta.RoutingKey);
+        serverMeta.RoutingDelegate.Should().Be(requestMeta.RoutingDelegate);
+        serverMeta.TimeToLive.Should().Be(requestMeta.TimeToLive);
 
-        Assert.True(serverMeta.Deadline.HasValue);
-        Assert.InRange((serverMeta.Deadline.Value - deadline).Duration(), TimeSpan.Zero, TimeSpan.FromMilliseconds(5));
+        serverMeta.Deadline.HasValue.Should().BeTrue();
+        (serverMeta.Deadline.Value - deadline).Duration().Should().BeInRange(TimeSpan.Zero, TimeSpan.FromMilliseconds(5));
 
-        Assert.Equal("trace-abc", serverMeta.Headers["x-trace-id"]);
-        Assert.Equal("beta", serverMeta.Headers["x-feature"]);
+        serverMeta.Headers["x-trace-id"].Should().Be("trace-abc");
+        serverMeta.Headers["x-feature"].Should().Be("beta");
 
         var responseMeta = result.Value.Meta;
-        Assert.Equal("application/json", responseMeta.Encoding);
-        Assert.True(responseMeta.TryGetHeader("x-response-id", out var responseId));
-        Assert.Equal("42", responseId);
+        responseMeta.Encoding.Should().Be("application/json");
+        responseMeta.TryGetHeader("x-response-id", out var responseId).Should().BeTrue();
+        responseId.Should().Be("42");
     }
 
     [Fact(Timeout = 30_000)]
@@ -2055,22 +2053,22 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
                 responses.Add(response.ValueOrChecked());
             }
 
-            Assert.Equal(2, responses.Count);
-            Assert.Equal("first", responses[0].Body.Message);
-            Assert.Equal("second", responses[1].Body.Message);
+            responses.Count.Should().Be(2);
+            responses[0].Body.Message.Should().Be("first");
+            responses[1].Body.Message.Should().Be("second");
 
             var serverMeta = await observedMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("stream-caller", serverMeta.Caller);
-            Assert.Equal(TimeSpan.FromSeconds(10), serverMeta.TimeToLive);
-            Assert.True(serverMeta.Deadline.HasValue);
-            Assert.InRange((serverMeta.Deadline.Value - deadline).Duration(), TimeSpan.Zero, TimeSpan.FromMilliseconds(5));
-            Assert.Equal("value", serverMeta.Headers["x-meta"]);
+            serverMeta.Caller.Should().Be("stream-caller");
+            serverMeta.TimeToLive.Should().Be(TimeSpan.FromSeconds(10));
+            serverMeta.Deadline.HasValue.Should().BeTrue();
+            (serverMeta.Deadline.Value - deadline).Duration().Should().BeInRange(TimeSpan.Zero, TimeSpan.FromMilliseconds(5));
+            serverMeta.Headers["x-meta"].Should().Be("value");
 
             foreach (var response in responses)
             {
-                Assert.Equal("application/json", response.Meta.Encoding);
-                Assert.True(response.Meta.TryGetHeader("x-stream-id", out var streamId));
-                Assert.Equal("stream-99", streamId);
+                response.Meta.Encoding.Should().Be("application/json");
+                response.Meta.TryGetHeader("x-stream-id", out var streamId).Should().BeTrue();
+                streamId.Should().Be("stream-99");
             }
         }
 
@@ -2144,19 +2142,19 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
             var headers = await call.ResponseHeadersAsync;
             var trailers = call.GetTrailers();
 
-            Assert.NotEmpty(responseBytes);
+            responseBytes.Should().NotBeEmpty();
 
             bool encodingHeaderFound = headers.Any(entry => string.Equals(entry.Key, EncodingTrailerKey, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(entry.Value, "application/json", StringComparison.OrdinalIgnoreCase))
                 || trailers.Any(entry => string.Equals(entry.Key, EncodingTrailerKey, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(entry.Value, "application/json", StringComparison.OrdinalIgnoreCase));
-            Assert.True(encodingHeaderFound, "Expected OmniRelay encoding metadata to be present in headers or trailers.");
+            encodingHeaderFound.Should().BeTrue("Expected OmniRelay encoding metadata to be present in headers or trailers.");
 
             bool customHeaderFound = headers.Any(entry => string.Equals(entry.Key, "x-meta-response", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(entry.Value, "yes", StringComparison.OrdinalIgnoreCase))
                 || trailers.Any(entry => string.Equals(entry.Key, "x-meta-response", StringComparison.OrdinalIgnoreCase)
                     && string.Equals(entry.Value, "yes", StringComparison.OrdinalIgnoreCase));
-            Assert.True(customHeaderFound, "Expected custom response header to be present in headers or trailers.");
+            customHeaderFound.Should().BeTrue("Expected custom response header to be present in headers or trailers.");
 
         }
     }
@@ -2210,15 +2208,16 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
 
             var call = channel.CreateCallInvoker().AsyncUnaryCall(method, null, new CallOptions(metadata, cancellationToken: ct), payload);
 
-            var rpcException = await Assert.ThrowsAsync<RpcException>(async () => await call.ResponseAsync);
-            Assert.Equal(StatusCode.PermissionDenied, rpcException.StatusCode);
+            var rpcException = await Invoking(async () => await call.ResponseAsync)
+                .Should().ThrowAsync<RpcException>();
+            rpcException.Which.StatusCode.Should().Be(StatusCode.PermissionDenied);
 
-            var trailers = rpcException.Trailers;
-            Assert.Contains(trailers, entry => string.Equals(entry.Key, ErrorMessageTrailerKey, StringComparison.OrdinalIgnoreCase)
+            var trailers = rpcException.Which.Trailers;
+            trailers.Should().Contain(entry => string.Equals(entry.Key, ErrorMessageTrailerKey, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(entry.Value, "access denied", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains(trailers, entry => string.Equals(entry.Key, ErrorCodeTrailerKey, StringComparison.OrdinalIgnoreCase)
+            trailers.Should().Contain(entry => string.Equals(entry.Key, ErrorCodeTrailerKey, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(entry.Value, "permission-denied", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains(trailers, entry => string.Equals(entry.Key, StatusTrailerKey, StringComparison.OrdinalIgnoreCase)
+            trailers.Should().Contain(entry => string.Equals(entry.Key, StatusTrailerKey, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(entry.Value, nameof(OmniRelayStatusCode.PermissionDenied), StringComparison.OrdinalIgnoreCase));
         }
 
@@ -2269,7 +2268,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     {
         var status = new Status(statusCode, "detail");
         var result = GrpcStatusMapper.FromStatus(status);
-        Assert.Equal(expected, result);
+        result.Should().Be(expected);
     }
 
     [Theory(Timeout = TestTimeouts.Default)]
@@ -2277,7 +2276,7 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
     public void GrpcStatusMapper_ToStatus_MapsExpected(StatusCode expectedStatusCode, OmniRelayStatusCode omnirelayStatus)
     {
         var status = GrpcStatusMapper.ToStatus(omnirelayStatus, "detail");
-        Assert.Equal(expectedStatusCode, status.StatusCode);
+        status.StatusCode.Should().Be(expectedStatusCode);
     }
 
     [Fact(Timeout = 30_000)]
@@ -2341,13 +2340,13 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
                 encoding: "application/json",
                 transport: TransportName);
             var payload = codec.EncodeRequest(new EchoRequest("hello"), requestMeta);
-            Assert.True(payload.IsSuccess);
+            payload.IsSuccess.Should().BeTrue();
 
             var request = new Request<ReadOnlyMemory<byte>>(requestMeta, payload.Value);
             var responseResult = await outbound.CallAsync(request, ct);
-            Assert.True(responseResult.IsSuccess, responseResult.Error?.Message);
+            responseResult.IsSuccess.Should().BeTrue(responseResult.Error?.Message);
 
-            Assert.Contains(loggerProvider.Entries, entry =>
+            loggerProvider.Entries.Should().Contain(entry =>
                 string.Equals(entry.CategoryName, typeof(GrpcClientLoggingInterceptor).FullName, StringComparison.Ordinal) &&
                 entry.Message.Contains("Completed gRPC client unary call", StringComparison.OrdinalIgnoreCase));
         }
@@ -2416,18 +2415,18 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
                 encoding: "application/json",
                 transport: TransportName);
             var payload = codec.EncodeRequest(new EchoRequest("hello"), requestMeta);
-            Assert.True(payload.IsSuccess);
+            payload.IsSuccess.Should().BeTrue();
 
             var request = new Request<ReadOnlyMemory<byte>>(requestMeta, payload.Value);
             var responseResult = await outbound.CallAsync(request, ct);
-            Assert.True(responseResult.IsSuccess, responseResult.Error?.Message);
+            responseResult.IsSuccess.Should().BeTrue(responseResult.Error?.Message);
         }
         finally
         {
             await outbound.StopAsync(ct);
         }
 
-        Assert.Contains(loggerProvider.Entries, entry =>
+        loggerProvider.Entries.Should().Contain(entry =>
             string.Equals(entry.CategoryName, typeof(GrpcServerLoggingInterceptor).FullName, StringComparison.Ordinal) &&
             entry.Message.Contains("Completed gRPC server unary call", StringComparison.OrdinalIgnoreCase));
     }
@@ -2500,18 +2499,19 @@ public partial class GrpcTransportTests(ITestOutputHelper output) : TransportInt
                 encoding: "application/json",
                 transport: TransportName);
             var payload = codec.EncodeRequest(new EchoRequest("hello"), requestMeta);
-            Assert.True(payload.IsSuccess);
+            payload.IsSuccess.Should().BeTrue();
 
             var request = new Request<ReadOnlyMemory<byte>>(requestMeta, payload.Value);
             var responseResult = await outbound.CallAsync(request, ct);
-            Assert.True(responseResult.IsSuccess, responseResult.Error?.Message);
+            responseResult.IsSuccess.Should().BeTrue(responseResult.Error?.Message);
         }
         finally
         {
             await outbound.StopAsync(ct);
         }
 
-        Assert.True(serverDuration.HasValue && serverDuration.Value > 0, "Expected server unary duration metric to be recorded.");
+        serverDuration.Should().NotBeNull("Expected server unary duration metric to be recorded.");
+        serverDuration!.Value.Should().BeGreaterThan(0, "Expected server unary duration metric to be recorded.");
     }
 
     private sealed class CaptureLoggerProvider : ILoggerProvider
