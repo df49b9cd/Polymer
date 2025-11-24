@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AwesomeAssertions;
 using Google.Protobuf;
 using Hugo;
 using Microsoft.AspNetCore.Builder;
@@ -84,13 +85,13 @@ public sealed class CompatibilityInteropIntegrationTests
                 RepositoryPaths.Root,
                 cancellationToken: ct);
 
-            Assert.True(result.ExitCode == 0, $"grpcurl failed: {result.StandardError}");
+            result.ExitCode.Should().Be(0, result.StandardError);
 
             var request = await requestCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("grpcurl", request.Message);
+            request.Message.Should().Be("grpcurl");
 
             var protocol = await protocolCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("HTTP/2", protocol);
+            protocol.Should().Be("HTTP/2");
         }
         finally
         {
@@ -155,10 +156,10 @@ public sealed class CompatibilityInteropIntegrationTests
                 RepositoryPaths.Root,
                 cancellationToken: ct);
 
-            Assert.True(result.ExitCode == 0, $"curl HTTP/3 call failed: {result.StandardError}");
+            result.ExitCode.Should().Be(0, result.StandardError);
 
             var protocol = await protocolCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("HTTP/3", protocol);
+            protocol.Should().Be("HTTP/3");
         }
         finally
         {
@@ -253,14 +254,14 @@ public sealed class CompatibilityInteropIntegrationTests
             request.Headers.Add(HttpTransportHeaders.Caller, "compat-yarp-client");
 
             using var response = await client.SendAsync(request, ct);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(2, response.Version.Major);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Version.Major.Should().Be(2);
 
             var protocol = await protocolCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("HTTP/1.1", protocol);
+            protocol.Should().Be("HTTP/1.1");
 
             var caller = await callerCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("compat-yarp-client", caller);
+            caller.Should().Be("compat-yarp-client");
         }
         finally
         {
@@ -275,7 +276,7 @@ public sealed class CompatibilityInteropIntegrationTests
         var ct = TestContext.Current.CancellationToken;
         if (!string.Equals(Environment.GetEnvironmentVariable("OMNIRELAY_ENABLE_ENVOY_TESTS"), "true", StringComparison.OrdinalIgnoreCase))
         {
-            Assert.Skip("Set OMNIRELAY_ENABLE_ENVOY_TESTS=true to exercise the Envoy proxy scenario.");
+            Skip.If(true, "Set OMNIRELAY_ENABLE_ENVOY_TESTS=true to exercise the Envoy proxy scenario.");
         }
 
         var dockerPath = await DockerHelper.RequireAsync(ct);
@@ -332,7 +333,7 @@ public sealed class CompatibilityInteropIntegrationTests
             }
             catch (TimeoutException)
             {
-                Assert.Skip("Envoy container did not expose the listener within the allotted time.");
+                Skip.If(true, "Envoy container did not expose the listener within the allotted time.");
             }
 
             using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{proxyPort}/") };
@@ -342,13 +343,13 @@ public sealed class CompatibilityInteropIntegrationTests
                 "compat-envoy-client",
                 "{\"message\":\"envoy\"}",
                 ct);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
 
             var protocol = await protocolCapture.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
-            Assert.Equal("HTTP/2", protocol);
+            protocol.Should().Be("HTTP/2");
 
             var caller = await callerCapture.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
-            Assert.Equal("compat-envoy-client", caller);
+            caller.Should().Be("compat-envoy-client");
         }
         finally
         {
@@ -439,19 +440,19 @@ public sealed class CompatibilityInteropIntegrationTests
             request.Content = new StringContent("{\"phase\":\"beta\"}", Encoding.UTF8, MediaTypeNames.Application.Json);
 
             var response = await client.SendAsync(request, ct);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
             var payload = await response.Content.ReadAsByteArrayAsync(ct);
             var responseBody = JsonSerializer.Deserialize(
                 payload,
                 CompatibilityInteropJsonContext.Default.ShadowPingResponse);
-            Assert.Equal("primary", responseBody?.Cluster);
+            responseBody?.Cluster.Should().Be("primary");
 
             var shadowMeta = await shadowCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("beta-canary", shadowMeta.Headers["x-shadow-route"]);
+            shadowMeta.Headers["x-shadow-route"].Should().Be("beta-canary");
 
             var primaryMeta = await primaryCapture.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            Assert.Equal("compat-shadow-client", primaryMeta.Caller);
-            Assert.Equal("beta", primaryMeta.Headers["x-upgrade-phase"]);
+            primaryMeta.Caller.Should().Be("compat-shadow-client");
+            primaryMeta.Headers["x-upgrade-phase"].Should().Be("beta");
         }
         finally
         {
@@ -523,7 +524,7 @@ public sealed class CompatibilityInteropIntegrationTests
 
         if (version.ExitCode != 0 || !version.StandardOutput.Contains("HTTP3", StringComparison.OrdinalIgnoreCase))
         {
-            Assert.Skip("curl build does not include HTTP/3 support.");
+            Skip.If(true, "curl build does not include HTTP/3 support.");
         }
     }
 

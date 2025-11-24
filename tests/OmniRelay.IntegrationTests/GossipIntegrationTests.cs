@@ -235,23 +235,23 @@ public sealed class GossipIntegrationTests(ITestOutputHelper output) : Integrati
 
     private static void AssertPeerDiagnosticsEntry(JsonElement peer, GossipNodeDescriptor descriptor)
     {
-        Assert.Equal("Alive", peer.GetProperty("status").GetString());
+        peer.GetProperty("status").GetString().Should().Be("Alive");
 
         var metadata = peer.GetProperty("metadata");
-        Assert.Equal("dispatcher", metadata.GetProperty("role").GetString());
-        Assert.Equal("integration-cluster", metadata.GetProperty("clusterId").GetString());
-        Assert.Equal("integration-region", metadata.GetProperty("region").GetString());
-        Assert.Equal("integration-test", metadata.GetProperty("meshVersion").GetString());
-        Assert.True(metadata.GetProperty("http3Support").GetBoolean());
-        Assert.Equal($"127.0.0.1:{descriptor.Port}", metadata.GetProperty("endpoint").GetString());
-        Assert.Equal(descriptor.Rack, metadata.GetProperty("labels").GetProperty("rack").GetString());
+        metadata.GetProperty("role").GetString().Should().Be("dispatcher");
+        metadata.GetProperty("clusterId").GetString().Should().Be("integration-cluster");
+        metadata.GetProperty("region").GetString().Should().Be("integration-region");
+        metadata.GetProperty("meshVersion").GetString().Should().Be("integration-test");
+        metadata.GetProperty("http3Support").GetBoolean().Should().BeTrue();
+        metadata.GetProperty("endpoint").GetString().Should().Be($"127.0.0.1:{descriptor.Port}");
+        metadata.GetProperty("labels").GetProperty("rack").GetString().Should().Be(descriptor.Rack);
 
         var lastSeen = peer.GetProperty("lastSeen").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(lastSeen));
+        string.IsNullOrWhiteSpace(lastSeen).Should().BeFalse();
 
         if (peer.TryGetProperty("rttMs", out var rtt) && rtt.ValueKind == JsonValueKind.Number)
         {
-            Assert.True(rtt.GetDouble() >= 0);
+            rtt.GetDouble().Should().BeGreaterThanOrEqualTo(0);
         }
     }
 

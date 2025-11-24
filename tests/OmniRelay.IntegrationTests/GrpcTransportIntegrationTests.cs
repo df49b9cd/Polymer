@@ -4,6 +4,7 @@ using System.Net.Mime;
 using System.Net.Quic;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using AwesomeAssertions;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
@@ -20,6 +21,7 @@ using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using Xunit;
 using Xunit.Sdk;
+using static AwesomeAssertions.FluentActions;
 using static Hugo.Go;
 
 namespace OmniRelay.IntegrationTests;
@@ -176,7 +178,7 @@ public class GrpcTransportIntegrationTests
         {
             var client = TestServiceOmniRelay.CreateTestServiceClient(clientDispatcher, ServiceName);
             var warmup = await client.UnaryCallAsync(new UnaryRequest { Message = "h3-warmup" }, cancellationToken: ct);
-            Assert.True(warmup.IsSuccess, warmup.Error?.Message);
+            warmup.IsSuccess.Should().BeTrue(warmup.Error?.Message);
             await Task.Delay(250, ct);
             serviceImpl.ResetProbes();
             await ExerciseGeneratedClientAsync(client, serviceImpl, ct);
@@ -258,7 +260,7 @@ public class GrpcTransportIntegrationTests
             var request = new Request<ReadOnlyMemory<byte>>(meta, ReadOnlyMemory<byte>.Empty);
             await insecureOutbound.StartAsync(ct);
             var insecureResult = await ((IUnaryOutbound)insecureOutbound).CallAsync(request, ct);
-            Assert.True(insecureResult.IsFailure);
+            insecureResult.IsFailure.Should().BeTrue();
             await insecureOutbound.StopAsync(CancellationToken.None);
 
             var secureOutbound = new GrpcOutbound(
@@ -268,7 +270,7 @@ public class GrpcTransportIntegrationTests
 
             await secureOutbound.StartAsync(ct);
             var secureResult = await ((IUnaryOutbound)secureOutbound).CallAsync(request, ct);
-            Assert.True(secureResult.IsSuccess);
+            secureResult.IsSuccess.Should().BeTrue();
             await secureOutbound.StopAsync(CancellationToken.None);
 
             var alpnOutbound = new GrpcOutbound(
@@ -284,7 +286,7 @@ public class GrpcTransportIntegrationTests
 
             await alpnOutbound.StartAsync(ct);
             var alpnResult = await ((IUnaryOutbound)alpnOutbound).CallAsync(request, ct);
-            Assert.True(alpnResult.IsFailure);
+            alpnResult.IsFailure.Should().BeTrue();
             await alpnOutbound.StopAsync(CancellationToken.None);
         }
         finally
@@ -351,13 +353,13 @@ public class GrpcTransportIntegrationTests
             deadline: deadline);
 
         var unaryResult = await client.UnaryCallAsync(new UnaryRequest { Message = "ping" }, meta, cancellationToken);
-        Assert.True(unaryResult.IsSuccess, unaryResult.Error?.Message);
-        Assert.Equal("ping-unary-response", unaryResult.Value.Body.Message);
+        unaryResult.IsSuccess.Should().BeTrue(unaryResult.Error?.Message);
+        unaryResult.Value.Body.Message.Should().Be("ping-unary-response");
 
         var unaryMeta = await impl.UnaryMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
-        Assert.Equal(meta.TimeToLive, unaryMeta.TimeToLive);
-        Assert.True(Math.Abs((unaryMeta.Deadline!.Value - deadline).TotalMilliseconds) <= DeadlineTolerance.TotalMilliseconds);
-        Assert.Equal(GrpcTransportName, unaryMeta.Transport);
+        unaryMeta.TimeToLive.Should().Be(meta.TimeToLive);
+        Math.Abs((unaryMeta.Deadline!.Value - deadline).TotalMilliseconds).Should().BeLessThanOrEqualTo(DeadlineTolerance.TotalMilliseconds);
+        unaryMeta.Transport.Should().Be(GrpcTransportName);
 
         var serverStreamMeta = meta with { Procedure = "ServerStream" };
         var responses = new List<string>();
@@ -365,9 +367,9 @@ public class GrpcTransportIntegrationTests
         {
             responses.Add(response.ValueOrChecked().Body.Value);
         }
-        Assert.Equal(new[] { "data#0", "data#1", "data#2" }, responses);
+        responses.Should().Equal("data#0", "data#1", "data#2");
         var capturedServerMeta = await impl.ServerStreamMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
-        Assert.Equal(serverStreamMeta.TimeToLive, capturedServerMeta.TimeToLive);
+        capturedServerMeta.TimeToLive.Should().Be(serverStreamMeta.TimeToLive);
 
         var clientStreamMeta = meta with { Procedure = "ClientStream" };
         var clientStreamResult = await client.ClientStreamAsync(clientStreamMeta, cancellationToken);
@@ -377,11 +379,12 @@ public class GrpcTransportIntegrationTests
             (await session.WriteAsync(new StreamRequest { Value = "5" }, cancellationToken)).ValueOrChecked();
             await session.CompleteAsync(cancellationToken);
             var aggregate = (await session.Response).ValueOrChecked();
-            Assert.Equal("sum:7", aggregate.Body.Message);
+            aggregate.Body.Message.Should().Be("sum:7");
         }
 
         var capturedClientMeta = await impl.ClientStreamMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
-        Assert.True(Math.Abs((capturedClientMeta.Deadline!.Value - clientStreamMeta.Deadline!.Value).TotalMilliseconds) <= DeadlineTolerance.TotalMilliseconds);
+        Math.Abs((capturedClientMeta.Deadline!.Value - clientStreamMeta.Deadline!.Value).TotalMilliseconds)
+            .Should().BeLessThanOrEqualTo(DeadlineTolerance.TotalMilliseconds);
 
         var duplexMeta = meta with { Procedure = "DuplexStream" };
         var duplexResult = await client.DuplexStreamAsync(duplexMeta, cancellationToken);
@@ -397,21 +400,21 @@ public class GrpcTransportIntegrationTests
                 duplexResponses.Add(response.ValueOrChecked().Body.Value);
             }
 
-            Assert.Equal(new[] { "ready", "echo:alpha", "echo:beta" }, duplexResponses);
+            duplexResponses.Should().Equal("ready", "echo:alpha", "echo:beta");
         }
 
         var capturedDuplexMeta = await impl.DuplexMeta.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
-        Assert.Equal(duplexMeta.Transport, capturedDuplexMeta.Transport);
+        capturedDuplexMeta.Transport.Should().Be(duplexMeta.Transport);
     }
 
     private static void AssertLogContains(ConcurrentQueue<string> log, string marker)
     {
-        Assert.Contains(log, entry => entry.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        log.Should().Contain(entry => entry.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     private static void AssertLogContains(IEnumerable<string> log, string marker)
     {
-        Assert.Contains(log, entry => entry.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        log.Should().Contain(entry => entry.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task WaitForGrpcReadyAsync(Uri address, CancellationToken cancellationToken)

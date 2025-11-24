@@ -1,4 +1,5 @@
 using System.Text;
+using AwesomeAssertions;
 using Hugo;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +13,7 @@ using OmniRelay.IntegrationTests.Codecs;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Http;
 using Xunit;
+using static AwesomeAssertions.FluentActions;
 
 namespace OmniRelay.IntegrationTests;
 
@@ -64,24 +66,24 @@ public class HostingConfigurationIntegrationTests
         using var host = builder.Build();
         var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();
 
-        Assert.Equal("env-service", dispatcher.ServiceName);
+        dispatcher.ServiceName.Should().Be("env-service");
 
         var hostedServices = host.Services.GetServices<IHostedService>().ToList();
-        Assert.Contains(hostedServices, service => service.GetType().Name == "DispatcherHostedService");
+        hostedServices.Should().Contain(service => service.GetType().Name == "DispatcherHostedService");
 
         var introspection = dispatcher.Introspect();
-        Assert.Contains(introspection.Components, component =>
+        introspection.Components.Should().Contain(component =>
             component.Name == "http-env" &&
             component.ComponentType.Contains("HttpInbound", StringComparison.Ordinal));
 
-        var ledgerOutbound = Assert.Single(introspection.Outbounds, outbound => outbound.Service == "ledger");
-        var unaryOutbound = Assert.Single(ledgerOutbound.Unary);
-        Assert.Equal("primary", unaryOutbound.Key);
-        Assert.Contains("HttpOutbound", unaryOutbound.ImplementationType, StringComparison.Ordinal);
+        var ledgerOutbound = introspection.Outbounds.Should().ContainSingle(outbound => outbound.Service == "ledger").Which;
+        var unaryOutbound = ledgerOutbound.Unary.Should().ContainSingle(outbound => outbound.Key == "primary").Which;
+        unaryOutbound.Key.Should().Be("primary");
+        unaryOutbound.ImplementationType.Should().Contain("HttpOutbound");
 
         var clientConfig = dispatcher.ClientConfigChecked("ledger");
-        Assert.True(clientConfig.TryGetUnary("primary", out var outboundInstance));
-        Assert.IsAssignableFrom<HttpOutbound>(outboundInstance);
+        clientConfig.TryGetUnary("primary", out var outboundInstance).Should().BeTrue();
+        outboundInstance.Should().BeAssignableTo<HttpOutbound>();
 
         var ct = TestContext.Current.CancellationToken;
         await host.StartAsync(ct);
@@ -134,17 +136,17 @@ public class HostingConfigurationIntegrationTests
         using var host = builder.Build();
         var dispatcher = host.Services.GetRequiredService<Dispatcher.Dispatcher>();
 
-        Assert.Equal("cli-service", dispatcher.ServiceName);
+        dispatcher.ServiceName.Should().Be("cli-service");
         var components = dispatcher.Introspect().Components;
-        Assert.Contains(components, component => component.Name == "http-cli");
+        components.Should().Contain(component => component.Name == "http-cli");
 
-        var paymentsOutbound = Assert.Single(dispatcher.Introspect().Outbounds, outbound => outbound.Service == "payments");
-        var unaryBinding = Assert.Single(paymentsOutbound.Unary);
-        Assert.Contains("HttpOutbound", unaryBinding.ImplementationType, StringComparison.Ordinal);
+        var paymentsOutbound = dispatcher.Introspect().Outbounds.Should().ContainSingle(outbound => outbound.Service == "payments").Which;
+        var unaryBinding = paymentsOutbound.Unary.Should().ContainSingle(binding => binding.Key == "primary").Which;
+        unaryBinding.ImplementationType.Should().Contain("HttpOutbound");
 
         var clientConfig = dispatcher.ClientConfigChecked("payments");
-        Assert.True(clientConfig.TryGetUnary("primary", out var outboundInstance));
-        Assert.IsAssignableFrom<HttpOutbound>(outboundInstance);
+        clientConfig.TryGetUnary("primary", out var outboundInstance).Should().BeTrue();
+        outboundInstance.Should().BeAssignableTo<HttpOutbound>();
     }
 
     [Http3Fact(Timeout = 30_000)]
@@ -164,14 +166,12 @@ public class HostingConfigurationIntegrationTests
 
         using var host = builder.Build();
 
-        var ex = await Assert.ThrowsAsync<ResultException>(async () =>
-        {
-            await host.StartAsync(TestContext.Current.CancellationToken);
-        });
+        var ex = await Invoking(() => host.StartAsync(TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<ResultException>();
 
-        Assert.NotNull(ex.InnerException);
-        var inner = Assert.IsType<InvalidOperationException>(ex.InnerException);
-        Assert.Contains("HTTP/3 requires HTTPS", inner.Message, StringComparison.OrdinalIgnoreCase);
+        ex.Which.InnerException.Should().NotBeNull();
+        var inner = ex.Which.InnerException.Should().BeOfType<InvalidOperationException>().Which;
+        inner.Message.Should().ContainEquivalentOf("HTTP/3 requires HTTPS");
     }
 
     [Fact(Timeout = 30_000)]
@@ -230,29 +230,29 @@ public class HostingConfigurationIntegrationTests
         await host.StopAsync(CancellationToken.None);
 
         var clientConfig = dispatcher.ClientConfigChecked("workflow");
-        Assert.IsType<HttpOutbound>(clientConfig.Unary["http-unary"]);
-        Assert.IsType<HttpOutbound>(clientConfig.Oneway["http-oneway"]);
-        Assert.IsType<GrpcOutbound>(clientConfig.Stream["grpc-stream"]);
-        Assert.IsType<GrpcOutbound>(clientConfig.ClientStream["grpc-client"]);
-        Assert.IsType<GrpcOutbound>(clientConfig.Duplex["grpc-duplex"]);
+        clientConfig.Unary["http-unary"].Should().BeOfType<HttpOutbound>();
+        clientConfig.Oneway["http-oneway"].Should().BeOfType<HttpOutbound>();
+        clientConfig.Stream["grpc-stream"].Should().BeOfType<GrpcOutbound>();
+        clientConfig.ClientStream["grpc-client"].Should().BeOfType<GrpcOutbound>();
+        clientConfig.Duplex["grpc-duplex"].Should().BeOfType<GrpcOutbound>();
 
-        Assert.Contains(clientConfig.UnaryMiddleware, middleware => middleware is RpcTracingMiddleware);
-        Assert.Contains(clientConfig.UnaryMiddleware, middleware => middleware is RpcMetricsMiddleware);
-        Assert.Contains(clientConfig.OnewayMiddleware, middleware => middleware is RpcTracingMiddleware);
-        Assert.Contains(clientConfig.StreamMiddleware, middleware => middleware is RpcTracingMiddleware);
-        Assert.Contains(clientConfig.ClientStreamMiddleware, middleware => middleware is RpcTracingMiddleware);
-        Assert.Contains(clientConfig.DuplexMiddleware, middleware => middleware is RpcTracingMiddleware);
+        clientConfig.UnaryMiddleware.Should().Contain(middleware => middleware is RpcTracingMiddleware);
+        clientConfig.UnaryMiddleware.Should().Contain(middleware => middleware is RpcMetricsMiddleware);
+        clientConfig.OnewayMiddleware.Should().Contain(middleware => middleware is RpcTracingMiddleware);
+        clientConfig.StreamMiddleware.Should().Contain(middleware => middleware is RpcTracingMiddleware);
+        clientConfig.ClientStreamMiddleware.Should().Contain(middleware => middleware is RpcTracingMiddleware);
+        clientConfig.DuplexMiddleware.Should().Contain(middleware => middleware is RpcTracingMiddleware);
 
-        var outboundDescriptor = dispatcher.Introspect().Outbounds.Single(o => o.Service == "workflow");
-        Assert.Contains(outboundDescriptor.Unary, descriptor =>
+        var outboundDescriptor = dispatcher.Introspect().Outbounds.Should().ContainSingle(o => o.Service == "workflow").Which;
+        outboundDescriptor.Unary.Should().Contain(descriptor =>
             descriptor.Key == "http-unary" && descriptor.ImplementationType.Contains(nameof(HttpOutbound), StringComparison.Ordinal));
-        Assert.Contains(outboundDescriptor.Oneway, descriptor =>
+        outboundDescriptor.Oneway.Should().Contain(descriptor =>
             descriptor.Key == "http-oneway" && descriptor.ImplementationType.Contains(nameof(HttpOutbound), StringComparison.Ordinal));
-        Assert.Contains(outboundDescriptor.Stream, descriptor =>
+        outboundDescriptor.Stream.Should().Contain(descriptor =>
             descriptor.Key == "grpc-stream" && descriptor.ImplementationType.Contains(nameof(GrpcOutbound), StringComparison.Ordinal));
-        Assert.Contains(outboundDescriptor.ClientStream, descriptor =>
+        outboundDescriptor.ClientStream.Should().Contain(descriptor =>
             descriptor.Key == "grpc-client" && descriptor.ImplementationType.Contains(nameof(GrpcOutbound), StringComparison.Ordinal));
-        Assert.Contains(outboundDescriptor.Duplex, descriptor =>
+        outboundDescriptor.Duplex.Should().Contain(descriptor =>
             descriptor.Key == "grpc-duplex" && descriptor.ImplementationType.Contains(nameof(GrpcOutbound), StringComparison.Ordinal));
     }
 
@@ -297,11 +297,11 @@ public class HostingConfigurationIntegrationTests
         await host.StartAsync(ct);
         await host.StopAsync(CancellationToken.None);
 
-        Assert.Contains(dispatcher.UnaryOutboundMiddleware, middleware => middleware is RpcTracingMiddleware);
-        Assert.Contains(dispatcher.UnaryInboundMiddleware, middleware => middleware is RpcMetricsMiddleware);
+        dispatcher.UnaryOutboundMiddleware.Should().Contain(middleware => middleware is RpcTracingMiddleware);
+        dispatcher.UnaryInboundMiddleware.Should().Contain(middleware => middleware is RpcMetricsMiddleware);
 
         var codecs = dispatcher.Codecs.Snapshot();
-        Assert.Contains(codecs, entry =>
+        codecs.Should().Contain(entry =>
             entry.Scope == ProcedureCodecScope.Outbound &&
             string.Equals(entry.Service, "codec", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(entry.Procedure, "feature::echo", StringComparison.OrdinalIgnoreCase) &&
@@ -337,8 +337,8 @@ public class HostingConfigurationIntegrationTests
         await host.StopAsync(CancellationToken.None);
 
         var components = dispatcher.Introspect().Components;
-        Assert.Contains(components, component => component.Name == "http-primary" && component.ComponentType.Contains("HttpInbound", StringComparison.Ordinal));
-        Assert.Contains(components, component => component.Name == "grpc-primary" && component.ComponentType.Contains("GrpcInbound", StringComparison.Ordinal));
+        components.Should().Contain(component => component.Name == "http-primary" && component.ComponentType.Contains("HttpInbound", StringComparison.Ordinal));
+        components.Should().Contain(component => component.Name == "grpc-primary" && component.ComponentType.Contains("GrpcInbound", StringComparison.Ordinal));
     }
 
     // Custom transport spec support was removed with the legacy configuration binder. Test omitted.
