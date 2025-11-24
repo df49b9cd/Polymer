@@ -2,9 +2,9 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Hugo;
 using Microsoft.Data.Sqlite;
+using Xunit;
 using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
-using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 

@@ -558,6 +558,7 @@ internal static partial class ProgramMeshModule
     }
 
     [RequiresUnreferencedCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.Bind(Object)")]
+    [RequiresDynamicCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.Bind(Object)")]
     internal static async Task<int> RunMeshConfigValidateAsync(
         string[] configPaths,
         string section,

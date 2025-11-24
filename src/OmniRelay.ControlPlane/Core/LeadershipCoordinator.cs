@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
+using Hugo;
+using Hugo.Policies;
 using Microsoft.Extensions.Logging;
+using OmniRelay.ControlPlane.Primitives;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
-using OmniRelay.ControlPlane.Primitives;
-using Hugo;
-using Hugo.Policies;
 using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
 

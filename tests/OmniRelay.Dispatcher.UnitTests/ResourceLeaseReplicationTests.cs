@@ -1,8 +1,8 @@
 using AwesomeAssertions;
 using Hugo;
+using Xunit;
 using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
-using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 

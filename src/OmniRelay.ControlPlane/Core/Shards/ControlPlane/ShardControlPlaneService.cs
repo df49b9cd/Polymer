@@ -1,9 +1,9 @@
+using System.Threading.Channels;
 using Hugo;
 using Hugo.Policies;
 using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Shards.Hashing;
 using static Hugo.Go;
-using System.Threading.Channels;
 
 namespace OmniRelay.Core.Shards.ControlPlane;
 

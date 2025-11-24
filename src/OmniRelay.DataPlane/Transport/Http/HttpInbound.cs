@@ -9,7 +9,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Hugo;
-using Hugo.TaskQueues;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -1600,21 +1599,21 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                                 return Ok(Unit.Value);
 
                             case HttpDuplexProtocol.FrameType.RequestError:
-                            {
-                                var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
-                                await call.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-                                await call.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                                pumpCts.Cancel();
-                                return Err<Unit>(error);
-                            }
+                                {
+                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
+                                    await call.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    await call.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    pumpCts.Cancel();
+                                    return Err<Unit>(error);
+                                }
 
                             case HttpDuplexProtocol.FrameType.ResponseError:
-                            {
-                                var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
-                                await call.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                                pumpCts.Cancel();
-                                return Err<Unit>(error);
-                            }
+                                {
+                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
+                                    await call.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    pumpCts.Cancel();
+                                    return Err<Unit>(error);
+                                }
 
                             case HttpDuplexProtocol.FrameType.ResponseComplete:
                                 await call.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);

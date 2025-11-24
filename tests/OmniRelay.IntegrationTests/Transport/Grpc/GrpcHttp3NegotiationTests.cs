@@ -269,9 +269,9 @@ public class GrpcHttp3NegotiationTests(ITestOutputHelper output) : TransportInte
 
         try
         {
-        var call = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
-        var response = await call.ResponseAsync.WaitAsync(ct);
-        response.Should().BeEmpty();
+            var call = invoker.AsyncUnaryCall(method, null, new CallOptions(headers: metadata), []);
+            var response = await call.ResponseAsync.WaitAsync(ct);
+            response.Should().BeEmpty();
         }
         finally
         {
