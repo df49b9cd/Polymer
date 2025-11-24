@@ -4,6 +4,10 @@ using OmniRelay.Core.Shards;
 using OmniRelay.Core.Shards.ControlPlane;
 using OmniRelay.Core.Shards.Hashing;
 using Xunit;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace OmniRelay.Core.UnitTests.Shards.ControlPlane;
 
@@ -162,6 +166,37 @@ public sealed class ShardControlPlaneServiceTests
         Assert.Equal("shards.control.assignment.missing", result.Error?.Code);
     }
 
+    [Fact]
+    public async Task CollectWatchAsync_AggregatesFailures()
+    {
+        var current = new ShardRecord
+        {
+            Namespace = "ns",
+            ShardId = "shard-a",
+            StrategyId = ShardHashStrategyIds.Rendezvous,
+            OwnerNodeId = "node-a",
+            CapacityHint = 1,
+            Version = 1,
+            Checksum = "c1",
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        var diffs = new[]
+        {
+            new ShardRecordDiff(1, current, null)
+        };
+
+        var repository = new FakeStreamRepository(diffs, throwAfter: true);
+        var registry = new ShardHashStrategyRegistry();
+        var service = new ShardControlPlaneService(repository, registry, TimeProvider.System, NullLogger<ShardControlPlaneService>.Instance);
+        var filter = new ShardFilter("ns", null, null, null);
+
+        var result = await service.CollectWatchAsync(null, filter, CancellationToken.None);
+
+        Assert.True(result.IsFailure, $"Expected aggregated failure but got success. Error={result.Error}");
+        Assert.Equal("shards.control.stream.failure", result.Error?.Code);
+    }
+
     private sealed class FakeShardRepository : IShardRepository
     {
         private readonly IReadOnlyList<ShardRecord> _records;
@@ -187,6 +222,45 @@ public sealed class ShardControlPlaneServiceTests
 
         public IAsyncEnumerable<ShardRecordDiff> StreamDiffsAsync(long? sinceVersion, CancellationToken cancellationToken = default) =>
             AsyncEnumerable.Empty<ShardRecordDiff>();
+
+        public ValueTask<ShardQueryResult> QueryAsync(ShardQueryOptions options, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class FakeStreamRepository : IShardRepository
+    {
+        private readonly IReadOnlyList<ShardRecordDiff> _diffs;
+        private readonly bool _throwAfter;
+
+        public FakeStreamRepository(IReadOnlyList<ShardRecordDiff> diffs, bool throwAfter)
+        {
+            _diffs = diffs;
+            _throwAfter = throwAfter;
+        }
+
+        public ValueTask<ShardRecord?> GetAsync(ShardKey key, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<ShardRecord?>(null);
+
+        public ValueTask<IReadOnlyList<ShardRecord>> ListAsync(string? namespaceId = null, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ShardRecord>>(Array.Empty<ShardRecord>());
+
+        public ValueTask<ShardMutationResult> UpsertAsync(ShardMutationRequest request, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public async IAsyncEnumerable<ShardRecordDiff> StreamDiffsAsync(long? sinceVersion, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var diff in _diffs)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return diff;
+            }
+
+            if (_throwAfter)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new InvalidOperationException("stream failure");
+            }
+        }
 
         public ValueTask<ShardQueryResult> QueryAsync(ShardQueryOptions options, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();

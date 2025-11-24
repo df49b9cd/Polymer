@@ -7,6 +7,7 @@ using OmniRelay.ControlPlane.ControlProtocol;
 using OmniRelay.Protos.Control;
 using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
+using System.Runtime.CompilerServices;
 
 namespace OmniRelay.ControlPlane.Agent;
 
@@ -315,6 +316,25 @@ public sealed class WatchHarness : IAsyncDisposable
 
         var maxAttempts = _applyQueueOptions.MaxDeliveryAttempts;
 
+        var aggregated = await Result.CollectErrorsAsync(
+            ProcessApplyLeasesAsync(maxAttempts, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+
+        if (aggregated.IsFailure)
+        {
+            AgentLog.ControlWatchFailed(_logger, aggregated.Error?.Cause ?? new InvalidOperationException(aggregated.Error?.Message ?? "control apply aggregated failure"));
+        }
+    }
+
+    private async IAsyncEnumerable<Result<Unit>> ProcessApplyLeasesAsync(
+        int maxAttempts,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (_applyAdapter is null || _applySafeQueue is null)
+        {
+            yield break;
+        }
+
         await foreach (var lease in _applyAdapter.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
             var safeLease = _applySafeQueue.Wrap(lease);
@@ -338,7 +358,11 @@ public sealed class WatchHarness : IAsyncDisposable
                 if (complete.IsFailure)
                 {
                     AgentLog.ControlWatchFailed(_logger, complete.Error?.Cause ?? new InvalidOperationException(complete.Error?.Message ?? "control apply completion failed"));
+                    yield return complete.CastFailure<Unit>();
+                    continue;
                 }
+
+                yield return Ok(Unit.Value);
                 continue;
             }
 
@@ -347,7 +371,11 @@ public sealed class WatchHarness : IAsyncDisposable
             if (failed.IsFailure)
             {
                 AgentLog.ControlWatchFailed(_logger, failed.Error?.Cause ?? new InvalidOperationException(failed.Error?.Message ?? "control apply fail handling failed"));
+                yield return failed.CastFailure<Unit>();
+                continue;
             }
+
+            yield return result;
         }
     }
 }

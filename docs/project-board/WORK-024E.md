@@ -13,7 +13,11 @@ Use Hugo stream aggregation helpers (`CollectErrorsAsync`, tap-each variants) wh
 - Tests assert multiple-error aggregation and confirm success path remains allocation-lean.
 
 ## Status
-Planned
+Done
+
+## Completion Notes
+- Control-plane shard watch streams now expose an aggregated path via `CollectWatchAsync`, wrapping repository diff streams with `Result.CollectErrorsAsync` and surfacing `StreamFailure` metadata instead of short-circuiting.
+- Agent apply pump aggregates per-lease failures through `Result.CollectErrorsAsync`, logging a single aggregated failure while still completing/poison-handling each lease.
 
 ## SLOs & CI gates
 - No regression in hot-path allocations; validate with unit perf guards if needed.

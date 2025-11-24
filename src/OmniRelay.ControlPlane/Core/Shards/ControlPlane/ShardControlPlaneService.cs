@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Hugo;
 using Hugo.Policies;
@@ -136,16 +137,17 @@ public sealed partial class ShardControlPlaneService
                 1);
         }
 
-        var stream = Result.MapStreamAsync<ShardRecordDiff, ShardRecordDiff>(
-            _repository.StreamDiffsAsync(resumeToken, cancellationToken),
-            (diff, _) => new ValueTask<Result<ShardRecordDiff>>(Ok(diff)),
-            cancellationToken);
-
         return Result.FilterStreamAsync(
-            stream,
+            StreamDiffs(resumeToken, cancellationToken),
             diff => filter.Matches(diff.Current),
             cancellationToken);
     }
+
+    public ValueTask<Result<IReadOnlyList<ShardRecordDiff>>> CollectWatchAsync(
+        long? resumeToken,
+        ShardFilter filter,
+        CancellationToken cancellationToken) =>
+        Result.CollectErrorsAsync(WatchAsync(resumeToken, filter, cancellationToken), cancellationToken);
 
     public async ValueTask<Result<ShardSimulationResponse>> SimulateAsync(
         ShardSimulationRequest request,
@@ -365,5 +367,55 @@ public sealed partial class ShardControlPlaneService
 
         [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Shard simulation requested for namespace {Namespace} but no shard records exist.")]
         public static partial void SimulationNamespaceMissing(ILogger logger, string @namespace);
+    }
+
+    private IAsyncEnumerable<Result<ShardRecordDiff>> StreamDiffs(
+        long? resumeToken,
+        CancellationToken cancellationToken)
+    {
+        return Stream(cancellationToken);
+
+        async IAsyncEnumerable<Result<ShardRecordDiff>> Stream([EnumeratorCancellation] CancellationToken ct)
+        {
+            var enumerator = _repository.StreamDiffsAsync(resumeToken, ct).GetAsyncEnumerator(ct);
+            Result<ShardRecordDiff>? failure = null;
+            try
+            {
+                while (true)
+                {
+                    bool hasNext;
+                    try
+                    {
+                        hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException oce) when (oce.CancellationToken == ct)
+                    {
+                        failure = Err<ShardRecordDiff>(Error.Canceled("Shard watch canceled.", ct));
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        failure = Err<ShardRecordDiff>(ShardControlPlaneErrors.StreamFailure(ex, "shards.watch"));
+                        break;
+                    }
+
+                    if (!hasNext)
+                    {
+                        yield break;
+                    }
+
+                    yield return Ok(enumerator.Current);
+                }
+            }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+
+            if (failure is not null)
+            {
+                yield return failure.Value;
+            }
+        }
     }
 }
