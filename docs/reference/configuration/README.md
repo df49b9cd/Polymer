@@ -15,6 +15,10 @@ omnirelay__outbounds__ledger__unary__grpc__0__addresses__0=http://ledger-c.inter
 
 See `OmniRelayConfigurationTests` for unit coverage that exercises custom specs and configuration layering.
 
+## Failure handling
+
+Dispatcher creation is now fully result-based. `DispatcherConfigMapper.CreateDispatcher` returns `Result<Dispatcher>` so misconfiguration (invalid mode, malformed URLs, missing TLS files, etc.) is surfaced as structured errors with metadata instead of throwing. The DI helpers (`AddOmniRelayDispatcherFromConfiguration` / `AddOmniRelayDispatcherFromConfig`) still fail fast by calling `ValueOrThrow()` on the result, ensuring host startup aborts with the recorded error details. When you consume the mapper directly, prefer `Result.Match`/`Result.Then` to keep configuration errors in the Hugo pipeline.
+
 ## Enabling HTTP/3 for clients (outbounds)
 
 gRPC outbounds can opt-in to HTTP/3 with per-endpoint runtime settings. Prefer enabling HTTP/3 together with a permissive HTTP version policy so the client will downgrade automatically when QUIC isn’t available.

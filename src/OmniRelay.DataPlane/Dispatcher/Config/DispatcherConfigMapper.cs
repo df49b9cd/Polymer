@@ -11,7 +11,6 @@ using Microsoft.Extensions.Hosting;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Core.Peers;
-using OmniRelay.Dispatcher;
 using OmniRelay.Transport.Grpc;
 using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http;
