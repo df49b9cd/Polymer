@@ -1,5 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Hugo;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.ControlPlane.Agent;
 
@@ -15,39 +18,61 @@ public sealed class LkgCache
         _path = path ?? throw new ArgumentNullException(nameof(path));
     }
 
-    public void Save(string version, long epoch, byte[] payload, byte[] resumeToken)
+    public ValueTask<Result<Unit>> SaveAsync(string version, long epoch, ReadOnlyMemory<byte> payload, ReadOnlyMemory<byte> resumeToken, CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        var envelope = new LkgEnvelope(version, epoch, payload, resumeToken);
-        var json = JsonSerializer.Serialize(envelope, LkgCacheJsonContext.Default.LkgEnvelope);
-        File.WriteAllText(_path, json);
+        return Result.TryAsync<Unit>(async ct =>
+        {
+            var directory = Path.GetDirectoryName(_path);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var envelope = new LkgEnvelope(version, epoch, payload.ToArray(), resumeToken.ToArray());
+
+            await using var stream = new FileStream(
+                _path,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                16_384,
+                FileOptions.Asynchronous | FileOptions.WriteThrough);
+
+            await JsonSerializer.SerializeAsync(stream, envelope, LkgCacheJsonContext.Default.LkgEnvelope, ct).ConfigureAwait(false);
+            await stream.FlushAsync(ct).ConfigureAwait(false);
+            return Unit.Value;
+        }, cancellationToken: cancellationToken);
     }
 
-    public bool TryLoad(out string version, out long epoch, out byte[] payload, out byte[] resumeToken)
+    public ValueTask<Result<LkgSnapshot?>> TryLoadAsync(CancellationToken cancellationToken = default)
     {
-        version = "";
-        epoch = 0;
-        payload = Array.Empty<byte>();
-        resumeToken = Array.Empty<byte>();
-        if (!File.Exists(_path))
+        return Result.TryAsync<LkgSnapshot?>(async ct =>
         {
-            return false;
-        }
+            if (!File.Exists(_path))
+            {
+                return null;
+            }
 
-        var json = File.ReadAllText(_path);
-        var envelope = JsonSerializer.Deserialize(json, LkgCacheJsonContext.Default.LkgEnvelope);
-        if (envelope is null)
-        {
-            return false;
-        }
+            await using var stream = new FileStream(
+                _path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                16_384,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-        version = envelope.Version;
-        epoch = envelope.Epoch;
-        payload = envelope.Payload;
-        resumeToken = envelope.ResumeToken;
-        return true;
+            var envelope = await JsonSerializer.DeserializeAsync(stream, LkgCacheJsonContext.Default.LkgEnvelope, ct).ConfigureAwait(false);
+            if (envelope is null)
+            {
+                return null;
+            }
+
+            return new LkgSnapshot(envelope.Version, envelope.Epoch, envelope.Payload, envelope.ResumeToken);
+        }, cancellationToken: cancellationToken);
     }
 }
+
+public sealed record LkgSnapshot(string Version, long Epoch, byte[] Payload, byte[] ResumeToken);
 
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(LkgCache.LkgEnvelope))]

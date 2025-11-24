@@ -34,7 +34,14 @@ public sealed class MeshAgent : ILifecycle, IDisposable
                 BuildEpoch = typeof(MeshAgent).Assembly.GetName().Version?.ToString() ?? "unknown"
             }
         };
-        _watchTask = Task.Run(() => _harness.RunAsync(request, _cts.Token), _cts.Token);
+        _watchTask = Task.Run(async () =>
+        {
+            var result = await _harness.RunAsync(request, _cts.Token).ConfigureAwait(false);
+            if (result.IsFailure)
+            {
+                AgentLog.ControlWatchFailed(_logger, result.Error?.Cause ?? new InvalidOperationException(result.Error?.Message ?? "control watch failed"));
+            }
+        }, _cts.Token);
     }
 
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)

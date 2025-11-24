@@ -1,8 +1,11 @@
 using System.Diagnostics;
 using Google.Protobuf;
+using Hugo;
 using Microsoft.Extensions.Logging;
 using OmniRelay.ControlPlane.ControlProtocol;
 using OmniRelay.Protos.Control;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.ControlPlane.Agent;
 
@@ -11,6 +14,8 @@ namespace OmniRelay.ControlPlane.Agent;
 /// </summary>
 public sealed class WatchHarness
 {
+    private static readonly Error PayloadInvalidError = Error.From("Control payload failed validation.", "control.payload.invalid");
+
     private readonly IControlPlaneWatchClient _client;
     private readonly IControlPlaneConfigValidator _validator;
     private readonly IControlPlaneConfigApplier _applier;
@@ -19,7 +24,8 @@ public sealed class WatchHarness
     private readonly ILogger<WatchHarness> _logger;
     private readonly TimeSpan _backoffStart = TimeSpan.FromSeconds(1);
     private readonly TimeSpan _backoffMax = TimeSpan.FromSeconds(30);
-    private long _currentEpoch;
+
+    private byte[]? _resumeToken;
 
     public WatchHarness(
         IControlPlaneWatchClient client,
@@ -37,67 +43,96 @@ public sealed class WatchHarness
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task RunAsync(ControlWatchRequest request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Unit>> RunAsync(ControlWatchRequest request, CancellationToken cancellationToken)
     {
-        // LKG bootstrap
-        if (_cache.TryLoad(out var version, out var epoch, out var payload, out var resumeToken))
+        var bootstrap = await BootstrapFromLkgAsync(cancellationToken).ConfigureAwait(false);
+        if (bootstrap.IsFailure)
         {
-            if (TryValidate(payload, out _))
-            {
-                await _applier.ApplyAsync(version, payload, cancellationToken).ConfigureAwait(false);
-                _telemetry.RecordSnapshot(version);
-                AgentLog.LkgApplied(_logger, version);
-                _resumeToken = resumeToken;
-                _currentEpoch = epoch;
-            }
+            return bootstrap.CastFailure<Unit>();
         }
 
         var backoff = _backoffStart;
+
         while (!cancellationToken.IsCancellationRequested)
         {
-            try
-            {
-                await foreach (var update in _client.WatchAsync(BuildRequest(request), cancellationToken).ConfigureAwait(false))
-                {
-                    backoff = _backoffStart; // reset on success
-                    if (update.Error is not null && !string.IsNullOrWhiteSpace(update.Error.Code))
-                    {
-                        AgentLog.ControlWatchError(_logger, update.Error.Code, update.Error.Message);
-                        backoff = await ApplyBackoffAsync(update.Backoff, backoff, cancellationToken).ConfigureAwait(false);
-                        break;
-                    }
+            var loopResult = await RunWatchLoopAsync(request, backoff, cancellationToken).ConfigureAwait(false);
 
-                    AgentLog.ControlWatchResume(_logger, update.ResumeToken?.Version ?? update.Version, update.ResumeToken?.Epoch ?? 0);
-
-                    if (!TryValidate(update.Payload.ToByteArray(), out var err))
-                    {
-                        AgentLog.ControlUpdateRejected(_logger, update.Version, err ?? "unknown");
-                        continue;
-                    }
-
-                    var payloadBytes = update.Payload.ToByteArray();
-                    await _applier.ApplyAsync(update.Version, payloadBytes, cancellationToken).ConfigureAwait(false);
-                    var tokenBytes = update.ResumeToken?.ToByteArray() ?? Array.Empty<byte>();
-                    _cache.Save(update.Version, update.Epoch, payloadBytes, tokenBytes);
-                    _resumeToken = tokenBytes;
-                    _currentEpoch = update.Epoch;
-                    _telemetry.RecordSnapshot(update.Version);
-                    AgentLog.ControlUpdateApplied(_logger, update.Version);
-                }
-            }
-            catch (OperationCanceledException)
+            if (cancellationToken.IsCancellationRequested)
             {
-                break;
+                return Err<Unit>(Error.Canceled("Control watch canceled", cancellationToken));
             }
-            catch (Exception ex)
-            {
-                AgentLog.ControlWatchFailed(_logger, ex);
-                backoff = await ApplyBackoffAsync(null, backoff, cancellationToken).ConfigureAwait(false);
-            }
+
+            backoff = loopResult.IsSuccess ? loopResult.Value : backoff;
+            backoff = await ApplyBackoffAsync(backoff, cancellationToken).ConfigureAwait(false);
         }
+
+        return Ok(Unit.Value);
     }
 
-    private byte[]? _resumeToken;
+    private async ValueTask<Result<Unit>> BootstrapFromLkgAsync(CancellationToken cancellationToken)
+    {
+        var lkgResult = await _cache.TryLoadAsync(cancellationToken).ConfigureAwait(false);
+        if (lkgResult.IsFailure)
+        {
+            return lkgResult.CastFailure<Unit>();
+        }
+
+        if (lkgResult.Value is null)
+        {
+            return Ok(Unit.Value);
+        }
+
+        var snapshot = lkgResult.Value;
+        var validation = ValidatePayload(snapshot.Payload);
+        if (validation.IsFailure)
+        {
+            return Ok(Unit.Value); // ignore invalid LKG but continue
+        }
+
+        await _applier.ApplyAsync(snapshot.Version, snapshot.Payload, cancellationToken).ConfigureAwait(false);
+        _telemetry.RecordSnapshot(snapshot.Version);
+        AgentLog.LkgApplied(_logger, snapshot.Version);
+        _resumeToken = snapshot.ResumeToken;
+        return Ok(Unit.Value);
+    }
+
+    private async ValueTask<Result<TimeSpan>> RunWatchLoopAsync(ControlWatchRequest template, TimeSpan currentBackoff, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var update in _client.WatchAsync(BuildRequest(template), cancellationToken).ConfigureAwait(false))
+            {
+                if (update.Error is not null && !string.IsNullOrWhiteSpace(update.Error.Code))
+                {
+                    AgentLog.ControlWatchError(_logger, update.Error.Code, update.Error.Message);
+                    var hint = update.Backoff?.Millis is > 0 ? TimeSpan.FromMilliseconds(update.Backoff.Millis) : currentBackoff;
+                    return Ok(hint);
+                }
+
+                AgentLog.ControlWatchResume(_logger, update.ResumeToken?.Version ?? update.Version, update.ResumeToken?.Epoch ?? 0);
+
+                var applyResult = await ProcessUpdateAsync(update, cancellationToken).ConfigureAwait(false);
+                if (applyResult.IsFailure)
+                {
+                    var hint = update.Backoff?.Millis is > 0 ? TimeSpan.FromMilliseconds(update.Backoff.Millis) : currentBackoff;
+                    return Ok(hint);
+                }
+
+                currentBackoff = _backoffStart; // reset on success
+            }
+
+            return Ok(currentBackoff);
+        }
+        catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+        {
+            return Err<TimeSpan>(Error.Canceled("Control watch canceled", cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            AgentLog.ControlWatchFailed(_logger, ex);
+            return Err<TimeSpan>(Error.FromException(ex));
+        }
+    }
 
     private ControlWatchRequest BuildRequest(ControlWatchRequest template)
     {
@@ -110,21 +145,66 @@ public sealed class WatchHarness
         return request;
     }
 
-    private async Task<TimeSpan> ApplyBackoffAsync(ControlBackoff? backoff, TimeSpan current, CancellationToken cancellationToken)
+    private async Task<TimeSpan> ApplyBackoffAsync(TimeSpan hint, CancellationToken cancellationToken)
     {
-        var millis = backoff?.Millis ?? (int)current.TotalMilliseconds;
+        var millis = (long)Math.Max(hint.TotalMilliseconds, _backoffStart.TotalMilliseconds);
         AgentLog.ControlBackoffApplied(_logger, millis);
         var delay = TimeSpan.FromMilliseconds(millis);
-        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-        var next = TimeSpan.FromMilliseconds(Math.Min(_backoffMax.TotalMilliseconds, Math.Max(millis * 2, _backoffStart.TotalMilliseconds)));
+
+        try
+        {
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return delay;
+        }
+
+        var next = TimeSpan.FromMilliseconds(Math.Min(_backoffMax.TotalMilliseconds, Math.Max(delay.TotalMilliseconds * 2, _backoffStart.TotalMilliseconds)));
         return next;
     }
 
-    private bool TryValidate(byte[] payload, out string? error)
+    private Result<Unit> ValidatePayload(byte[] payload)
     {
         var sw = Stopwatch.StartNew();
-        var ok = _validator.Validate(payload, out error);
+        var ok = _validator.Validate(payload, out var error);
         AgentLog.ControlValidationResult(_logger, ok, sw.Elapsed.TotalMilliseconds);
-        return ok;
+
+        return ok
+            ? Ok(Unit.Value)
+            : Err<Unit>(PayloadInvalidError.WithMetadata("reason", error ?? string.Empty));
+    }
+
+    private async ValueTask<Result<Unit>> ProcessUpdateAsync(ControlWatchResponse update, CancellationToken cancellationToken)
+    {
+        var payload = update.Payload.ToByteArray();
+        var validation = ValidatePayload(payload);
+        if (validation.IsFailure)
+        {
+            AgentLog.ControlUpdateRejected(_logger, update.Version, validation.Error?.Message ?? "invalid payload");
+            return validation;
+        }
+
+        var applyResult = await Result.TryAsync<Unit>(async ct =>
+        {
+            await _applier.ApplyAsync(update.Version, payload, ct).ConfigureAwait(false);
+            return Unit.Value;
+        }, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (applyResult.IsFailure)
+        {
+            return applyResult.CastFailure<Unit>();
+        }
+
+        var tokenBytes = update.ResumeToken?.ToByteArray() ?? Array.Empty<byte>();
+        var persistResult = await _cache.SaveAsync(update.Version, update.Epoch, payload, tokenBytes, cancellationToken).ConfigureAwait(false);
+        if (persistResult.IsFailure)
+        {
+            return persistResult.CastFailure<Unit>();
+        }
+
+        _resumeToken = tokenBytes;
+        _telemetry.RecordSnapshot(update.Version);
+        AgentLog.ControlUpdateApplied(_logger, update.Version);
+        return Ok(Unit.Value);
     }
 }
