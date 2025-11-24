@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
+using OmniRelay.ControlPlane.Primitives;
 
 namespace OmniRelay.Core.Leadership;
 
@@ -198,14 +199,16 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
                 }
             }
 
-            try
+            var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(25, 125));
+            var delayResult = await Primitives.AsyncDelay.DelayAsync(_options.EvaluationInterval + jitter, cancellationToken).ConfigureAwait(false);
+            if (delayResult.IsFailure)
             {
-                var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(25, 125));
-                await Task.Delay(_options.EvaluationInterval + jitter, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                break;
+                if (delayResult.Error?.IsCanceled ?? false)
+                {
+                    break;
+                }
+
+                LeadershipCoordinatorLog.EvaluationFailed(_logger, "global", delayResult.Error?.Cause ?? new InvalidOperationException(delayResult.Error?.Message));
             }
         }
     }

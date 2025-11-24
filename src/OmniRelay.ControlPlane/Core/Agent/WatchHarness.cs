@@ -63,7 +63,14 @@ public sealed class WatchHarness
             }
 
             backoff = loopResult.IsSuccess ? loopResult.Value : backoff;
-            backoff = await ApplyBackoffAsync(backoff, cancellationToken).ConfigureAwait(false);
+
+            var backoffResult = await ApplyBackoffAsync(backoff, cancellationToken).ConfigureAwait(false);
+            if (backoffResult.IsFailure)
+            {
+                return backoffResult.CastFailure<Unit>();
+            }
+
+            backoff = backoffResult.Value;
         }
 
         return Ok(Unit.Value);
@@ -145,23 +152,20 @@ public sealed class WatchHarness
         return request;
     }
 
-    private async Task<TimeSpan> ApplyBackoffAsync(TimeSpan hint, CancellationToken cancellationToken)
+    private async ValueTask<Result<TimeSpan>> ApplyBackoffAsync(TimeSpan hint, CancellationToken cancellationToken)
     {
         var millis = (long)Math.Max(hint.TotalMilliseconds, _backoffStart.TotalMilliseconds);
         AgentLog.ControlBackoffApplied(_logger, millis);
         var delay = TimeSpan.FromMilliseconds(millis);
 
-        try
+        var sleep = await Primitives.AsyncDelay.DelayAsync(delay, cancellationToken).ConfigureAwait(false);
+        if (sleep.IsFailure)
         {
-            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return delay;
+            return sleep.CastFailure<TimeSpan>();
         }
 
         var next = TimeSpan.FromMilliseconds(Math.Min(_backoffMax.TotalMilliseconds, Math.Max(delay.TotalMilliseconds * 2, _backoffStart.TotalMilliseconds)));
-        return next;
+        return Ok(next);
     }
 
     private Result<Unit> ValidatePayload(byte[] payload)
