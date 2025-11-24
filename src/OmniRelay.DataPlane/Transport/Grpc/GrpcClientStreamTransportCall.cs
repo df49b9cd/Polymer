@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Grpc.Core;
 using Hugo;
+using Hugo.Policies;
 using OmniRelay.Core;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
@@ -322,41 +323,67 @@ internal sealed class GrpcClientStreamTransportCall : IClientStreamTransportCall
         {
             try
             {
-                var stream = Result.MapStreamAsync(
-                    _pendingWrites.Reader.ReadAllAsync(token),
-                    (payload, ct) => Result.TryAsync(
-                        async _ =>
-                        {
-                            if (_writeOptions is not null)
-                            {
-                                _call.RequestStream.WriteOptions = _writeOptions;
-                            }
+                const int BatchSize = 32;
+                var flushInterval = TimeSpan.FromMilliseconds(10);
 
-                            await _call.RequestStream.WriteAsync(payload, ct).ConfigureAwait(false);
-                            Interlocked.Increment(ref _requestCount);
-                            GrpcTransportMetrics.ClientClientStreamRequestMessages.Add(1, _baseTags);
-                            return Unit.Value;
-                        },
-                        cancellationToken: ct,
-                        errorFactory: ex =>
-                        {
-                            if (ex is RpcException rpcException)
-                            {
-                                failureStatus = rpcException.Status.StatusCode;
-                                return MapRpcException(rpcException);
-                            }
-
-                            failureStatus = StatusCode.Unknown;
-                            return MapInternalError(ex, "An error occurred while writing to the client stream.");
-                        }),
-                    token);
-
-                await foreach (var result in stream.ConfigureAwait(false))
-                {
-                    if (result.IsFailure)
+                var windowsResult = await Result.RetryWithPolicyAsync<ChannelReader<IReadOnlyList<byte[]>>>(
+                    async (ctx, ct) =>
                     {
-                        FailPipeline(result.Error!, failureStatus);
-                        return Err<Unit>(result.Error!);
+                        var reader = await ResultPipelineChannels.WindowAsync(
+                            ctx,
+                            _pendingWrites.Reader,
+                            BatchSize,
+                            flushInterval,
+                            ct).ConfigureAwait(false);
+                        return Ok(reader);
+                    },
+                    ResultExecutionPolicy.None,
+                    TimeProvider.System,
+                    token).ConfigureAwait(false);
+
+                if (windowsResult.IsFailure)
+                {
+                    failureStatus = StatusCode.Unknown;
+                    return Err<Unit>(windowsResult.Error!);
+                }
+
+                var windows = windowsResult.Value;
+
+                await foreach (var batch in windows.ReadAllAsync(token).ConfigureAwait(false))
+                {
+                    foreach (var payload in batch)
+                    {
+                        var result = await Result.TryAsync(
+                            async _ =>
+                            {
+                                if (_writeOptions is not null)
+                                {
+                                    _call.RequestStream.WriteOptions = _writeOptions;
+                                }
+
+                                await _call.RequestStream.WriteAsync(payload, token).ConfigureAwait(false);
+                                Interlocked.Increment(ref _requestCount);
+                                GrpcTransportMetrics.ClientClientStreamRequestMessages.Add(1, _baseTags);
+                                return Unit.Value;
+                            },
+                            cancellationToken: token,
+                            errorFactory: ex =>
+                            {
+                                if (ex is RpcException rpcException)
+                                {
+                                    failureStatus = rpcException.Status.StatusCode;
+                                    return MapRpcException(rpcException);
+                                }
+
+                                failureStatus = StatusCode.Unknown;
+                                return MapInternalError(ex, "An error occurred while writing to the client stream.");
+                            }).ConfigureAwait(false);
+
+                        if (result.IsFailure)
+                        {
+                            FailPipeline(result.Error!, failureStatus);
+                            return Err<Unit>(result.Error!);
+                        }
                     }
                 }
 

@@ -15,7 +15,11 @@ Adopt Hugo windowing for hot data-plane streams so batching is deterministic, ca
 - Thresholds configurable; cancellation flushes remaining items deterministically. Hot-path allocations stay flat (validate with counters).
 
 ## Status
-Planned
+Done
+
+## Completion Notes
+- gRPC client-stream writes now batch via `ResultPipelineChannels.WindowAsync` (size 32 or 10ms flush) before writing to the request stream, keeping cancellation/compensation in Hugo pipelines.
+- Gossip send pump batches leases similarly for deterministic backpressure ahead of dispatcher sends.
 
 ## SLOs & CI gates
 - No regression in transport p99 for unary/streaming; document any change. Monitor allocation rate via `dotnet-counters` before/after.

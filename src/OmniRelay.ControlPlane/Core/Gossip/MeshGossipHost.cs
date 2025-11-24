@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Hugo;
 using Hugo.Policies;
+using System.Threading.Channels;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -235,28 +236,43 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 
         var maxDeliveryAttempts = _sendQueueOptions?.MaxDeliveryAttempts ?? 0;
 
-        var leaseStream = Result.MapStreamAsync(
-            _sendAdapter.Reader.ReadAllAsync(cancellationToken),
-            (lease, _) => ValueTask.FromResult(Ok(lease)),
-            cancellationToken);
+        const int BatchSize = 16;
+        var flushInterval = TimeSpan.FromMilliseconds(25);
 
-        var pumpResult = await Result.ForEachLinkedCancellationAsync(
-            leaseStream,
-            async (leaseResult, ct) =>
+        var windowsResult = await Result.RetryWithPolicyAsync<ChannelReader<IReadOnlyList<TaskQueueLease<Func<CancellationToken, ValueTask<Result<Unit>>>>>>>(
+            async (ctx, ct) =>
             {
-                if (leaseResult.IsFailure)
-                {
-                    return leaseResult.CastFailure<Unit>();
-                }
+                var reader = await ResultPipelineChannels.WindowAsync(
+                    ctx,
+                    _sendAdapter.Reader,
+                    BatchSize,
+                    flushInterval,
+                    ct).ConfigureAwait(false);
+                return Ok(reader);
+            },
+            ResultExecutionPolicy.None,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
 
-                var lease = leaseResult.Value;
+        if (windowsResult.IsFailure)
+        {
+            MeshGossipHostLog.GossipRoundFailed(_logger, windowsResult.Error?.Cause ?? new InvalidOperationException(windowsResult.Error?.Message ?? "gossip send window failed"));
+            return;
+        }
+
+        var windows = windowsResult.Value;
+
+        await foreach (var batch in windows.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            foreach (var lease in batch)
+            {
                 var safeLease = _sendSafeQueue.Wrap(lease);
                 Result<Unit> result;
                 try
                 {
-                    result = await lease.Value(ct).ConfigureAwait(false);
+                    result = await lease.Value(cancellationToken).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException oce) when (oce.CancellationToken == ct || ct.IsCancellationRequested)
+                catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken || cancellationToken.IsCancellationRequested)
                 {
                     result = Err<Unit>(Error.Canceled("gossip send canceled", oce.CancellationToken));
                 }
@@ -267,31 +283,30 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 
                 if (result.IsSuccess)
                 {
-                    var complete = await safeLease.CompleteAsync(ct).ConfigureAwait(false);
+                    var complete = await safeLease.CompleteAsync(cancellationToken).ConfigureAwait(false);
                     if (complete.IsFailure)
                     {
                         MeshGossipHostLog.GossipRoundFailed(_logger, complete.Error?.Cause ?? new InvalidOperationException(complete.Error?.Message ?? "gossip send completion failed"));
-                        return complete.CastFailure<Unit>();
+                        return;
                     }
 
-                    return Ok(Unit.Value);
+                    continue;
                 }
 
                 var requeue = lease.Attempt < maxDeliveryAttempts && result.Error?.Code != ErrorCodes.Canceled;
-                var failed = await safeLease.FailAsync(result.Error!, requeue, ct).ConfigureAwait(false);
+                var failed = await safeLease.FailAsync(result.Error!, requeue, cancellationToken).ConfigureAwait(false);
                 if (failed.IsFailure)
                 {
                     MeshGossipHostLog.GossipRoundFailed(_logger, failed.Error?.Cause ?? new InvalidOperationException(failed.Error?.Message ?? "gossip send failure handling failed"));
-                    return failed.CastFailure<Unit>();
+                    return;
                 }
 
-                return result;
-            },
-            cancellationToken).ConfigureAwait(false);
-
-        if (pumpResult.IsFailure)
-        {
-            MeshGossipHostLog.GossipRoundFailed(_logger, pumpResult.Error?.Cause ?? new InvalidOperationException(pumpResult.Error?.Message ?? "gossip send pump failed"));
+                if (result.IsFailure)
+                {
+                    MeshGossipHostLog.GossipRoundFailed(_logger, result.Error?.Cause ?? new InvalidOperationException(result.Error?.Message ?? "gossip send failed"));
+                    return;
+                }
+            }
         }
     }
 
