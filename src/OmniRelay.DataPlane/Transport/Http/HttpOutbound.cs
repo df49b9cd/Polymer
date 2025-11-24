@@ -78,7 +78,10 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
                     .WithMetadata("uri", requestUri.ToString()));
         }
 
+        // Factory intentionally uses the obsolete constructor to centralize creation; suppress warning locally.
+#pragma warning disable CS0618
         return Ok(new HttpOutbound(httpClient, requestUri, disposeClient, runtimeOptions));
+#pragma warning restore CS0618
     }
 
     /// <summary>

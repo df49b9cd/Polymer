@@ -106,11 +106,31 @@ internal sealed class HttpDuplexStreamTransportCall : IDuplexStreamCall, IResult
     public ValueTask CompleteResponsesAsync(Error? fault = null, CancellationToken cancellationToken = default) =>
         _inner.CompleteResponsesAsync(fault, cancellationToken);
 
-    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteRequestsResultAsync(Error? fault, CancellationToken cancellationToken) =>
-        _inner.CompleteRequestsAsync(fault, cancellationToken).AsResult(ex => OmniRelayErrors.FromException(ex, _transport));
+    async ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteRequestsResultAsync(Error? fault, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _inner.CompleteRequestsAsync(fault, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (Exception ex)
+        {
+            return OmniRelayErrors.ToResult<Unit>(ex, _transport);
+        }
+    }
 
-    ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteResponsesResultAsync(Error? fault, CancellationToken cancellationToken) =>
-        _inner.CompleteResponsesAsync(fault, cancellationToken).AsResult(ex => OmniRelayErrors.FromException(ex, _transport));
+    async ValueTask<Result<Unit>> IResultDuplexStreamCall.CompleteResponsesResultAsync(Error? fault, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _inner.CompleteResponsesAsync(fault, cancellationToken).ConfigureAwait(false);
+            return Ok(Unit.Value);
+        }
+        catch (Exception ex)
+        {
+            return OmniRelayErrors.ToResult<Unit>(ex, _transport);
+        }
+    }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()

@@ -908,7 +908,13 @@ public static class DispatcherConfigServiceCollectionExtensions
             return dispatcherConfigResult.Then(cfg => DispatcherConfigMapper.CreateDispatcher(sp, registry, cfg, configureOptions));
         });
 
-        services.AddSingleton(sp => ((Result<global::OmniRelay.Dispatcher.Dispatcher>)sp.GetRequiredService(typeof(Result<global::OmniRelay.Dispatcher.Dispatcher>))).ValueOrThrow());
+        services.AddSingleton(sp =>
+        {
+            var dispatcherResult = (Result<global::OmniRelay.Dispatcher.Dispatcher>)sp.GetRequiredService(typeof(Result<global::OmniRelay.Dispatcher.Dispatcher>));
+            return dispatcherResult.Match(
+                value => value,
+                error => throw new ResultException(error!));
+        });
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
         services.AddSingleton<IHostedService, DispatcherHostedService>();
 
@@ -938,7 +944,13 @@ public static class DispatcherConfigServiceCollectionExtensions
             return loadResult.Then(cfg => DispatcherConfigMapper.CreateDispatcher(sp, registry, cfg, configureOptions));
         });
 
-        services.AddSingleton(sp => ((Result<global::OmniRelay.Dispatcher.Dispatcher>)sp.GetRequiredService(typeof(Result<global::OmniRelay.Dispatcher.Dispatcher>))).ValueOrThrow());
+        services.AddSingleton(sp =>
+        {
+            var dispatcherResult = (Result<global::OmniRelay.Dispatcher.Dispatcher>)sp.GetRequiredService(typeof(Result<global::OmniRelay.Dispatcher.Dispatcher>));
+            return dispatcherResult.Match(
+                value => value,
+                error => throw new ResultException(error!));
+        });
         services.AddSingleton(sp => sp.GetRequiredService<global::OmniRelay.Dispatcher.Dispatcher>().Codecs);
         services.AddSingleton<IHostedService, DispatcherHostedService>();
 

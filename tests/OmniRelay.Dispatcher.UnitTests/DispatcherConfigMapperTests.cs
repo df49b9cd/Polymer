@@ -60,4 +60,43 @@ public class DispatcherConfigMapperTests
         result.Error!.Metadata.TryGetValue("service", out var serviceName).ShouldBeTrue();
         serviceName.ShouldBe("svc");
     }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public void CreateDispatcher_WithValidInboundsAndOutbounds_Succeeds()
+    {
+        var services = new ServiceCollection().BuildServiceProvider();
+        var registry = new DispatcherComponentRegistry();
+
+        var config = new DispatcherConfig
+        {
+            Service = "svc",
+            Inbounds = new InboundsConfig
+            {
+                Http = { new HttpInboundConfig { Urls = ["http://127.0.0.1:6101"] } },
+                Grpc = { new GrpcInboundConfig { Urls = ["http://127.0.0.1:6201"] } }
+            },
+            Outbounds = new OutboundsConfig
+            {
+                ["remote-http"] = new ServiceOutboundsConfig
+                {
+                    Http = { Unary = { new OutboundTarget { Url = "http://127.0.0.1:6301" } } }
+                },
+                ["remote-grpc"] = new ServiceOutboundsConfig
+                {
+                    Grpc = { Unary = { new OutboundTarget { Url = "http://127.0.0.1:6401" } } }
+                }
+            },
+            Middleware = new MiddlewareConfig(),
+            Encodings = new EncodingConfig()
+        };
+
+        var result = DispatcherConfigMapper.CreateDispatcher(services, registry, config, configureOptions: null);
+
+        result.IsSuccess.ShouldBeTrue(result.Error?.Message);
+        var dispatcher = result.Value;
+
+        dispatcher.ServiceName.ShouldBe("svc");
+        dispatcher.ClientConfig("remote-http").IsSuccess.ShouldBeTrue();
+        dispatcher.ClientConfig("remote-grpc").IsSuccess.ShouldBeTrue();
+    }
 }
