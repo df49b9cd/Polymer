@@ -54,17 +54,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Run CI gate (build + unit slices + AOT publish)
+      - name: Run CI gate (Windows)
+        if: runner.os == 'Windows'
         env:
           RID: ${{ matrix.rid }}
           CONFIG: Release
+        shell: pwsh
+        run: pwsh -File eng/run-ci-gate.ps1 -RID $env:RID -CONFIG $env:CONFIG
+
+      - name: Run CI gate (Unix)
+        if: runner.os != 'Windows'
+        env:
+          RID: ${{ matrix.rid }}
+          CONFIG: Release
+        shell: bash
         run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            pwsh -File eng/run-ci-gate.ps1
-          else
-            chmod +x eng/run-ci-gate.sh
-            ./eng/run-ci-gate.sh
-          fi
+          chmod +x eng/run-ci-gate.sh
+          ./eng/run-ci-gate.sh
 
       - name: Upload CI artifacts
         if: always()
