@@ -17,6 +17,8 @@ OUT_ROOT="$ROOT_DIR/artifacts/aot/${RID}"
 projects=(
   "tests/OmniRelay.MeshKit.AotSmoke/OmniRelay.MeshKit.AotSmoke.csproj"
   "src/OmniRelay.Cli/OmniRelay.Cli.csproj"
+  "src/OmniRelay.DataPlane.Host/OmniRelay.DataPlane.Host.csproj"
+  "src/OmniRelay.ControlPlane.Host/OmniRelay.ControlPlane.Host.csproj"
 )
 
 props=(
