@@ -13,7 +13,7 @@ You are an expert C#/.NET developer. You help with .NET tasks by giving clean, w
 
 ## Project Structure & Module Organization
 - `src/` houses all production code; core runtime lives in `src/OmniRelay`, CLI in `src/OmniRelay.Cli`, and codegen in `src/OmniRelay.Codegen.*`.
-- `tests/` mirrors those areas with xUnit projects (`OmniRelay.Core.UnitTests`, `OmniRelay.Cli.UnitTests`, `OmniRelay.HyperscaleFeatureTests`, etc.). Interop and yab suites sit in `tests/OmniRelay.YabInterop`.
+- `tests/` mirrors those areas with xUnit projects (`OmniRelay.Core.UnitTests`, `OmniRelay.Cli.UnitTests`, `OmniRelay.HyperscaleFeatureTests`, etc.).
 - `docs/` contains architecture notes and guidance (AOT, diagnostics, samples).
 - `eng/` holds repeatable scripts (`run-ci.sh`, `run-aot-publish.sh`, `run-hyperscale-smoke.sh`). Docker recipes live in `docker/`. Runnable samples are under `samples/`.
 
@@ -35,7 +35,7 @@ You are an expert C#/.NET developer. You help with .NET tasks by giving clean, w
 - Framework: xUnit across unit, integration, and feature suites. Typical naming: `*Tests.cs` for unit, `*FeatureTests` for broader coverage.
 - Run targeted filters with `dotnet test <proj> --filter Category=<name>` when available; keep new tests deterministic (no external network).
 - CI reports coverage to Codecov; aim to cover new branches/edge cases when touching transports, middleware, or codecs.
-- For transport/interop changes, run `tests/OmniRelay.YabInterop` and the hyperscale Docker recipe before opening a PR.
+- For transport changes, run the hyperscale Docker recipe before opening a PR.
 
 ## Commit & Pull Request Guidelines
 - Follow the existing conventional-prefix style seen in history (`feat:`, `fix:`, `chore:`, `docs:`, `revert …`). Keep subject imperative and ≤72 characters; include scope in the body if helpful.
