@@ -36,8 +36,10 @@
     <Compile Include="../TestSupport/Support/TestRuntimeConfigurator.cs" Link="Support/TestRuntimeConfigurator.cs" />
     <ProjectReference Include="../../src/OmniRelay/OmniRelay.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
-<ProjectReference Include="../../src/OmniRelay.Cli/OmniRelay.Cli.csproj" />
+    <ProjectReference Include="../../src/OmniRelay.Cli/OmniRelay.Cli.csproj" />
     <ProjectReference Include="../../src/OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
+    <ProjectReference Include="../../src/abstractions/OmniRelay.Identity.Abstractions/OmniRelay.Identity.Abstractions.csproj" />
+    <ProjectReference Include="../../src/plugins/OmniRelay.Plugins.Internal.Identity/OmniRelay.Plugins.Internal.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>

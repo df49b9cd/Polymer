@@ -396,9 +396,9 @@ internal sealed class HyperscaleLeadershipCluster : IAsyncDisposable
 
 internal sealed class HyperscaleLeadershipClusterOptions
 {
-    public IReadOnlyList<string> Regions { get; init; } = new[] { "iad", "phx", "dub" };
+    public IReadOnlyList<string> Regions { get; init; } = ["iad", "phx", "dub"];
 
-    public IReadOnlyList<string> Namespaces { get; init; } = new[] { "mesh.control", "mesh.payments", "mesh.telemetry" };
+    public IReadOnlyList<string> Namespaces { get; init; } = ["mesh.control", "mesh.payments", "mesh.telemetry"];
 
     public int NodesPerRegion { get; init; } = 3;
 

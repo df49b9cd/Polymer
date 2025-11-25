@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.Identity;
 
 namespace OmniRelay.Core.Gossip;
 

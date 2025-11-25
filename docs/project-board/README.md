@@ -25,19 +25,20 @@ Status legend: Open / In design / In progress / Needs re-scope / Done. Epics are
 
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
-| WORK-001 | OmniRelay transport/pipeline parity (in-proc, sidecar, edge) | Needs re-scope | Ensure identical behavior & perf targets across deployment modes with AOT-safe pipelines; now runs atop the split `OmniRelay.DataPlane` runtime. |
-| WORK-002 | Native AOT perf & compliance baseline | Needs re-scope | Apply dotnet-performance-guidelines; measure/watch p99; enforce no reflection/JIT in hot paths. |
-| WORK-003 | Extension hosts (DSL, Proxy-Wasm, native) + watchdogs | Needs re-scope | Sandbox, quotas, failure policies, and capability flags per runtime. |
-| WORK-004 | Deployment packaging (per-RID, in-proc host, sidecar, headless edge) | Needs re-scope | Signed artifacts, slim images, host wrappers. |
-| WORK-005 | CI gating for AOT/publish/tests | Open | Block merges unless all hosts build/publish AOT and core test tiers pass (DataPlane + ControlPlane). |
+| WORK-023 | Shared transport/codec/proto packages | Done | Data-plane split complete; shared packages packed with SBOMs; MeshKit consumes ControlPlane + shared packages (no duplicated transport/codec code). |
+| WORK-001 | OmniRelay transport/pipeline parity (in-proc, sidecar, edge) | Done | Mode parity, admin/introspection alignment, and cross-mode validation baseline complete across in-proc/sidecar/edge. |
+| WORK-002 | Native AOT perf & compliance baseline | Done | Banned APIs enforced; perf/SLO baselines documented; perf smoke hook ready for CI gating. |
+| WORK-003 | Extension hosts (DSL, Proxy-Wasm, native) + watchdogs | Done (Phase 1) | DSL host shipped with signatures/quotas/telemetry; Wasm/native deferred until reactivated. |
+| WORK-004 | Deployment packaging (per-RID, in-proc host, sidecar, headless edge) | Done | NuGet + container packaging with capability manifest and SBOM/signing toggle; hardened defaults documented. |
+| WORK-005 | CI gating for AOT/publish/tests | Done | `eng/run-ci-gate.sh` builds, runs fast test slices, and AOT publishes DataPlane/ControlPlane/CLI; ready for PR/nightly enforcement. |
 
 ### L1 – MeshKit Control Plane
 
 | ID | Title | Status | Notes |
 | --- | --- | --- | --- |
-| WORK-006 | Control protocol (xDS-like) & capability negotiation | Needs re-scope | Versioned protobufs, deltas/snapshots, epochs, capability flags; served by `OmniRelay.ControlPlane` and consumed by agents/edge. |
-| WORK-007 | Identity/CA service & cert rotation | Needs re-scope | CSR, issuance, trust bundles, rotation, SPIFFE compatibility. |
-| WORK-008 | Local agent with LKG cache & telemetry forwarder | Needs re-scope | Subscribe to control domain, cache LKG, renew certs, never elect leaders. |
+| WORK-006 | Control protocol (xDS-like) & capability negotiation | Done | Versioned protobufs, deltas/snapshots, epochs, capability flags; served by `OmniRelay.ControlPlane` and consumed by agents/edge. Backoff hints honored by agents; capability errors surface required flags/remediation. |
+| WORK-007 | Identity/CA service & cert rotation | Done | CSR ingestion, issuance with renewal hints, trust bundles, SPIFFE-compatible SAN/identity validation, root reload/rotation. |
+| WORK-008 | Local agent with LKG cache & telemetry forwarder | Done | Agent subscribes to control domain, caches signed LKG, renews certs, forwards telemetry, and never elects leaders. |
 | WORK-009 | Bootstrap/watch harness & validation | Needs re-scope | Shared startup harness, config validators, resume/backoff semantics. |
 
 ### L2 – Extensions & Rollout

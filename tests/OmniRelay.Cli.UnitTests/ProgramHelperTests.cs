@@ -9,7 +9,7 @@ public sealed class ProgramHelperTests : CliTestBase
     [Fact(Timeout = TestTimeouts.Default)]
     public void TryBuildConfiguration_ReturnsFalse_WhenFileMissing()
     {
-        var success = Program.TryBuildConfiguration(new[] { "missing.json" }, Array.Empty<string>(), out var configuration, out var error);
+        var success = Program.TryBuildConfiguration(["missing.json"], Array.Empty<string>(), out var configuration, out var error);
 
         success.ShouldBeFalse();
         configuration.ShouldBeNull();
@@ -25,7 +25,7 @@ public sealed class ProgramHelperTests : CliTestBase
         try
         {
             var overrides = new[] { "omnirelay:service:name=overridden" };
-            var success = Program.TryBuildConfiguration(new[] { configPath }, overrides, out var configuration, out var error);
+            var success = Program.TryBuildConfiguration([configPath], overrides, out var configuration, out var error);
 
             success.ShouldBeTrue();
             error.ShouldBeNull();
@@ -121,7 +121,7 @@ public sealed class ProgramHelperTests : CliTestBase
             caller: null,
             encoding: null,
             headerValues: Array.Empty<string>(),
-            profileValues: new[] { "json:pretty" },
+            profileValues: ["json:pretty"],
             shardKey: null,
             routingKey: null,
             routingDelegate: null,
@@ -162,11 +162,11 @@ public sealed class ProgramHelperTests : CliTestBase
             caller: null,
             encoding: null,
             headerValues: Array.Empty<string>(),
-            profileValues: new[] { "protobuf:echo.EchoRequest" },
+            profileValues: ["protobuf:echo.EchoRequest"],
             shardKey: null,
             routingKey: null,
             routingDelegate: null,
-            protoFiles: new[] { descriptorPath },
+            protoFiles: [descriptorPath],
             protoMessage: null,
             ttlOption: null,
             deadlineOption: null,
@@ -282,7 +282,7 @@ public sealed class ProgramHelperTests : CliTestBase
             bodyFile: null,
             bodyBase64: null,
             httpUrl: null,
-            addresses: new[] { "http://localhost:9090" },
+            addresses: ["http://localhost:9090"],
             enableHttp3: false,
             enableGrpcHttp3: true,
             out var invocation,
@@ -317,7 +317,7 @@ public sealed class ProgramHelperTests : CliTestBase
             bodyFile: null,
             bodyBase64: null,
             httpUrl: null,
-            addresses: new[] { "https://localhost:9091" },
+            addresses: ["https://localhost:9091"],
             enableHttp3: false,
             enableGrpcHttp3: true,
             out var invocation,

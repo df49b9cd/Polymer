@@ -54,11 +54,11 @@ public sealed class ShardControlPlaneIntegrationTests
         {
             Namespace = "mesh.integration",
             StrategyId = "rendezvous",
-            Nodes = new[]
-            {
+            Nodes =
+            [
                 new ShardSimulationNode("node-a", 1.0, "iad", "iad-1"),
                 new ShardSimulationNode("node-b", 1.1, "iad", "iad-2")
-            }
+            ]
         };
 
         var response = await client.PostAsJsonAsync("/control/shards/simulate", request, ShardJsonContext.Default.ShardSimulationRequest, TestContext.Current.CancellationToken);

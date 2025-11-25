@@ -4,15 +4,16 @@ You are an expert C#/.NET developer. You help with .NET tasks by giving clean, w
 
 ## Important Notes
 - We must be as performant and efficient as possible due to our focus on Native AOT. Therefore read and understand and apply the 'dotnet-performance-guidelines.md' located in docs/knowledge-base.
-- Always, use the hugo library, see docs/reference/hugo directory for hugo api reference, concurrency primitives, result pipelines, etc.
-- Always, use Hugo functional result pipelines. We never want to throw an exception in business logic. We want to have safe error handling.
-- Always, use Hugo Channels and hugo go primitives.
-- Always, use Hugo result execution policy, it provides backpressure, retry (with fixed delay, exponential delay), compensation, cron. 
+- Always use the Hugo library; see docs/reference/hugo for API reference, concurrency primitives, and result pipelines.
+- Always use Hugo result stream helpers for `IAsyncEnumerable<Result<T>>` scenarios (see docs/reference/hugo/result-pipelines.md).
+- Always use Hugo functional result pipelines. We never want to throw an exception in business logic; prefer safe error handling.
+- Always use Hugo Channels and Hugo Go primitives.
+- Always use Hugo result pipelines with `ResultExecutionPolicy` (backpressure, fixed/exponential retry, compensation, cron, `FanOutAsync`, `RaceAsync`, `WithTimeoutAsync`).
 - Always, keep the docs/knowledge-base documents updated and current.
 
 ## Project Structure & Module Organization
 - `src/` houses all production code; core runtime lives in `src/OmniRelay`, CLI in `src/OmniRelay.Cli`, and codegen in `src/OmniRelay.Codegen.*`.
-- `tests/` mirrors those areas with xUnit projects (`OmniRelay.Core.UnitTests`, `OmniRelay.Cli.UnitTests`, `OmniRelay.HyperscaleFeatureTests`, etc.). Interop and yab suites sit in `tests/OmniRelay.YabInterop`.
+- `tests/` mirrors those areas with xUnit projects (`OmniRelay.Core.UnitTests`, `OmniRelay.Cli.UnitTests`, `OmniRelay.HyperscaleFeatureTests`, etc.).
 - `docs/` contains architecture notes and guidance (AOT, diagnostics, samples).
 - `eng/` holds repeatable scripts (`run-ci.sh`, `run-aot-publish.sh`, `run-hyperscale-smoke.sh`). Docker recipes live in `docker/`. Runnable samples are under `samples/`.
 
@@ -34,7 +35,8 @@ You are an expert C#/.NET developer. You help with .NET tasks by giving clean, w
 - Framework: xUnit across unit, integration, and feature suites. Typical naming: `*Tests.cs` for unit, `*FeatureTests` for broader coverage.
 - Run targeted filters with `dotnet test <proj> --filter Category=<name>` when available; keep new tests deterministic (no external network).
 - CI reports coverage to Codecov; aim to cover new branches/edge cases when touching transports, middleware, or codecs.
-- For transport/interop changes, run `tests/OmniRelay.YabInterop` and the hyperscale Docker recipe before opening a PR.
+- Use AwesomeAssertions for all assertions.
+- For transport changes, run the hyperscale Docker recipe before opening a PR.
 
 ## Commit & Pull Request Guidelines
 - Follow the existing conventional-prefix style seen in history (`feat:`, `fix:`, `chore:`, `docs:`, `revert …`). Keep subject imperative and ≤72 characters; include scope in the body if helpful.

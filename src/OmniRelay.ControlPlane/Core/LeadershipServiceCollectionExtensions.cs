@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using OmniRelay.Identity;
 
 namespace OmniRelay.Core.Leadership;
 
@@ -37,6 +38,7 @@ public static class LeadershipServiceCollectionExtensions
         services.TryAddSingleton<LeadershipCoordinator>();
         services.TryAddSingleton<ILeadershipObserver>(static sp => sp.GetRequiredService<LeadershipCoordinator>());
         services.TryAddSingleton<LeadershipControlGrpcService>();
+        services.TryAddSingleton<CertificateAuthorityService>();
 
         return services;
     }

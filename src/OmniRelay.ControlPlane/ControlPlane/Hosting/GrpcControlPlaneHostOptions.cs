@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Server.Kestrel.Https;
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.Identity;
 using OmniRelay.Transport.Grpc;
 
 namespace OmniRelay.ControlPlane.Hosting;

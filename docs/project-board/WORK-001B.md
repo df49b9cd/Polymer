@@ -20,6 +20,10 @@ Expose consistent admin/diagnostic surfaces (mode, epoch, filter chain, capabili
 ## Status
 Done — Admin/introspection now surfaces deployment mode and capability flags consistently across modes via `/omnirelay/introspect`. Payload parity maintained; differences documented via capability entries.
 
+## Validation & CI
+- Automated coverage: `tests/OmniRelay.Dispatcher.UnitTests/DispatcherIntrospectionModeTests.cs` exercises mode/capability surfaces across in-proc/sidecar/edge.
+- CI entrypoint: `dotnet test tests/OmniRelay.Dispatcher.UnitTests` (invoked from `./eng/run-ci.sh`) must remain green before merge.
+
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.

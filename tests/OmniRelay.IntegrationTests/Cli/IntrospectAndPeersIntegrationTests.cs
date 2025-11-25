@@ -40,7 +40,7 @@ public class IntrospectAndPeersIntegrationTests
         try
         {
             var result = await OmniRelayCliTestHelper.RunAsync(
-                new[] { "introspect", "--url", $"http://127.0.0.1:{port}/omnirelay/introspect", "--format", "text" },
+                ["introspect", "--url", $"http://127.0.0.1:{port}/omnirelay/introspect", "--format", "text"],
                 TestContext.Current.CancellationToken);
 
             result.ExitCode.Should().Be(0);
@@ -114,7 +114,7 @@ public class IntrospectAndPeersIntegrationTests
         try
         {
             var result = await OmniRelayCliTestHelper.RunAsync(
-                new[] { "mesh", "peers", "list", "--url", $"http://127.0.0.1:{port}", "--format", "json" },
+                ["mesh", "peers", "list", "--url", $"http://127.0.0.1:{port}", "--format", "json"],
                 TestContext.Current.CancellationToken);
 
             result.ExitCode.Should().Be(0);

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <AssemblyName>OmniRelay.Plugins.Internal.Alerting</AssemblyName>
+    <RootNamespace>OmniRelay.Plugins.Internal.Alerting</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../OmniRelay.Diagnostics.Alerting/OmniRelay.Diagnostics.Alerting.csproj" />
+    <ProjectReference Include="../../abstractions/OmniRelay.Alerting.Abstractions/OmniRelay.Alerting.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

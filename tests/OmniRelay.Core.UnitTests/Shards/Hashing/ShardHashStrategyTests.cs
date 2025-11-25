@@ -35,11 +35,11 @@ public sealed class ShardHashStrategyTests
         var request = new ShardHashRequest
         {
             Namespace = "mesh.telemetry",
-            Nodes = new[]
-            {
+            Nodes =
+            [
                 new ShardNodeDescriptor { NodeId = "node-a", Weight = 1, Region = "iad" },
                 new ShardNodeDescriptor { NodeId = "node-b", Weight = 4, Region = "iad" }
-            },
+            ],
             Shards = Enumerable.Range(0, 200)
                 .Select(i => new ShardDefinition { ShardId = i.ToString("D3", CultureInfo.InvariantCulture) })
                 .ToArray()
@@ -69,12 +69,12 @@ public sealed class ShardHashStrategyTests
         var request = new ShardHashRequest
         {
             Namespace = "mesh.payments",
-            Nodes = new[]
-            {
+            Nodes =
+            [
                 new ShardNodeDescriptor { NodeId = "iad-zone-1", Region = "iad", Zone = "iad-1" },
                 new ShardNodeDescriptor { NodeId = "iad-zone-2", Region = "iad", Zone = "iad-2" },
                 new ShardNodeDescriptor { NodeId = "phx-zone-1", Region = "phx", Zone = "phx-1" }
-            },
+            ],
             Shards = shards
         };
 
@@ -107,12 +107,12 @@ public sealed class ShardHashStrategyTests
         return new ShardHashRequest
         {
             Namespace = @namespace,
-            Nodes = new[]
-            {
+            Nodes =
+            [
                 new ShardNodeDescriptor { NodeId = "node-a", Weight = 1, Region = "iad" },
                 new ShardNodeDescriptor { NodeId = "node-b", Weight = 1.5, Region = "phx" },
                 new ShardNodeDescriptor { NodeId = "node-c", Weight = 0.8, Region = "dub" }
-            },
+            ],
             Shards = Enumerable.Range(0, shardCount)
                 .Select(i => new ShardDefinition { ShardId = i.ToString("D2", CultureInfo.InvariantCulture) })
                 .ToArray()

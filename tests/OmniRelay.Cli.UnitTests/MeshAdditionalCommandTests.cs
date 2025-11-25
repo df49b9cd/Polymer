@@ -165,7 +165,7 @@ public sealed class MeshAdditionalCommandTests : CliTestBase
             IdentityProvider = "tests",
             CertificateData = "BASE64CERT",
             TrustBundleData = "ROOT",
-            SeedPeers = new[] { "https://peer-a:8443", "https://peer-b:8443" },
+            SeedPeers = ["https://peer-a:8443", "https://peer-b:8443"],
             IssuedAt = DateTimeOffset.Parse("2025-01-01T00:00:00Z", CultureInfo.InvariantCulture),
             RenewAfter = DateTimeOffset.Parse("2025-01-02T00:00:00Z", CultureInfo.InvariantCulture),
             ExpiresAt = DateTimeOffset.Parse("2025-01-03T00:00:00Z", CultureInfo.InvariantCulture)

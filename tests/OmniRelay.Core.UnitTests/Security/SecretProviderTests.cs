@@ -55,7 +55,7 @@ public sealed class SecretProviderTests
         var env = new EnvironmentSecretProvider(_auditor, prefix: null);
 
         var composite = new CompositeSecretProvider(
-            new ISecretProvider[] { inline, env },
+            [inline, env],
             _auditor);
 
         var secret = await composite.GetSecretAsync("tls", TestContext.Current.CancellationToken);

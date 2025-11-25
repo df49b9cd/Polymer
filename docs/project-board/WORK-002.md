@@ -13,6 +13,11 @@ Split into iteration-sized stories (A–C) to keep changes safe and shippable ea
 ## Status
 Done — Banned API enforcement + guidance in place, perf/SLO baselines documented, perf smoke/gate hooks added for CI.
 
+## Validation & CI
+- Banned APIs: `eng/banned-apis.txt` enforced via `CheckBannedApis` (runs before build); override requires `SkipBannedApiCheck=true` + justification.
+- Perf/SLO: baselines tracked in `docs/perf/perf-baseline.md`; smoke hook `eng/run-perf-smoke.sh` can be toggled via `EnablePerfGate=true` target in CI.
+- CI gate: `eng/run-ci-gate.sh` runs dispatcher/core unit slices and AOT publishes to catch regressions early.
+
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.

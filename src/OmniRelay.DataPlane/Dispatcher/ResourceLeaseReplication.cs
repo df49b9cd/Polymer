@@ -144,48 +144,57 @@ public sealed class InMemoryResourceLeaseReplicator : IResourceLeaseReplicator
             Timestamp = DateTimeOffset.UtcNow
         };
 
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Err<Unit>(Error.Canceled("in-memory replication canceled", cancellationToken)
+                .WithMetadata("replication.stage", "inmemory.publish")
+                .WithMetadata("replication.sequence", ordered.SequenceNumber));
+        }
+
         IResourceLeaseReplicationSink[] sinks;
         lock (_sinks)
         {
             sinks = [.. _sinks];
         }
 
+        using var group = new ErrGroup(cancellationToken);
+
         foreach (var sink in sinks)
         {
-            if (cancellationToken.IsCancellationRequested)
+            group.Go(async token =>
             {
-                return Err<Unit>(Error.Canceled("in-memory replication canceled", cancellationToken)
-                    .WithMetadata("replication.stage", "inmemory.publish"));
-            }
-
-            try
-            {
-                var applied = await sink.ApplyAsync(ordered, cancellationToken).ConfigureAwait(false);
-                if (applied.IsFailure)
+                try
                 {
-                    return Err<Unit>(applied.Error!
+                    var applied = await sink.ApplyAsync(ordered, token).ConfigureAwait(false);
+                    if (applied.IsFailure)
+                    {
+                        return Err<Unit>(applied.Error!
+                            .WithMetadata("replication.stage", "inmemory.sink")
+                            .WithMetadata("replication.sequence", ordered.SequenceNumber)
+                            .WithMetadata("replication.sink", sink.GetType().Name));
+                    }
+
+                    return Ok(Unit.Value);
+                }
+                catch (OperationCanceledException oce) when (oce.CancellationToken == token)
+                {
+                    return Err<Unit>(Error.Canceled("in-memory sink canceled", token)
                         .WithMetadata("replication.stage", "inmemory.sink")
                         .WithMetadata("replication.sequence", ordered.SequenceNumber)
                         .WithMetadata("replication.sink", sink.GetType().Name));
                 }
-            }
-            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
-            {
-                return Err<Unit>(Error.Canceled("in-memory sink canceled", cancellationToken)
-                    .WithMetadata("replication.stage", "inmemory.sink")
-                    .WithMetadata("replication.sequence", ordered.SequenceNumber)
-                    .WithMetadata("replication.sink", sink.GetType().Name));
-            }
-            catch (Exception ex)
-            {
-                return Err<Unit>(Error.FromException(ex)
-                    .WithMetadata("replication.stage", "inmemory.sink")
-                    .WithMetadata("replication.sequence", ordered.SequenceNumber)
-                    .WithMetadata("replication.sink", sink.GetType().Name));
-            }
+                catch (Exception ex)
+                {
+                    return Err<Unit>(Error.FromException(ex)
+                        .WithMetadata("replication.stage", "inmemory.sink")
+                        .WithMetadata("replication.sequence", ordered.SequenceNumber)
+                        .WithMetadata("replication.sink", sink.GetType().Name));
+                }
+            });
         }
 
-        return Ok(Unit.Value);
+        var fanOut = await group.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        return fanOut;
     }
 }
 

@@ -13,6 +13,11 @@ message CertResponse {
   bytes certificate_chain = 2; // concatenated DER
   bytes trust_bundle = 3; // PEM bundle
   string expires_at = 4; // RFC3339
+  string renew_after = 5; // RFC3339
+  string issued_at = 6; // RFC3339
+  string subject = 7;
+  repeated string san_dns = 8;
+  repeated string san_uri = 9;
 }
 
 message TrustBundleRequest {}

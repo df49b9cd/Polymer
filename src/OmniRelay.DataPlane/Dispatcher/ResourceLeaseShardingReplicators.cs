@@ -81,33 +81,46 @@ public sealed class CompositeResourceLeaseReplicator : IResourceLeaseReplicator
             return Err<Unit>(ResourceLeaseReplicationErrors.EventRequired("composite.publish"));
         }
 
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Err<Unit>(Error.Canceled("composite replication canceled", cancellationToken)
+                .WithMetadata("replication.stage", "composite.publish"));
+        }
+
+        using var group = new ErrGroup(cancellationToken);
+
         foreach (var replicator in _replicators)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            try
+            group.Go(async token =>
             {
-                var published = await replicator.PublishAsync(replicationEvent, cancellationToken).ConfigureAwait(false);
-                if (published.IsFailure)
+                try
                 {
-                    return Err<Unit>(published.Error!
+                    var published = await replicator.PublishAsync(replicationEvent, token).ConfigureAwait(false);
+                    if (published.IsFailure)
+                    {
+                        return Err<Unit>(published.Error!
+                            .WithMetadata("replication.stage", "composite.publish")
+                            .WithMetadata("replication.replicator", replicator.GetType().Name));
+                    }
+
+                    return Ok(Unit.Value);
+                }
+                catch (OperationCanceledException oce) when (oce.CancellationToken == token)
+                {
+                    return Err<Unit>(Error.Canceled("composite replication canceled", token)
                         .WithMetadata("replication.stage", "composite.publish")
                         .WithMetadata("replication.replicator", replicator.GetType().Name));
                 }
-            }
-            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
-            {
-                return Err<Unit>(Error.Canceled("composite replication canceled", cancellationToken)
-                    .WithMetadata("replication.stage", "composite.publish")
-                    .WithMetadata("replication.replicator", replicator.GetType().Name));
-            }
-            catch (Exception ex)
-            {
-                return Err<Unit>(Error.FromException(ex)
-                    .WithMetadata("replication.stage", "composite.publish")
-                    .WithMetadata("replication.replicator", replicator.GetType().Name));
-            }
+                catch (Exception ex)
+                {
+                    return Err<Unit>(Error.FromException(ex)
+                        .WithMetadata("replication.stage", "composite.publish")
+                        .WithMetadata("replication.replicator", replicator.GetType().Name));
+                }
+            });
         }
 
-        return Ok(Unit.Value);
+        var fanOut = await group.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        return fanOut;
     }
 }

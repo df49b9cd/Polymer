@@ -384,7 +384,7 @@ public sealed class MeshGossipMembershipTableTests
         var snapshot = table.Snapshot();
         var nodeOrder = snapshot.Members.Select(m => m.NodeId).ToArray();
 
-        nodeOrder.ShouldBe(new[] { "node-c", "node-a", "node-b" });
+        nodeOrder.ShouldBe(["node-c", "node-a", "node-b"]);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

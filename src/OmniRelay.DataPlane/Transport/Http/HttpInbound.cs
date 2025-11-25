@@ -8,8 +8,8 @@ using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Channels;
 using Hugo;
+using Hugo.Policies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -30,7 +30,7 @@ using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
-using OmniRelay.Security.Authorization;
+using OmniRelay.Authorization;
 using OmniRelay.Transport.Security;
 using static Hugo.Go;
 
@@ -48,7 +48,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
     private readonly HttpServerTlsOptions? _serverTlsOptions;
     private readonly HttpServerRuntimeOptions? _serverRuntimeOptions;
     private readonly TransportSecurityPolicyEvaluator? _transportSecurity;
-    private readonly MeshAuthorizationEvaluator? _authorization;
+    private readonly IMeshAuthorizationEvaluator? _authorization;
     private WebApplication? _app;
     private Dispatcher.Dispatcher? _dispatcher;
     private volatile bool _isDraining;
@@ -57,6 +57,9 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
     private readonly object _contextLock = new();
     private readonly HashSet<HttpContext> _activeHttpContexts = [];
     private static readonly HttpInboundJsonContext JsonContext = HttpInboundJsonContext.Default;
+    private static readonly ResultExecutionPolicy UnaryWritePolicy =
+        ResultExecutionPolicy.None.WithRetry(
+            ResultRetryPolicy.FixedDelay(maxAttempts: 2, delay: TimeSpan.FromMilliseconds(25)));
     private static readonly PathString ControlPeersPath = new("/control/peers");
     private static readonly PathString ControlPeersAltPath = new("/omnirelay/control/peers");
     private static readonly PathString ControlExtensionsPath = new("/control/extensions");
@@ -75,7 +78,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         if (urls is null)
         {
@@ -99,7 +102,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         if (urls is null)
         {
@@ -170,7 +173,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
         : this(urls.Select(u => new Uri(u, UriKind.Absolute)), configureServices, configureApp, serverRuntimeOptions, serverTlsOptions, transportSecurity, authorizationEvaluator)
     {
     }
@@ -182,7 +185,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         ArgumentNullException.ThrowIfNull(urls);
 
@@ -873,7 +876,14 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
 
             if (!response.Body.IsEmpty)
             {
-                await context.Response.BodyWriter.WriteAsync(response.Body, context.RequestAborted).ConfigureAwait(false);
+                var writeResult = await WriteUnaryBodyAsync(context, response.Body, transport, UnaryWritePolicy, context.RequestAborted).ConfigureAwait(false);
+                if (writeResult.IsFailure)
+                {
+                    var error = OmniRelayErrors.FromError(writeResult.Error ?? Error.Unspecified(), transport);
+                    await WriteErrorAsync(context, error.Message ?? "unary response write failed", error.StatusCode, transport, error.Error).ConfigureAwait(false);
+                    RecordMetrics("error");
+                    return;
+                }
             }
 
             RecordMetrics("success");
@@ -882,6 +892,40 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         {
             CompleteRequest(context);
         }
+    }
+
+    private static ValueTask<Result<Unit>> WriteUnaryBodyAsync(
+        HttpContext context,
+        ReadOnlyMemory<byte> payload,
+        string transport,
+        ResultExecutionPolicy policy,
+        CancellationToken cancellationToken)
+    {
+        return Result.RetryWithPolicyAsync<Unit>(
+            async (_, ct) =>
+            {
+                try
+                {
+                    var result = await context.Response.BodyWriter.WriteAsync(payload, ct).ConfigureAwait(false);
+                    if (result.IsCanceled)
+                    {
+                        return Err<Unit>(Error.Canceled(token: ct));
+                    }
+
+                    return Ok(Unit.Value);
+                }
+                catch (OperationCanceledException oce) when (oce.CancellationToken == ct || ct.IsCancellationRequested)
+                {
+                    return Err<Unit>(Error.Canceled(token: ct));
+                }
+                catch (Exception ex)
+                {
+                    return Err<Unit>(OmniRelayErrors.FromException(ex, transport).Error);
+                }
+            },
+            policy,
+            TimeProvider.System,
+            cancellationToken);
     }
 
     private async Task HandleServerStreamAsync(HttpContext context)
@@ -1381,9 +1425,9 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                 return;
             }
 
-            var socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-
+            WebSocket? socket = null;
             var call = callResult.Value;
+            var callDisposed = false;
             var configuredFrameLimit = _serverRuntimeOptions?.DuplexMaxFrameBytes;
             var duplexFrameLimit = configuredFrameLimit.HasValue && configuredFrameLimit.Value > 0
                 ? Math.Min(configuredFrameLimit.Value, int.MaxValue - 1)
@@ -1395,6 +1439,8 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
 
             try
             {
+                socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
+
                 using var pumpGroup = new ErrGroup(pumpCts.Token);
 
                 pumpGroup.Go(async token =>
@@ -1412,11 +1458,25 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                 var pumpResult = await pumpGroup.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                 pumpError = pumpResult.Error;
             }
+            catch (Exception ex)
+            {
+                var normalized = OmniRelayErrors.FromException(ex, transport);
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await WriteErrorAsync(context, normalized.Message ?? "duplex handshake failed", normalized.StatusCode, transport, normalized.Error).ConfigureAwait(false);
+                callDisposed = true;
+                await call.DisposeAsync().ConfigureAwait(false);
+                socket?.Abort();
+                socket?.Dispose();
+                return;
+            }
             finally
             {
-                await call.DisposeAsync().ConfigureAwait(false);
+                if (!callDisposed)
+                {
+                    await call.DisposeAsync().ConfigureAwait(false);
+                }
 
-                if (socket.State == WebSocketState.Open)
+                if (socket is not null && socket.State == WebSocketState.Open)
                 {
                     try
                     {
@@ -1433,7 +1493,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                     }
                 }
 
-                socket.Dispose();
+                socket?.Dispose();
             }
 
             // Metrics: success completion (duplex)
@@ -1451,13 +1511,21 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
 
             async ValueTask PumpRequestsAsync(WebSocket webSocket, IDuplexStreamCall streamCall, byte[] tempBuffer, int frameLimit, KeyValuePair<string, object?>[] metricTags, CancellationToken cancellationToken)
             {
-                var frameChannel = Go.MakeChannel<Result<HttpDuplexProtocol.Frame>>(new BoundedChannelOptions(8)
+                var queueOptions = new TaskQueueOptions
                 {
-                    AllowSynchronousContinuations = false,
-                    SingleReader = true,
-                    SingleWriter = true,
-                    FullMode = BoundedChannelFullMode.Wait
-                });
+                    Capacity = 32,
+                    LeaseDuration = TimeSpan.FromSeconds(30),
+                    HeartbeatInterval = TimeSpan.FromSeconds(5),
+                    LeaseSweepInterval = TimeSpan.FromSeconds(10),
+                    RequeueDelay = TimeSpan.FromMilliseconds(100),
+                    MaxDeliveryAttempts = 1,
+                    Name = "http-duplex-request-pump"
+                };
+
+                var frameQueue = new TaskQueue<Func<CancellationToken, ValueTask<Result<Unit>>>>(queueOptions, TimeProvider.System, (_, _) => ValueTask.CompletedTask);
+                var safeQueue = new SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<Unit>>>>(frameQueue, ownsQueue: false);
+                var adapter = TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<Unit>>>>.Create(frameQueue, concurrency: 1, ownsQueue: false);
+                var pumpTask = RunFramePumpAsync(adapter, safeQueue, cancellationToken);
 
                 var receivePump = new WaitGroup();
                 receivePump.Go(async token =>
@@ -1480,9 +1548,15 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                                 frameResult = Ok(new HttpDuplexProtocol.Frame(frame.MessageType, frame.Type, CopyFramePayload(frame.Payload)));
                             }
 
-                            await frameChannel.Writer.WriteAsync(frameResult, token).ConfigureAwait(false);
+                            var work = BuildFrameWork(frameResult, webSocket, streamCall, metricTags);
+                            var enqueue = await safeQueue.EnqueueAsync(work, token).ConfigureAwait(false);
+                            if (enqueue.IsFailure)
+                            {
+                                break;
+                            }
 
-                            if (frameResult.IsFailure || (frameResult.IsSuccess && frameResult.Value.MessageType == WebSocketMessageType.Close))
+                            if (frameResult.IsFailure ||
+                                (frameResult.IsSuccess && frameResult.Value.MessageType == WebSocketMessageType.Close))
                             {
                                 break;
                             }
@@ -1494,79 +1568,22 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                             OmniRelayStatusCode.Cancelled,
                             "The client cancelled the request.",
                             transport: transport);
-                        frameChannel.Writer.TryWrite(Err<HttpDuplexProtocol.Frame>(canceled));
+                        await safeQueue.EnqueueAsync(_ => ValueTask.FromResult(Err<Unit>(canceled)), CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
                         var normalized = OmniRelayErrors.FromException(ex, transport).Error;
-                        frameChannel.Writer.TryWrite(Err<HttpDuplexProtocol.Frame>(normalized));
+                        await safeQueue.EnqueueAsync(_ => ValueTask.FromResult(Err<Unit>(normalized)), CancellationToken.None).ConfigureAwait(false);
                     }
                     finally
                     {
-                        frameChannel.Writer.TryComplete();
+                        await frameQueue.DisposeAsync().ConfigureAwait(false);
                     }
                 }, cancellationToken: cancellationToken);
 
                 try
                 {
-                    await foreach (var frameResult in frameChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        if (frameResult.IsFailure)
-                        {
-                            var error = NormalizeDuplexError(frameResult.Error, transport);
-                            await HttpDuplexProtocol.SendFrameResultAsync(
-                                    webSocket,
-                                    HttpDuplexProtocol.FrameType.RequestError,
-                                    HttpDuplexProtocol.CreateErrorPayload(error),
-                                    transport,
-                                    CancellationToken.None)
-                                .ConfigureAwait(false);
-                            await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-                            await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                            pumpCts.Cancel();
-                            return;
-                        }
-
-                        var frame = frameResult.Value;
-                        if (frame.MessageType == WebSocketMessageType.Close)
-                        {
-                            await streamCall.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                            return;
-                        }
-
-                        switch (frame.Type)
-                        {
-                            case HttpDuplexProtocol.FrameType.RequestData:
-                                await streamCall.RequestWriter.WriteAsync(frame.Payload, cancellationToken).ConfigureAwait(false);
-                                HttpTransportMetrics.DuplexRequestMessages.Add(1, metricTags);
-                                break;
-
-                            case HttpDuplexProtocol.FrameType.RequestComplete:
-                                await streamCall.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                                return;
-
-                            case HttpDuplexProtocol.FrameType.RequestError:
-                                {
-                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
-                                    await streamCall.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
-                                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                                    pumpCts.Cancel();
-                                    return;
-                                }
-
-                            case HttpDuplexProtocol.FrameType.ResponseError:
-                                {
-                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
-                                    await streamCall.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
-                                    pumpCts.Cancel();
-                                    return;
-                                }
-
-                            case HttpDuplexProtocol.FrameType.ResponseComplete:
-                                await streamCall.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                                break;
-                        }
-                    }
+                    await pumpTask.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -1594,6 +1611,110 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
                 finally
                 {
                     await receivePump.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    await pumpTask.ConfigureAwait(false);
+                    await adapter.DisposeAsync().ConfigureAwait(false);
+                    await safeQueue.DisposeAsync().ConfigureAwait(false);
+                    await frameQueue.DisposeAsync().ConfigureAwait(false);
+                }
+
+                Func<CancellationToken, ValueTask<Result<Unit>>> BuildFrameWork(
+                    Result<HttpDuplexProtocol.Frame> frameResult,
+                    WebSocket socket,
+                    IDuplexStreamCall call,
+                    KeyValuePair<string, object?>[] tags)
+                {
+                    return async ct =>
+                    {
+                        if (frameResult.IsFailure)
+                        {
+                            var error = NormalizeDuplexError(frameResult.Error, transport);
+                            await HttpDuplexProtocol.SendFrameResultAsync(
+                                    socket,
+                                    HttpDuplexProtocol.FrameType.RequestError,
+                                    HttpDuplexProtocol.CreateErrorPayload(error),
+                                    transport,
+                                    CancellationToken.None)
+                                .ConfigureAwait(false);
+                            await call.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            await call.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                            pumpCts.Cancel();
+                            return Err<Unit>(error);
+                        }
+
+                        var frame = frameResult.Value;
+                        if (frame.MessageType == WebSocketMessageType.Close)
+                        {
+                            await call.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                            return Ok(Unit.Value);
+                        }
+
+                        switch (frame.Type)
+                        {
+                            case HttpDuplexProtocol.FrameType.RequestData:
+                                await call.RequestWriter.WriteAsync(frame.Payload, ct).ConfigureAwait(false);
+                                HttpTransportMetrics.DuplexRequestMessages.Add(1, tags);
+                                return Ok(Unit.Value);
+
+                            case HttpDuplexProtocol.FrameType.RequestComplete:
+                                await call.CompleteRequestsAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                                return Ok(Unit.Value);
+
+                            case HttpDuplexProtocol.FrameType.RequestError:
+                                {
+                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
+                                    await call.CompleteRequestsAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    await call.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    pumpCts.Cancel();
+                                    return Err<Unit>(error);
+                                }
+
+                            case HttpDuplexProtocol.FrameType.ResponseError:
+                                {
+                                    var error = HttpDuplexProtocol.ParseError(frame.Payload.Span, transport);
+                                    await call.CompleteResponsesAsync(error, CancellationToken.None).ConfigureAwait(false);
+                                    pumpCts.Cancel();
+                                    return Err<Unit>(error);
+                                }
+
+                            case HttpDuplexProtocol.FrameType.ResponseComplete:
+                                await call.CompleteResponsesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                                return Ok(Unit.Value);
+                        }
+
+                        return Ok(Unit.Value);
+                    };
+                }
+
+                static async Task RunFramePumpAsync(
+                    TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<Unit>>>> adapter,
+                    SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<Unit>>>> safeQueue,
+                    CancellationToken cancellationToken)
+                {
+                    await foreach (var lease in adapter.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var safeLease = safeQueue.Wrap(lease);
+                        Result<Unit> result;
+                        try
+                        {
+                            result = await lease.Value(cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken || cancellationToken.IsCancellationRequested)
+                        {
+                            result = Err<Unit>(Error.Canceled(token: oce.CancellationToken));
+                        }
+                        catch (Exception ex)
+                        {
+                            result = Err<Unit>(Error.FromException(ex));
+                        }
+
+                        if (result.IsSuccess)
+                        {
+                            await safeLease.CompleteAsync(cancellationToken).ConfigureAwait(false);
+                            continue;
+                        }
+
+                        await safeLease.FailAsync(result.Error!, requeue: false, cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
 

@@ -1,0 +1,70 @@
+name: Perf Smoke
+
+on:
+  schedule:
+    - cron: '30 5 * * *' # daily 05:30 UTC
+  workflow_dispatch:
+    inputs:
+      rid:
+        description: 'Runtime identifier (RID)'
+        default: 'linux-x64'
+        required: true
+      config:
+        description: 'Build configuration'
+        default: 'Release'
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  perf-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore solution
+        run: dotnet restore OmniRelay.slnx
+
+      - name: Build solution (no tests)
+        run: dotnet build OmniRelay.slnx -c ${{ github.event.inputs.config || 'Release' }} --no-restore
+
+      - name: Run perf smoke suite
+        env:
+          RID: ${{ github.event.inputs.rid || 'linux-x64' }}
+          CONFIG: ${{ github.event.inputs.config || 'Release' }}
+        run: |
+          chmod +x eng/run-perf-smoke.sh
+          ./eng/run-perf-smoke.sh
+
+      - name: Upload perf artifacts
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: perf-smoke-results
+          path: |
+            artifacts/perf-smoke/**/*.trx
+            tests/**/TestResults/**/*.trx
+          if-no-files-found: ignore

@@ -203,7 +203,7 @@ internal sealed class StubControlPlaneHost : IAsyncDisposable
                 IdentityProvider = "stub",
                 CertificateData = "CERTDATA",
                 TrustBundleData = "TRUST",
-                SeedPeers = new[] { "https://peer-a", "https://peer-b" },
+                SeedPeers = ["https://peer-a", "https://peer-b"],
                 IssuedAt = DateTimeOffset.UtcNow,
                 RenewAfter = DateTimeOffset.UtcNow.AddMinutes(5),
                 ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)

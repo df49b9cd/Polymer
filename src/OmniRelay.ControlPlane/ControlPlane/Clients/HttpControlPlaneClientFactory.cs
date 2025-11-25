@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 #pragma warning restore IDE0005
 using Hugo;
 using Microsoft.Extensions.Options;
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.Identity;
 using static Hugo.Go;
 
 namespace OmniRelay.ControlPlane.Clients;

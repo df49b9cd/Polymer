@@ -1,4 +1,4 @@
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.Identity;
 
 namespace OmniRelay.ControlPlane.Bootstrap;
 

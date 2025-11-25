@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <AssemblyName>OmniRelay.Plugins.Internal.Registry</AssemblyName>
+    <RootNamespace>OmniRelay.Plugins.Internal.Registry</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
+    <ProjectReference Include="../../OmniRelay.ShardStore.Postgres/OmniRelay.ShardStore.Postgres.csproj" />
+    <ProjectReference Include="../../OmniRelay.ShardStore.Sqlite/OmniRelay.ShardStore.Sqlite.csproj" />
+    <ProjectReference Include="../../OmniRelay.ShardStore.ObjectStorage/OmniRelay.ShardStore.ObjectStorage.csproj" />
+    <ProjectReference Include="../../abstractions/OmniRelay.Registry.Abstractions/OmniRelay.Registry.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

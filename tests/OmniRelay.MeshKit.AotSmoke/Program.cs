@@ -41,11 +41,11 @@ static async Task WarmUpAsync(IServiceProvider services)
     var simulationRequest = new ShardSimulationRequest
     {
         Namespace = "default",
-        Nodes = new[]
-        {
+        Nodes =
+        [
             new ShardSimulationNode("node-a", 1, "region-a", "zone-a"),
             new ShardSimulationNode("node-b", 1, "region-b", "zone-b")
-        }
+        ]
     };
 
     _ = (await shardService.SimulateAsync(simulationRequest, CancellationToken.None).ConfigureAwait(false))

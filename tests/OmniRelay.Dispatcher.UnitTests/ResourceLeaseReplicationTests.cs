@@ -1,8 +1,8 @@
 using AwesomeAssertions;
 using Hugo;
+using Xunit;
 using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
-using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 
@@ -34,6 +34,35 @@ public sealed class ResourceLeaseReplicationTests
         result.IsSuccess.Should().BeTrue(result.Error?.ToString());
         sink.Events.Should().ContainSingle();
         sink.Events[0].SequenceNumber.Should().Be(11L);
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InMemoryReplicator_PropagatesSinkFailure()
+    {
+        var failing = new DelegatingSink(() => Err<Unit>(Error.From("failed", "sink.failed")));
+        var replicator = new InMemoryResourceLeaseReplicator([failing]);
+
+        var result = await replicator.PublishAsync(CreateEvent(), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Metadata.Should().ContainKey("replication.stage");
+        result.Error!.Metadata["replication.stage"].Should().Be("inmemory.sink");
+        result.Error!.Metadata.Should().ContainKey("replication.sink");
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask InMemoryReplicator_RespectsCancellation()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var sink = new RecordingSink();
+        var replicator = new InMemoryResourceLeaseReplicator([sink]);
+
+        var result = await replicator.PublishAsync(CreateEvent(), cts.Token);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be(ErrorCodes.Canceled);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]
@@ -93,6 +122,15 @@ public sealed class ResourceLeaseReplicationTests
         {
             Events.Add(replicationEvent);
             return ValueTask.FromResult(Ok(Unit.Value));
+        }
+    }
+
+    private sealed class DelegatingSink(Func<Result<Unit>> callback) : IResourceLeaseReplicationSink
+    {
+        public ValueTask<Result<Unit>> ApplyAsync(ResourceLeaseReplicationEvent replicationEvent, CancellationToken cancellationToken)
+        {
+            var result = callback();
+            return ValueTask.FromResult(result);
         }
     }
 

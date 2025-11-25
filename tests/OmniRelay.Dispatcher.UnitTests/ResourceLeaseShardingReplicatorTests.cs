@@ -1,9 +1,9 @@
 using AwesomeAssertions;
 using Hugo;
 using NSubstitute;
+using Xunit;
 using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
-using Xunit;
 
 namespace OmniRelay.Dispatcher.UnitTests;
 
@@ -55,7 +55,49 @@ public sealed class ResourceLeaseShardingReplicatorTests
         var result = await composite.PublishAsync(evt, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue(result.Error?.ToString());
-        await first.Received(1).PublishAsync(evt, CancellationToken.None);
-        await second.Received(1).PublishAsync(evt, CancellationToken.None);
+        await first.Received(1).PublishAsync(evt, Arg.Any<CancellationToken>());
+        await second.Received(1).PublishAsync(evt, Arg.Any<CancellationToken>());
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask CompositeReplicator_PropagatesFailureWithMetadata()
+    {
+        var failing = Substitute.For<IResourceLeaseReplicator>();
+        failing.PublishAsync(Arg.Any<ResourceLeaseReplicationEvent>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => ValueTask.FromResult(Err<Unit>(Error.From("boom", "test.failure"))));
+
+        var other = Substitute.For<IResourceLeaseReplicator>();
+        other.PublishAsync(Arg.Any<ResourceLeaseReplicationEvent>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => ValueTask.FromResult(Ok(Unit.Value)));
+
+        var composite = new CompositeResourceLeaseReplicator([failing, other]);
+
+        var result = await composite.PublishAsync(SampleEvent(), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Metadata.Should().ContainKey("replication.stage");
+        result.Error!.Metadata["replication.stage"].Should().Be("composite.publish");
+        result.Error!.Metadata.Should().ContainKey("replication.replicator");
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask CompositeReplicator_CancellationSurfacesAsErrorCanceled()
+    {
+        var first = Substitute.For<IResourceLeaseReplicator>();
+        first.PublishAsync(Arg.Any<ResourceLeaseReplicationEvent>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                return ValueTask.FromResult(Err<Unit>(Error.Canceled(token: token)));
+            });
+
+        var composite = new CompositeResourceLeaseReplicator([first]);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var result = await composite.PublishAsync(SampleEvent(), cts.Token);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be(ErrorCodes.Canceled);
     }
 }

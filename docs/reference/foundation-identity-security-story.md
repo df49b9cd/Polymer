@@ -16,6 +16,10 @@
 5. Quota/rate governance tied to token metadata, feeding MeshKit backpressure signals.
 6. Audit trail capturing authN/Z decisions, policy changes, and certificate events.
 
+### Current control-plane CA (WORK-007)
+- gRPC `CertificateAuthority` issues short-lived leaf certs from client CSRs (PKCS#10), validates node binding/SPIFFE trust domain, and returns trust bundle + renewal hint.
+- Root CA can be persisted and hot-reloaded on file change for rotation; responses expose `issued_at/renew_after/expires_at` plus SANs for debugging.
+
 ## Deliverables
 - Identity service deployment artifacts, CA automation scripts, client SDKs/middleware hooks.
 - Policy language spec, tooling, UI/CLI for policy management.
@@ -51,4 +55,3 @@
 - Blue/green rollout of new identity provider, verifying service continuity.
 - Chaos tests revoking certificates/tokens mid-traffic to confirm graceful degradation.
 - Compliance drill demonstrating audit log traceability from request to policy decision.
-

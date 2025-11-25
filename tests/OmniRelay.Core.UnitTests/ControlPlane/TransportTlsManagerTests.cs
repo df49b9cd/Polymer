@@ -3,7 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.Identity;
 using OmniRelay.Security.Secrets;
 using Xunit;
 

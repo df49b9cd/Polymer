@@ -2725,20 +2725,20 @@ internal sealed record ChatMessage(string Message)
 internal sealed partial class GrpcTransportJsonContext : JsonSerializerContext;
 
 internal sealed class DummyCompressionProvider : ICompressionProvider
+{
+    public DummyCompressionProvider(string encodingName)
     {
-        public DummyCompressionProvider(string encodingName)
+        if (string.IsNullOrWhiteSpace(encodingName))
         {
-            if (string.IsNullOrWhiteSpace(encodingName))
-            {
-                throw new ArgumentException("Encoding name is required.", nameof(encodingName));
-            }
-
-            EncodingName = encodingName;
+            throw new ArgumentException("Encoding name is required.", nameof(encodingName));
         }
 
-        public string EncodingName { get; }
-
-        public Stream CreateCompressionStream(Stream stream, CompressionLevel? compressionLevel) => stream;
-
-        public Stream CreateDecompressionStream(Stream stream) => stream;
+        EncodingName = encodingName;
     }
+
+    public string EncodingName { get; }
+
+    public Stream CreateCompressionStream(Stream stream, CompressionLevel? compressionLevel) => stream;
+
+    public Stream CreateDecompressionStream(Stream stream) => stream;
+}

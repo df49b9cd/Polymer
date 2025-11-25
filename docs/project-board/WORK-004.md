@@ -13,6 +13,11 @@ Split into iteration-sized stories (A–D).
 
 ## Status
 Done — Packaging scripts/metadata in place (NuGet packages, SBOMs, signing toggle), capability manifest documented with example, and sidecar/edge packaging expectations captured. Ready to enable signing once cert is available.
+
+## Validation & CI
+- NuGet/pack: `eng/publish-packages.sh` (produces SBOMs, honors `EnablePackageSigning`).
+- Capability manifest example: `docs/capabilities/manifest-example.json` stays in sync with runtime capabilities (checked in tests).
+- AOT publish validation: `./eng/run-ci-gate.sh` runs AOT publish for DataPlane/ControlPlane/CLI per RID.
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.

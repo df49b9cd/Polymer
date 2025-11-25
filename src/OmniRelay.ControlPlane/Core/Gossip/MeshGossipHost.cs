@@ -7,6 +7,9 @@ using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using System.Threading.Channels;
+using Hugo;
+using Hugo.Policies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -15,9 +18,11 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.ControlPlane.Primitives;
+using OmniRelay.Identity;
 using OmniRelay.Diagnostics;
 using OmniRelay.Security.Secrets;
+using static Hugo.Go;
 
 namespace OmniRelay.Core.Gossip;
 
@@ -34,14 +39,25 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
     private readonly List<MeshGossipPeerEndpoint> _seedPeers;
     private readonly PeerLeaseHealthTracker? _leaseHealthTracker;
     private readonly MeshGossipPeerView _peerView = new();
+    private readonly ResultExecutionPolicy _gossipSendPolicy = ResultExecutionPolicy.None.WithRetry(
+        ResultRetryPolicy.Exponential(
+            maxAttempts: 3,
+            TimeSpan.FromMilliseconds(50),
+            2.0,
+            TimeSpan.FromMilliseconds(500)));
     private readonly ConcurrentDictionary<string, MeshGossipMemberStatus> _peerStatuses = new(StringComparer.Ordinal);
     private HttpClient? _httpClient;
     private WebApplication? _app;
     private Task? _serverTask;
     private CancellationTokenSource? _cts;
+    private TaskQueue<Func<CancellationToken, ValueTask<Result<Unit>>>>? _sendQueue;
+    private TaskQueueOptions? _sendQueueOptions;
     private Task? _gossipLoop;
     private Task? _sweepLoop;
     private Task? _shuffleLoop;
+    private SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<Unit>>>>? _sendSafeQueue;
+    private TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<Unit>>>>? _sendAdapter;
+    private Task? _sendPump;
     private long _sequence;
     private bool _disposed;
     private static readonly Action<ILogger, string, int, int, Exception?> GossipListeningLog =
@@ -109,6 +125,15 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         }
 
         _httpClient = CreateHttpClient();
+        _sendQueueOptions = CreateSendQueueOptions();
+        _sendQueue = new TaskQueue<Func<CancellationToken, ValueTask<Result<Unit>>>>(_sendQueueOptions, _timeProvider, (_, _) => ValueTask.CompletedTask);
+        _sendSafeQueue = new SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<Unit>>>>(_sendQueue, ownsQueue: true);
+        _sendAdapter = TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<Unit>>>>.Create(
+            _sendQueue,
+            concurrency: Math.Max(1, _options.MaxOutboundPerRound),
+            ownsQueue: false);
+        _sendPump = RunSendPumpAsync(token);
+
         _app = BuildListener();
         _serverTask = _app.RunAsync(token);
         _gossipLoop = RunGossipLoopAsync(token);
@@ -170,8 +195,194 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
 
         _httpClient?.Dispose();
         _httpClient = null;
+        if (_sendPump is not null)
+        {
+            try
+            {
+                await _sendPump.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+            {
+                // Expected when cancellation originates from StopAsync.
+            }
+
+            _sendPump = null;
+        }
+
+        if (_sendAdapter is not null)
+        {
+            await _sendAdapter.DisposeAsync().ConfigureAwait(false);
+            _sendAdapter = null;
+        }
+
+        if (_sendSafeQueue is not null)
+        {
+            await _sendSafeQueue.DisposeAsync().ConfigureAwait(false);
+            _sendSafeQueue = null;
+        }
+
+        _sendQueue = null;
+        _sendQueueOptions = null;
         _cts.Dispose();
         _cts = null;
+    }
+
+    private async Task RunSendPumpAsync(CancellationToken cancellationToken)
+    {
+        if (_sendAdapter is null || _sendSafeQueue is null)
+        {
+            return;
+        }
+
+        var maxDeliveryAttempts = _sendQueueOptions?.MaxDeliveryAttempts ?? 0;
+
+        const int BatchSize = 16;
+        var flushInterval = TimeSpan.FromMilliseconds(25);
+
+        var windowsResult = await Result.RetryWithPolicyAsync<ChannelReader<IReadOnlyList<TaskQueueLease<Func<CancellationToken, ValueTask<Result<Unit>>>>>>>(
+            async (ctx, ct) =>
+            {
+                var reader = await ResultPipelineChannels.WindowAsync(
+                    ctx,
+                    _sendAdapter.Reader,
+                    BatchSize,
+                    flushInterval,
+                    ct).ConfigureAwait(false);
+                return Ok(reader);
+            },
+            ResultExecutionPolicy.None,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
+
+        if (windowsResult.IsFailure)
+        {
+            MeshGossipHostLog.GossipRoundFailed(_logger, windowsResult.Error?.Cause ?? new InvalidOperationException(windowsResult.Error?.Message ?? "gossip send window failed"));
+            return;
+        }
+
+        var windows = windowsResult.Value;
+
+        await foreach (var batch in windows.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            foreach (var lease in batch)
+            {
+                var safeLease = _sendSafeQueue.Wrap(lease);
+                Result<Unit> result;
+                try
+                {
+                    result = await lease.Value(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken || cancellationToken.IsCancellationRequested)
+                {
+                    result = Err<Unit>(Error.Canceled("gossip send canceled", oce.CancellationToken));
+                }
+                catch (Exception ex)
+                {
+                    result = Err<Unit>(Error.FromException(ex));
+                }
+
+                if (result.IsSuccess)
+                {
+                    var complete = await safeLease.CompleteAsync(cancellationToken).ConfigureAwait(false);
+                    if (complete.IsFailure)
+                    {
+                        MeshGossipHostLog.GossipRoundFailed(_logger, complete.Error?.Cause ?? new InvalidOperationException(complete.Error?.Message ?? "gossip send completion failed"));
+                        return;
+                    }
+
+                    continue;
+                }
+
+                var requeue = lease.Attempt < maxDeliveryAttempts && result.Error?.Code != ErrorCodes.Canceled;
+                var failed = await safeLease.FailAsync(result.Error!, requeue, cancellationToken).ConfigureAwait(false);
+                if (failed.IsFailure)
+                {
+                    MeshGossipHostLog.GossipRoundFailed(_logger, failed.Error?.Cause ?? new InvalidOperationException(failed.Error?.Message ?? "gossip send failure handling failed"));
+                    return;
+                }
+
+                if (result.IsFailure)
+                {
+                    MeshGossipHostLog.GossipRoundFailed(_logger, result.Error?.Cause ?? new InvalidOperationException(result.Error?.Message ?? "gossip send failed"));
+                    return;
+                }
+            }
+        }
+    }
+
+    private TaskQueueOptions CreateSendQueueOptions()
+    {
+        return new TaskQueueOptions
+        {
+            Capacity = Math.Max(128, _options.MaxOutboundPerRound * 4),
+            LeaseDuration = _options.PingTimeout,
+            HeartbeatInterval = TimeSpan.FromMilliseconds(Math.Max(200, _options.PingTimeout.TotalMilliseconds / 2)),
+            LeaseSweepInterval = TimeSpan.FromSeconds(5),
+            RequeueDelay = TimeSpan.FromMilliseconds(100),
+            MaxDeliveryAttempts = 5,
+            Name = "mesh-gossip-send"
+        };
+    }
+
+    private Func<CancellationToken, ValueTask<Result<Unit>>> CreateGossipSendWork(MeshGossipPeerEndpoint target, MeshGossipEnvelope envelope)
+    {
+        return async ct =>
+        {
+            try
+            {
+                if (_httpClient is null)
+                {
+                    return Err<Unit>(Error.From("http client not initialized", "gossip.http.missing"));
+                }
+
+                var start = Stopwatch.GetTimestamp();
+                using var request = new HttpRequestMessage(HttpMethod.Post, target.BuildRequestUri());
+                request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope);
+
+                var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                var responseEnvelope = await response.Content.ReadFromJsonAsync(
+                    MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope,
+                    ct).ConfigureAwait(false);
+
+                var elapsedMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+                if (responseEnvelope is not null)
+                {
+                    _membership.MarkSender(responseEnvelope, elapsedMs);
+                    foreach (var member in responseEnvelope.Members)
+                    {
+                        _membership.MarkObserved(member);
+                    }
+
+                    MeshGossipMetrics.RecordRoundTrip(responseEnvelope.Sender.NodeId, elapsedMs);
+                }
+
+                MeshGossipMetrics.RecordMessage("outbound", "success");
+                return Ok(Unit.Value);
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == ct)
+            {
+                return Err<Unit>(Error.Canceled("gossip send canceled", ct));
+            }
+            catch (HttpRequestException ex)
+            {
+                MeshGossipMetrics.RecordMessage("outbound", "failure");
+                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
+                return Err<Unit>(Error.FromException(ex));
+            }
+            catch (JsonException ex)
+            {
+                MeshGossipMetrics.RecordMessage("outbound", "failure");
+                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
+                return Err<Unit>(Error.FromException(ex));
+            }
+            catch (Exception ex)
+            {
+                MeshGossipMetrics.RecordMessage("outbound", "failure");
+                return Err<Unit>(Error.FromException(ex));
+            }
+        };
     }
 
     private HttpClient CreateHttpClient()
@@ -357,8 +568,37 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
             try
             {
-                await Task.Delay(_options.Interval, cancellationToken).ConfigureAwait(false);
-                await ExecuteRoundAsync(cancellationToken).ConfigureAwait(false);
+                var delayResult = await AsyncDelay.DelayAsync(_options.Interval, _timeProvider, cancellationToken).ConfigureAwait(false);
+                if (delayResult.IsFailure)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    MeshGossipHostLog.GossipRoundFailed(_logger, delayResult.Error?.Cause ?? new InvalidOperationException(delayResult.Error?.Message ?? "delay failed"));
+                    continue;
+                }
+
+                var round = await Result.RetryWithPolicyAsync<Unit>(
+                    async (_, ct) =>
+                    {
+                        await ExecuteRoundAsync(ct).ConfigureAwait(false);
+                        return Ok(Unit.Value);
+                    },
+                    _gossipSendPolicy,
+                    _timeProvider,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (round.IsFailure)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    MeshGossipHostLog.GossipRoundFailed(_logger, round.Error?.Cause ?? new InvalidOperationException(round.Error?.Message ?? "gossip round failed"));
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -381,8 +621,6 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
             return;
         }
-
-        var membershipChanged = false;
 
         var snapshot = _membership.Snapshot();
         var alivePeers = snapshot.Members
@@ -409,58 +647,28 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         foreach (var target in targets)
         {
             var envelope = BuildEnvelope(snapshot);
-            using var request = new HttpRequestMessage(HttpMethod.Post, target.BuildRequestUri());
-            request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope);
+            var work = CreateGossipSendWork(target, envelope);
 
-            try
+            if (_sendSafeQueue is not null)
             {
-                var start = Stopwatch.GetTimestamp();
-                var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                var responseEnvelope = await response.Content.ReadFromJsonAsync(MeshGossipJsonSerializerContext.Default.MeshGossipEnvelope, cancellationToken).ConfigureAwait(false);
-                if (responseEnvelope is not null)
+                var enqueueResult = await _sendSafeQueue.EnqueueAsync(work, cancellationToken).ConfigureAwait(false);
+                if (enqueueResult.IsFailure)
                 {
-                    var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-                    _membership.MarkSender(responseEnvelope, elapsed);
-                    foreach (var member in responseEnvelope.Members)
-                    {
-                        _membership.MarkObserved(member);
-                    }
-
-                    MeshGossipMetrics.RecordRoundTrip(responseEnvelope.Sender.NodeId, elapsed);
-                    membershipChanged = true;
+                    MeshGossipHostLog.GossipRoundFailed(_logger, enqueueResult.Error?.Cause ?? new InvalidOperationException(enqueueResult.Error?.Message ?? "gossip enqueue failed"));
                 }
-
-                MeshGossipMetrics.RecordMessage("outbound", "success");
             }
-            catch (HttpRequestException ex)
+            else
             {
-                MeshGossipMetrics.RecordMessage("outbound", "failure");
-                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
-            }
-            catch (TaskCanceledException ex)
-            {
-                MeshGossipMetrics.RecordMessage("outbound", "failure");
-                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
-            }
-            catch (JsonException ex)
-            {
-                MeshGossipMetrics.RecordMessage("outbound", "failure");
-                MeshGossipHostLog.GossipRequestFailed(_logger, target.ToString(), ex);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
+                var sendResult = await work(cancellationToken).ConfigureAwait(false);
+                if (sendResult.IsFailure)
+                {
+                    MeshGossipHostLog.GossipRoundFailed(_logger, sendResult.Error?.Cause ?? new InvalidOperationException(sendResult.Error?.Message ?? "gossip send failed"));
+                }
             }
         }
 
         UpdateLeaseDiagnostics();
         RecordMetrics(_membership.Snapshot());
-        if (membershipChanged)
-        {
-            PublishMembershipEvent("outbound-round");
-        }
     }
 
     private async Task RunSweepLoopAsync(CancellationToken cancellationToken)
@@ -472,7 +680,17 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
             try
             {
-                await Task.Delay(_options.SuspicionInterval, cancellationToken).ConfigureAwait(false);
+                var delayResult = await AsyncDelay.DelayAsync(_options.SuspicionInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
+                if (delayResult.IsFailure)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    MeshGossipHostLog.GossipRoundFailed(_logger, delayResult.Error?.Cause ?? new InvalidOperationException(delayResult.Error?.Message ?? "delay failed"));
+                    continue;
+                }
                 _membership.Sweep(suspicion, leave);
                 RecordMetrics(_membership.Snapshot());
                 PublishMembershipEvent("sweep");
@@ -498,7 +716,17 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
         {
             try
             {
-                await Task.Delay(_options.ShuffleInterval, cancellationToken).ConfigureAwait(false);
+                var delayResult = await AsyncDelay.DelayAsync(_options.ShuffleInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
+                if (delayResult.IsFailure)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    MeshGossipHostLog.GossipRoundFailed(_logger, delayResult.Error?.Cause ?? new InvalidOperationException(delayResult.Error?.Message ?? "delay failed"));
+                    continue;
+                }
 
                 var target = _peerView.SelectShuffleTarget();
                 if (target is null || _httpClient is null)
@@ -513,14 +741,33 @@ public sealed partial class MeshGossipHost : IMeshGossipAgent, IDisposable
                 }
 
                 var envelope = new MeshGossipShuffleEnvelope(GetLocalEndpoint(), payload.Select(static p => p.ToString()).ToArray());
-                using var request = new HttpRequestMessage(HttpMethod.Post, target.Value.BuildShuffleUri());
-                request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope);
-                var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
 
-                var responseEnvelope = await response.Content.ReadFromJsonAsync(
-                    MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope,
+                var sendResult = await Result.RetryWithPolicyAsync<MeshGossipShuffleEnvelope?>(
+                    async (_, ct) =>
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Post, target.Value.BuildShuffleUri());
+                        request.Content = JsonContent.Create(envelope, MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope);
+
+                        var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+                        response.EnsureSuccessStatusCode();
+
+                        var payloadResponse = await response.Content.ReadFromJsonAsync(
+                            MeshGossipJsonSerializerContext.Default.MeshGossipShuffleEnvelope,
+                            ct).ConfigureAwait(false);
+
+                        return Ok(payloadResponse);
+                    },
+                    _gossipSendPolicy,
+                    _timeProvider,
                     cancellationToken).ConfigureAwait(false);
+
+                if (sendResult.IsFailure)
+                {
+                    MeshGossipHostLog.GossipRoundFailed(_logger, sendResult.Error?.Cause ?? new InvalidOperationException(sendResult.Error?.Message ?? "shuffle send failed"));
+                    continue;
+                }
+
+                var responseEnvelope = sendResult.Value;
 
                 if (responseEnvelope is not null)
                 {

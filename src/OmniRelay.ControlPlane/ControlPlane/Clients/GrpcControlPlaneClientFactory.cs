@@ -6,7 +6,7 @@ using Grpc.Net.Client;
 using Hugo;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.Identity;
 using static Hugo.Go;
 
 namespace OmniRelay.ControlPlane.Clients;

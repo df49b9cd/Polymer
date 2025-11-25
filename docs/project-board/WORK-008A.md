@@ -13,7 +13,7 @@ Persist and validate last-known-good config/artifacts for use during partitions.
 - Tests cover save/load/validate flows.
 
 ## Status
-Open
+Done
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

@@ -11,7 +11,7 @@ Forward telemetry (OTLP) from nodes with bounded buffers and backpressure handli
 - Under ingest backpressure, data loss bounded and observable; system remains responsive.
 
 ## Status
-Open
+Done
 
 ## Testing Strategy
 - Unit: Cover new logic/config parsing/helpers introduced by this item.

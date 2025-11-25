@@ -1,5 +1,7 @@
+using System.Linq;
 using Hugo;
 using Microsoft.Extensions.DependencyInjection;
+using OmniRelay.Core;
 using OmniRelay.Dispatcher.Config;
 using OmniRelay.TestSupport.Assertions;
 using Xunit;
@@ -99,5 +101,41 @@ public class DispatcherConfigMapperTests
         dispatcher.ServiceName.ShouldBe("svc");
         dispatcher.ClientConfig("remote-http").IsSuccess.ShouldBeTrue();
         dispatcher.ClientConfig("remote-grpc").IsSuccess.ShouldBeTrue();
+    }
+
+    [Theory(Timeout = TestTimeouts.Default)]
+    [InlineData("InProc", DeploymentMode.InProc)]
+    [InlineData("Sidecar", DeploymentMode.Sidecar)]
+    [InlineData("Edge", DeploymentMode.Edge)]
+    public void CreateDispatcher_WithValidModes_Succeeds(string mode, DeploymentMode expected)
+    {
+        var services = new ServiceCollection().BuildServiceProvider();
+        var registry = new DispatcherComponentRegistry();
+
+        var config = new DispatcherConfig
+        {
+            Service = "svc",
+            Mode = mode,
+            Inbounds = new InboundsConfig
+            {
+                Http = { new HttpInboundConfig { Urls = ["http://127.0.0.1:6101"] } }
+            },
+            Outbounds = new OutboundsConfig
+            {
+                ["remote-http"] = new ServiceOutboundsConfig
+                {
+                    Http = { Unary = { new OutboundTarget { Url = "http://127.0.0.1:6301" } } }
+                }
+            },
+            Middleware = new MiddlewareConfig(),
+            Encodings = new EncodingConfig()
+        };
+
+        var result = DispatcherConfigMapper.CreateDispatcher(services, registry, config, configureOptions: null);
+
+        result.IsSuccess.ShouldBeTrue(result.Error?.Message);
+        var dispatcher = result.Value;
+        dispatcher.Mode.ShouldBe(expected);
+        dispatcher.Capabilities.Any(c => c == $"deployment:{mode.ToLowerInvariant()}").ShouldBeTrue();
     }
 }

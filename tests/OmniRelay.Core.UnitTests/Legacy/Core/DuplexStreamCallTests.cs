@@ -18,10 +18,10 @@ public class DuplexStreamCallTests
         await call.ResponseWriter.WriteAsync(new byte[] { 0x02 }, TestContext.Current.CancellationToken);
 
         call.RequestReader.TryRead(out var requestPayload).ShouldBeTrue();
-        requestPayload.ToArray().ShouldBe(new byte[] { 0x01 });
+        requestPayload.ToArray().ShouldBe([0x01]);
 
         call.ResponseReader.TryRead(out var responsePayload).ShouldBeTrue();
-        responsePayload.ToArray().ShouldBe(new byte[] { 0x02 });
+        responsePayload.ToArray().ShouldBe([0x02]);
 
         call.Context.RequestMessageCount.ShouldBe(1);
         call.Context.ResponseMessageCount.ShouldBe(1);

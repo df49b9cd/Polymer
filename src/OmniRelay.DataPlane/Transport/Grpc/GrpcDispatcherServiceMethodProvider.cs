@@ -250,11 +250,8 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
                         return new RpcException(status, trailers);
                     }
 
-                    Result<Unit> pumpResult;
-
-                    try
-                    {
-                        var responseStreamPipeline = Result.MapStreamAsync(
+                    var pumpResult = await Result.ForEachLinkedCancellationAsync(
+                        Result.MapStreamAsync(
                             streamCall.Responses.ReadAllAsync(cancellationToken),
                             (payload, token) =>
                             {
@@ -269,29 +266,28 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
 
                                 return new ValueTask<Result<ReadOnlyMemory<byte>>>(Ok(payload));
                             },
-                            cancellationToken);
-
-                        pumpResult = await responseStreamPipeline
-                            .TapSuccessEachAsync(async (payload, token) =>
-                            {
-                                await EnsureHeadersAsync().ConfigureAwait(false);
-                                token.ThrowIfCancellationRequested();
-                                await WriteGrpcMessageAsync(responseStream, payload, writeTimeout, token).ConfigureAwait(false);
-                                Interlocked.Increment(ref responseCount);
-                                GrpcTransportMetrics.ServerServerStreamResponseMessages.Add(1, metricTags);
-                            }, cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (pumpResult.IsSuccess)
+                            cancellationToken),
+                        async (payloadResult, token) =>
                         {
+                            if (payloadResult.IsFailure)
+                            {
+                                return payloadResult.CastFailure<Unit>();
+                            }
+
                             await EnsureHeadersAsync().ConfigureAwait(false);
-                            ApplySuccessTrailers(callContext, streamCall.ResponseMeta);
-                            RecordServerStreamMetrics(StatusCode.OK);
-                        }
-                    }
-                    catch (Exception ex)
+                            token.ThrowIfCancellationRequested();
+                            await WriteGrpcMessageAsync(responseStream, payloadResult.Value, writeTimeout, token).ConfigureAwait(false);
+                            Interlocked.Increment(ref responseCount);
+                            GrpcTransportMetrics.ServerServerStreamResponseMessages.Add(1, metricTags);
+                            return Ok(Unit.Value);
+                        },
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (pumpResult.IsSuccess)
                     {
-                        pumpResult = Err<Unit>(MapServerStreamPumpError(ex));
+                        await EnsureHeadersAsync().ConfigureAwait(false);
+                        ApplySuccessTrailers(callContext, streamCall.ResponseMeta);
+                        RecordServerStreamMetrics(StatusCode.OK);
                     }
 
                     if (pumpResult.IsFailure && pumpResult.Error is { } pumpError)
@@ -914,27 +910,6 @@ internal sealed class GrpcDispatcherServiceMethodProvider(Dispatcher.Dispatcher 
         return payload.ToArray();
     }
 #pragma warning restore CA2016
-
-    private static Error MapServerStreamPumpError(Exception exception)
-    {
-        return exception switch
-        {
-            ResultException resultException when resultException.Error is not null => resultException.Error,
-            TimeoutException => OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.DeadlineExceeded,
-                "The server stream write timed out.",
-                transport: GrpcTransportConstants.TransportName),
-            OperationCanceledException => OmniRelayErrorAdapter.FromStatus(
-                OmniRelayStatusCode.Cancelled,
-                "The client cancelled the request.",
-                transport: GrpcTransportConstants.TransportName),
-            RpcException rpcException => OmniRelayErrorAdapter.FromStatus(
-                GrpcStatusMapper.FromStatus(rpcException.Status),
-                string.IsNullOrWhiteSpace(rpcException.Status.Detail) ? rpcException.StatusCode.ToString() : rpcException.Status.Detail,
-                transport: GrpcTransportConstants.TransportName),
-            _ => OmniRelayErrors.FromException(exception, GrpcTransportConstants.TransportName).Error
-        };
-    }
 
     private static void ApplySuccessTrailers(ServerCallContext callContext, ResponseMeta responseMeta)
     {

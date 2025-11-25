@@ -135,7 +135,7 @@ public sealed class RelationalShardStoreTests : IAsyncLifetime, IDisposable
         {
             Namespace = "mesh.query",
             OwnerNodeId = "node-a",
-            Statuses = new[] { ShardStatus.Active },
+            Statuses = [ShardStatus.Active],
             SearchShardId = "shard-0",
             PageSize = 10
         };

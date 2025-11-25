@@ -63,7 +63,7 @@ public class RawCodecTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldNotBeSameAs(buffer);
-        result.Value.ShouldBe(new byte[] { 2, 3 });
+        result.Value.ShouldBe([2, 3]);
     }
 
     [Fact(Timeout = TestTimeouts.Default)]

@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\OmniRelay.ControlPlane\OmniRelay.ControlPlane.csproj" />
 <ProjectReference Include="..\..\src\OmniRelay.ShardStore.Sqlite\OmniRelay.ShardStore.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\OmniRelay.ShardStore.Relational\OmniRelay.ShardStore.Relational.csproj" />
+    <ProjectReference Include="..\..\src\plugins\OmniRelay.Plugins.Internal.Registry\OmniRelay.Plugins.Internal.Registry.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,34 +10,26 @@ namespace OmniRelay.Core.Transport;
 /// </summary>
 public sealed class DuplexStreamCall : IDuplexStreamCall
 {
+    private const int DefaultChannelCapacity = 64;
+
     private readonly Channel<ReadOnlyMemory<byte>> _requests;
     private readonly Channel<ReadOnlyMemory<byte>> _responses;
     private bool _requestsCompleted;
     private bool _responsesCompleted;
 
-    private DuplexStreamCall(RequestMeta requestMeta, ResponseMeta responseMeta)
+    private DuplexStreamCall(RequestMeta requestMeta, ResponseMeta responseMeta, int channelCapacity)
     {
         RequestMeta = requestMeta ?? throw new ArgumentNullException(nameof(requestMeta));
         ResponseMeta = responseMeta ?? new ResponseMeta();
         Context = new DuplexStreamCallContext();
 
-        _requests = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
-        {
-            SingleWriter = false,
-            SingleReader = false,
-            AllowSynchronousContinuations = false
-        });
+        _requests = Go.MakeChannel<ReadOnlyMemory<byte>>(CreateBoundedOptions(channelCapacity));
 
         RequestWriter = new CountingChannelWriter(
             _requests.Writer,
             () => Context.IncrementRequestMessageCount());
 
-        _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
-        {
-            SingleWriter = false,
-            SingleReader = false,
-            AllowSynchronousContinuations = false
-        });
+        _responses = Go.MakeChannel<ReadOnlyMemory<byte>>(CreateBoundedOptions(channelCapacity));
 
         ResponseWriter = new CountingChannelWriter(
             _responses.Writer,
@@ -47,8 +39,11 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
     /// <summary>
     /// Creates a duplex streaming call instance.
     /// </summary>
-    public static DuplexStreamCall Create(RequestMeta requestMeta, ResponseMeta? responseMeta = null) =>
-        new(requestMeta, responseMeta ?? new ResponseMeta());
+    public static DuplexStreamCall Create(
+        RequestMeta requestMeta,
+        ResponseMeta? responseMeta = null,
+        int channelCapacity = DefaultChannelCapacity) =>
+        new(requestMeta, responseMeta ?? new ResponseMeta(), NormalizeCapacity(channelCapacity));
 
     /// <inheritdoc />
     public RequestMeta RequestMeta { get; }
@@ -169,6 +164,25 @@ public sealed class DuplexStreamCall : IDuplexStreamCall
             OmniRelayStatusCode.Cancelled => StreamCompletionStatus.Cancelled,
             _ => StreamCompletionStatus.Faulted
         };
+    }
+
+    private static BoundedChannelOptions CreateBoundedOptions(int capacity) =>
+        new(capacity)
+        {
+            SingleReader = false,
+            SingleWriter = false,
+            AllowSynchronousContinuations = false,
+            FullMode = BoundedChannelFullMode.Wait
+        };
+
+    private static int NormalizeCapacity(int requestedCapacity)
+    {
+        if (requestedCapacity <= 0)
+        {
+            return DefaultChannelCapacity;
+        }
+
+        return requestedCapacity;
     }
 
     private sealed class CountingChannelWriter(ChannelWriter<ReadOnlyMemory<byte>> inner, Action onWrite) : ChannelWriter<ReadOnlyMemory<byte>>

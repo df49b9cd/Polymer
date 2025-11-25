@@ -31,3 +31,8 @@ Block merges unless all affected OmniRelay hosts and MeshKit roles build/publish
 
 ## Status
 Done — CI gate script `eng/run-ci-gate.sh` builds solution, runs fast test slices, and AOT publishes DataPlane/ControlPlane/CLI (self-contained). SBOM/signing toggles already in build; runbook `docs/runbooks/ci-gate.md` documents local/CI usage. Ready to enforce in PR/nightly pipelines.
+
+## Validation & CI
+- Gate command: `./eng/run-ci-gate.sh` (env: `RID`, `CONFIG`, `SKIP_AOT`), invoked from PR/branch pipelines; nightly should run with full matrix and `SKIP_AOT=0`.
+- Tests included: dispatcher + core unit slices; extend filter to other suites when scope touches them.
+- Artifacts: AOT outputs under `artifacts/ci/` plus SBOM/signing toggles; failure on build/test/publish exits non-zero to block merges.

@@ -166,15 +166,15 @@ public sealed class ShardSchemaHyperscaleFeatureTests : IAsyncLifetime
         await Task.WhenAll(mutations);
     }
 
-    private static IReadOnlyList<ShardNodeDescriptor> CreateNodes() => new[]
-    {
+    private static IReadOnlyList<ShardNodeDescriptor> CreateNodes() =>
+    [
         new ShardNodeDescriptor { NodeId = "iad-zone-1", Region = "iad", Zone = "iad-1", Weight = 1.0 },
         new ShardNodeDescriptor { NodeId = "iad-zone-2", Region = "iad", Zone = "iad-2", Weight = 0.8 },
         new ShardNodeDescriptor { NodeId = "phx-zone-1", Region = "phx", Zone = "phx-1", Weight = 1.3 },
         new ShardNodeDescriptor { NodeId = "phx-zone-2", Region = "phx", Zone = "phx-2", Weight = 1.1 },
         new ShardNodeDescriptor { NodeId = "dub-zone-1", Region = "dub", Zone = "dub-1", Weight = 0.9 },
         new ShardNodeDescriptor { NodeId = "dub-zone-2", Region = "dub", Zone = "dub-2", Weight = 0.9 }
-    };
+    ];
 
     private static IReadOnlyList<ShardDefinition> CreateShards(int count, string? localityHint = null)
     {

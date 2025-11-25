@@ -3,9 +3,9 @@ using Hugo;
 using OmniRelay.Core;
 using OmniRelay.Core.Middleware;
 using OmniRelay.Dispatcher;
+using Xunit;
 using static Hugo.Go;
 using Unit = Hugo.Go.Unit;
-using Xunit;
 
 namespace OmniRelay.IntegrationTests;
 

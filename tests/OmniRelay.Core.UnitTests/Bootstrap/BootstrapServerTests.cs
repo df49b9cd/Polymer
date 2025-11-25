@@ -33,7 +33,7 @@ public sealed class BootstrapServerTests
         var certificateBytes = CreateCertificateBytes("CN=bootstrap-test", "bundle-pass");
         var identityProvider = new TestWorkloadIdentityProvider(certificateBytes, "bundle-pass");
         var policyDocument = new BootstrapPolicyDocument("allow-all", true, Array.Empty<BootstrapPolicyRule>());
-        var policyEvaluator = new BootstrapPolicyEvaluator(new[] { policyDocument }, requireAttestation: false, TimeSpan.FromMinutes(5), NullLogger<BootstrapPolicyEvaluator>.Instance);
+        var policyEvaluator = new BootstrapPolicyEvaluator([policyDocument], requireAttestation: false, TimeSpan.FromMinutes(5), NullLogger<BootstrapPolicyEvaluator>.Instance);
         var server = new BootstrapServer(serverOptions, tokenService, identityProvider, policyEvaluator, NullLogger<BootstrapServer>.Instance);
 
         var token = tokenService.CreateToken(new BootstrapTokenDescriptor { ClusterId = "cluster-1", Role = "worker" });

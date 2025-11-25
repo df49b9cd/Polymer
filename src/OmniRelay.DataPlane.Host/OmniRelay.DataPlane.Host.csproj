@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <AssemblyName>omnirelay-dataplane</AssemblyName>
+    <RootNamespace>OmniRelay.DataPlane.Host</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PublishAot)'=='true'">
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRelay.DataPlane\OmniRelay.DataPlane.csproj" />
+    <ProjectReference Include="..\OmniRelay.Transport.Host\OmniRelay.Transport.Host.csproj" />
+    <ProjectReference Include="..\plugins\OmniRelay.Plugins.Internal.Transport\OmniRelay.Plugins.Internal.Transport.csproj" />
+    <ProjectReference Include="..\plugins\OmniRelay.Plugins.Internal.Observability\OmniRelay.Plugins.Internal.Observability.csproj" />
+  </ItemGroup>
+
+</Project>

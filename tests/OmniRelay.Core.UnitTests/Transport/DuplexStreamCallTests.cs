@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using System.Threading.Channels;
 using OmniRelay.Core.Transport;
 using OmniRelay.Errors;
@@ -63,5 +65,42 @@ public class DuplexStreamCallTests
         relayException.Message.ShouldBe("The request stream was cancelled.");
 
         await call.DisposeAsync();
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask BoundedChannels_ApplyBackpressure()
+    {
+        var meta = new RequestMeta(service: "svc", transport: "grpc");
+        var call = DuplexStreamCall.Create(meta, channelCapacity: 1);
+
+        await call.RequestWriter.WriteAsync(new byte[] { 1 }, TestContext.Current.CancellationToken);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await call.RequestWriter.WaitToWriteAsync(cts.Token));
+
+        var dequeued = await call.RequestReader.ReadAsync(TestContext.Current.CancellationToken);
+        dequeued.ToArray().ShouldBe([1]);
+
+        var waitOk = await call.RequestWriter.WaitToWriteAsync(TestContext.Current.CancellationToken);
+        waitOk.ShouldBeTrue();
+        call.RequestWriter.TryWrite(new byte[] { 2 }).ShouldBeTrue();
+
+        await call.DisposeAsync();
+    }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask Dispose_CompletesChannels()
+    {
+        var meta = new RequestMeta(service: "svc", transport: "grpc");
+        var call = DuplexStreamCall.Create(meta, channelCapacity: 2);
+
+        await call.DisposeAsync();
+
+        await Should.ThrowAsync<ChannelClosedException>(async () =>
+            await call.RequestWriter.WriteAsync(new byte[] { 1 }, TestContext.Current.CancellationToken));
+
+        var canRead = await call.ResponseReader.WaitToReadAsync(TestContext.Current.CancellationToken);
+        canRead.ShouldBeFalse();
     }
 }

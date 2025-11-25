@@ -17,7 +17,7 @@ internal static class CliCommandRunner
         "bin",
         BuildConfiguration,
         "net10.0",
-        "OmniRelay.Cli.dll");
+        "omnirelay-cli.dll");
 
     private static readonly string CliProjectPath = Path.Combine(RepositoryRoot, "src", "OmniRelay.Cli", "OmniRelay.Cli.csproj");
     private static readonly SemaphoreSlim BuildLock = new(1, 1);

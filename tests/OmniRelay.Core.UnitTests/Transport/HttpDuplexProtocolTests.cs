@@ -32,7 +32,7 @@ public class HttpDuplexProtocolTests
             var sent = socket.SentMessages[0];
             sent.MessageType.ShouldBe(WebSocketMessageType.Binary);
             sent.EndOfMessage.ShouldBeTrue();
-            sent.Buffer.ShouldBe(new byte[] { (byte)HttpDuplexProtocol.FrameType.ResponseData, 0xAA, 0xBB, 0xCC });
+            sent.Buffer.ShouldBe([(byte)HttpDuplexProtocol.FrameType.ResponseData, 0xAA, 0xBB, 0xCC]);
         }
         finally
         {

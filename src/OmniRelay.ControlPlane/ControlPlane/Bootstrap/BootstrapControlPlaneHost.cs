@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OmniRelay.ControlPlane.Hosting;
-using OmniRelay.ControlPlane.Security;
+using OmniRelay.Identity;
 using OmniRelay.Core.Transport;
 
 namespace OmniRelay.ControlPlane.Bootstrap;

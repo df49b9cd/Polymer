@@ -355,4 +355,24 @@ public class ProtobufCallAdaptersTests
         ex.StatusCode.ShouldBe(OmniRelayStatusCode.InvalidArgument);
         await call.DisposeAsync();
     }
+
+    [Fact(Timeout = TestTimeouts.Default)]
+    public async ValueTask ClientStreamContext_CollectAllAsync_AggregatesFailures()
+    {
+        var codec = CreateCodec();
+        var meta = CreateRequestMeta(codec);
+        var channel = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+        var context = new ClientStreamRequestContext(meta, channel.Reader);
+        var typedContext = new ProtobufCallAdapters.ProtobufClientStreamContext<StringValue, StringValue>(codec, context);
+
+        var ct = TestContext.Current.CancellationToken;
+        await channel.Writer.WriteAsync(codec.EncodeRequest(new StringValue { Value = "ok" }, meta).Value, ct);
+        await channel.Writer.WriteAsync(new byte[] { 1, 2, 3 }, ct); // invalid payload
+        channel.Writer.TryComplete();
+
+        var collected = await typedContext.CollectAllAsync(ct);
+
+        collected.IsFailure.ShouldBeTrue();
+        OmniRelayErrorAdapter.ToStatus(collected.Error!).ShouldBe(OmniRelayStatusCode.InvalidArgument);
+    }
 }

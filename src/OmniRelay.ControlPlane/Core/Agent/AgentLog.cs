@@ -39,4 +39,16 @@ internal static partial class AgentLog
 
     [LoggerMessage(EventId = 12, Level = LogLevel.Debug, Message = "control backoff ms={Millis}")]
     internal static partial void ControlBackoffApplied(ILogger logger, long Millis);
+
+    [LoggerMessage(EventId = 13, Level = LogLevel.Warning, Message = "LKG cache rejected code={Code}")]
+    internal static partial void LkgRejected(ILogger logger, string Code);
+
+    [LoggerMessage(EventId = 14, Level = LogLevel.Information, Message = "agent certificate renewed; expires_at={ExpiresAt:o}")]
+    internal static partial void AgentCertificateRenewed(ILogger logger, DateTimeOffset ExpiresAt);
+
+    [LoggerMessage(EventId = 15, Level = LogLevel.Debug, Message = "agent certificate next check in {DelayMs}ms")]
+    internal static partial void AgentCertificateNextCheck(ILogger logger, long DelayMs);
+
+    [LoggerMessage(EventId = 16, Level = LogLevel.Warning, Message = "agent certificate renewal failed: {Error}")]
+    internal static partial void AgentCertificateRenewalFailed(ILogger logger, string Error);
 }

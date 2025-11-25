@@ -1,0 +1,66 @@
+name: Native AOT Publish
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      rid:
+        description: 'Runtime identifier (RID)'
+        default: 'linux-x64'
+        required: true
+      config:
+        description: 'Build configuration'
+        default: 'Release'
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  aot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [ linux-x64 ]
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.rid }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Native AOT publish (DataPlane + ControlPlane + CLI + MeshKit smoke)
+        env:
+          RID: ${{ github.event.inputs.rid || matrix.rid }}
+          CONFIG: ${{ github.event.inputs.config || 'Release' }}
+        run: |
+          chmod +x eng/run-aot-publish.sh
+          ./eng/run-aot-publish.sh "$RID" "$CONFIG"
+
+      - name: Upload AOT artifacts
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: aot-${{ matrix.rid }}
+          path: artifacts/aot/${{ github.event.inputs.rid || matrix.rid }}/**
+          if-no-files-found: error

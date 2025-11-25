@@ -115,7 +115,7 @@ internal static partial class ProgramScriptModule
                     var addresses = step.Addresses?.Where(static address => !string.IsNullOrWhiteSpace(address)).ToArray() ?? [];
                     if (addresses.Length == 0 && !string.IsNullOrWhiteSpace(step.Address))
                     {
-                        addresses = new[] { step.Address };
+                        addresses = [step.Address];
                     }
 
                     var targetSummary = !string.IsNullOrWhiteSpace(step.Url)

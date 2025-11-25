@@ -20,3 +20,7 @@ Done (Phase 1 complete; Phase 2 deferred)
 - Integration: Exercise end-to-end behavior via test fixtures (hosts/agents/registry) relevant to this item.
 - Feature: Scenario-level validation of user-visible workflows touched by this item across supported deployment modes/roles.
 - Hyperscale: Run when the change affects runtime/throughput/scale; otherwise note non-applicability with rationale in the PR.
+
+## Validation & CI
+- DSL host coverage lives in `tests/OmniRelay.Core.UnitTests/Extensions/DslExtensionHostTests.cs` (signatures, opcode allowlist, quotas, failure policies).
+- CI entrypoints: `dotnet test tests/OmniRelay.Core.UnitTests/OmniRelay.Core.UnitTests.csproj` (invoked via `./eng/run-ci-gate.sh` and `./eng/run-ci.sh`).

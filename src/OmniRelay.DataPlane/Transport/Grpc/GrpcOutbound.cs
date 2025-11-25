@@ -24,7 +24,7 @@ namespace OmniRelay.Transport.Grpc;
 /// gRPC outbound transport supporting unary, oneway, server-streaming, client-streaming, and duplex calls.
 /// Manages peer channels, HTTP/3 preferences, compression, and client interceptors.
 /// </summary>
-public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound, IOutboundDiagnostic, IGrpcClientInterceptorSink
+public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbound, IClientStreamOutbound, IDuplexOutbound, IOutboundDiagnostic, IGrpcClientInterceptorSink, IAsyncDisposable
 {
     private readonly List<Uri> _addresses;
     private readonly string _remoteService;
@@ -36,6 +36,12 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     private readonly GrpcTelemetryOptions? _telemetryOptions;
     private readonly Func<IReadOnlyList<IPeer>, IPeerChooser> _peerChooserFactory;
     private readonly IReadOnlyDictionary<Uri, bool>? _endpointHttp3Support;
+    private TaskQueue<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>? _onewayQueue;
+    private SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>? _onewaySafeQueue;
+    private TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>? _onewayAdapter;
+    private CancellationTokenSource? _onewayCts;
+    private Task? _onewayPump;
+    private int _onewayInitialized;
     private ImmutableArray<GrpcPeer> _peers = [];
     private IPeerChooser? _peerChooser;
     private IPeerChooser? _preferredPeerChooser;
@@ -155,7 +161,7 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         GrpcTelemetryOptions? telemetryOptions = null,
         IReadOnlyDictionary<Uri, bool>? endpointHttp3Support = null) =>
         TryCreate(
-            new[] { address },
+            [address],
             remoteService,
             channelOptions,
             clientTlsOptions,
@@ -378,6 +384,8 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return ValueTask.CompletedTask;
         }
 
+        EnsureOnewayQueueInitialized();
+
         var builder = ImmutableArray.CreateBuilder<GrpcPeer>(_addresses.Count);
         foreach (var address in _addresses)
         {
@@ -416,9 +424,77 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
             return;
         }
 
-        foreach (var peer in _peers)
+        if (_onewayCts is not null)
         {
-            await peer.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                await _onewayCts.CancelAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        if (_onewayPump is not null)
+        {
+            try
+            {
+                await _onewayPump.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            _onewayPump = null;
+        }
+
+        if (_onewayAdapter is not null)
+        {
+            await _onewayAdapter.DisposeAsync().ConfigureAwait(false);
+        }
+
+        if (_onewaySafeQueue is not null)
+        {
+            await _onewaySafeQueue.DisposeAsync().ConfigureAwait(false);
+        }
+
+        _onewayQueue = null;
+        _onewaySafeQueue = null;
+        _onewayAdapter = null;
+        _onewayCts?.Dispose();
+        _onewayCts = null;
+
+        using (var group = new ErrGroup(cancellationToken))
+        {
+            foreach (var peer in _peers)
+            {
+                var peerAddress = peer.Address.ToString();
+                group.Go(async token =>
+                {
+                    try
+                    {
+                        await peer.DisposeAsync().ConfigureAwait(false);
+                        return Ok(Unit.Value);
+                    }
+                    catch (OperationCanceledException oce) when (oce.CancellationToken == token)
+                    {
+                        return Err<Unit>(Error.Canceled(token: token)
+                            .WithMetadata("grpc.peer", peerAddress)
+                            .WithMetadata("grpc.stage", "grpc.outbound.stop"));
+                    }
+                    catch (Exception ex)
+                    {
+                        return Err<Unit>(Error.FromException(ex)
+                            .WithMetadata("grpc.peer", peerAddress)
+                            .WithMetadata("grpc.stage", "grpc.outbound.stop"));
+                    }
+                });
+            }
+
+            var disposalResult = await group.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            if (disposalResult.IsFailure)
+            {
+                throw new ResultException(disposalResult.Error!);
+            }
         }
 
         var chooser = _peerChooser;
@@ -441,6 +517,9 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
         _clientStreamMethods.Clear();
         _duplexMethods.Clear();
     }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync() => await StopAsync().ConfigureAwait(false);
 
     /// <summary>
     /// Performs a unary RPC using the gRPC client.
@@ -528,42 +607,70 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
 
         var procedure = request.Meta.Procedure!;
 
-        return await WithPeerContextAsync(
-            request.Meta,
-            procedure,
-            "oneway",
-            disposeLeaseOnCompletion: true,
-            async (context, token) =>
-            {
-                var method = _unaryMethods.GetOrAdd(procedure, CreateUnaryMethod);
-                var payload = GetCachedArray(request.Body);
-                var callOptions = CreateCallOptions(request.Meta, token);
+        var tcs = new TaskCompletionSource<Result<OnewayAck>>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-                var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<OnewayAck>>>(
-                    async (invoker, options, innerToken) =>
+        var work = new Func<CancellationToken, ValueTask<Result<OnewayAck>>>(async token =>
+        {
+            var callResult = await WithPeerContextAsync(
+                    request.Meta,
+                    procedure,
+                    "oneway",
+                    disposeLeaseOnCompletion: true,
+                    async (context, innerToken) =>
                     {
-                        try
-                        {
-                            var call = invoker.AsyncUnaryCall(method, null, options, payload);
-                            await call.ResponseAsync.ConfigureAwait(false);
-                            var headers = await call.ResponseHeadersAsync.ConfigureAwait(false);
-                            var trailers = call.GetTrailers();
-                            var responseMeta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
-                            return Ok(OnewayAck.Ack(responseMeta));
-                        }
-                        catch (Exception ex)
-                        {
-                            return Err<OnewayAck>(NormalizeCallException(ex));
-                        }
-                    });
+                        var method = _unaryMethods.GetOrAdd(procedure, CreateUnaryMethod);
+                        var payload = GetCachedArray(request.Body);
+                        var callOptions = CreateCallOptions(request.Meta, innerToken);
 
-                var callResult = await ExecuteGrpcCallAsync(context, request.Meta, callOptions, operation, token).ConfigureAwait(false);
+                        var operation = new Func<CallInvoker, CallOptions, CancellationToken, ValueTask<Result<OnewayAck>>>(
+                            async (invoker, options, ct) =>
+                            {
+                                try
+                                {
+                                    var call = invoker.AsyncUnaryCall(method, null, options, payload);
+                                    await call.ResponseAsync.ConfigureAwait(false);
+                                    var headers = await call.ResponseHeadersAsync.ConfigureAwait(false);
+                                    var trailers = call.GetTrailers();
+                                    var responseMeta = GrpcMetadataAdapter.CreateResponseMeta(headers, trailers);
+                                    return Ok(OnewayAck.Ack(responseMeta));
+                                }
+                                catch (Exception ex)
+                                {
+                                    return Err<OnewayAck>(NormalizeCallException(ex));
+                                }
+                            });
 
-                return callResult
-                    .Tap(_ => RecordClientSuccess(context))
-                    .TapError(error => RecordClientFailure(context, error));
-            },
-            cancellationToken).ConfigureAwait(false);
+                        var result = await ExecuteGrpcCallAsync(context, request.Meta, callOptions, operation, innerToken).ConfigureAwait(false);
+
+                        return result
+                            .Tap(_ => RecordClientSuccess(context))
+                            .TapError(error => RecordClientFailure(context, error));
+                    },
+                    token).ConfigureAwait(false);
+
+            tcs.TrySetResult(callResult);
+            return callResult;
+        });
+
+        var enqueue = await _onewaySafeQueue!.EnqueueAsync(work, cancellationToken).ConfigureAwait(false);
+        if (enqueue.IsFailure)
+        {
+            return Err<OnewayAck>(enqueue.Error);
+        }
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            tcs.TrySetCanceled(cancellationToken);
+        });
+
+        try
+        {
+            return await tcs.Task.ConfigureAwait(false);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Err<OnewayAck>(Error.Canceled(token: cancellationToken));
+        }
     }
 
     /// <summary>
@@ -942,6 +1049,68 @@ public sealed class GrpcOutbound : IUnaryOutbound, IOnewayOutbound, IStreamOutbo
     }
 
     private readonly record struct PeerInvocationContext(PeerLease Lease, GrpcPeer Peer, bool UsedPreferred, Activity? Activity);
+
+    private void EnsureOnewayQueueInitialized()
+    {
+        if (Interlocked.CompareExchange(ref _onewayInitialized, 1, 0) != 0 && _onewaySafeQueue is not null)
+        {
+            return;
+        }
+
+        var options = new TaskQueueOptions
+        {
+            Capacity = 128,
+            LeaseDuration = TimeSpan.FromSeconds(30),
+            HeartbeatInterval = TimeSpan.FromSeconds(5),
+            LeaseSweepInterval = TimeSpan.FromSeconds(10),
+            RequeueDelay = TimeSpan.FromMilliseconds(50),
+            MaxDeliveryAttempts = 1,
+            Name = "grpc-oneway-send"
+        };
+
+        var queue = new TaskQueue<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>(options, TimeProvider.System, (_, _) => ValueTask.CompletedTask);
+        var safe = new SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>(queue, ownsQueue: true);
+        var adapter = TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>.Create(queue, concurrency: 4, ownsQueue: false);
+
+        _onewayQueue = queue;
+        _onewaySafeQueue = safe;
+        _onewayAdapter = adapter;
+        _onewayCts = new CancellationTokenSource();
+        _onewayPump = RunOnewayPumpAsync(adapter, safe, _onewayCts.Token);
+    }
+
+    private static async Task RunOnewayPumpAsync(
+        TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<OnewayAck>>>> adapter,
+        SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<OnewayAck>>>> safeQueue,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var lease in adapter.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var safeLease = safeQueue.Wrap(lease);
+            Result<OnewayAck> result;
+            try
+            {
+                result = await lease.Value(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken || cancellationToken.IsCancellationRequested)
+            {
+                result = Err<OnewayAck>(Error.Canceled(token: cancellationToken));
+            }
+            catch (Exception ex)
+            {
+                result = Err<OnewayAck>(Error.FromException(ex));
+            }
+
+            if (result.IsSuccess)
+            {
+                await safeLease.CompleteAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await safeLease.FailAsync(result.Error!, requeue: false, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
 
     private async ValueTask<Result<TResult>> WithPeerContextAsync<TResult>(
         RequestMeta meta,

@@ -105,9 +105,11 @@
     <File Path="global.json" />
     <File Path=".editorconfig" />
   </Folder>
-  <Folder Name="/src/">
+    <Folder Name="/src/">
     <Project Path="src/OmniRelay.ControlPlane.Abstractions/OmniRelay.ControlPlane.Abstractions.csproj" />
     <Project Path="src/OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
+    <Project Path="src/OmniRelay.ControlPlane.Host/OmniRelay.ControlPlane.Host.csproj" />
+    <Project Path="src/OmniRelay.DataPlane.Host/OmniRelay.DataPlane.Host.csproj" />
     <Project Path="src/OmniRelay.DataPlane/OmniRelay.DataPlane.csproj" />
     <Project Path="src/OmniRelay.Diagnostics.Abstractions/OmniRelay.Diagnostics.Abstractions.csproj" />
     <Project Path="src/OmniRelay.Diagnostics.Alerting/OmniRelay.Diagnostics.Alerting.csproj" />
@@ -131,7 +133,48 @@
     <Project Path="src/OmniRelay.ShardStore.Relational/OmniRelay.ShardStore.Relational.csproj" />
     <Project Path="src/OmniRelay.ShardStore.Sqlite/OmniRelay.ShardStore.Sqlite.csproj" />
     <Project Path="src/OmniRelay.Transport.Host/OmniRelay.Transport.Host.csproj" />
-    <Project Path="src/OmniRelay/OmniRelay.csproj" />
+      <Project Path="src/OmniRelay/OmniRelay.csproj" />
+      <Folder Name="/src/plugins/">
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Transport/OmniRelay.Plugins.Internal.Transport.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Observability/OmniRelay.Plugins.Internal.Observability.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Registry/OmniRelay.Plugins.Internal.Registry.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Mesh/OmniRelay.Plugins.Internal.Mesh.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Identity/OmniRelay.Plugins.Internal.Identity.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Replication/OmniRelay.Plugins.Internal.Replication.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Topology/OmniRelay.Plugins.Internal.Topology.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Authorization/OmniRelay.Plugins.Internal.Authorization.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Bootstrap/OmniRelay.Plugins.Internal.Bootstrap.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Alerting/OmniRelay.Plugins.Internal.Alerting.csproj" />
+        <Project Path="src/plugins/OmniRelay.Plugins.Internal.Extensions/OmniRelay.Plugins.Internal.Extensions.csproj" />
+      </Folder>
+    </Folder>
+  <Folder Name="/src/abstractions/">
+    <Project Path="src/abstractions/OmniRelay.Alerting.Abstractions/OmniRelay.Alerting.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Authorization.Abstractions/OmniRelay.Authorization.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Bootstrap.Abstractions/OmniRelay.Bootstrap.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Extensions.Abstractions/OmniRelay.Extensions.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Identity.Abstractions/OmniRelay.Identity.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Mesh.Abstractions/OmniRelay.Mesh.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Observability.Abstractions/OmniRelay.Observability.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Registry.Abstractions/OmniRelay.Registry.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Replication.Abstractions/OmniRelay.Replication.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Topology.Abstractions/OmniRelay.Topology.Abstractions.csproj" />
+    <Project Path="src/abstractions/OmniRelay.Transport.Abstractions/OmniRelay.Transport.Abstractions.csproj" />
+  </Folder>
+  <Folder Name="/src/control-plane/" />
+  <Folder Name="/src/data-plane/" />
+  <Folder Name="/src/plugins/">
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Alerting/OmniRelay.Plugins.Internal.Alerting.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Authorization/OmniRelay.Plugins.Internal.Authorization.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Bootstrap/OmniRelay.Plugins.Internal.Bootstrap.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Extensions/OmniRelay.Plugins.Internal.Extensions.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Identity/OmniRelay.Plugins.Internal.Identity.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Mesh/OmniRelay.Plugins.Internal.Mesh.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Observability/OmniRelay.Plugins.Internal.Observability.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Registry/OmniRelay.Plugins.Internal.Registry.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Replication/OmniRelay.Plugins.Internal.Replication.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Topology/OmniRelay.Plugins.Internal.Topology.csproj" />
+    <Project Path="src/plugins/OmniRelay.Plugins.Internal.Transport/OmniRelay.Plugins.Internal.Transport.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj" />
@@ -142,6 +185,7 @@
     <Project Path="tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj" />
     <Project Path="tests/OmniRelay.FeatureTests/OmniRelay.FeatureTests.csproj" />
     <Project Path="tests/OmniRelay.HyperscaleFeatureTests/OmniRelay.HyperscaleFeatureTests.csproj" />
+    <Project Path="tests/OmniRelay.Plugins.UnitTests/OmniRelay.Plugins.UnitTests.csproj" />
     <Project Path="tests/OmniRelay.MeshKit.AotSmoke/OmniRelay.MeshKit.AotSmoke.csproj" />
     <File Path="tests\Directory.Build.props" />
   </Folder>

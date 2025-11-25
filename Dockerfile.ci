@@ -83,6 +83,7 @@ RUN set -euo pipefail && \
         dotnet test "${proj}" \
             -c Release \
             --no-build \
+            --blame \
             --logger "trx;LogFileName=${name}.trx" \
             --results-directory "${result_dir}" \
             --collect:"XPlat Code Coverage"; \

@@ -13,6 +13,8 @@ internal static class ShardControlPlaneErrors
     private const string RepositoryFailureCode = "shards.control.repository.failure";
     private const string StreamFailureCode = "shards.control.stream.failure";
     private const string SimulationRequestRequiredCode = "shards.control.simulation.request_required";
+    private const string AssignmentMissingCode = "shards.control.assignment.missing";
+    private const string AssignmentFailedCode = "shards.control.assignment.failed";
 
     public static Error FilterRequired() =>
         Error.From("A shard filter must be provided.", FilterRequiredCode);
@@ -47,4 +49,12 @@ internal static class ShardControlPlaneErrors
 
     public static Error SimulationRequestRequired() =>
         Error.From("Simulation request body is required.", SimulationRequestRequiredCode);
+
+    public static Error AssignmentMissing(string shardId) =>
+        Error.From($"Shard assignment refers to missing shard '{shardId}'.", AssignmentMissingCode)
+            .WithMetadata("shardId", shardId);
+
+    public static Error AssignmentFailed(string shardId, string reason) =>
+        Error.From(reason, AssignmentFailedCode)
+            .WithMetadata("shardId", shardId);
 }

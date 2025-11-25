@@ -1,4 +1,4 @@
 {
     "chatgpt.openOnStartup": false,
-    "chatgpt.commentCodeLensEnabled": false
+    "chatgpt.commentCodeLensEnabled": true
 }

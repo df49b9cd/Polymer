@@ -295,7 +295,7 @@ public class CodegenWorkflowIntegrationTests
             {
                 streamValues.Add(message.ValueOrChecked().Body.Value);
             }
-            streamValues.Should().Equal(new[] { "flow#0", "flow#1", "flow#2" });
+            streamValues.Should().Equal(["flow#0", "flow#1", "flow#2"]);
 
             var sessionResult = await client.ClientStreamAsync(cancellationToken: ct);
             await using (var session = sessionResult.ValueOrChecked())
@@ -320,7 +320,7 @@ public class CodegenWorkflowIntegrationTests
                     duplexValues.Add(response.ValueOrChecked().Body.Value);
                 }
 
-                duplexValues.Should().Equal(new[] { "ready", "echo:alpha", "echo:beta" });
+                duplexValues.Should().Equal(["ready", "echo:alpha", "echo:beta"]);
             }
         }
         finally

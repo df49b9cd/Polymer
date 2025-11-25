@@ -45,7 +45,7 @@ public sealed class ProgramCommandTests : CliTestBase
             "abcd",
             DateTimeOffset.Parse("2024-10-01T00:00:00Z", CultureInfo.InvariantCulture),
             "chg-1");
-        var response = new ShardListResponse(new[] { shard }, "cursor-123", 42);
+        var response = new ShardListResponse([shard], "cursor-123", 42);
         var json = JsonSerializer.Serialize(response, OmniRelayCliJsonContext.Default.ShardListResponse);
         var handler = new StubHttpMessageHandler(request =>
         {
@@ -147,7 +147,7 @@ public sealed class ProgramCommandTests : CliTestBase
             OwnerNodeId = shard.OwnerNodeId,
             PreviousOwnerNodeId = "node-a"
         });
-        var response = new ShardDiffResponse(new[] { diff }, diff.Position);
+        var response = new ShardDiffResponse([diff], diff.Position);
         var json = JsonSerializer.Serialize(response, OmniRelayCliJsonContext.Default.ShardDiffResponse);
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -187,14 +187,12 @@ public sealed class ProgramCommandTests : CliTestBase
             "mesh.control",
             "rendezvous",
             DateTimeOffset.UtcNow,
-            new[]
-            {
+            [
                 new ShardSimulationAssignment("mesh.control", "shard-01", "node-a", 1, null)
-            },
-            new[]
-            {
+            ],
+            [
                 new ShardSimulationChange("mesh.control", "shard-01", "node-a", "node-b", true)
-            });
+            ]);
 
         var json = JsonSerializer.Serialize(simulation, OmniRelayCliJsonContext.Default.ShardSimulationResponse);
         var handler = new StubHttpMessageHandler(request =>

@@ -1,8 +1,13 @@
 using System.Collections.Concurrent;
+using Hugo;
+using Hugo.Policies;
 using Microsoft.Extensions.Logging;
+using OmniRelay.ControlPlane.Primitives;
 using OmniRelay.Core.Gossip;
 using OmniRelay.Core.Transport;
 using OmniRelay.Diagnostics;
+using static Hugo.Go;
+using Unit = Hugo.Go.Unit;
 
 namespace OmniRelay.Core.Leadership;
 
@@ -17,6 +22,17 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
     private readonly ILogger<LeadershipCoordinator> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, ScopeState> _scopes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ResultExecutionPolicy _storePolicy = ResultExecutionPolicy.None.WithRetry(
+        ResultRetryPolicy.Exponential(
+            maxAttempts: 3,
+            TimeSpan.FromMilliseconds(100),
+            2.0,
+            TimeSpan.FromSeconds(1)));
+    private TaskQueue<Func<CancellationToken, ValueTask<Result<Unit>>>>? _scopeQueue;
+    private TaskQueueOptions? _scopeQueueOptions;
+    private SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<Unit>>>>? _scopeSafeQueue;
+    private TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<Unit>>>>? _scopeAdapter;
+    private Task? _scopePump;
     private readonly object _lifecycleLock = new();
     private CancellationTokenSource? _cts;
     private Task? _loop;
@@ -75,6 +91,14 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
 
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var coordinatorCts = _cts;
+            _scopeQueueOptions = CreateScopeQueueOptions();
+            _scopeQueue = new TaskQueue<Func<CancellationToken, ValueTask<Result<Unit>>>>(_scopeQueueOptions, _timeProvider, (_, _) => ValueTask.CompletedTask);
+            _scopeSafeQueue = new SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<Unit>>>>(_scopeQueue, ownsQueue: true);
+            _scopeAdapter = TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<Unit>>>>.Create(
+                _scopeQueue,
+                concurrency: 1,
+                ownsQueue: false);
+            _scopePump = RunScopePumpAsync(coordinatorCts.Token);
             _loop = Task.Run(() => RunAsync(coordinatorCts!.Token), CancellationToken.None);
         }
 
@@ -113,6 +137,32 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
                 }
             }
         }
+
+        if (_scopePump is not null)
+        {
+            try
+            {
+                await _scopePump.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+            }
+        }
+
+        if (_scopeAdapter is not null)
+        {
+            await _scopeAdapter.DisposeAsync().ConfigureAwait(false);
+            _scopeAdapter = null;
+        }
+
+        if (_scopeSafeQueue is not null)
+        {
+            await _scopeSafeQueue.DisposeAsync().ConfigureAwait(false);
+            _scopeSafeQueue = null;
+        }
+
+        _scopeQueue = null;
+        _scopeQueueOptions = null;
 
         foreach (var state in _scopes.Values.Where(s => s.Lease is not null && string.Equals(s.Lease.LeaderId, NodeId, StringComparison.Ordinal)))
         {
@@ -153,6 +203,7 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
         }
 
         _disposed = true;
+        _scopePump = null;
         _cts?.Cancel();
         _cts?.Dispose();
     }
@@ -184,28 +235,35 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
 
             foreach (var state in _scopes.Values)
             {
-                try
+                var work = BuildScopeWork(state, snapshot);
+                if (_scopeSafeQueue is not null)
                 {
-                    await EvaluateScopeAsync(state, snapshot, cancellationToken).ConfigureAwait(false);
+                    var enqueue = await _scopeSafeQueue.EnqueueAsync(work, cancellationToken).ConfigureAwait(false);
+                    if (enqueue.IsFailure && !cancellationToken.IsCancellationRequested)
+                    {
+                        LeadershipCoordinatorLog.EvaluationFailed(_logger, state.Scope.ScopeId, enqueue.Error?.Cause ?? new InvalidOperationException(enqueue.Error?.Message ?? "scope enqueue failed"));
+                    }
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                else
                 {
-                    return;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
-                {
-                    LeadershipCoordinatorLog.EvaluationFailed(_logger, state.Scope.ScopeId, ex);
+                    var result = await work(cancellationToken).ConfigureAwait(false);
+                    if (result.IsFailure && !cancellationToken.IsCancellationRequested)
+                    {
+                        LeadershipCoordinatorLog.EvaluationFailed(_logger, state.Scope.ScopeId, result.Error?.Cause ?? new InvalidOperationException(result.Error?.Message ?? "scope evaluation failed"));
+                    }
                 }
             }
 
-            try
+            var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(25, 125));
+            var delayResult = await AsyncDelay.DelayAsync(_options.EvaluationInterval + jitter, _timeProvider, cancellationToken).ConfigureAwait(false);
+            if (delayResult.IsFailure)
             {
-                var jitter = TimeSpan.FromMilliseconds(Random.Shared.Next(25, 125));
-                await Task.Delay(_options.EvaluationInterval + jitter, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                break;
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                LeadershipCoordinatorLog.EvaluationFailed(_logger, "global", delayResult.Error?.Cause ?? new InvalidOperationException(delayResult.Error?.Message));
             }
         }
     }
@@ -264,6 +322,85 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
         }
     }
 
+    private Func<CancellationToken, ValueTask<Result<Unit>>> BuildScopeWork(ScopeState state, MeshGossipClusterView? snapshot)
+    {
+        return async ct =>
+        {
+            try
+            {
+                await EvaluateScopeAsync(state, snapshot, ct).ConfigureAwait(false);
+                return Ok(Unit.Value);
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == ct)
+            {
+                return Err<Unit>(Error.Canceled(token: oce.CancellationToken));
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+            {
+                return Err<Unit>(Error.FromException(ex));
+            }
+        };
+    }
+
+    private TaskQueueOptions CreateScopeQueueOptions()
+    {
+        return new TaskQueueOptions
+        {
+            Capacity = Math.Max(8, _scopes.Count * 2),
+            LeaseDuration = _options.EvaluationInterval + TimeSpan.FromSeconds(5),
+            HeartbeatInterval = TimeSpan.FromMilliseconds(Math.Max(250, _options.EvaluationInterval.TotalMilliseconds / 2)),
+            LeaseSweepInterval = TimeSpan.FromSeconds(5),
+            RequeueDelay = TimeSpan.FromMilliseconds(100),
+            MaxDeliveryAttempts = 3,
+            Name = "leadership-scope-eval"
+        };
+    }
+
+    private async Task RunScopePumpAsync(CancellationToken cancellationToken)
+    {
+        if (_scopeAdapter is null || _scopeSafeQueue is null || _scopeQueueOptions is null)
+        {
+            return;
+        }
+
+        var maxAttempts = _scopeQueueOptions.MaxDeliveryAttempts;
+
+        await foreach (var lease in _scopeAdapter.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var safeLease = _scopeSafeQueue.Wrap(lease);
+            Result<Unit> result;
+            try
+            {
+                result = await lease.Value(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken || cancellationToken.IsCancellationRequested)
+            {
+                result = Err<Unit>(Error.Canceled(token: oce.CancellationToken));
+            }
+            catch (Exception ex)
+            {
+                result = Err<Unit>(Error.FromException(ex));
+            }
+
+            if (result.IsSuccess)
+            {
+                var ack = await safeLease.CompleteAsync(cancellationToken).ConfigureAwait(false);
+                if (ack.IsFailure)
+                {
+                    LeadershipCoordinatorLog.EvaluationFailed(_logger, "scope-ack", ack.Error?.Cause ?? new InvalidOperationException(ack.Error?.Message ?? "scope ack failed"));
+                }
+                continue;
+            }
+
+            var requeue = lease.Attempt < maxAttempts && result.Error?.Code != ErrorCodes.Canceled;
+            var fail = await safeLease.FailAsync(result.Error!, requeue, cancellationToken).ConfigureAwait(false);
+            if (fail.IsFailure)
+            {
+                LeadershipCoordinatorLog.EvaluationFailed(_logger, "scope-fail", fail.Error?.Cause ?? new InvalidOperationException(fail.Error?.Message ?? "scope fail handling failed"));
+            }
+        }
+    }
+
     private async ValueTask ObserveStoreAsync(ScopeState state, CancellationToken cancellationToken)
     {
         var lease = await _store.GetAsync(state.Scope.ScopeId, cancellationToken).ConfigureAwait(false);
@@ -293,7 +430,23 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
         state.LastElectionStart = startedAt;
         var correlationId = Guid.NewGuid();
 
-        var result = await _store.TryAcquireAsync(state.Scope.ScopeId, NodeId, _options.LeaseDuration, cancellationToken).ConfigureAwait(false);
+        var acquireResult = await Result.RetryWithPolicyAsync(
+            async (_, ct) =>
+            {
+                var res = await _store.TryAcquireAsync(state.Scope.ScopeId, NodeId, _options.LeaseDuration, ct).ConfigureAwait(false);
+                return Ok(res);
+            },
+            _storePolicy,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
+
+        if (acquireResult.IsFailure)
+        {
+            state.LastFailure = startedAt;
+            return;
+        }
+
+        var result = acquireResult.Value;
         if (result.Succeeded && result.Lease is { } lease)
         {
             state.Lease = lease;
@@ -325,8 +478,22 @@ public sealed partial class LeadershipCoordinator : ILifecycle, ILeadershipObser
 
         cancellationToken.ThrowIfCancellationRequested();
         var correlationId = Guid.NewGuid();
-        var result = await _store.TryRenewAsync(state.Scope.ScopeId, state.Lease, _options.LeaseDuration, cancellationToken).ConfigureAwait(false);
+        var renewResult = await Result.RetryWithPolicyAsync(
+            async (_, ct) =>
+            {
+                var res = await _store.TryRenewAsync(state.Scope.ScopeId, state.Lease, _options.LeaseDuration, ct).ConfigureAwait(false);
+                return Ok(res);
+            },
+            _storePolicy,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
 
+        if (renewResult.IsFailure)
+        {
+            return;
+        }
+
+        var result = renewResult.Value;
         if (result.Succeeded && result.Lease is { } renewed)
         {
             state.Lease = renewed;

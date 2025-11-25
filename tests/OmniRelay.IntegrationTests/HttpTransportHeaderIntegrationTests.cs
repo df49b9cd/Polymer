@@ -129,7 +129,7 @@ public class HttpTransportHeaderIntegrationTests
                 responseEncoding.Should().Contain(ProtobufNormalizedEncoding);
                 response.Content.Headers.ContentType?.MediaType.Should().Be(ProtobufContentType);
                 var body = await response.Content.ReadAsByteArrayAsync(ct);
-                body.Should().Equal(new byte[] { 0x0A, 0x0B, 0x0C });
+                body.Should().Equal([0x0A, 0x0B, 0x0C]);
             }
 
             client.DefaultRequestHeaders.Remove(HttpTransportHeaders.Procedure);

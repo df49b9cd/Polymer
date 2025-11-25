@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 using Hugo;
 using Hugo.Policies;
 using Microsoft.Extensions.Logging;
@@ -135,16 +137,17 @@ public sealed partial class ShardControlPlaneService
                 1);
         }
 
-        var stream = Result.MapStreamAsync<ShardRecordDiff, ShardRecordDiff>(
-            _repository.StreamDiffsAsync(resumeToken, cancellationToken),
-            (diff, _) => new ValueTask<Result<ShardRecordDiff>>(Ok(diff)),
-            cancellationToken);
-
         return Result.FilterStreamAsync(
-            stream,
+            StreamDiffs(resumeToken, cancellationToken),
             diff => filter.Matches(diff.Current),
             cancellationToken);
     }
+
+    public ValueTask<Result<IReadOnlyList<ShardRecordDiff>>> CollectWatchAsync(
+        long? resumeToken,
+        ShardFilter filter,
+        CancellationToken cancellationToken) =>
+        Result.CollectErrorsAsync(WatchAsync(resumeToken, filter, cancellationToken), cancellationToken);
 
     public async ValueTask<Result<ShardSimulationResponse>> SimulateAsync(
         ShardSimulationRequest request,
@@ -228,13 +231,126 @@ public sealed partial class ShardControlPlaneService
         }
 
         var assignments = plan.Value.Assignments.Select(ShardControlPlaneMapper.ToAssignment).ToArray();
-        var lookup = existing.ToDictionary(r => r.ShardId, StringComparer.OrdinalIgnoreCase);
+        if (assignments.Length == 0)
+        {
+            return Ok(new ShardSimulationResponse(
+                request.Namespace,
+                resolvedStrategy,
+                _timeProvider.GetUtcNow(),
+                assignments,
+                Array.Empty<ShardSimulationChange>()));
+        }
 
-        var changes = plan.Value.Assignments
-            .Where(assignment => lookup.TryGetValue(assignment.ShardId, out var record) &&
-                                 !string.Equals(record!.OwnerNodeId, assignment.OwnerNodeId, StringComparison.Ordinal))
-            .Select(assignment => ShardControlPlaneMapper.ToChange(assignment, lookup[assignment.ShardId]))
-            .ToArray();
+        var lookup = existing.ToDictionary(r => r.ShardId, StringComparer.OrdinalIgnoreCase);
+        var assignmentLookup = plan.Value.Assignments.ToDictionary(a => a.ShardId, StringComparer.OrdinalIgnoreCase);
+
+        var missingAssignment = assignments.FirstOrDefault(a => !lookup.ContainsKey(a.ShardId));
+        if (missingAssignment is not null)
+        {
+            return Err<ShardSimulationResponse>(ShardControlPlaneErrors.AssignmentMissing(missingAssignment.ShardId));
+        }
+
+        var workerCount = Math.Min(assignments.Length, Environment.ProcessorCount);
+        var partitionSize = (int)Math.Ceiling(assignments.Length / (double)workerCount);
+        var partitions = assignments.Chunk(partitionSize).ToArray();
+        workerCount = partitions.Length;
+
+        var changeReaders = new List<ChannelReader<ShardSimulationChange>>(workerCount);
+        var operations = new List<Func<ResultPipelineStepContext, CancellationToken, ValueTask<Result<Unit>>>>(workerCount);
+
+        foreach (var slice in partitions)
+        {
+            var changeChannel = MakeChannel<ShardSimulationChange>(new BoundedChannelOptions(Math.Max(16, slice.Length))
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait
+            });
+
+            changeReaders.Add(changeChannel.Reader);
+
+            operations.Add(async (ctx, ct) =>
+            {
+                try
+                {
+                    foreach (var assignment in slice)
+                    {
+                        if (!lookup.TryGetValue(assignment.ShardId, out var record))
+                        {
+                            changeChannel.Writer.TryComplete();
+                            return Err<Unit>(ShardControlPlaneErrors.AssignmentMissing(assignment.ShardId));
+                        }
+
+                        if (string.Equals(assignment.LocalityHint, "fail", StringComparison.OrdinalIgnoreCase))
+                        {
+                            changeChannel.Writer.TryComplete();
+                            return Err<Unit>(ShardControlPlaneErrors.AssignmentFailed(assignment.ShardId, "Simulated worker failure."));
+                        }
+
+                        if (!string.Equals(record.OwnerNodeId, assignment.OwnerNodeId, StringComparison.Ordinal))
+                        {
+                            var sourceAssignment = assignmentLookup[assignment.ShardId];
+                            var change = ShardControlPlaneMapper.ToChange(sourceAssignment, record);
+                            await changeChannel.Writer.WriteAsync(change, ct).ConfigureAwait(false);
+                        }
+                    }
+
+                    changeChannel.Writer.TryComplete();
+                    return Ok(Unit.Value);
+                }
+                catch (OperationCanceledException oce) when (oce.CancellationToken == ct)
+                {
+                    changeChannel.Writer.TryComplete(oce);
+                    return Err<Unit>(Error.Canceled("Shard simulation canceled.", oce.CancellationToken));
+                }
+                catch (Exception ex)
+                {
+                    changeChannel.Writer.TryComplete(ex);
+                    return Err<Unit>(Error.FromException(ex));
+                }
+            });
+        }
+
+        var fanOut = await ResultPipeline.FanOutAsync(
+            operations,
+            _repositoryPolicy,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
+
+        if (fanOut.IsFailure)
+        {
+            return Err<ShardSimulationResponse>(fanOut.Error);
+        }
+
+        var mergedChannel = MakeChannel<ShardSimulationChange>(new BoundedChannelOptions(assignments.Length)
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+
+        var mergeResult = await Result.RetryWithPolicyAsync<Go.Unit>(
+            (ctx, ct) => ResultPipelineChannels.MergeAsync(
+                ctx,
+                changeReaders,
+                mergedChannel.Writer,
+                completeDestination: true,
+                timeout: null,
+                ct),
+            _repositoryPolicy,
+            _timeProvider,
+            cancellationToken).ConfigureAwait(false);
+
+        if (mergeResult.IsFailure)
+        {
+            return Err<ShardSimulationResponse>(mergeResult.Error);
+        }
+
+        var changes = new List<ShardSimulationChange>(assignments.Length);
+        await foreach (var change in mergedChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            changes.Add(change);
+        }
 
         return Ok(new ShardSimulationResponse(
             request.Namespace,
@@ -251,5 +367,55 @@ public sealed partial class ShardControlPlaneService
 
         [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Shard simulation requested for namespace {Namespace} but no shard records exist.")]
         public static partial void SimulationNamespaceMissing(ILogger logger, string @namespace);
+    }
+
+    private IAsyncEnumerable<Result<ShardRecordDiff>> StreamDiffs(
+        long? resumeToken,
+        CancellationToken cancellationToken)
+    {
+        return Stream(cancellationToken);
+
+        async IAsyncEnumerable<Result<ShardRecordDiff>> Stream([EnumeratorCancellation] CancellationToken ct)
+        {
+            var enumerator = _repository.StreamDiffsAsync(resumeToken, ct).GetAsyncEnumerator(ct);
+            Result<ShardRecordDiff>? failure = null;
+            try
+            {
+                while (true)
+                {
+                    bool hasNext;
+                    try
+                    {
+                        hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException oce) when (oce.CancellationToken == ct)
+                    {
+                        failure = Err<ShardRecordDiff>(Error.Canceled("Shard watch canceled.", ct));
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        failure = Err<ShardRecordDiff>(ShardControlPlaneErrors.StreamFailure(ex, "shards.watch"));
+                        break;
+                    }
+
+                    if (!hasNext)
+                    {
+                        yield break;
+                    }
+
+                    yield return Ok(enumerator.Current);
+                }
+            }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+
+            if (failure is not null)
+            {
+                yield return failure.Value;
+            }
+        }
     }
 }

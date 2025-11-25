@@ -50,11 +50,11 @@ internal static class LeadershipMetrics
     {
         var tags = string.IsNullOrWhiteSpace(incumbent)
             ? new[] { new KeyValuePair<string, object?>("mesh.scope", scope) }
-            : new[]
-            {
+            :
+            [
                 new KeyValuePair<string, object?>("mesh.scope", scope),
                 new KeyValuePair<string, object?>("mesh.leader", incumbent)
-            };
+            ];
 
         SplitBrainCounter.Add(1, tags);
     }

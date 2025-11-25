@@ -23,8 +23,8 @@ public sealed class LeadershipHyperscaleFeatureTests : IAsyncLifetime
         _loggerFactory = NullLoggerFactory.Instance;
         _options = new HyperscaleLeadershipClusterOptions
         {
-            Regions = new[] { "iad", "phx", "dub" },
-            Namespaces = new[] { "mesh.control", "mesh.telemetry" },
+            Regions = ["iad", "phx", "dub"],
+            Namespaces = ["mesh.control", "mesh.telemetry"],
             NodesPerRegion = 3,
             ShardsPerNamespace = 4,
             LeaseDuration = TimeSpan.FromSeconds(4),
@@ -113,7 +113,7 @@ public sealed class LeadershipHyperscaleFeatureTests : IAsyncLifetime
                 await _cluster.ForceFailoverAsync(scopeId, ct);
 
                 await ChurnWatchersAsync(watchers, observers, scopes, replacements: watchers.Count / 3, ct);
-                await EnsureWatchersConvergedAsync(watchers, TimeSpan.FromSeconds(15), ct, new[] { scopeId });
+                await EnsureWatchersConvergedAsync(watchers, TimeSpan.FromSeconds(15), ct, [scopeId]);
             }
         }
         finally

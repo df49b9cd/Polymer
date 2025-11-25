@@ -14,10 +14,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OmniRelay.ControlPlane.Abstractions\OmniRelay.ControlPlane.Abstractions.csproj" />
+    <ProjectReference Include="..\abstractions\OmniRelay.Identity.Abstractions\OmniRelay.Identity.Abstractions.csproj" />
     <ProjectReference Include="..\OmniRelay.Codecs\OmniRelay.Codecs.csproj" />
     <ProjectReference Include="..\OmniRelay.Protos\OmniRelay.Protos.csproj" />
     <ProjectReference Include="..\OmniRelay.Transport.Host\OmniRelay.Transport.Host.csproj" />
     <ProjectReference Include="..\OmniRelay.DataPlane\OmniRelay.DataPlane.csproj" />
+    <ProjectReference Include="..\plugins\OmniRelay.Plugins.Internal.Identity\OmniRelay.Plugins.Internal.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>

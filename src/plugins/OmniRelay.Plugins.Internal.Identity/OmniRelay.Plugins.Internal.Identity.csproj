@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <AssemblyName>OmniRelay.Plugins.Internal.Identity</AssemblyName>
+    <RootNamespace>OmniRelay.Plugins.Internal.Identity</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../OmniRelay.Protos/OmniRelay.Protos.csproj" />
+    <ProjectReference Include="../../OmniRelay.DataPlane/OmniRelay.DataPlane.csproj" />
+    <ProjectReference Include="../../abstractions/OmniRelay.Identity.Abstractions/OmniRelay.Identity.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

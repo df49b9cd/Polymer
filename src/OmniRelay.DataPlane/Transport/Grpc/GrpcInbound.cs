@@ -15,7 +15,7 @@ using OmniRelay.ControlPlane.Upgrade;
 using OmniRelay.Core.Transport;
 using OmniRelay.Dispatcher;
 using OmniRelay.Errors;
-using OmniRelay.Security.Authorization;
+using OmniRelay.Authorization;
 using OmniRelay.Transport.Grpc.Interceptors;
 using OmniRelay.Transport.Http;
 using OmniRelay.Transport.Security;
@@ -39,7 +39,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
     private readonly GrpcCompressionOptions? _compressionOptions;
     private readonly GrpcTelemetryOptions? _telemetryOptions;
     private readonly TransportSecurityPolicyEvaluator? _transportSecurity;
-    private readonly MeshAuthorizationEvaluator? _authorizationEvaluator;
+    private readonly IMeshAuthorizationEvaluator? _authorizationEvaluator;
     private GrpcServerInterceptorRegistry? _serverInterceptorRegistry;
     private int _interceptorsConfigured;
     private volatile bool _isDraining;
@@ -70,7 +70,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
         GrpcCompressionOptions? compressionOptions = null,
         GrpcTelemetryOptions? telemetryOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         if (urls is null)
         {
@@ -110,7 +110,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
         GrpcCompressionOptions? compressionOptions = null,
         GrpcTelemetryOptions? telemetryOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         if (urls is null)
         {
@@ -151,7 +151,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
         GrpcCompressionOptions? compressionOptions = null,
         GrpcTelemetryOptions? telemetryOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
         : this(urls.Select(u => new Uri(u, UriKind.Absolute)), configureServices, configureApp, serverTlsOptions, serverRuntimeOptions, compressionOptions, telemetryOptions, transportSecurity, authorizationEvaluator)
     {
     }
@@ -165,7 +165,7 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
         GrpcCompressionOptions? compressionOptions = null,
         GrpcTelemetryOptions? telemetryOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         _urls = urls?.Select(u => u ?? throw new ArgumentException("Inbound URL cannot be null.", nameof(urls))).ToArray()
             ?? throw new ArgumentNullException(nameof(urls));
@@ -375,12 +375,6 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
 
         builder.Services.AddSingleton(new GrpcTransportHealthService(_dispatcher, this));
 
-        if (_authorizationEvaluator is not null)
-        {
-            builder.Services.AddSingleton(_authorizationEvaluator);
-            builder.Services.AddSingleton<MeshAuthorizationGrpcInterceptor>();
-        }
-
         if (_transportSecurity is not null)
         {
             builder.Services.AddSingleton(_transportSecurity);
@@ -437,11 +431,6 @@ public sealed partial class GrpcInbound : ILifecycle, IDispatcherAware, IGrpcSer
             if (_transportSecurity is not null)
             {
                 options.Interceptors.Add<TransportSecurityGrpcInterceptor>();
-            }
-
-            if (_authorizationEvaluator is not null)
-            {
-                options.Interceptors.Add<MeshAuthorizationGrpcInterceptor>();
             }
 
             if (_compressionOptions != null)

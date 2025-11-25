@@ -1,5 +1,6 @@
 using Grpc.Core;
 using Grpc.Health.V1;
+using Hugo;
 using OmniRelay.Dispatcher;
 
 namespace OmniRelay.Transport.Grpc;
@@ -30,19 +31,31 @@ internal sealed class GrpcTransportHealthService(Dispatcher.Dispatcher dispatche
         IServerStreamWriter<HealthCheckResponse> responseStream,
         ServerCallContext context)
     {
+        var delay = TimeSpan.FromSeconds(5);
         while (!context.CancellationToken.IsCancellationRequested)
         {
             var response = await Check(request, context).ConfigureAwait(false);
             await responseStream.WriteAsync(response).ConfigureAwait(false);
 
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(5), context.CancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
+            var delayResult = await DelayAsync(delay, context.CancellationToken).ConfigureAwait(false);
+            if (delayResult.IsFailure && context.CancellationToken.IsCancellationRequested)
             {
                 break;
             }
         }
+    }
+
+    private static ValueTask<Result<Go.Unit>> DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        if (delay <= TimeSpan.Zero)
+        {
+            return ValueTask.FromResult(Result.Ok(Go.Unit.Value));
+        }
+
+        return Result.TryAsync<Go.Unit>(async ct =>
+        {
+            await Go.DelayAsync(delay, TimeProvider.System, ct).ConfigureAwait(false);
+            return Go.Unit.Value;
+        }, cancellationToken: cancellationToken);
     }
 }

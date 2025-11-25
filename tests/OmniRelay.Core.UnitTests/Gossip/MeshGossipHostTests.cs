@@ -95,8 +95,8 @@ public sealed class MeshGossipHostTests
             {
                 SchemaVersion = MeshGossipOptions.CurrentSchemaVersion,
                 Sender = senderMetadata,
-                Members = new[]
-                {
+                Members =
+                [
                     new MeshGossipMemberSnapshot
                     {
                         NodeId = otherMetadata.NodeId,
@@ -104,7 +104,7 @@ public sealed class MeshGossipHostTests
                         LastSeen = DateTimeOffset.UtcNow,
                         Metadata = otherMetadata
                     }
-                }
+                ]
             };
 
             await InvokeProcessEnvelopeAsync(host, envelope, TestContext.Current.CancellationToken);
@@ -488,16 +488,16 @@ public sealed class MeshGossipHostTests
     }
 
     private static MeshGossipEnvelope InvokeBuildEnvelope(MeshGossipHost host, MeshGossipClusterView? snapshot = null) =>
-        (MeshGossipEnvelope)BuildEnvelopeMethod.Invoke(host, new object?[] { snapshot })!;
+        (MeshGossipEnvelope)BuildEnvelopeMethod.Invoke(host, [snapshot])!;
 
     private static void InvokeRecordMetrics(MeshGossipHost host, MeshGossipClusterView snapshot) =>
-        RecordMetricsMethod.Invoke(host, new object[] { snapshot });
+        RecordMetricsMethod.Invoke(host, [snapshot]);
 
     private static Task InvokeExecuteRoundAsync(MeshGossipHost host, CancellationToken cancellationToken) =>
-        (Task)ExecuteRoundAsyncMethod.Invoke(host, new object?[] { cancellationToken })!;
+        (Task)ExecuteRoundAsyncMethod.Invoke(host, [cancellationToken])!;
 
     private static Task InvokeRunSweepLoopAsync(MeshGossipHost host, CancellationToken cancellationToken) =>
-        (Task)RunSweepLoopAsyncMethod.Invoke(host, new object?[] { cancellationToken })!;
+        (Task)RunSweepLoopAsyncMethod.Invoke(host, [cancellationToken])!;
 
     private static void InvokeUpdateLeaseDiagnostics(MeshGossipHost host) =>
         UpdateLeaseDiagnosticsMethod.Invoke(host, Array.Empty<object?>());
@@ -510,7 +510,7 @@ public sealed class MeshGossipHostTests
         MeshGossipEnvelope envelope,
         CancellationToken cancellationToken)
     {
-        var task = (Task<MeshGossipEnvelope>)ProcessEnvelopeAsyncMethod.Invoke(host, new object?[] { envelope, cancellationToken })!;
+        var task = (Task<MeshGossipEnvelope>)ProcessEnvelopeAsyncMethod.Invoke(host, [envelope, cancellationToken])!;
         return task;
     }
 

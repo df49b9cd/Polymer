@@ -305,6 +305,12 @@ public static class ProtobufCallAdapters
                 }
             }
         }
+
+        /// <summary>
+        /// Aggregates all request messages, collecting failures with <see cref="Result.CollectErrorsAsync{T}(IAsyncEnumerable{Result{T}}, CancellationToken)"/>.
+        /// </summary>
+        public ValueTask<Result<IReadOnlyList<TRequest>>> CollectAllAsync(CancellationToken cancellationToken = default) =>
+            Result.CollectErrorsAsync(ReadAllAsync(cancellationToken), cancellationToken);
     }
 
     /// <summary>
@@ -364,6 +370,12 @@ public static class ProtobufCallAdapters
                 }
             }
         }
+
+        /// <summary>
+        /// Aggregates all duplex request messages, collecting failures instead of short-circuiting.
+        /// </summary>
+        public ValueTask<Result<IReadOnlyList<TRequest>>> CollectAllAsync(CancellationToken cancellationToken = default) =>
+            Result.CollectErrorsAsync(ReadAllAsync(cancellationToken), cancellationToken);
 
         /// <summary>Encodes and writes a typed response message to the duplex response stream, producing a result.</summary>
         public async ValueTask<Result<Unit>> WriteAsync(TResponse message, CancellationToken cancellationToken = default)

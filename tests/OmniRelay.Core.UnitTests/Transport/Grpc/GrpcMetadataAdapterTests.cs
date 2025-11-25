@@ -20,7 +20,7 @@ public class GrpcMetadataAdapterTests
             { GrpcTransportConstants.TtlHeader, "250" },
             { GrpcTransportConstants.DeadlineHeader, deadline.ToString("O", CultureInfo.InvariantCulture) },
             { "custom-header", "value" },
-            new Metadata.Entry("binary-bin", new byte[] { 1, 2, 3 })
+            new Metadata.Entry("binary-bin", [1, 2, 3])
         };
 
         var meta = GrpcMetadataAdapter.BuildRequestMeta(
@@ -54,7 +54,7 @@ public class GrpcMetadataAdapterTests
         {
             { "x-header", "value-1" },
             { GrpcTransportConstants.EncodingTrailer, "json" },
-            new Metadata.Entry("ignored-bin-bin", new byte[] { 1 })
+            new Metadata.Entry("ignored-bin-bin", [1])
         };
 
         var trailers = new Metadata

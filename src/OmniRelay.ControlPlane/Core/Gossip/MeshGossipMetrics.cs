@@ -46,11 +46,11 @@ internal static class MeshGossipMetrics
 
     public static void RecordFanout(int computed, int attempted, int duplicates)
     {
-        FanoutHistogram.Record(attempted, new[]
-        {
+        FanoutHistogram.Record(attempted,
+        [
             new KeyValuePair<string, object?>("mesh.fanout.computed", computed),
             new KeyValuePair<string, object?>("mesh.fanout.attempted", attempted)
-        });
+        ]);
 
         if (duplicates > 0)
         {
@@ -83,6 +83,6 @@ internal static class MeshGossipMetrics
             return;
         }
 
-        counter.Add(delta, new[] { new KeyValuePair<string, object?>("mesh.status", status) });
+        counter.Add(delta, [new KeyValuePair<string, object?>("mesh.status", status)]);
     }
 }

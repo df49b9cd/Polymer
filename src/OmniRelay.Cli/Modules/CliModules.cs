@@ -9,8 +9,7 @@ namespace OmniRelay.Cli.Modules;
 internal static class CliModules
 {
     public static IEnumerable<ICliModule> GetDefaultModules() =>
-        new ICliModule[]
-        {
+        [
             new ConfigCommandsModule(),
             new RequestModule(),
             new BenchmarkModule(),
@@ -18,7 +17,7 @@ internal static class CliModules
             new IntrospectModule(),
             new ScriptModule(),
             new MeshModule()
-        };
+        ];
 }
 
 internal sealed class ServeModule : ICliModule { public Command Build() => ProgramServeModule.CreateServeCommand(); }

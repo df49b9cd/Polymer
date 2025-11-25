@@ -18,7 +18,7 @@ namespace OmniRelay.Transport.Http;
 /// HTTP outbound transport that issues unary and oneway RPC requests over HTTP/1.1, HTTP/2, or HTTP/3.
 /// Applies per-call middleware and honors <see cref="HttpClientRuntimeOptions"/> for protocol negotiation.
 /// </summary>
-public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDiagnostic, IHttpOutboundMiddlewareSink
+public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDiagnostic, IHttpOutboundMiddlewareSink, IAsyncDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly Uri _requestUri;
@@ -28,6 +28,12 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
     private string? _middlewareService;
     private int _middlewareConfigured;
     private ConcurrentDictionary<string, HttpClientMiddlewareHandler>? _middlewarePipelines;
+    private TaskQueue<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>? _onewayQueue;
+    private SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>? _onewaySafeQueue;
+    private TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>? _onewayAdapter;
+    private CancellationTokenSource? _onewayCts;
+    private Task? _onewayPump;
+    private int _onewayInitialized;
 
     /// <summary>
     /// Creates a new HTTP outbound transport targeting a specific endpoint.
@@ -98,22 +104,65 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
     /// Starts the outbound transport. No-op for the HTTP client implementation.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    public ValueTask StartAsync(CancellationToken cancellationToken = default) =>
-        ValueTask.CompletedTask;
+    public ValueTask StartAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureOnewayQueueInitialized();
+        return ValueTask.CompletedTask;
+    }
 
     /// <summary>
     /// Stops the outbound transport, optionally disposing the underlying <see cref="HttpClient"/>.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    public ValueTask StopAsync(CancellationToken cancellationToken = default)
+    public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
+        if (_onewayCts is not null)
+        {
+            try
+            {
+                _onewayCts.Cancel();
+            }
+            catch
+            {
+                // best effort
+            }
+        }
+
+        if (_onewayPump is not null)
+        {
+            try
+            {
+                await _onewayPump.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            _onewayPump = null;
+        }
+
+        if (_onewayAdapter is not null)
+        {
+            await _onewayAdapter.DisposeAsync().ConfigureAwait(false);
+        }
+
+        if (_onewaySafeQueue is not null)
+        {
+            await _onewaySafeQueue.DisposeAsync().ConfigureAwait(false);
+        }
+        _onewayQueue = null;
+        _onewaySafeQueue = null;
+        _onewayAdapter = null;
+        _onewayCts?.Dispose();
+        _onewayCts = null;
+
         if (_disposeClient)
         {
             _httpClient.Dispose();
         }
-
-        return ValueTask.CompletedTask;
     }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync() => await StopAsync().ConfigureAwait(false);
 
     /// <summary>
     /// Performs a unary RPC over HTTP.
@@ -139,13 +188,29 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
     /// <returns>An acknowledgement if the server accepted the request; otherwise an error.</returns>
     private ValueTask<Result<OnewayAck>> CallOnewayAsync(
         IRequest<ReadOnlyMemory<byte>> request,
-        CancellationToken cancellationToken = default) =>
-        ExecuteHttpCallAsync(
-            request,
-            HttpOutboundCallKind.Oneway,
-            HttpCompletionOption.ResponseContentRead,
-            (httpRequest, response, token) => HandleOnewayResponseAsync(httpRequest, response, request.Meta, token),
-            cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        EnsureOnewayQueueInitialized();
+
+        var tcs = new TaskCompletionSource<Result<OnewayAck>>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var work = new Func<CancellationToken, ValueTask<Result<OnewayAck>>>(async ct =>
+        {
+            var result = await ExecuteHttpCallAsync(
+                    request,
+                    HttpOutboundCallKind.Oneway,
+                    HttpCompletionOption.ResponseContentRead,
+                    (httpRequest, response, token) => HandleOnewayResponseAsync(httpRequest, response, request.Meta, token),
+                    ct)
+                .ConfigureAwait(false);
+
+            tcs.TrySetResult(result);
+            return result;
+        });
+
+        var enqueue = _onewaySafeQueue!.EnqueueAsync(work, cancellationToken);
+        return AwaitEnqueuedAsync(enqueue, tcs, cancellationToken);
+    }
 
     /// <summary>
     /// Builds an <see cref="HttpRequestMessage"/> from the RPC request metadata and body.
@@ -216,6 +281,94 @@ public sealed class HttpOutbound : IUnaryOutbound, IOnewayOutbound, IOutboundDia
         }
 
         return httpRequest;
+    }
+
+    private void EnsureOnewayQueueInitialized()
+    {
+        if (Interlocked.CompareExchange(ref _onewayInitialized, 1, 0) != 0 && _onewaySafeQueue is not null)
+        {
+            return;
+        }
+
+        var options = new TaskQueueOptions
+        {
+            Capacity = 64,
+            LeaseDuration = TimeSpan.FromSeconds(30),
+            HeartbeatInterval = TimeSpan.FromSeconds(5),
+            LeaseSweepInterval = TimeSpan.FromSeconds(10),
+            RequeueDelay = TimeSpan.FromMilliseconds(50),
+            MaxDeliveryAttempts = 1,
+            Name = "http-oneway-send"
+        };
+
+        var queue = new TaskQueue<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>(options, TimeProvider.System, (_, _) => ValueTask.CompletedTask);
+        var safe = new SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>(queue, ownsQueue: true);
+        var adapter = TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<OnewayAck>>>>.Create(queue, concurrency: 4, ownsQueue: false);
+
+        _onewayQueue = queue;
+        _onewaySafeQueue = safe;
+        _onewayAdapter = adapter;
+        _onewayCts = new CancellationTokenSource();
+        _onewayPump = RunOnewayPumpAsync(adapter, safe, _onewayCts.Token);
+    }
+
+    private static async Task RunOnewayPumpAsync(
+        TaskQueueChannelAdapter<Func<CancellationToken, ValueTask<Result<OnewayAck>>>> adapter,
+        SafeTaskQueueWrapper<Func<CancellationToken, ValueTask<Result<OnewayAck>>>> safeQueue,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var lease in adapter.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var safeLease = safeQueue.Wrap(lease);
+            Result<OnewayAck> result;
+            try
+            {
+                result = await lease.Value(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken || cancellationToken.IsCancellationRequested)
+            {
+                result = Err<OnewayAck>(Error.Canceled(token: cancellationToken));
+            }
+            catch (Exception ex)
+            {
+                result = Err<OnewayAck>(Error.FromException(ex));
+            }
+
+            if (result.IsSuccess)
+            {
+                await safeLease.CompleteAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await safeLease.FailAsync(result.Error!, requeue: false, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static async ValueTask<Result<OnewayAck>> AwaitEnqueuedAsync(
+        ValueTask<Result<Unit>> enqueueTask,
+        TaskCompletionSource<Result<OnewayAck>> tcs,
+        CancellationToken cancellationToken)
+    {
+        var enqueue = await enqueueTask.ConfigureAwait(false);
+        if (enqueue.IsFailure)
+        {
+            return Err<OnewayAck>(enqueue.Error);
+        }
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            tcs.TrySetCanceled(cancellationToken);
+        });
+
+        try
+        {
+            return await tcs.Task.ConfigureAwait(false);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Err<OnewayAck>(Error.Canceled(token: cancellationToken));
+        }
     }
 
     /// <summary>
