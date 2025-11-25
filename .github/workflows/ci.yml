@@ -18,14 +18,15 @@ env:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
         rid: [ linux-x64 ]
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.rid }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-${{ matrix.rid }}
       cancel-in-progress: true
     steps:
       - name: Checkout
