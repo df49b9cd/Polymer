@@ -22,6 +22,7 @@
     <ProjectReference Include="..\OmniRelay.Diagnostics.Telemetry\OmniRelay.Diagnostics.Telemetry.csproj" />
     <ProjectReference Include="..\OmniRelay.Diagnostics.Logging\OmniRelay.Diagnostics.Logging.csproj" />
     <ProjectReference Include="..\OmniRelay.Diagnostics.Documentation\OmniRelay.Diagnostics.Documentation.csproj" />
+    <ProjectReference Include="..\OmniRelay.Security.Abstractions\OmniRelay.Security.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,10 +1,11 @@
 using Hugo;
 using Microsoft.AspNetCore.Http;
+using OmniRelay.Security.Authorization;
 
-namespace OmniRelay.Security.Authorization;
+namespace OmniRelay.Plugins.Internal.Authorization;
 
 /// <summary>Evaluates incoming requests against configured authorization policies.</summary>
-public sealed class MeshAuthorizationEvaluator
+public sealed class MeshAuthorizationEvaluator : IMeshAuthorizationEvaluator
 {
     private readonly IReadOnlyList<MeshAuthorizationPolicy> _policies;
 
@@ -13,19 +14,24 @@ public sealed class MeshAuthorizationEvaluator
         _policies = policies;
     }
 
-    public MeshAuthorizationDecision Evaluate(string transport, string endpoint, HttpContext context)
+    public MeshAuthorizationDecision Evaluate(string transport, string endpoint, object context)
     {
         return EvaluateResult(transport, endpoint, context).Value;
     }
 
-    public Result<MeshAuthorizationDecision> EvaluateResult(string transport, string endpoint, HttpContext context)
+    public Result<MeshAuthorizationDecision> EvaluateResult(string transport, string endpoint, object context)
     {
+        if (context is not HttpContext httpContext)
+        {
+            return Result.Fail<MeshAuthorizationDecision>(Error.From("Invalid context for authorization.", "authorization.context"));
+        }
+
         if (_policies.Count == 0)
         {
             return Result.Ok(MeshAuthorizationDecision.Allowed);
         }
 
-        var headers = context.Request.Headers;
+        var headers = httpContext.Request.Headers;
         var principal = headers.TryGetValue("x-client-principal", out var p) ? p.ToString() : null;
         var role = headers.TryGetValue("x-mesh-role", out var r) ? r.ToString() : null;
         var cluster = headers.TryGetValue("x-mesh-cluster", out var c) ? c.ToString() : null;
@@ -58,7 +64,7 @@ public sealed class MeshAuthorizationEvaluator
                 continue;
             }
 
-            if (policy.RequireMutualTls && context.Connection.ClientCertificate is null)
+            if (policy.RequireMutualTls && httpContext.Connection.ClientCertificate is null)
             {
                 return Result.Ok(new MeshAuthorizationDecision(false, $"Client certificate required by policy '{policy.Name}'."));
             }

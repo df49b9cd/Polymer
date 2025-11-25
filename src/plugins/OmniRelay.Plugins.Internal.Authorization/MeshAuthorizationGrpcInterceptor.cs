@@ -1,15 +1,16 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Hugo;
+using OmniRelay.Security.Authorization;
 using static Hugo.Go;
 
-namespace OmniRelay.Security.Authorization;
+namespace OmniRelay.Plugins.Internal.Authorization;
 
 internal sealed class MeshAuthorizationGrpcInterceptor : Interceptor
 {
-    private readonly MeshAuthorizationEvaluator _evaluator;
+    private readonly IMeshAuthorizationEvaluator _evaluator;
 
-    public MeshAuthorizationGrpcInterceptor(MeshAuthorizationEvaluator evaluator)
+    public MeshAuthorizationGrpcInterceptor(IMeshAuthorizationEvaluator evaluator)
     {
         _evaluator = evaluator;
     }

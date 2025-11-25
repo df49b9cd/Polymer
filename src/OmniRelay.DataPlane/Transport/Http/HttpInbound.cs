@@ -48,7 +48,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
     private readonly HttpServerTlsOptions? _serverTlsOptions;
     private readonly HttpServerRuntimeOptions? _serverRuntimeOptions;
     private readonly TransportSecurityPolicyEvaluator? _transportSecurity;
-    private readonly MeshAuthorizationEvaluator? _authorization;
+    private readonly IMeshAuthorizationEvaluator? _authorization;
     private WebApplication? _app;
     private Dispatcher.Dispatcher? _dispatcher;
     private volatile bool _isDraining;
@@ -78,7 +78,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         if (urls is null)
         {
@@ -102,7 +102,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         if (urls is null)
         {
@@ -173,7 +173,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
         : this(urls.Select(u => new Uri(u, UriKind.Absolute)), configureServices, configureApp, serverRuntimeOptions, serverTlsOptions, transportSecurity, authorizationEvaluator)
     {
     }
@@ -185,7 +185,7 @@ public sealed partial class HttpInbound : ILifecycle, IDispatcherAware, INodeDra
         HttpServerRuntimeOptions? serverRuntimeOptions = null,
         HttpServerTlsOptions? serverTlsOptions = null,
         TransportSecurityPolicyEvaluator? transportSecurity = null,
-        MeshAuthorizationEvaluator? authorizationEvaluator = null)
+        IMeshAuthorizationEvaluator? authorizationEvaluator = null)
     {
         ArgumentNullException.ThrowIfNull(urls);
 

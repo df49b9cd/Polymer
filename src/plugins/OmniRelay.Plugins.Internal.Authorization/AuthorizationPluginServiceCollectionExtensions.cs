@@ -1,8 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using OmniRelay.ControlPlane.Bootstrap;
-using OmniRelay.DataPlane.Security.Authorization;
-using OmniRelay.DataPlane.Transport.Security;
-using OmniRelay.Dispatcher.Config;
+using OmniRelay.ControlPlane.Security;
+using OmniRelay.Security.Authorization;
 
 namespace OmniRelay.Plugins.Internal.Authorization;
 
@@ -12,10 +11,10 @@ public static class AuthorizationPluginServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddSingleton<MeshAuthorizationEvaluator>();
+        services.AddSingleton<IMeshAuthorizationEvaluator, MeshAuthorizationEvaluator>();
+        services.AddSingleton<MeshAuthorizationGrpcInterceptor>();
         services.AddSingleton<TransportSecurityPolicyEvaluator>();
         services.AddSingleton<BootstrapPolicyEvaluator>();
-        services.AddSingleton<TransportPolicyEvaluator>();
         return services;
     }
 }
