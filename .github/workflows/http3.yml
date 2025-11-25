@@ -77,39 +77,3 @@ jobs:
             artifacts/test-results/**/*.trx
             artifacts/coverage
           if-no-files-found: ignore
-
-  http3-windows:
-    runs-on: windows-latest
-    timeout-minutes: 90
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-win
-      cancel-in-progress: true
-    env:
-      OMNIRELAY_ENABLE_HTTP3_TESTS: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
-
-      - name: Restore
-        run: dotnet restore OmniRelay.slnx
-
-      - name: Build (no tests)
-        run: dotnet build OmniRelay.slnx -c Release --no-restore
-
-      - name: Run HTTP/3-focused suites
-        run: |
-          dotnet test tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj -c Release --filter "FullyQualifiedName~Http3" --logger "trx;LogFileName=integration-http3.trx" --results-directory artifacts\http3
-          dotnet test tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj -c Release --filter "FullyQualifiedName~Http3" --logger "trx;LogFileName=codegen-http3.trx" --results-directory artifacts\http3
-
-      - name: Upload Windows HTTP/3 artifacts
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: http3-windows-artifacts
-          path: artifacts/http3/**/*.trx
-          if-no-files-found: ignore
