@@ -58,7 +58,6 @@ internal static partial class ProgramMeshModule
         return command;
     }
 
-    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "CLI validation runs in non-trimmed host; reflection usage is acceptable.")]
     internal static Command CreateMeshConfigCommand()
     {
         var command = new Command("config", "Mesh configuration and transport policy tooling.")
@@ -69,7 +68,6 @@ internal static partial class ProgramMeshModule
         return command;
     }
 
-    [RequiresUnreferencedCode("Config validation uses ConfigurationBinder.Bind which is not trimming-safe.")]
     internal static Command CreateMeshConfigValidateCommand()
     {
         var command = new Command("validate", "Validate transports/encodings against the mesh transport policy.");
@@ -557,8 +555,6 @@ internal static partial class ProgramMeshModule
         return command;
     }
 
-    [RequiresUnreferencedCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.Bind(Object)")]
-    [RequiresDynamicCode("Calls Microsoft.Extensions.Configuration.ConfigurationBinder.Bind(Object)")]
     internal static async Task<int> RunMeshConfigValidateAsync(
         string[] configPaths,
         string section,
@@ -572,8 +568,7 @@ internal static partial class ProgramMeshModule
         }
 
         var resolvedSection = string.IsNullOrWhiteSpace(section) ? Program.DefaultConfigSection : section;
-        var options = new OmniRelayConfigurationOptions();
-        configuration.GetSection(resolvedSection).Bind(options);
+        var options = BindMeshOptions(configuration, resolvedSection);
 
         TransportPolicyEvaluationResult evaluation;
         try
@@ -1162,6 +1157,96 @@ internal static partial class ProgramMeshModule
         Console.WriteLine(token);
         return 0;
     }
+
+    private static OmniRelayConfigurationOptions BindMeshOptions(IConfiguration configuration, string section)
+    {
+        var root = configuration.GetSection(section);
+        var options = new OmniRelayConfigurationOptions
+        {
+            Service = root["Service"]
+        };
+
+        var diagnostics = root.GetSection("Diagnostics");
+        var controlPlane = diagnostics.GetSection("ControlPlane");
+
+        options.Diagnostics.ControlPlane.HttpUrls.AddRange(ReadStringList(controlPlane.GetSection("HttpUrls")));
+        options.Diagnostics.ControlPlane.GrpcUrls.AddRange(ReadStringList(controlPlane.GetSection("GrpcUrls")));
+
+        options.Diagnostics.ControlPlane.HttpRuntime.EnableHttp3 =
+            ParseBool(controlPlane.GetSection("HttpRuntime")["EnableHttp3"]);
+        options.Diagnostics.ControlPlane.GrpcRuntime.EnableHttp3 =
+            ParseBool(controlPlane.GetSection("GrpcRuntime")["EnableHttp3"]);
+
+        var otel = diagnostics.GetSection("OpenTelemetry");
+        options.Diagnostics.OpenTelemetry.Enabled = ParseNullableBool(otel["Enabled"]);
+
+        var logging = root.GetSection("Logging");
+        options.Logging.Level = logging["Level"];
+        foreach (var child in logging.GetSection("Overrides").GetChildren())
+        {
+            if (!string.IsNullOrWhiteSpace(child.Key) && child.Value is not null)
+            {
+                options.Logging.Overrides[child.Key] = child.Value;
+            }
+        }
+
+        var transportPolicy = root.GetSection("TransportPolicy").GetSection("Exceptions");
+        foreach (var exceptionSection in transportPolicy.GetChildren())
+        {
+            var exception = new TransportPolicyExceptionConfiguration
+            {
+                Name = exceptionSection["Name"],
+                Category = ParseEnum(exceptionSection["Category"], TransportPolicyCategories.Diagnostics),
+                Reason = exceptionSection["Reason"],
+                ExpiresAfter = ParseDateTimeOffset(exceptionSection["ExpiresAfter"])
+            };
+
+            exception.AppliesTo.AddRange(ReadEnumList<TransportPolicyEndpoints>(exceptionSection.GetSection("AppliesTo")));
+            exception.Transports.AddRange(ReadEnumList<TransportPolicyTransports>(exceptionSection.GetSection("Transports")));
+            exception.Encodings.AddRange(ReadEnumList<TransportPolicyEncodings>(exceptionSection.GetSection("Encodings")));
+
+            options.TransportPolicy.Exceptions.Add(exception);
+        }
+
+        return options;
+    }
+
+    private static List<string> ReadStringList(IConfigurationSection section) =>
+        section.GetChildren()
+            .Select(child => child.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToList();
+
+    private static List<TEnum> ReadEnumList<TEnum>(IConfigurationSection section)
+        where TEnum : struct, Enum
+    {
+        var values = new List<TEnum>();
+        foreach (var child in section.GetChildren())
+        {
+            if (Enum.TryParse<TEnum>(child.Value, ignoreCase: true, out var parsed))
+            {
+                values.Add(parsed);
+            }
+        }
+
+        return values;
+    }
+
+    private static bool ParseBool(string? value) =>
+        bool.TryParse(value, out var parsed) && parsed;
+
+    private static bool? ParseNullableBool(string? value) =>
+        bool.TryParse(value, out var parsed) ? parsed : null;
+
+    private static DateTimeOffset? ParseDateTimeOffset(string? value) =>
+        DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+            ? parsed
+            : null;
+
+    private static TEnum ParseEnum<TEnum>(string? value, TEnum @default)
+        where TEnum : struct, Enum =>
+        Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed) ? parsed : @default;
 
     internal static async Task<int> RunMeshBootstrapJoinAsync(string baseUrl, string token, string? outputPath, string? timeoutOption)
     {

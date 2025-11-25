@@ -16,7 +16,6 @@
     <ProjectReference Include="..\OmniRelay.ControlPlane.Abstractions\OmniRelay.ControlPlane.Abstractions.csproj" />
     <ProjectReference Include="..\OmniRelay.Codecs\OmniRelay.Codecs.csproj" />
     <ProjectReference Include="..\OmniRelay.Protos\OmniRelay.Protos.csproj" />
-    <ProjectReference Include="..\OmniRelay.Transport.Host\OmniRelay.Transport.Host.csproj" />
     <ProjectReference Include="..\OmniRelay.Diagnostics.Abstractions\OmniRelay.Diagnostics.Abstractions.csproj" />
     <ProjectReference Include="..\OmniRelay.Diagnostics.Runtime\OmniRelay.Diagnostics.Runtime.csproj" />
     <ProjectReference Include="..\OmniRelay.Diagnostics.Probes\OmniRelay.Diagnostics.Probes.csproj" />
@@ -28,6 +27,7 @@
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore.Server" />
     <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.HealthCheck" />
     <PackageReference Include="System.IO.Hashing" />
   </ItemGroup>
 </Project>

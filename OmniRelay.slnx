@@ -108,6 +108,8 @@
   <Folder Name="/src/">
     <Project Path="src/OmniRelay.ControlPlane.Abstractions/OmniRelay.ControlPlane.Abstractions.csproj" />
     <Project Path="src/OmniRelay.ControlPlane/OmniRelay.ControlPlane.csproj" />
+    <Project Path="src/OmniRelay.ControlPlane.Host/OmniRelay.ControlPlane.Host.csproj" />
+    <Project Path="src/OmniRelay.DataPlane.Host/OmniRelay.DataPlane.Host.csproj" />
     <Project Path="src/OmniRelay.DataPlane/OmniRelay.DataPlane.csproj" />
     <Project Path="src/OmniRelay.Diagnostics.Abstractions/OmniRelay.Diagnostics.Abstractions.csproj" />
     <Project Path="src/OmniRelay.Diagnostics.Alerting/OmniRelay.Diagnostics.Alerting.csproj" />
