@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rid: [ linux-x64, linux-arm64 ]
+        rid: [ linux-x64 ]
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.rid }}
       cancel-in-progress: true
