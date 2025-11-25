@@ -17,7 +17,7 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
-  gate:
+  gate-linux-macos:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -30,13 +30,57 @@ jobs:
             rid: osx-arm64
           - os: macos-latest
             rid: osx-x64
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-${{ matrix.rid }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Run CI gate (Unix)
+        env:
+          RID: ${{ matrix.rid }}
+          CONFIG: Release
+        shell: bash
+        run: |
+          chmod +x eng/run-ci-gate.sh
+          ./eng/run-ci-gate.sh
+
+      - name: Upload CI artifacts
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-artifacts-${{ matrix.os }}-${{ matrix.rid }}
+          path: |
+            artifacts/ci/**
+            **/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  gate-windows:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - os: windows-latest
             rid: win-x64
           - os: windows-latest
             rid: win-arm64
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-${{ matrix.rid }}
-      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -55,29 +99,129 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Run CI gate (Windows)
-        if: runner.os == 'Windows'
         env:
           RID: ${{ matrix.rid }}
           CONFIG: Release
         shell: pwsh
         run: pwsh -File eng/run-ci-gate.ps1 -RID $env:RID -CONFIG $env:CONFIG
 
-      - name: Run CI gate (Unix)
-        if: runner.os != 'Windows'
-        env:
-          RID: ${{ matrix.rid }}
-          CONFIG: Release
-        shell: bash
-        run: |
-          chmod +x eng/run-ci-gate.sh
-          ./eng/run-ci-gate.sh
-
       - name: Upload CI artifacts
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: ci-artifacts-${{ matrix.rid }}
+          name: ci-artifacts-${{ matrix.os }}-${{ matrix.rid }}
           path: |
             artifacts/ci/**
             **/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  http3-ci-container:
+    needs: gate-linux-macos
+    if: needs.gate-linux-macos.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-http3-linux
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build CI image with HTTP/3 support (libmsquic on Alpine)
+        id: build
+        run: |
+          docker build \
+            --file Dockerfile.ci \
+            --target ci \
+            --progress=plain \
+            -t omnirelay-ci-http3 .
+
+      - name: Extract artifacts from CI image
+        if: ${{ steps.build.outcome == 'success' }}
+        id: extract
+        run: |
+          container_id=$(docker create omnirelay-ci-http3)
+          echo "container_id=${container_id}" >> $GITHUB_OUTPUT
+          mkdir -p artifacts/test-results artifacts/coverage
+          docker cp "${container_id}:/repo/artifacts/test-results/." artifacts/test-results || true
+          docker cp "${container_id}:/repo/artifacts/coverage/." artifacts/coverage || true
+          docker rm "${container_id}" || true
+
+      - name: Report test results
+        if: ${{ always() && steps.extract.outcome == 'success' }}
+        uses: dorny/test-reporter@v2
+        with:
+          name: HTTP3 Tests
+          path: artifacts/test-results/**/*.trx
+          reporter: dotnet-trx
+
+      - name: Upload coverage
+        if: ${{ steps.extract.outcome == 'success' }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: artifacts/coverage/**/*.xml
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload artifacts
+        if: ${{ always() && steps.extract.outcome == 'success' }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: http3-artifacts
+          path: |
+            artifacts/test-results/**/*.trx
+            artifacts/coverage
+          if-no-files-found: ignore
+
+  http3-windows:
+    needs: gate-windows
+    if: needs.gate-windows.result == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-http3-win
+      cancel-in-progress: true
+    env:
+      OMNIRELAY_ENABLE_HTTP3_TESTS: true
+      DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP3SUPPORT: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore OmniRelay.slnx
+
+      - name: Build (no tests)
+        run: dotnet build OmniRelay.slnx -c Release --no-restore -p:ContinuousIntegrationBuild=true /m
+
+      - name: Run HTTP/3-focused suites (with hang detection)
+        run: |
+          dotnet test tests/OmniRelay.IntegrationTests/OmniRelay.IntegrationTests.csproj -c Release --filter "FullyQualifiedName~Http3" --logger "trx;LogFileName=integration-http3.trx" --results-directory artifacts\http3 --blame-hang --blame-hang-timeout 10m
+          dotnet test tests/OmniRelay.CodeGen.IntegrationTests/OmniRelay.CodeGen.IntegrationTests.csproj -c Release --filter "FullyQualifiedName~Http3" --logger "trx;LogFileName=codegen-http3.trx" --results-directory artifacts\http3 --blame-hang --blame-hang-timeout 10m
+
+      - name: Upload Windows HTTP/3 artifacts
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: http3-windows-artifacts
+          path: artifacts/http3/**/*.trx
           if-no-files-found: ignore
