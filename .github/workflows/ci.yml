@@ -59,8 +59,12 @@ jobs:
           RID: ${{ matrix.rid }}
           CONFIG: Release
         run: |
-          chmod +x eng/run-ci-gate.sh
-          ./eng/run-ci-gate.sh
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            pwsh -File eng/run-ci-gate.ps1
+          else
+            chmod +x eng/run-ci-gate.sh
+            ./eng/run-ci-gate.sh
+          fi
 
       - name: Upload CI artifacts
         if: always()
