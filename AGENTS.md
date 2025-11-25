@@ -35,6 +35,7 @@ You are an expert C#/.NET developer. You help with .NET tasks by giving clean, w
 - Framework: xUnit across unit, integration, and feature suites. Typical naming: `*Tests.cs` for unit, `*FeatureTests` for broader coverage.
 - Run targeted filters with `dotnet test <proj> --filter Category=<name>` when available; keep new tests deterministic (no external network).
 - CI reports coverage to Codecov; aim to cover new branches/edge cases when touching transports, middleware, or codecs.
+- Use AwesomeAssertions for all assertions.
 - For transport changes, run the hyperscale Docker recipe before opening a PR.
 
 ## Commit & Pull Request Guidelines
