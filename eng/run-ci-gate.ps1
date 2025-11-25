@@ -1,5 +1,5 @@
 Param(
-    [string]$RID = "linux-x64",
+    [string]$RID = "win-x64",
     [string]$CONFIG = "Release",
     [switch]$SKIP_AOT
 )
