@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Google.Protobuf;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using OmniRelay.ControlPlane.Agent;
@@ -28,7 +29,8 @@ public sealed class WatchHarnessTests
                 Backoff = new ControlBackoff { Millis = 1000 }
             };
 
-            var client = new FakeWatchClient(new[] { response });
+        // Slow the stream very slightly so the apply pump processes before the assertion.
+        var client = new FakeWatchClient(new[] { response }, delayBetween: TimeSpan.FromMilliseconds(5));
             var validator = Substitute.For<IControlPlaneConfigValidator>();
             validator.Validate(Arg.Any<byte[]>(), out Arg.Any<string?>()).Returns(callInfo => { callInfo[1] = null; return true; });
             var applier = Substitute.For<IControlPlaneConfigApplier>();
@@ -61,19 +63,37 @@ public sealed class WatchHarnessTests
 internal sealed class FakeWatchClient : IControlPlaneWatchClient
 {
     private readonly IEnumerable<ControlWatchResponse> _responses;
+    private readonly TimeSpan _delayBetween;
 
-    public FakeWatchClient(IEnumerable<ControlWatchResponse> responses)
+    public FakeWatchClient(IEnumerable<ControlWatchResponse> responses, TimeSpan? delayBetween = null)
     {
         _responses = responses;
+        _delayBetween = delayBetween ?? TimeSpan.Zero;
     }
 
     public IAsyncEnumerable<ControlWatchResponse> WatchAsync(ControlWatchRequest request, CancellationToken cancellationToken = default)
     {
-        return _responses.ToAsyncEnumerable();
+        return Slow(_responses, _delayBetween, cancellationToken);
     }
 
     public Task<ControlSnapshotResponse> SnapshotAsync(ControlSnapshotRequest request, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(new ControlSnapshotResponse());
+    }
+
+    private static async IAsyncEnumerable<ControlWatchResponse> Slow(
+        IEnumerable<ControlWatchResponse> source,
+        TimeSpan delay,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        foreach (var item in source)
+        {
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
+
+            yield return item;
+        }
     }
 }
